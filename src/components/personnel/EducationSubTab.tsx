@@ -41,12 +41,12 @@ export const EducationSubTab: React.FC<EducationSubTabProps> = ({ personnel }) =
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between p-4 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800">
+      <div className="flex items-center justify-between p-4 rounded-xl bg-white border border-slate-200 shadow-2xs">
         <div>
-          <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <GraduationCap className="w-4 h-4 text-blue-600 dark:text-blue-400" /> Academic Attainment & IT Certifications
+          <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+            <GraduationCap className="w-4 h-4 text-blue-600" /> Academic Attainment & IT Certifications
           </h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Degrees, academic honors, and professional IT credentials</p>
+          <p className="text-xs text-slate-500 mt-0.5">Degrees, academic honors, and professional IT credentials</p>
         </div>
 
         {role === 'admin' && (
@@ -60,8 +60,8 @@ export const EducationSubTab: React.FC<EducationSubTabProps> = ({ personnel }) =
       </div>
 
       {personnelEducation.length === 0 ? (
-        <div className="p-8 text-center text-slate-500 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
-          <GraduationCap className="w-8 h-8 mx-auto mb-2 opacity-50" />
+        <div className="p-8 text-center text-slate-500 border border-dashed border-slate-200 rounded-xl bg-white">
+          <GraduationCap className="w-8 h-8 mx-auto mb-2 text-slate-400" />
           <p className="text-xs font-semibold">No educational record registered yet for this personnel.</p>
         </div>
       ) : (
@@ -69,42 +69,30 @@ export const EducationSubTab: React.FC<EducationSubTabProps> = ({ personnel }) =
           {personnelEducation.map((edu) => (
             <div
               key={edu.id}
-              className="p-5 rounded-xl glass-panel bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 space-y-3 shadow-xs"
+              className="p-4 rounded-xl bg-white border border-slate-200 hover:border-blue-300 transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-2xs"
             >
-              <div className="flex items-start justify-between">
-                <div>
-                  <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                    {edu.degree}
-                    {edu.honors && (
-                      <Badge variant="primary" size="sm">
-                        {edu.honors}
-                      </Badge>
-                    )}
-                  </h4>
-                  <p className="text-xs text-blue-700 dark:text-blue-300/90 font-bold mt-0.5">{edu.institution}</p>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <Badge variant="info" size="sm">{edu.degree}</Badge>
+                  {edu.honors && <Badge variant="primary" size="sm">{edu.honors}</Badge>}
                 </div>
-                <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-400 bg-slate-100 dark:bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-800">
-                  Class of {edu.yearGraduated}
-                </span>
-              </div>
-
-              {edu.certifications.length > 0 && (
-                <div className="pt-2 border-t border-slate-200 dark:border-slate-800/80">
-                  <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 block mb-1.5">
-                    Professional Certifications:
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
+                <h4 className="text-sm font-bold text-slate-900">{edu.institution}</h4>
+                {edu.certifications && edu.certifications.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1">
                     {edu.certifications.map((cert, idx) => (
-                      <span
-                        key={idx}
-                        className="text-xs px-2.5 py-1 rounded-md bg-sky-50 dark:bg-sky-950/80 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-500/30 font-bold"
-                      >
+                      <span key={idx} className="text-[11px] px-2 py-0.5 rounded bg-sky-50 text-sky-700 font-semibold border border-sky-200">
                         {cert}
                       </span>
                     ))}
                   </div>
+                )}
+              </div>
+
+              <div className="text-left md:text-right space-y-1 border-t md:border-t-0 border-slate-200 pt-2 md:pt-0">
+                <div className="text-xs text-slate-600 font-mono font-bold">
+                  Class of {edu.yearGraduated}
                 </div>
-              )}
+              </div>
             </div>
           ))}
         </div>
@@ -119,60 +107,60 @@ export const EducationSubTab: React.FC<EducationSubTabProps> = ({ personnel }) =
       >
         <form onSubmit={handleAddEducation} className="space-y-4">
           <div>
-            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Degree Title</label>
+            <label className="block text-xs font-bold text-slate-600 mb-1">Degree Title</label>
             <input
               type="text"
               value={degree}
               onChange={e => setDegree(e.target.value)}
               placeholder="e.g. Master in Information Technology (MIT)"
-              className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white font-semibold focus:outline-none focus:border-blue-500"
+              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
               required
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">School / University / Academy</label>
+            <label className="block text-xs font-bold text-slate-600 mb-1">School / University / Academy</label>
             <input
               type="text"
               value={institution}
               onChange={e => setInstitution(e.target.value)}
               placeholder="e.g. University of the Philippines Diliman"
-              className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white font-semibold focus:outline-none focus:border-blue-500"
+              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
               required
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Year Graduated</label>
+              <label className="block text-xs font-bold text-slate-600 mb-1">Year Graduated</label>
               <input
                 type="number"
                 value={yearGraduated}
                 onChange={e => setYearGraduated(Number(e.target.value))}
-                className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white font-semibold focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
                 required
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Honors / Distinction (Optional)</label>
+              <label className="block text-xs font-bold text-slate-600 mb-1">Honors / Distinction (Optional)</label>
               <input
                 type="text"
                 value={honors}
                 onChange={e => setHonors(e.target.value)}
                 placeholder="e.g. Cum Laude"
-                className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white font-semibold focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Certifications (comma-separated)</label>
+            <label className="block text-xs font-bold text-slate-600 mb-1">Certifications (comma-separated)</label>
             <input
               type="text"
               value={certs}
               onChange={e => setCerts(e.target.value)}
               placeholder="e.g. CISSP, CCNA, CompTIA Security+"
-              className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white font-semibold focus:outline-none focus:border-blue-500"
+              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
             />
           </div>
 
@@ -180,7 +168,7 @@ export const EducationSubTab: React.FC<EducationSubTabProps> = ({ personnel }) =
             <button
               type="button"
               onClick={() => setIsModalOpen(false)}
-              className="px-4 py-2 text-xs font-semibold rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+              className="px-4 py-2 text-xs font-semibold rounded-lg text-slate-500 hover:text-slate-900"
             >
               Cancel
             </button>
@@ -196,4 +184,5 @@ export const EducationSubTab: React.FC<EducationSubTabProps> = ({ personnel }) =
     </div>
   );
 };
+
 

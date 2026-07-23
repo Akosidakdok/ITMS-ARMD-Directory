@@ -43,12 +43,12 @@ export const AssignmentsSubTab: React.FC<AssignmentsSubTabProps> = ({ personnel 
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between p-4 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800">
+      <div className="flex items-center justify-between p-4 rounded-xl bg-white border border-slate-200 shadow-2xs">
         <div>
-          <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <Briefcase className="w-4 h-4 text-blue-600 dark:text-blue-400" /> Assignment & Duty Posting History
+          <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+            <Briefcase className="w-4 h-4 text-blue-600" /> Assignment & Duty Posting History
           </h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Chronological record of positions and unit designations</p>
+          <p className="text-xs text-slate-500 mt-0.5">Chronological record of positions and unit designations</p>
         </div>
 
         {role === 'admin' && (
@@ -62,8 +62,8 @@ export const AssignmentsSubTab: React.FC<AssignmentsSubTabProps> = ({ personnel 
       </div>
 
       {personnelAssignments.length === 0 ? (
-        <div className="p-8 text-center text-slate-500 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
-          <Briefcase className="w-8 h-8 mx-auto mb-2 opacity-50" />
+        <div className="p-8 text-center text-slate-500 border border-dashed border-slate-200 rounded-xl bg-white">
+          <Briefcase className="w-8 h-8 mx-auto mb-2 text-slate-400" />
           <p className="text-xs font-semibold">No assignment history recorded yet for this personnel.</p>
         </div>
       ) : (
@@ -71,22 +71,22 @@ export const AssignmentsSubTab: React.FC<AssignmentsSubTabProps> = ({ personnel 
           {personnelAssignments.map((asg) => (
             <div
               key={asg.id}
-              className="p-4 rounded-xl glass-panel bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-500/40 transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xs"
+              className="p-4 rounded-xl bg-white border border-slate-200 hover:border-blue-300 transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-2xs"
             >
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <Badge variant={asg.status === 'Current' ? 'primary' : 'neutral'} size="sm">
                     {asg.status}
                   </Badge>
-                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">{asg.position}</h4>
+                  <h4 className="text-sm font-bold text-slate-900">{asg.position}</h4>
                 </div>
-                <p className="text-xs font-bold text-blue-700 dark:text-blue-400">{asg.unit}</p>
-                {asg.remarks && <p className="text-xs text-slate-600 dark:text-slate-400 italic mt-1">{asg.remarks}</p>}
+                <p className="text-xs font-bold text-blue-700">{asg.unit}</p>
+                {asg.remarks && <p className="text-xs text-slate-600 italic mt-1">{asg.remarks}</p>}
               </div>
 
-              <div className="text-left md:text-right space-y-1 border-t md:border-t-0 border-slate-200 dark:border-slate-800 pt-2 md:pt-0">
-                <div className="text-xs text-slate-600 dark:text-slate-400 flex items-center md:justify-end gap-1.5 font-mono font-semibold">
-                  <Calendar className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+              <div className="text-left md:text-right space-y-1 border-t md:border-t-0 border-slate-200 pt-2 md:pt-0">
+                <div className="text-xs text-slate-600 flex items-center md:justify-end gap-1.5 font-mono font-semibold">
+                  <Calendar className="w-3.5 h-3.5 text-sky-600" />
                   <span>{asg.startDate} {asg.endDate ? `to ${asg.endDate}` : '• Present'}</span>
                 </div>
                 <div className="text-xs text-slate-500 font-mono flex items-center md:justify-end gap-1">
@@ -107,59 +107,59 @@ export const AssignmentsSubTab: React.FC<AssignmentsSubTabProps> = ({ personnel 
       >
         <form onSubmit={handleAddAssignment} className="space-y-4">
           <div>
-            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Unit / Division Name</label>
+            <label className="block text-xs font-bold text-slate-600 mb-1">Unit / Division Name</label>
             <input
               type="text"
               value={unit}
               onChange={e => setUnit(e.target.value)}
               placeholder="e.g. Cyber Security Division (CSD)"
-              className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white font-semibold focus:outline-none focus:border-blue-500"
+              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
               required
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Position / Designation</label>
+            <label className="block text-xs font-bold text-slate-600 mb-1">Position / Designation</label>
             <input
               type="text"
               value={position}
               onChange={e => setPosition(e.target.value)}
               placeholder="e.g. Cyber Incident Response Lead"
-              className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white font-semibold focus:outline-none focus:border-blue-500"
+              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
               required
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Special Order Reference No.</label>
+            <label className="block text-xs font-bold text-slate-600 mb-1">Special Order Reference No.</label>
             <input
               type="text"
               value={orderRef}
               onChange={e => setOrderRef(e.target.value)}
               placeholder="e.g. SO-ITMS-2026-104"
-              className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white font-semibold focus:outline-none focus:border-blue-500"
+              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
               required
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Effectivity Start Date</label>
+            <label className="block text-xs font-bold text-slate-600 mb-1">Effectivity Start Date</label>
             <input
               type="date"
               value={startDate}
               onChange={e => setStartDate(e.target.value)}
-              className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white font-semibold focus:outline-none focus:border-blue-500"
+              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
               required
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Remarks / Directives</label>
+            <label className="block text-xs font-bold text-slate-600 mb-1">Remarks / Directives</label>
             <textarea
               value={remarks}
               onChange={e => setRemarks(e.target.value)}
               placeholder="Operational directives or authority context..."
-              className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white font-semibold h-20 focus:outline-none focus:border-blue-500"
+              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold h-20 focus:outline-none focus:border-blue-500"
             />
           </div>
 
@@ -167,7 +167,7 @@ export const AssignmentsSubTab: React.FC<AssignmentsSubTabProps> = ({ personnel 
             <button
               type="button"
               onClick={() => setIsModalOpen(false)}
-              className="px-4 py-2 text-xs font-semibold rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+              className="px-4 py-2 text-xs font-semibold rounded-lg text-slate-500 hover:text-slate-900"
             >
               Cancel
             </button>
@@ -183,4 +183,5 @@ export const AssignmentsSubTab: React.FC<AssignmentsSubTabProps> = ({ personnel 
     </div>
   );
 };
+
 

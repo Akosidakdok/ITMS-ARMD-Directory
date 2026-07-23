@@ -182,16 +182,16 @@ export const ReportsPage: React.FC = () => {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Top Banner */}
-      <div className="p-6 rounded-2xl glass-panel bg-white/90 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4 theme-transition shadow-xs">
+      <div className="p-6 rounded-2xl bg-white border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-2xs">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="px-2.5 py-0.5 rounded text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-500/30">
+            <span className="px-2.5 py-0.5 rounded text-xs font-extrabold bg-blue-50 text-blue-700 border border-blue-200">
               Official Reporting Module
             </span>
-            <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">ITMS Administrative Records</span>
+            <span className="text-xs text-slate-500 font-mono">ITMS Administrative Records</span>
           </div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">System Administrative Reports</h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Generate filtered Alpha lists, leave status, IT education matrices, and promotion TIG audits</p>
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight">System Administrative Reports</h1>
+          <p className="text-xs text-slate-500 mt-0.5">Generate filtered Alpha lists, leave status, IT education matrices, and promotion TIG audits</p>
         </div>
 
         <button
@@ -208,68 +208,68 @@ export const ReportsPage: React.FC = () => {
           onClick={() => setActiveReportTab('alpha_list')}
           className={`p-4 rounded-xl border text-left transition-all ${
             activeReportTab === 'alpha_list'
-              ? 'bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-500/40 shadow-xs'
-              : 'bg-white/80 dark:bg-slate-900/80 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+              ? 'bg-blue-600 text-white border-blue-600 shadow-md'
+              : 'bg-white text-slate-800 border-slate-200 hover:bg-blue-50/50 hover:border-blue-300 shadow-2xs'
           }`}
         >
-          <Users className="w-5 h-5 mb-2 text-blue-600 dark:text-blue-400" />
-          <h3 className="text-xs font-bold block text-slate-900 dark:text-white">Alpha List</h3>
-          <p className="text-[10px] text-slate-500 dark:text-slate-400">Active Duty Postings</p>
+          <Users className={`w-5 h-5 mb-2 ${activeReportTab === 'alpha_list' ? 'text-white' : 'text-blue-600'}`} />
+          <h3 className="text-xs font-bold block">Alpha List</h3>
+          <p className={`text-[10px] ${activeReportTab === 'alpha_list' ? 'text-blue-100' : 'text-slate-500'}`}>Active Duty Postings</p>
         </button>
 
         <button
           onClick={() => setActiveReportTab('leave')}
           className={`p-4 rounded-xl border text-left transition-all ${
             activeReportTab === 'leave'
-              ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-500/40 shadow-xs'
-              : 'bg-white/80 dark:bg-slate-900/80 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+              ? 'bg-blue-600 text-white border-blue-600 shadow-md'
+              : 'bg-white text-slate-800 border-slate-200 hover:bg-blue-50/50 hover:border-blue-300 shadow-2xs'
           }`}
         >
-          <Calendar className="w-5 h-5 mb-2 text-emerald-600 dark:text-emerald-400" />
-          <h3 className="text-xs font-bold block text-slate-900 dark:text-white">Leave Status</h3>
-          <p className="text-[10px] text-slate-500 dark:text-slate-400">Date Filtered Roster</p>
+          <Calendar className={`w-5 h-5 mb-2 ${activeReportTab === 'leave' ? 'text-white' : 'text-emerald-600'}`} />
+          <h3 className="text-xs font-bold block">Leave Status</h3>
+          <p className={`text-[10px] ${activeReportTab === 'leave' ? 'text-blue-100' : 'text-slate-500'}`}>Date Filtered Roster</p>
         </button>
 
         <button
           onClick={() => setActiveReportTab('education')}
           className={`p-4 rounded-xl border text-left transition-all ${
             activeReportTab === 'education'
-              ? 'bg-indigo-50 text-indigo-700 border-indigo-300 dark:bg-indigo-950/50 dark:text-indigo-300 dark:border-indigo-500/40 shadow-xs'
-              : 'bg-white/80 dark:bg-slate-900/80 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+              ? 'bg-blue-600 text-white border-blue-600 shadow-md'
+              : 'bg-white text-slate-800 border-slate-200 hover:bg-blue-50/50 hover:border-blue-300 shadow-2xs'
           }`}
         >
-          <GraduationCap className="w-5 h-5 mb-2 text-indigo-600 dark:text-indigo-400" />
-          <h3 className="text-xs font-bold block text-slate-900 dark:text-white">Education & Certs</h3>
-          <p className="text-[10px] text-slate-500 dark:text-slate-400">Course Qualifications</p>
+          <GraduationCap className={`w-5 h-5 mb-2 ${activeReportTab === 'education' ? 'text-white' : 'text-indigo-600'}`} />
+          <h3 className="text-xs font-bold block">Education & Certs</h3>
+          <p className={`text-[10px] ${activeReportTab === 'education' ? 'text-blue-100' : 'text-slate-500'}`}>Course Qualifications</p>
         </button>
 
         <button
           onClick={() => setActiveReportTab('promotion')}
           className={`p-4 rounded-xl border text-left transition-all ${
             activeReportTab === 'promotion'
-              ? 'bg-sky-50 text-sky-700 border-sky-300 dark:bg-sky-950/50 dark:text-sky-300 dark:border-sky-500/40 shadow-xs'
-              : 'bg-white/80 dark:bg-slate-900/80 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+              ? 'bg-blue-600 text-white border-blue-600 shadow-md'
+              : 'bg-white text-slate-800 border-slate-200 hover:bg-blue-50/50 hover:border-blue-300 shadow-2xs'
           }`}
         >
-          <Award className="w-5 h-5 mb-2 text-sky-600 dark:text-sky-400" />
-          <h3 className="text-xs font-bold block text-slate-900 dark:text-white">Promotion TIG</h3>
-          <p className="text-[10px] text-slate-500 dark:text-slate-400">Time-In-Grade Audits</p>
+          <Award className={`w-5 h-5 mb-2 ${activeReportTab === 'promotion' ? 'text-white' : 'text-sky-600'}`} />
+          <h3 className="text-xs font-bold block">Promotion TIG</h3>
+          <p className={`text-[10px] ${activeReportTab === 'promotion' ? 'text-blue-100' : 'text-slate-500'}`}>Time-In-Grade Audits</p>
         </button>
       </div>
 
       {/* Dynamic Filter Controls per Report */}
-      <div className="glass-panel p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 flex flex-wrap items-center justify-between gap-4 theme-transition shadow-xs">
-        <div className="flex items-center gap-2 text-xs font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider">
+      <div className="p-4 rounded-xl border border-slate-200 bg-white flex flex-wrap items-center justify-between gap-4 shadow-2xs">
+        <div className="flex items-center gap-2 text-xs font-extrabold text-blue-700 uppercase tracking-wider">
           <Filter className="w-4 h-4" /> Report Filters & Parameters:
         </div>
 
         {activeReportTab === 'alpha_list' && (
           <div className="flex items-center gap-3">
-            <span className="text-xs text-slate-500 dark:text-slate-400">Filter by Division:</span>
+            <span className="text-xs text-slate-600 font-bold">Filter by Division:</span>
             <select
               value={divisionFilter}
               onChange={(e) => setDivisionFilter(e.target.value)}
-              className="px-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white font-semibold focus:outline-none focus:border-blue-500"
+              className="px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-extrabold focus:outline-none focus:border-blue-500"
             >
               <option value="ALL">All Divisions & Offices</option>
               <option value="ARMD">ARMD (Administrative)</option>
@@ -286,23 +286,23 @@ export const ReportsPage: React.FC = () => {
 
         {activeReportTab === 'leave' && (
           <div className="flex items-center gap-3">
-            <span className="text-xs text-slate-500 dark:text-slate-400">Inspect Personnel on Leave on Date:</span>
+            <span className="text-xs text-slate-600 font-bold">Inspect Personnel on Leave on Date:</span>
             <input
               type="date"
               value={leaveDateFilter}
               onChange={(e) => setLeaveDateFilter(e.target.value)}
-              className="px-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white font-mono focus:outline-none focus:border-blue-500"
+              className="px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-mono font-bold focus:outline-none focus:border-blue-500"
             />
           </div>
         )}
 
         {activeReportTab === 'education' && (
           <div className="flex items-center gap-3">
-            <span className="text-xs text-slate-500 dark:text-slate-400">Filter by Course / Certification:</span>
+            <span className="text-xs text-slate-600 font-bold">Filter by Course / Certification:</span>
             <select
               value={courseFilter}
               onChange={(e) => setCourseFilter(e.target.value)}
-              className="px-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white font-semibold focus:outline-none focus:border-blue-500"
+              className="px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-extrabold focus:outline-none focus:border-blue-500"
             >
               <option value="ALL">All Qualifications & Courses</option>
               {courseOptions.map((c, i) => (
@@ -313,33 +313,33 @@ export const ReportsPage: React.FC = () => {
         )}
 
         {activeReportTab === 'promotion' && (
-          <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-            <span>Auto-Calculated Benchmark: <strong className="text-blue-700 dark:text-blue-400 font-mono">≥ 3.0 Years (1,095 Days)</strong> for Promotion Board</span>
+          <div className="flex items-center gap-2 text-xs text-slate-600 font-medium">
+            <span>Auto-Calculated Benchmark: <strong className="text-blue-700 font-mono font-bold">≥ 3.0 Years (1,095 Days)</strong> for Promotion Board</span>
           </div>
         )}
       </div>
 
       {/* Report Data Table Display */}
-      <div className="glass-panel rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 overflow-hidden theme-transition shadow-xs">
-        <div className="p-4 bg-slate-50/80 dark:bg-slate-950/80 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-          <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wide flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-blue-600"></span>
+      <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-2xs">
+        <div className="p-4 bg-blue-700 text-white flex items-center justify-between">
+          <h3 className="text-sm font-extrabold uppercase tracking-wide flex items-center gap-2 text-white">
+            <span className="w-2 h-2 rounded-full bg-white animate-pulse"></span>
             {currentExportConfig.title}
           </h3>
-          <span className="text-xs text-slate-500 dark:text-slate-400">Total Entries: <strong className="text-blue-700 dark:text-blue-400 font-mono">{currentExportConfig.data.length}</strong></span>
+          <span className="text-xs text-blue-100 font-semibold">Total Entries: <strong className="text-white font-mono">{currentExportConfig.data.length}</strong></span>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="bg-slate-50 dark:bg-slate-950/60 text-slate-500 dark:text-slate-400 font-semibold border-b border-slate-200 dark:border-slate-800">
-                <th className="py-3 px-4">#</th>
+              <tr className="bg-slate-50 text-slate-700 font-extrabold border-b border-slate-200 uppercase text-[11px]">
+                <th className="py-3.5 px-4">#</th>
                 {currentExportConfig.columns.map((col) => (
-                  <th key={col.key} className="py-3 px-4">{col.label}</th>
+                  <th key={col.key} className="py-3.5 px-4">{col.label}</th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-slate-700 dark:text-slate-200">
+            <tbody className="divide-y divide-slate-100 text-slate-900 font-bold">
               {currentExportConfig.data.length === 0 ? (
                 <tr>
                   <td colSpan={currentExportConfig.columns.length + 1} className="py-8 text-center text-slate-500 font-semibold">
@@ -348,20 +348,24 @@ export const ReportsPage: React.FC = () => {
                 </tr>
               ) : (
                 currentExportConfig.data.map((row: any, idx: number) => (
-                  <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                    <td className="py-3 px-4 font-mono text-slate-400">{idx + 1}</td>
+                  <tr key={idx} className="hover:bg-slate-50/80">
+                    <td className="py-3.5 px-4 font-mono text-slate-400 font-normal">{idx + 1}</td>
                     {currentExportConfig.columns.map((col) => (
-                      <td key={col.key} className="py-3 px-4">
+                      <td key={col.key} className="py-3.5 px-4">
                         {col.key === 'eligible' ? (
                           <Badge variant={row[col.key] === 'ELIGIBLE' ? 'success' : 'neutral'} size="sm">
                             {row[col.key]}
                           </Badge>
                         ) : col.key === 'rank' ? (
-                          <span className="font-bold text-blue-700 dark:text-blue-400">{row[col.key]}</span>
+                          <span className="font-extrabold text-blue-700">{row[col.key]}</span>
+                        ) : col.key === 'fullName' ? (
+                          <span className="font-extrabold text-slate-900">{row[col.key]}</span>
+                        ) : col.key === 'badgeNo' ? (
+                          <span className="font-mono text-slate-600 font-semibold">{row[col.key]}</span>
                         ) : col.key === 'timeInGrade' ? (
-                          <span className="font-mono font-bold text-sky-700 dark:text-sky-300">{row[col.key]}</span>
+                          <span className="font-mono font-extrabold text-sky-700">{row[col.key]}</span>
                         ) : (
-                          String(row[col.key] ?? '—')
+                          <span className="text-slate-800">{String(row[col.key] ?? '—')}</span>
                         )}
                       </td>
                     ))}
@@ -384,4 +388,5 @@ export const ReportsPage: React.FC = () => {
     </div>
   );
 };
+
 

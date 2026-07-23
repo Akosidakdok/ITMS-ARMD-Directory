@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 @layer base {
-  :root {
+  :root, html, html.dark {
     --bg-main: #f8fafc;
     --bg-card: #ffffff;
     --bg-card-solid: #ffffff;
@@ -15,22 +15,6 @@
     --sidebar-bg: #ffffff;
     --table-header: #f8fafc;
     --table-hover: #f1f5f9;
-  }
-
-  html.dark {
-    --bg-main: #0b0f19;
-    --bg-card: rgba(15, 23, 42, 0.85);
-    --bg-card-solid: #0f172a;
-    --bg-input: #020617;
-    --border-color: rgba(255, 255, 255, 0.08);
-    --border-hover: rgba(59, 130, 246, 0.4);
-    --text-primary: #f8fafc;
-    --text-secondary: #94a3b8;
-    --text-muted: #64748b;
-    --header-bg: rgba(2, 6, 23, 0.9);
-    --sidebar-bg: #020617;
-    --table-header: #020617;
-    --table-hover: rgba(30, 41, 59, 0.5);
   }
 
   body {
@@ -76,12 +60,6 @@
   transition: all 0.2s ease-in-out;
 }
 
-html.dark .glass-panel {
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.3);
-}
-
 .glass-panel-hover {
   transition: all 0.2s ease-in-out;
 }
@@ -97,15 +75,9 @@ html.dark .glass-panel {
   transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
 }
 
-/* Professional Executive Blue Gradients */
+/* PNP-ITMS Primary Blue Gradient */
 .blue-gradient-text, .gold-gradient-text {
   background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-html.dark .blue-gradient-text, html.dark .gold-gradient-text {
-  background: linear-gradient(135deg, #60a5fa 0%, #2563eb 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -123,4 +95,5 @@ html.dark .blue-gradient-text, html.dark .gold-gradient-text {
     display: block !important;
   }
 }
+
 

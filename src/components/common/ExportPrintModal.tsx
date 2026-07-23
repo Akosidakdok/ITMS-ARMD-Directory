@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Modal } from './Modal';
-import { Printer, Download, CheckCircle, FileSpreadsheet, FileText } from 'lucide-react';
+import { Printer, CheckCircle, FileSpreadsheet } from 'lucide-react';
 
 interface ExportPrintModalProps {
   isOpen: boolean;
@@ -56,18 +56,18 @@ export const ExportPrintModal: React.FC<ExportPrintModalProps> = ({
     >
       <div className="space-y-6">
         {/* Action bar */}
-        <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800">
+        <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-xl bg-white border border-slate-200 shadow-2xs">
           <div className="flex items-center gap-2">
-            <span className="px-2.5 py-1 text-xs font-semibold rounded bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-500/30">
+            <span className="px-2.5 py-1 text-xs font-extrabold rounded bg-blue-50 text-blue-700 border border-blue-200">
               Official ITMS Format
             </span>
-            <span className="text-xs text-slate-500 dark:text-slate-400">Total Rows: <strong className="text-slate-900 dark:text-white font-mono">{data.length}</strong></span>
+            <span className="text-xs text-slate-600 font-bold">Total Rows: <strong className="text-slate-900 font-mono">{data.length}</strong></span>
           </div>
 
           <div className="flex items-center gap-3">
             <button
               onClick={handleExportCSV}
-              className="flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition-colors shadow-xs"
+              className="flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition-colors shadow-xs"
             >
               {downloadSuccess ? (
                 <>
@@ -82,7 +82,7 @@ export const ExportPrintModal: React.FC<ExportPrintModalProps> = ({
 
             <button
               onClick={handlePrint}
-              className="flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-500 text-white transition-colors shadow-xs"
+              className="flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition-colors shadow-xs"
             >
               <Printer className="w-4 h-4" /> Print / Save PDF
             </button>
@@ -90,30 +90,30 @@ export const ExportPrintModal: React.FC<ExportPrintModalProps> = ({
         </div>
 
         {/* Printable/Preview container */}
-        <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-white dark:bg-slate-900/80 p-6 space-y-4 shadow-xs">
-          <div className="text-center border-b border-slate-200 dark:border-slate-800 pb-4">
-            <h2 className="text-[11px] uppercase tracking-widest text-slate-500 font-bold">Republic of the Philippines</h2>
-            <h3 className="text-sm font-extrabold text-blue-700 dark:text-blue-400 tracking-wider uppercase mt-0.5">PHILIPPINE NATIONAL POLICE</h3>
-            <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300">INFORMATION TECHNOLOGY MANAGEMENT SERVICE</h4>
-            <p className="text-xs text-slate-500 mt-0.5">Camp BGen Rafael T Crame, Quezon City</p>
-            <h1 className="text-base font-bold text-slate-900 dark:text-white uppercase tracking-wide mt-3">{reportTitle}</h1>
-            <p className="text-xs text-slate-500 font-mono">Date Generated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+        <div className="border border-slate-200 rounded-xl overflow-hidden bg-white p-6 space-y-4 shadow-2xs">
+          <div className="text-center border-b border-slate-200 pb-4">
+            <h2 className="text-[11px] uppercase tracking-widest text-slate-500 font-extrabold">Republic of the Philippines</h2>
+            <h3 className="text-sm font-extrabold text-blue-700 tracking-wider uppercase mt-0.5">PHILIPPINE NATIONAL POLICE</h3>
+            <h4 className="text-xs font-bold text-slate-700">INFORMATION TECHNOLOGY MANAGEMENT SERVICE</h4>
+            <p className="text-xs text-slate-500 mt-0.5 font-medium">Camp BGen Rafael T Crame, Quezon City</p>
+            <h1 className="text-base font-extrabold text-slate-900 uppercase tracking-wide mt-3">{reportTitle}</h1>
+            <p className="text-xs text-slate-500 font-mono font-semibold">Date Generated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
           </div>
 
           <div className="overflow-x-auto max-h-96">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="bg-slate-100 dark:bg-slate-950 text-blue-700 dark:text-blue-300 font-semibold border-b border-slate-200 dark:border-slate-800">
+                <tr className="bg-slate-50 text-slate-700 font-extrabold border-b border-slate-200 uppercase text-[11px]">
                   <th className="py-2.5 px-3">#</th>
                   {columns.map(c => (
                     <th key={c.key} className="py-2.5 px-3">{c.label}</th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-slate-700 dark:text-slate-300">
+              <tbody className="divide-y divide-slate-100 text-slate-900 font-bold">
                 {data.map((row, idx) => (
-                  <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                    <td className="py-2 px-3 text-slate-400 font-mono">{idx + 1}</td>
+                  <tr key={idx} className="hover:bg-slate-50">
+                    <td className="py-2 px-3 text-slate-400 font-mono font-normal">{idx + 1}</td>
                     {columns.map(c => (
                       <td key={c.key} className="py-2 px-3">
                         {String(row[c.key] ?? '—')}
@@ -125,13 +125,14 @@ export const ExportPrintModal: React.FC<ExportPrintModalProps> = ({
             </table>
           </div>
 
-          <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center text-xs text-slate-400">
+          <div className="pt-4 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 font-semibold">
             <span>PAIS ITMS System Generated Report</span>
-            <span className="font-mono text-[10px]">RESTRICTED - FOR INTERNAL USE ONLY</span>
+            <span className="font-mono text-[10px] font-bold text-slate-500">RESTRICTED - FOR INTERNAL USE ONLY</span>
           </div>
         </div>
       </div>
     </Modal>
   );
 };
+
 

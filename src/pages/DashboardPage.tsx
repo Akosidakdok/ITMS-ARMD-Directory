@@ -1,6 +1,5 @@
 import React from 'react';
 import { useAuthRole } from '../context/AuthRoleContext';
-import { useTheme } from '../context/ThemeContext';
 import { useNavigate } from 'react-router-dom';
 import { 
   Users, 
@@ -21,8 +20,7 @@ import { calculateTimeInGrade } from '../utils/timeInGrade';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from 'recharts';
 
 export const DashboardPage: React.FC = () => {
-  const { personnelList, assignmentsList, leaveList, trainingList, setSelectedPersonnelId } = useAuthRole();
-  const { theme } = useTheme();
+  const { personnelList, assignmentsList, trainingList, setSelectedPersonnelId } = useAuthRole();
   const navigate = useNavigate();
 
   // Compute live KPIs
@@ -50,27 +48,25 @@ export const DashboardPage: React.FC = () => {
     navigate('/personnel');
   };
 
-  const isDark = theme === 'dark';
-
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Top Command Center Hero Banner */}
-      <div className="p-6 rounded-3xl bg-gradient-to-r from-slate-900 via-blue-950 to-indigo-950 text-white border border-blue-900/50 relative overflow-hidden shadow-lg">
+      <div className="p-6 rounded-3xl bg-gradient-to-r from-blue-700 via-blue-800 to-indigo-900 text-white relative overflow-hidden shadow-md">
         <div className="absolute top-0 right-0 translate-x-10 -translate-y-10 opacity-15 pointer-events-none">
-          <ShieldCheck className="w-80 h-80 text-blue-400" />
+          <ShieldCheck className="w-80 h-80 text-blue-200" />
         </div>
 
         <div className="relative z-10 space-y-2">
           <div className="flex items-center gap-2">
-            <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-500/20 text-blue-300 border border-blue-400/30">
+            <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-white/20 text-white border border-white/30">
               PNP ITMS Command Center
             </span>
-            <span className="text-xs text-slate-300 font-mono">Camp BGen Rafael T Crame</span>
+            <span className="text-xs text-blue-100 font-mono">Camp BGen Rafael T Crame</span>
           </div>
           <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
             Personnel & Assignment Information System
           </h1>
-          <p className="text-xs md:text-sm text-slate-300 max-w-2xl leading-relaxed">
+          <p className="text-xs md:text-sm text-blue-100 max-w-2xl leading-relaxed">
             Real-time management dashboard for ITMS police personnel records, unit assignments, time-in-grade eligibility, and administrative orders.
           </p>
         </div>
@@ -123,13 +119,13 @@ export const DashboardPage: React.FC = () => {
       {/* Main Visuals & Action Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Chart: Personnel Distribution by Division */}
-        <div className="lg:col-span-2 glass-panel p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4 theme-transition shadow-xs">
+        <div className="lg:col-span-2 p-6 rounded-2xl border border-slate-200 bg-white space-y-4 shadow-2xs">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Activity className="w-4 h-4 text-blue-600 dark:text-blue-400" /> Personnel Distribution by Division & Office
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <Activity className="w-4 h-4 text-blue-600" /> Personnel Distribution by Division & Office
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Strength allocation across ITMS headquarters and regional units</p>
+              <p className="text-xs text-slate-500 mt-0.5">Strength allocation across ITMS headquarters and regional units</p>
             </div>
             <Badge variant="primary" size="sm">Live Analytics</Badge>
           </div>
@@ -137,20 +133,20 @@ export const DashboardPage: React.FC = () => {
           <div className="h-64 w-full pt-4">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={divisionChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <XAxis dataKey="name" stroke={isDark ? '#64748b' : '#64748b'} fontSize={11} tickLine={false} />
-                <YAxis stroke={isDark ? '#64748b' : '#64748b'} fontSize={11} tickLine={false} />
+                <XAxis dataKey="name" stroke="#64748b" fontSize={11} tickLine={false} />
+                <YAxis stroke="#64748b" fontSize={11} tickLine={false} />
                 <Tooltip
                   contentStyle={{ 
-                    backgroundColor: isDark ? '#0f172a' : '#ffffff', 
-                    borderColor: isDark ? '#334155' : '#e2e8f0', 
+                    backgroundColor: '#ffffff', 
+                    borderColor: '#e2e8f0', 
                     borderRadius: '12px', 
-                    color: isDark ? '#fff' : '#0f172a', 
+                    color: '#0f172a', 
                     fontSize: '12px',
                     boxShadow: '0 10px 25px -5px rgba(0,0,0,0.08)'
                   }}
                 />
                 <Bar dataKey="count" radius={[6, 6, 0, 0]}>
-                  {divisionChartData.map((entry, index) => (
+                  {divisionChartData.map((_, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Bar>
@@ -160,25 +156,25 @@ export const DashboardPage: React.FC = () => {
         </div>
 
         {/* Quick Actions Panel */}
-        <div className="glass-panel p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4 flex flex-col justify-between theme-transition shadow-xs">
+        <div className="p-6 rounded-2xl border border-slate-200 bg-white space-y-4 flex flex-col justify-between shadow-2xs">
           <div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 mb-1">
-              <Zap className="w-4 h-4 text-blue-600 dark:text-blue-400" /> Administrative Quick Actions
+            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 mb-1">
+              <Zap className="w-4 h-4 text-blue-600" /> Administrative Quick Actions
             </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Perform immediate tasks across system modules</p>
+            <p className="text-xs text-slate-500">Perform immediate tasks across system modules</p>
 
             <div className="mt-4 space-y-2.5">
               <button
                 onClick={() => navigate('/personnel')}
-                className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-950 hover:bg-blue-50/50 dark:hover:bg-slate-800/80 border border-slate-200 dark:border-slate-800 text-left transition-colors flex items-center justify-between group shadow-2xs"
+                className="w-full p-3 rounded-xl bg-slate-50 hover:bg-blue-50/70 border border-slate-200 text-left transition-colors flex items-center justify-between group shadow-2xs"
               >
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400">
+                  <div className="p-2 rounded-lg bg-blue-100 text-blue-700">
                     <Users className="w-4 h-4" />
                   </div>
                   <div>
-                    <span className="text-xs font-bold text-slate-900 dark:text-white block">View Personnel Roster</span>
-                    <span className="text-[10px] text-slate-500 dark:text-slate-400">Inspect full 201 profile records</span>
+                    <span className="text-xs font-extrabold text-slate-900 block">View Personnel Roster</span>
+                    <span className="text-[10px] text-slate-500 font-medium">Inspect full 201 profile records</span>
                   </div>
                 </div>
                 <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all" />
@@ -186,15 +182,15 @@ export const DashboardPage: React.FC = () => {
 
               <button
                 onClick={() => navigate('/reports')}
-                className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-950 hover:bg-emerald-50/50 dark:hover:bg-slate-800/80 border border-slate-200 dark:border-slate-800 text-left transition-colors flex items-center justify-between group shadow-2xs"
+                className="w-full p-3 rounded-xl bg-slate-50 hover:bg-emerald-50/70 border border-slate-200 text-left transition-colors flex items-center justify-between group shadow-2xs"
               >
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400">
+                  <div className="p-2 rounded-lg bg-emerald-100 text-emerald-700">
                     <FileText className="w-4 h-4" />
                   </div>
                   <div>
-                    <span className="text-xs font-bold text-slate-900 dark:text-white block">Generate Alpha List Report</span>
-                    <span className="text-[10px] text-slate-500 dark:text-slate-400">Current assignments printout</span>
+                    <span className="text-xs font-extrabold text-slate-900 block">Generate Alpha List Report</span>
+                    <span className="text-[10px] text-slate-500 font-medium">Current assignments printout</span>
                   </div>
                 </div>
                 <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-1 transition-all" />
@@ -202,15 +198,15 @@ export const DashboardPage: React.FC = () => {
 
               <button
                 onClick={() => navigate('/orders')}
-                className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-950 hover:bg-blue-50/50 dark:hover:bg-slate-800/80 border border-slate-200 dark:border-slate-800 text-left transition-colors flex items-center justify-between group shadow-2xs"
+                className="w-full p-3 rounded-xl bg-slate-50 hover:bg-blue-50/70 border border-slate-200 text-left transition-colors flex items-center justify-between group shadow-2xs"
               >
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400">
+                  <div className="p-2 rounded-lg bg-blue-100 text-blue-700">
                     <Briefcase className="w-4 h-4" />
                   </div>
                   <div>
-                    <span className="text-xs font-bold text-slate-900 dark:text-white block">Draft Special Order</span>
-                    <span className="text-[10px] text-slate-500 dark:text-slate-400">Assignment or relief directives</span>
+                    <span className="text-xs font-extrabold text-slate-900 block">Draft Special Order</span>
+                    <span className="text-[10px] text-slate-500 font-medium">Assignment or relief directives</span>
                   </div>
                 </div>
                 <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all" />
@@ -218,9 +214,9 @@ export const DashboardPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="p-3.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-500/30 text-xs text-blue-900 dark:text-blue-200">
-            <span className="font-bold block text-[11px] uppercase tracking-wider mb-0.5 text-blue-700 dark:text-blue-400">TIG Audit Reminder</span>
-            <p className="text-[11px] text-slate-700 dark:text-slate-300 leading-tight">
+          <div className="p-3.5 rounded-xl bg-blue-50 border border-blue-200 text-xs text-blue-900">
+            <span className="font-bold block text-[11px] uppercase tracking-wider mb-0.5 text-blue-700">TIG Audit Reminder</span>
+            <p className="text-[11px] text-slate-700 leading-tight">
               {eligibleForPromotion} personnel meet the 3-year Time-In-Grade threshold for rank promotion review.
             </p>
           </div>
@@ -230,17 +226,17 @@ export const DashboardPage: React.FC = () => {
       {/* Bottom Roster Showcase & Recent Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Personnel Showcase Table */}
-        <div className="lg:col-span-2 glass-panel p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4 theme-transition shadow-xs">
+        <div className="lg:col-span-2 p-6 rounded-2xl border border-slate-200 bg-white space-y-4 shadow-2xs">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Users className="w-4 h-4 text-blue-600 dark:text-blue-400" /> Active Duty Key Personnel
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <Users className="w-4 h-4 text-blue-600" /> Active Duty Key Personnel
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Quick access to individual 201 records</p>
+              <p className="text-xs text-slate-500 mt-0.5">Quick access to individual 201 records</p>
             </div>
             <button
               onClick={() => navigate('/personnel')}
-              className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+              className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1"
             >
               View All <ArrowRight className="w-3 h-3" />
             </button>
@@ -249,7 +245,7 @@ export const DashboardPage: React.FC = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400 font-bold border-b border-slate-200 dark:border-slate-800">
+                <tr className="bg-slate-50 text-slate-600 font-extrabold border-b border-slate-200 uppercase text-[11px]">
                   <th className="py-3 px-3">Rank & Name</th>
                   <th className="py-3 px-3">Badge No</th>
                   <th className="py-3 px-3">Division</th>
@@ -257,27 +253,27 @@ export const DashboardPage: React.FC = () => {
                   <th className="py-3 px-3 text-right">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-slate-800 dark:text-slate-200">
+              <tbody className="divide-y divide-slate-100 text-slate-800 font-semibold">
                 {personnelList.slice(0, 5).map((person) => (
-                  <tr key={person.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                  <tr key={person.id} className="hover:bg-slate-50">
                     <td className="py-3 px-3 flex items-center gap-3">
                       <img
                         src={person.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=100'}
                         alt={person.fullName}
-                        className="w-8 h-8 rounded-full object-cover border border-blue-200 dark:border-blue-500/30"
+                        className="w-8 h-8 rounded-full object-cover border border-blue-200"
                       />
                       <div>
-                        <div className="font-bold text-slate-900 dark:text-white">{person.rank} {person.lastName}, {person.firstName}</div>
-                        <div className="text-[10px] text-slate-500 dark:text-slate-400">{person.rankFullName}</div>
+                        <div className="font-extrabold text-slate-900">{person.rank} {person.lastName}, {person.firstName}</div>
+                        <div className="text-[10px] text-slate-500 font-medium">{person.rankFullName}</div>
                       </div>
                     </td>
-                    <td className="py-3 px-3 font-mono font-bold text-slate-700 dark:text-slate-300">{person.badgeNo}</td>
-                    <td className="py-3 px-3 font-bold text-blue-700 dark:text-blue-400">{person.division}</td>
-                    <td className="py-3 px-3 text-slate-700 dark:text-slate-300 font-medium">{person.designation}</td>
+                    <td className="py-3 px-3 font-mono font-bold text-slate-700">{person.badgeNo}</td>
+                    <td className="py-3 px-3 font-bold text-blue-700">{person.division}</td>
+                    <td className="py-3 px-3 text-slate-700 font-medium">{person.designation}</td>
                     <td className="py-3 px-3 text-right">
                       <button
                         onClick={() => handleSelectPersonnel(person.id)}
-                        className="px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 text-xs font-bold border border-blue-200 dark:border-blue-500/30 transition-colors"
+                        className="px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold border border-blue-200 transition-colors"
                       >
                         Inspect Profile
                       </button>
@@ -290,40 +286,40 @@ export const DashboardPage: React.FC = () => {
         </div>
 
         {/* Recent Activity Log */}
-        <div className="glass-panel p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4 theme-transition shadow-xs">
+        <div className="p-6 rounded-2xl border border-slate-200 bg-white space-y-4 shadow-2xs">
           <div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400" /> Recent Administrative Activity
+            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <Clock className="w-4 h-4 text-blue-600" /> Recent Administrative Activity
             </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">System log of orders, leaves, and promotions</p>
+            <p className="text-xs text-slate-500 mt-0.5">System log of orders, leaves, and promotions</p>
           </div>
 
           <div className="space-y-3.5">
-            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-1">
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
               <div className="flex items-center justify-between text-[11px]">
                 <Badge variant="primary" size="sm">Special Order Issued</Badge>
                 <span className="text-slate-500 font-mono">Today</span>
               </div>
-              <p className="text-xs font-bold text-slate-900 dark:text-white">SO-ITMS-2024-045 Reassignment</p>
-              <p className="text-[11px] text-slate-600 dark:text-slate-400">PCOL Dela Cruz designated as Chief, ARMD</p>
+              <p className="text-xs font-bold text-slate-900">SO-ITMS-2024-045 Reassignment</p>
+              <p className="text-[11px] text-slate-600">PCOL Dela Cruz designated as Chief, ARMD</p>
             </div>
 
-            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-1">
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
               <div className="flex items-center justify-between text-[11px]">
                 <Badge variant="success" size="sm">Leave Approved</Badge>
                 <span className="text-slate-500 font-mono">Yesterday</span>
               </div>
-              <p className="text-xs font-bold text-slate-900 dark:text-white">PCPT Garcia Vacation Leave</p>
-              <p className="text-[11px] text-slate-600 dark:text-slate-400">5-day wellness leave approved by Chief ARMD</p>
+              <p className="text-xs font-bold text-slate-900">PCPT Garcia Vacation Leave</p>
+              <p className="text-[11px] text-slate-600">5-day wellness leave approved by Chief ARMD</p>
             </div>
 
-            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-1">
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
               <div className="flex items-center justify-between text-[11px]">
                 <Badge variant="info" size="sm">Training Completed</Badge>
                 <span className="text-slate-500 font-mono">3 days ago</span>
               </div>
-              <p className="text-xs font-bold text-slate-900 dark:text-white">Advanced Threat Hunting Course</p>
-              <p className="text-[11px] text-slate-600 dark:text-slate-400">PLTCOL Reyes completed 120-hr SANS course</p>
+              <p className="text-xs font-bold text-slate-900">Advanced Threat Hunting Course</p>
+              <p className="text-[11px] text-slate-600">PLTCOL Reyes completed 120-hr SANS course</p>
             </div>
           </div>
         </div>
@@ -331,4 +327,5 @@ export const DashboardPage: React.FC = () => {
     </div>
   );
 };
+
 

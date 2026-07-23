@@ -49,16 +49,16 @@ export const AssignmentPage: React.FC = () => {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header Banner */}
-      <div className="p-6 rounded-2xl glass-panel bg-white/90 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4 theme-transition shadow-xs">
+      <div className="p-6 rounded-2xl bg-white border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-2xs">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="px-2.5 py-0.5 rounded text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-500/30">
+            <span className="px-2.5 py-0.5 rounded text-xs font-extrabold bg-blue-50 text-blue-700 border border-blue-200">
               Assignments Module
             </span>
-            <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">ITMS Personnel Postings</span>
+            <span className="text-xs text-slate-500 font-mono">ITMS Personnel Postings</span>
           </div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Duty Postings & Unit Detail Management</h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Manage unit assignments, position designations, and regional details</p>
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight">Duty Postings & Unit Detail Management</h1>
+          <p className="text-xs text-slate-500 mt-0.5">Manage unit assignments, position designations, and regional details</p>
         </div>
 
         {role === 'admin' && (
@@ -72,7 +72,7 @@ export const AssignmentPage: React.FC = () => {
       </div>
 
       {/* Filter Bar */}
-      <div className="glass-panel p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 flex flex-wrap items-center justify-between gap-4 theme-transition shadow-xs">
+      <div className="p-4 rounded-xl border border-slate-200 bg-white flex flex-wrap items-center justify-between gap-4 shadow-2xs">
         <div className="relative flex-1 min-w-[240px]">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
@@ -80,16 +80,16 @@ export const AssignmentPage: React.FC = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search position, unit, or personnel name..."
-            className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-blue-500 font-medium"
+            className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
           />
         </div>
 
         <div className="flex items-center gap-3">
-          <span className="text-xs text-slate-500 dark:text-slate-400">Division Filter:</span>
+          <span className="text-xs text-slate-600 font-bold">Division Filter:</span>
           <select
             value={selectedDivision}
             onChange={(e) => setSelectedDivision(e.target.value)}
-            className="px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white font-semibold focus:outline-none focus:border-blue-500"
+            className="px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-extrabold focus:outline-none focus:border-blue-500"
           >
             <option value="ALL">All Divisions</option>
             <option value="ARMD">ARMD (Administrative)</option>
@@ -102,11 +102,11 @@ export const AssignmentPage: React.FC = () => {
       </div>
 
       {/* Assignments Table */}
-      <div className="glass-panel rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 overflow-hidden theme-transition shadow-xs">
+      <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-2xs">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="bg-slate-50 dark:bg-slate-950 text-slate-500 dark:text-slate-400 font-semibold border-b border-slate-200 dark:border-slate-800">
+              <tr className="bg-slate-50 text-slate-700 font-extrabold border-b border-slate-200 uppercase text-[11px]">
                 <th className="py-3 px-4">Personnel</th>
                 <th className="py-3 px-4">Assigned Position</th>
                 <th className="py-3 px-4">Unit / Division</th>
@@ -115,26 +115,26 @@ export const AssignmentPage: React.FC = () => {
                 <th className="py-3 px-4">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-slate-700 dark:text-slate-200">
+            <tbody className="divide-y divide-slate-100 text-slate-900 font-bold">
               {filteredAssignments.map((asg) => {
                 const person = personnelList.find(p => p.id === asg.personnelId);
                 return (
-                  <tr key={asg.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                  <tr key={asg.id} className="hover:bg-slate-50">
                     <td className="py-3 px-4 flex items-center gap-3">
                       <img
                         src={person?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=100'}
                         alt={person?.fullName}
-                        className="w-8 h-8 rounded-full object-cover border border-blue-200 dark:border-blue-500/30"
+                        className="w-8 h-8 rounded-full object-cover border border-blue-200"
                       />
                       <div>
-                        <div className="font-bold text-slate-900 dark:text-white">{person?.rank} {person?.lastName}, {person?.firstName}</div>
-                        <div className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">Badge #{person?.badgeNo}</div>
+                        <div className="font-extrabold text-slate-900">{person?.rank} {person?.lastName}, {person?.firstName}</div>
+                        <div className="text-[10px] text-slate-500 font-mono font-semibold">Badge #{person?.badgeNo}</div>
                       </div>
                     </td>
-                    <td className="py-3 px-4 font-bold text-blue-700 dark:text-blue-400">{asg.position}</td>
-                    <td className="py-3 px-4 text-slate-700 dark:text-slate-300">{asg.unit}</td>
-                    <td className="py-3 px-4 font-mono text-sky-700 dark:text-sky-300 font-bold">{asg.orderRef}</td>
-                    <td className="py-3 px-4 font-mono text-slate-500 dark:text-slate-400">{asg.startDate}</td>
+                    <td className="py-3 px-4 font-bold text-blue-700">{asg.position}</td>
+                    <td className="py-3 px-4 text-slate-800 font-medium">{asg.unit}</td>
+                    <td className="py-3 px-4 font-mono text-sky-700 font-extrabold">{asg.orderRef}</td>
+                    <td className="py-3 px-4 font-mono text-slate-600 font-semibold">{asg.startDate}</td>
                     <td className="py-3 px-4">
                       <Badge variant={asg.status === 'Current' ? 'primary' : 'neutral'} size="sm">
                         {asg.status}
@@ -157,11 +157,11 @@ export const AssignmentPage: React.FC = () => {
       >
         <form onSubmit={handleCreateAssignment} className="space-y-4">
           <div>
-            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Select Personnel</label>
+            <label className="block text-xs font-bold text-slate-600 mb-1">Select Personnel</label>
             <select
               value={personnelId}
               onChange={e => setPersonnelId(e.target.value)}
-              className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white font-bold focus:outline-none focus:border-blue-500"
+              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-bold focus:outline-none focus:border-blue-500"
             >
               {personnelList.map(p => (
                 <option key={p.id} value={p.id}>
@@ -172,60 +172,60 @@ export const AssignmentPage: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Unit / Division Name</label>
+            <label className="block text-xs font-bold text-slate-600 mb-1">Unit / Division Name</label>
             <input
               type="text"
               value={unit}
               onChange={e => setUnit(e.target.value)}
               placeholder="e.g. Systems Development Division (SDD)"
-              className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white font-semibold focus:outline-none focus:border-blue-500"
+              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
               required
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Position Title</label>
+            <label className="block text-xs font-bold text-slate-600 mb-1">Position Title</label>
             <input
               type="text"
               value={position}
               onChange={e => setPosition(e.target.value)}
               placeholder="e.g. Lead Software Engineer"
-              className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white font-semibold focus:outline-none focus:border-blue-500"
+              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
               required
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Order Reference</label>
+              <label className="block text-xs font-bold text-slate-600 mb-1">Order Reference</label>
               <input
                 type="text"
                 value={orderRef}
                 onChange={e => setOrderRef(e.target.value)}
                 placeholder="e.g. SO-ITMS-2026-099"
-                className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white font-semibold focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
                 required
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Start Date</label>
+              <label className="block text-xs font-bold text-slate-600 mb-1">Start Date</label>
               <input
                 type="date"
                 value={startDate}
                 onChange={e => setStartDate(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white font-semibold focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
                 required
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Remarks</label>
+            <label className="block text-xs font-bold text-slate-600 mb-1">Remarks</label>
             <textarea
               value={remarks}
               onChange={e => setRemarks(e.target.value)}
               placeholder="Specific duty context or directives..."
-              className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white font-semibold h-20 focus:outline-none focus:border-blue-500"
+              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold h-20 focus:outline-none focus:border-blue-500"
             />
           </div>
 
@@ -233,7 +233,7 @@ export const AssignmentPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setIsModalOpen(false)}
-              className="px-4 py-2 text-xs font-semibold rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+              className="px-4 py-2 text-xs font-semibold rounded-lg text-slate-500 hover:text-slate-900"
             >
               Cancel
             </button>
@@ -249,4 +249,5 @@ export const AssignmentPage: React.FC = () => {
     </div>
   );
 };
+
 

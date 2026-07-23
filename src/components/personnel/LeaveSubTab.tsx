@@ -42,26 +42,26 @@ export const LeaveSubTab: React.FC<LeaveSubTabProps> = ({ personnel }) => {
     <div className="space-y-4">
       {/* Leave Summary Widgets */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="p-3.5 rounded-xl glass-panel bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 shadow-xs">
-          <span className="text-[11px] text-slate-500 dark:text-slate-400 font-bold block">Vacation Leave Balance</span>
-          <span className="text-xl font-extrabold text-blue-700 dark:text-blue-400 font-mono">15.0 Days</span>
+        <div className="p-3.5 rounded-xl bg-white border border-slate-200 shadow-2xs">
+          <span className="text-[11px] text-slate-500 font-extrabold block">Vacation Leave Balance</span>
+          <span className="text-xl font-extrabold text-blue-700 font-mono">15.0 Days</span>
         </div>
-        <div className="p-3.5 rounded-xl glass-panel bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 shadow-xs">
-          <span className="text-[11px] text-slate-500 dark:text-slate-400 font-bold block">Sick Leave Balance</span>
-          <span className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400 font-mono">15.0 Days</span>
+        <div className="p-3.5 rounded-xl bg-white border border-slate-200 shadow-2xs">
+          <span className="text-[11px] text-slate-500 font-extrabold block">Sick Leave Balance</span>
+          <span className="text-xl font-extrabold text-emerald-600 font-mono">15.0 Days</span>
         </div>
-        <div className="p-3.5 rounded-xl glass-panel bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 shadow-xs">
-          <span className="text-[11px] text-slate-500 dark:text-slate-400 font-bold block">Mandatory 5-Day Leave Status</span>
-          <span className="text-sm font-extrabold text-sky-700 dark:text-sky-400">Complied 2026</span>
+        <div className="p-3.5 rounded-xl bg-white border border-slate-200 shadow-2xs">
+          <span className="text-[11px] text-slate-500 font-extrabold block">Mandatory 5-Day Leave Status</span>
+          <span className="text-sm font-extrabold text-sky-700">Complied 2026</span>
         </div>
       </div>
 
-      <div className="flex items-center justify-between p-4 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800">
+      <div className="flex items-center justify-between p-4 rounded-xl bg-white border border-slate-200 shadow-2xs">
         <div>
-          <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-blue-600 dark:text-blue-400" /> Leave Applications & Approvals Log
+          <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-blue-600" /> Leave Applications & Approvals Log
           </h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Vacation, sick, mandatory, and study leave histories</p>
+          <p className="text-xs text-slate-500 mt-0.5">Vacation, sick, mandatory, and study leave histories</p>
         </div>
 
         {role === 'admin' && (
@@ -75,8 +75,8 @@ export const LeaveSubTab: React.FC<LeaveSubTabProps> = ({ personnel }) => {
       </div>
 
       {personnelLeaves.length === 0 ? (
-        <div className="p-8 text-center text-slate-500 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
-          <Calendar className="w-8 h-8 mx-auto mb-2 opacity-50" />
+        <div className="p-8 text-center text-slate-500 border border-dashed border-slate-200 rounded-xl bg-white">
+          <Calendar className="w-8 h-8 mx-auto mb-2 text-slate-400" />
           <p className="text-xs font-semibold">No leave logs recorded yet for this personnel.</p>
         </div>
       ) : (
@@ -84,14 +84,14 @@ export const LeaveSubTab: React.FC<LeaveSubTabProps> = ({ personnel }) => {
           {personnelLeaves.map((lve) => (
             <div
               key={lve.id}
-              className="p-5 rounded-xl glass-panel bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 space-y-3 shadow-xs"
+              className="p-5 rounded-xl bg-white border border-slate-200 space-y-3 shadow-2xs"
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <Badge variant={lve.leaveType === 'Vacation' ? 'primary' : 'info'} size="sm">
                     {lve.leaveType} Leave
                   </Badge>
-                  <span className="text-xs font-mono font-bold text-slate-800 dark:text-slate-300">{lve.days} Working Days</span>
+                  <span className="text-xs font-mono font-bold text-slate-800">{lve.days} Working Days</span>
                 </div>
 
                 <Badge variant={lve.status === 'Approved' ? 'success' : lve.status === 'Pending' ? 'warning' : 'neutral'} size="sm">
@@ -100,14 +100,14 @@ export const LeaveSubTab: React.FC<LeaveSubTabProps> = ({ personnel }) => {
               </div>
 
               {lve.purpose && (
-                <p className="text-xs text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-950/60 p-2.5 rounded-lg border border-slate-200 dark:border-slate-800/80">
-                  Purpose: <strong className="text-slate-900 dark:text-slate-100">{lve.purpose}</strong>
+                <p className="text-xs text-slate-900 bg-slate-50 p-2.5 rounded-lg border border-slate-200 font-medium">
+                  Purpose: <strong className="text-slate-900">{lve.purpose}</strong>
                 </p>
               )}
 
-              <div className="flex flex-wrap items-center justify-between text-xs text-slate-500 dark:text-slate-400 font-mono pt-2 border-t border-slate-200 dark:border-slate-800">
-                <span>Period: <strong className="text-slate-900 dark:text-slate-200">{lve.startDate}</strong> to <strong className="text-slate-900 dark:text-slate-200">{lve.endDate}</strong></span>
-                <span>Approved By: <span className="text-blue-700 dark:text-blue-400 font-bold">{lve.approvedBy}</span></span>
+              <div className="flex flex-wrap items-center justify-between text-xs text-slate-500 font-mono pt-2 border-t border-slate-100">
+                <span>Period: <strong className="text-slate-900">{lve.startDate}</strong> to <strong className="text-slate-900">{lve.endDate}</strong></span>
+                <span>Approved By: <span className="text-blue-700 font-bold">{lve.approvedBy}</span></span>
               </div>
             </div>
           ))}
@@ -123,11 +123,11 @@ export const LeaveSubTab: React.FC<LeaveSubTabProps> = ({ personnel }) => {
       >
         <form onSubmit={handleAddLeave} className="space-y-4">
           <div>
-            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Leave Type</label>
+            <label className="block text-xs font-bold text-slate-600 mb-1">Leave Type</label>
             <select
               value={leaveType}
               onChange={e => setLeaveType(e.target.value as any)}
-              className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white font-semibold focus:outline-none focus:border-blue-500"
+              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
             >
               <option value="Vacation">Vacation Leave</option>
               <option value="Sick">Sick Leave</option>
@@ -140,55 +140,55 @@ export const LeaveSubTab: React.FC<LeaveSubTabProps> = ({ personnel }) => {
 
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Start Date</label>
+              <label className="block text-xs font-bold text-slate-600 mb-1">Start Date</label>
               <input
                 type="date"
                 value={startDate}
                 onChange={e => setStartDate(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white font-semibold focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
                 required
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">End Date</label>
+              <label className="block text-xs font-bold text-slate-600 mb-1">End Date</label>
               <input
                 type="date"
                 value={endDate}
                 onChange={e => setEndDate(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white font-semibold focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
                 required
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Number of Days</label>
+              <label className="block text-xs font-bold text-slate-600 mb-1">Number of Days</label>
               <input
                 type="number"
                 value={days}
                 onChange={e => setDays(Number(e.target.value))}
-                className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white font-semibold focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
                 required
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Approving Authority / Officer</label>
+            <label className="block text-xs font-bold text-slate-600 mb-1">Approving Authority / Officer</label>
             <input
               type="text"
               value={approvedBy}
               onChange={e => setApprovedBy(e.target.value)}
-              className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white font-semibold focus:outline-none focus:border-blue-500"
+              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
               required
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">Purpose / Reason</label>
+            <label className="block text-xs font-bold text-slate-600 mb-1">Purpose / Reason</label>
             <textarea
               value={purpose}
               onChange={e => setPurpose(e.target.value)}
               placeholder="e.g. Annual mandatory leave or personal study..."
-              className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white font-semibold h-20 focus:outline-none focus:border-blue-500"
+              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold h-20 focus:outline-none focus:border-blue-500"
             />
           </div>
 
@@ -196,7 +196,7 @@ export const LeaveSubTab: React.FC<LeaveSubTabProps> = ({ personnel }) => {
             <button
               type="button"
               onClick={() => setIsModalOpen(false)}
-              className="px-4 py-2 text-xs font-semibold rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+              className="px-4 py-2 text-xs font-semibold rounded-lg text-slate-500 hover:text-slate-900"
             >
               Cancel
             </button>
@@ -212,4 +212,5 @@ export const LeaveSubTab: React.FC<LeaveSubTabProps> = ({ personnel }) => {
     </div>
   );
 };
+
 

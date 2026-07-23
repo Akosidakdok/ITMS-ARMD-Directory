@@ -88,23 +88,23 @@ export const ManagementPage: React.FC = () => {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header Banner with Role Status Indicator */}
-      <div className="p-6 rounded-2xl glass-panel bg-white/90 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4 theme-transition shadow-xs">
+      <div className="p-6 rounded-2xl bg-white border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-2xs">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="px-2.5 py-0.5 rounded text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-500/30">
+            <span className="px-2.5 py-0.5 rounded text-xs font-extrabold bg-blue-50 text-blue-700 border border-blue-200">
               System Administration
             </span>
-            <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">Role-Based Access Control</span>
+            <span className="text-xs text-slate-500 font-mono">Role-Based Access Control</span>
           </div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Data Maintenance & Management Center</h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Maintain personnel records, plantilla allocations, and system entities</p>
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight">Data Maintenance & Management Center</h1>
+          <p className="text-xs text-slate-500 mt-0.5">Maintain personnel records, plantilla allocations, and system entities</p>
         </div>
 
         {/* Role Mode Switcher Widget */}
-        <div className="flex items-center gap-3 p-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+        <div className="flex items-center gap-3 p-2 rounded-xl bg-slate-50 border border-slate-200">
           <div className="text-right hidden sm:block">
-            <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-semibold">Active Session Mode</span>
-            <span className={`text-xs font-bold ${role === 'admin' ? 'text-blue-700 dark:text-blue-400' : 'text-slate-600 dark:text-slate-400'}`}>
+            <span className="text-[10px] text-slate-500 block font-bold">Active Session Mode</span>
+            <span className={`text-xs font-extrabold ${role === 'admin' ? 'text-blue-700' : 'text-slate-600'}`}>
               {role === 'admin' ? 'System Administrator / Editor' : 'View-Only Personnel Officer'}
             </span>
           </div>
@@ -114,7 +114,7 @@ export const ManagementPage: React.FC = () => {
             className={`px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
               role === 'admin' 
                 ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-xs' 
-                : 'bg-slate-200 hover:bg-slate-300 text-slate-800 dark:bg-slate-800 dark:text-slate-200 shadow-xs'
+                : 'bg-slate-200 hover:bg-slate-300 text-slate-800 shadow-xs'
             }`}
           >
             {role === 'admin' ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
@@ -125,9 +125,9 @@ export const ManagementPage: React.FC = () => {
 
       {/* Role State Warning Bar if View-Only */}
       {role === 'view_only' && (
-        <div className="p-4 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-500/30 text-blue-700 dark:text-blue-300 flex items-center justify-between text-xs shadow-xs">
+        <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 text-blue-800 flex items-center justify-between text-xs shadow-2xs font-semibold">
           <div className="flex items-center gap-2">
-            <ShieldAlert className="w-4 h-4 text-blue-500 flex-shrink-0" />
+            <ShieldAlert className="w-4 h-4 text-blue-600 flex-shrink-0" />
             <span>
               <strong>Read-Only Permission Enabled:</strong> Administrative editing and deletion options are restricted. Switch to <strong>Admin / Editor</strong> mode in the top header or button above to test CRUD operations.
             </span>
@@ -136,8 +136,8 @@ export const ManagementPage: React.FC = () => {
       )}
 
       {/* Data Management Table Container */}
-      <div className="glass-panel rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 overflow-hidden space-y-4 p-6 theme-transition shadow-xs">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
+      <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden space-y-4 p-6 shadow-2xs">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pb-4 border-b border-slate-200">
           <div className="relative w-full sm:w-80">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
@@ -145,7 +145,7 @@ export const ManagementPage: React.FC = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search database records..."
-              className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-blue-500 font-medium"
+              className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
             />
           </div>
 
@@ -167,7 +167,7 @@ export const ManagementPage: React.FC = () => {
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="bg-slate-50 dark:bg-slate-950 text-slate-500 dark:text-slate-400 font-semibold border-b border-slate-200 dark:border-slate-800">
+              <tr className="bg-slate-50 text-slate-700 font-extrabold border-b border-slate-200 uppercase text-[11px]">
                 <th className="py-3 px-4">Rank & Full Name</th>
                 <th className="py-3 px-4">Badge No</th>
                 <th className="py-3 px-4">Plantilla Item</th>
@@ -177,24 +177,24 @@ export const ManagementPage: React.FC = () => {
                 <th className="py-3 px-4 text-right">Admin Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-slate-700 dark:text-slate-200">
+            <tbody className="divide-y divide-slate-100 text-slate-900 font-bold">
               {filteredPersonnel.map((person) => (
-                <tr key={person.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                <tr key={person.id} className="hover:bg-slate-50">
                   <td className="py-3 px-4 flex items-center gap-3">
                     <img
                       src={person.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=100'}
                       alt={person.fullName}
-                      className="w-8 h-8 rounded-full object-cover border border-blue-200 dark:border-blue-500/30"
+                      className="w-8 h-8 rounded-full object-cover border border-blue-200"
                     />
                     <div>
-                      <div className="font-bold text-slate-900 dark:text-white">{person.rank} {person.lastName}, {person.firstName}</div>
-                      <div className="text-[10px] text-slate-500 dark:text-slate-400">{person.rankFullName}</div>
+                      <div className="font-extrabold text-slate-900">{person.rank} {person.lastName}, {person.firstName}</div>
+                      <div className="text-[10px] text-slate-500 font-medium">{person.rankFullName}</div>
                     </div>
                   </td>
-                  <td className="py-3 px-4 font-mono font-semibold text-slate-600 dark:text-slate-300">{person.badgeNo}</td>
-                  <td className="py-3 px-4 font-mono text-sky-700 dark:text-sky-300 text-[11px] font-bold">{person.plantilla}</td>
-                  <td className="py-3 px-4 font-bold text-blue-700 dark:text-blue-400">{person.division}</td>
-                  <td className="py-3 px-4 text-slate-600 dark:text-slate-300">{person.designation}</td>
+                  <td className="py-3 px-4 font-mono font-bold text-slate-700">{person.badgeNo}</td>
+                  <td className="py-3 px-4 font-mono text-sky-700 text-[11px] font-extrabold">{person.plantilla}</td>
+                  <td className="py-3 px-4 font-bold text-blue-700">{person.division}</td>
+                  <td className="py-3 px-4 text-slate-700 font-medium">{person.designation}</td>
                   <td className="py-3 px-4 text-center">
                     <Badge variant={person.status === 'Active' ? 'success' : 'warning'} size="sm">
                       {person.status}
@@ -208,20 +208,20 @@ export const ManagementPage: React.FC = () => {
                             setSelectedPersonnelId(person.id);
                           }}
                           title="Edit Personnel Record"
-                          className="p-1.5 rounded-lg text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/60 transition-colors"
+                          className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors"
                         >
                           <Edit className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => deletePersonnel(person.id)}
                           title="Delete Record"
-                          className="p-1.5 rounded-lg text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/60 transition-colors"
+                          className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     ) : (
-                      <span className="text-[11px] text-slate-400 dark:text-slate-600 italic">View Only</span>
+                      <span className="text-[11px] text-slate-400 italic font-semibold">View Only</span>
                     )}
                   </td>
                 </tr>
@@ -242,7 +242,7 @@ export const ManagementPage: React.FC = () => {
         <form onSubmit={handleAddPersonnelSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Rank Abbreviation</label>
+              <label className="block text-xs font-bold text-slate-600 mb-1">Rank Abbreviation</label>
               <select
                 value={rank}
                 onChange={e => {
@@ -257,7 +257,7 @@ export const ManagementPage: React.FC = () => {
                   else if (val === 'PCMS') setRankFullName('Police Chief Master Sergeant');
                   else setRankFullName('Police Corporal');
                 }}
-                className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:border-blue-500 font-semibold"
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
               >
                 <option value="PCOL">PCOL (Police Colonel)</option>
                 <option value="PLTCOL">PLTCOL (Police Lieutenant Colonel)</option>
@@ -270,13 +270,13 @@ export const ManagementPage: React.FC = () => {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Badge / Serial No.</label>
+              <label className="block text-xs font-bold text-slate-600 mb-1">Badge / Serial No.</label>
               <input
                 type="text"
                 value={badgeNo}
                 onChange={e => setBadgeNo(e.target.value)}
                 placeholder="e.g. 0-192834"
-                className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:border-blue-500 font-semibold"
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
                 required
               />
             </div>
@@ -284,31 +284,31 @@ export const ManagementPage: React.FC = () => {
 
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">First Name</label>
+              <label className="block text-xs font-bold text-slate-600 mb-1">First Name</label>
               <input
                 type="text"
                 value={firstName}
                 onChange={e => setFirstName(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:border-blue-500 font-semibold"
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
                 required
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Middle Name</label>
+              <label className="block text-xs font-bold text-slate-600 mb-1">Middle Name</label>
               <input
                 type="text"
                 value={middleName}
                 onChange={e => setMiddleName(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:border-blue-500 font-semibold"
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Last Name</label>
+              <label className="block text-xs font-bold text-slate-600 mb-1">Last Name</label>
               <input
                 type="text"
                 value={lastName}
                 onChange={e => setLastName(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:border-blue-500 font-semibold"
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
                 required
               />
             </div>
@@ -316,32 +316,32 @@ export const ManagementPage: React.FC = () => {
 
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Salary Grade (SG)</label>
+              <label className="block text-xs font-bold text-slate-600 mb-1">Salary Grade (SG)</label>
               <input
                 type="number"
                 value={salaryGrade}
                 onChange={e => setSalaryGrade(Number(e.target.value))}
-                className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:border-blue-500 font-semibold"
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
                 required
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Plantilla Item No.</label>
+              <label className="block text-xs font-bold text-slate-600 mb-1">Plantilla Item No.</label>
               <input
                 type="text"
                 value={plantilla}
                 onChange={e => setPlantilla(e.target.value)}
                 placeholder="e.g. ITMS-SDD-2026-09"
-                className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:border-blue-500 font-semibold"
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
                 required
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Division</label>
+              <label className="block text-xs font-bold text-slate-600 mb-1">Division</label>
               <select
                 value={division}
                 onChange={e => setDivision(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:border-blue-500 font-semibold"
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
               >
                 <option value="ARMD">ARMD</option>
                 <option value="CSD">CSD</option>
@@ -354,13 +354,13 @@ export const ManagementPage: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Designation Title</label>
+            <label className="block text-xs font-bold text-slate-600 mb-1">Designation Title</label>
             <input
               type="text"
               value={designation}
               onChange={e => setDesignation(e.target.value)}
               placeholder="e.g. Cyber Defense Analyst"
-              className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:border-blue-500 font-semibold"
+              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
               required
             />
           </div>
@@ -369,7 +369,7 @@ export const ManagementPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setIsAddModalOpen(false)}
-              className="px-4 py-2 text-xs font-semibold rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+              className="px-4 py-2 text-xs font-semibold rounded-lg text-slate-500 hover:text-slate-900"
             >
               Cancel
             </button>
@@ -385,4 +385,5 @@ export const ManagementPage: React.FC = () => {
     </div>
   );
 };
+
 

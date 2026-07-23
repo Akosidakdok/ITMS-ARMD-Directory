@@ -5,12 +5,12 @@ import { Header } from './Header';
 
 export const Layout: React.FC = () => {
   return (
-    <div className="min-h-screen flex bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 selection:bg-amber-500 selection:text-slate-950 theme-transition">
+    <div className="min-h-screen flex bg-slate-50 text-slate-900 selection:bg-blue-600 selection:text-white">
       {/* Sidebar */}
       <Sidebar />
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden">
+      <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden bg-slate-50">
         <Header />
         <main className="flex-1 p-6 md:p-8 max-w-7xl w-full mx-auto">
           <Outlet />
@@ -19,3 +19,4 @@ export const Layout: React.FC = () => {
     </div>
   );
 };
+
