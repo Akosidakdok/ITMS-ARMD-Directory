@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { 
   UserRole, 
   Personnel, 
@@ -18,6 +18,26 @@ import {
   INITIAL_TRAINING, 
   INITIAL_LEAVE 
 } from '../data/mockData';
+import {
+  checkBackendHealth,
+  fetchPersonnel,
+  createPersonnelApi,
+  updatePersonnelApi,
+  deletePersonnelApi,
+  fetchOrders,
+  createOrderApi,
+  updateOrderApi,
+  fetchAssignments,
+  createAssignmentApi,
+  fetchEducation,
+  createEducationApi,
+  fetchPromotions,
+  createPromotionApi,
+  fetchTraining,
+  createTrainingApi,
+  fetchLeave,
+  createLeaveApi
+} from '../services/api';
 
 interface AuthRoleContextType {
   role: UserRole;
@@ -27,6 +47,10 @@ interface AuthRoleContextType {
   setGlobalSearchQuery: (query: string) => void;
   selectedPersonnelId: string;
   setSelectedPersonnelId: (id: string) => void;
+
+  // Backend status indicator
+  backendConnected: boolean;
+  refreshData: () => Promise<void>;
   
   // Data state & handlers
   personnelList: Personnel[];
@@ -55,9 +79,10 @@ interface AuthRoleContextType {
 const AuthRoleContext = createContext<AuthRoleContextType | undefined>(undefined);
 
 export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [role, setRole] = useState<UserRole>('admin'); // Default to Admin/Editor for full interactive evaluation
+  const [role, setRole] = useState<UserRole>('admin');
   const [globalSearchQuery, setGlobalSearchQuery] = useState('');
   const [selectedPersonnelId, setSelectedPersonnelId] = useState('pnp-001');
+  const [backendConnected, setBackendConnected] = useState(false);
 
   const [personnelList, setPersonnelList] = useState<Personnel[]>(INITIAL_PERSONNEL);
   const [assignmentsList, setAssignmentsList] = useState<AssignmentRecord[]>(INITIAL_ASSIGNMENTS);
@@ -67,41 +92,127 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [trainingList, setTrainingList] = useState<TrainingRecord[]>(INITIAL_TRAINING);
   const [leaveList, setLeaveList] = useState<LeaveRecord[]>(INITIAL_LEAVE);
 
+  // Initialize and load backend data if server is online
+  const loadDataFromBackend = async () => {
+    const isOnline = await checkBackendHealth();
+    setBackendConnected(isOnline);
+
+    if (isOnline) {
+      try {
+        const [pData, oData, aData, eData, prData, tData, lData] = await Promise.all([
+          fetchPersonnel(),
+          fetchOrders(),
+          fetchAssignments(),
+          fetchEducation(),
+          fetchPromotions(),
+          fetchTraining(),
+          fetchLeave()
+        ]);
+        setPersonnelList(pData);
+        setOrdersList(oData);
+        setAssignmentsList(aData);
+        setEducationList(eData);
+        setPromotionsList(prData);
+        setTrainingList(tData);
+        setLeaveList(lData);
+      } catch (err) {
+        console.warn('Backend reachable but error fetching data, using fallback store:', err);
+      }
+    }
+  };
+
+  useEffect(() => {
+    loadDataFromBackend();
+  }, []);
+
   const toggleRole = () => {
     setRole(prev => prev === 'admin' ? 'view_only' : 'admin');
   };
 
-  const addPersonnel = (personnel: Personnel) => {
+  // Personnel Mutations
+  const addPersonnel = async (personnel: Personnel) => {
     setPersonnelList(prev => [personnel, ...prev]);
+    if (backendConnected) {
+      try {
+        await createPersonnelApi(personnel);
+      } catch (e) {
+        console.error('Failed to sync new personnel with backend:', e);
+      }
+    }
   };
 
-  const updatePersonnel = (updated: Personnel) => {
+  const updatePersonnel = async (updated: Personnel) => {
     setPersonnelList(prev => prev.map(p => p.id === updated.id ? updated : p));
+    if (backendConnected) {
+      try {
+        await updatePersonnelApi(updated);
+      } catch (e) {
+        console.error('Failed to sync updated personnel with backend:', e);
+      }
+    }
   };
 
-  const deletePersonnel = (id: string) => {
+  const deletePersonnel = async (id: string) => {
     setPersonnelList(prev => prev.filter(p => p.id !== id));
+    if (backendConnected) {
+      try {
+        await deletePersonnelApi(id);
+      } catch (e) {
+        console.error('Failed to delete personnel on backend:', e);
+      }
+    }
   };
 
-  const addOrder = (order: OrderRecord) => {
+  // Order Mutations
+  const addOrder = async (order: OrderRecord) => {
     setOrdersList(prev => [order, ...prev]);
+    if (backendConnected) {
+      try {
+        await createOrderApi(order);
+      } catch (e) {
+        console.error('Failed to sync new order with backend:', e);
+      }
+    }
   };
 
-  const updateOrder = (order: OrderRecord) => {
+  const updateOrder = async (order: OrderRecord) => {
     setOrdersList(prev => prev.map(o => o.id === order.id ? order : o));
+    if (backendConnected) {
+      try {
+        await updateOrderApi(order);
+      } catch (e) {
+        console.error('Failed to sync updated order with backend:', e);
+      }
+    }
   };
 
-  const addAssignment = (assignment: AssignmentRecord) => {
+  // Assignment Mutations
+  const addAssignment = async (assignment: AssignmentRecord) => {
     setAssignmentsList(prev => [assignment, ...prev]);
+    if (backendConnected) {
+      try {
+        await createAssignmentApi(assignment);
+      } catch (e) {
+        console.error('Failed to sync assignment with backend:', e);
+      }
+    }
   };
 
-  const addEducation = (edu: EducationRecord) => {
+  // Education Mutations
+  const addEducation = async (edu: EducationRecord) => {
     setEducationList(prev => [edu, ...prev]);
+    if (backendConnected) {
+      try {
+        await createEducationApi(edu);
+      } catch (e) {
+        console.error('Failed to sync education with backend:', e);
+      }
+    }
   };
 
-  const addPromotion = (promotion: PromotionRecord) => {
+  // Promotion Mutations
+  const addPromotion = async (promotion: PromotionRecord) => {
     setPromotionsList(prev => [promotion, ...prev]);
-    // Also update the personnel's lastPromotionDate and rank!
     setPersonnelList(prev => prev.map(p => {
       if (p.id === promotion.personnelId) {
         return {
@@ -112,14 +223,38 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       }
       return p;
     }));
+
+    if (backendConnected) {
+      try {
+        await createPromotionApi(promotion);
+      } catch (e) {
+        console.error('Failed to sync promotion with backend:', e);
+      }
+    }
   };
 
-  const addTraining = (training: TrainingRecord) => {
+  // Training Mutations
+  const addTraining = async (training: TrainingRecord) => {
     setTrainingList(prev => [training, ...prev]);
+    if (backendConnected) {
+      try {
+        await createTrainingApi(training);
+      } catch (e) {
+        console.error('Failed to sync training with backend:', e);
+      }
+    }
   };
 
-  const addLeave = (leave: LeaveRecord) => {
+  // Leave Mutations
+  const addLeave = async (leave: LeaveRecord) => {
     setLeaveList(prev => [leave, ...prev]);
+    if (backendConnected) {
+      try {
+        await createLeaveApi(leave);
+      } catch (e) {
+        console.error('Failed to sync leave with backend:', e);
+      }
+    }
   };
 
   return (
@@ -132,6 +267,8 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setGlobalSearchQuery,
         selectedPersonnelId,
         setSelectedPersonnelId,
+        backendConnected,
+        refreshData: loadDataFromBackend,
         personnelList,
         assignmentsList,
         educationList,

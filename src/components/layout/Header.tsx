@@ -17,7 +17,8 @@ export const Header: React.FC = () => {
     globalSearchQuery, 
     setGlobalSearchQuery, 
     personnelList,
-    setSelectedPersonnelId 
+    setSelectedPersonnelId,
+    backendConnected
   } = useAuthRole();
 
   const navigate = useNavigate();
@@ -115,6 +116,19 @@ export const Header: React.FC = () => {
 
       {/* Header Right Actions */}
       <div className="flex items-center gap-3">
+        {/* Backend Server Status Indicator */}
+        <div 
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl border text-[11px] font-bold ${
+            backendConnected 
+              ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
+              : 'bg-amber-50 text-amber-800 border-amber-200'
+          }`}
+          title={backendConnected ? 'Connected to live Node.js Express REST API' : 'Running in Standalone Local Store Mode'}
+        >
+          <span className={`w-2 h-2 rounded-full ${backendConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+          <span className="hidden lg:inline">{backendConnected ? 'API: Connected' : 'Local Store'}</span>
+        </div>
+
         {/* Role Toggle Switcher */}
         <div className="flex items-center gap-1 bg-slate-100 border border-slate-200 rounded-xl p-1 shadow-2xs">
           <button
@@ -165,6 +179,3 @@ export const Header: React.FC = () => {
     </header>
   );
 };
-
-
-
