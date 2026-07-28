@@ -1,31 +1,33 @@
+export type UserRole = 'admin' | 'user' | 'command' | string;
+
 export type RankAbbr = 
   | 'PGen' | 'PLTGEN' | 'PMGEN' | 'PBGEN' | 'PCOL' | 'PLTCOL' 
   | 'PMAJ' | 'PCPT' | 'PLT' | 'PEMS' | 'PCMS' | 'PSMS' | 'MSMS' 
-  | 'SMS' | 'CPL' | 'PCPL' | 'Pat';
+  | 'SMS' | 'CPL' | 'PCPL' | 'Pat' | string;
 
 export interface Personnel {
   id: string;
   rank: RankAbbr;
-  rankFullName: string;
+  rankFullName?: string;
   firstName: string;
-  middleName: string;
+  middleName?: string;
   lastName: string;
   qualifier?: string;
   fullName: string;
   badgeNo: string;
-  salaryGrade: number; // e.g. 26
-  plantilla: string; // e.g. ITMS-ARMD-2024-001
-  division: string; // e.g. ARMD, OMD, SDD, NDCMD, CSD
-  detail: string; // e.g. Camp Crame, RITMO 4A
-  designation: string; // e.g. Division Chief, Software Architect
-  address: string;
-  gender: 'Male' | 'Female';
-  contactNumber: string;
-  birthday: string; // YYYY-MM-DD
-  dateOfEntry: string; // YYYY-MM-DD
-  enterInOfficerPositionDate: string; // YYYY-MM-DD
-  lastPromotionDate: string; // YYYY-MM-DD
-  status: 'Active' | 'On Leave' | 'Detailed Out' | 'Suspended';
+  salaryGrade?: number;
+  plantilla?: string;
+  division: string;
+  detail?: string;
+  designation: string;
+  address?: string;
+  gender?: 'Male' | 'Female' | string;
+  contactNumber?: string;
+  birthday?: string;
+  dateOfEntry?: string;
+  enterInOfficerPositionDate?: string;
+  lastPromotionDate?: string;
+  status: 'Active' | 'On Leave' | 'Detailed Out' | 'Suspended' | string;
   avatarUrl?: string;
 }
 
@@ -37,7 +39,7 @@ export interface AssignmentRecord {
   orderRef: string;
   startDate: string;
   endDate?: string;
-  status: 'Current' | 'Completed' | 'Terminated';
+  status: 'Current' | 'Completed' | 'Terminated' | string;
   remarks?: string;
 }
 
@@ -48,7 +50,7 @@ export interface EducationRecord {
   institution: string;
   yearGraduated: number;
   honors?: string;
-  certifications: string[];
+  certifications?: string[];
 }
 
 export interface PromotionRecord {
@@ -58,46 +60,52 @@ export interface PromotionRecord {
   rankTo: RankAbbr;
   promotionDate: string;
   orderNumber: string;
+  authority?: string;
   timeInGradeAtPromotion?: string;
   remarks?: string;
 }
 
 export interface OrderRecord {
   id: string;
-  orderNumber: string;
-  orderType: 'Assignment Order' | 'Movement Order' | 'Special Order' | 'Commendation Order' | 'Relief Order';
+  orderNo?: string;
+  orderNumber?: string;
   subject: string;
-  issuedDate: string;
-  effectiveDate: string;
-  signatory: string;
-  signatoryTitle: string;
-  status: 'Active' | 'Pending' | 'Revoked';
-  affectedPersonnelCount: number;
   description?: string;
+  issuer?: string;
+  issuedDate?: string;
+  effectiveDate?: string;
+  type?: 'Assignment' | 'Promotion' | 'Commendation' | 'Disciplinary' | 'Leave' | string;
+  orderType?: string;
+  signatory?: string;
+  signatoryTitle?: string;
+  affectedPersonnelCount?: number;
+  status?: 'Active' | 'Archived' | 'Revoked' | string;
+  downloadUrl?: string;
 }
 
 export interface TrainingRecord {
   id: string;
   personnelId: string;
   courseName: string;
-  category: 'Career Course' | 'Specialized IT' | 'Cyber Security' | 'Database Admin' | 'Network & Telecom';
   provider: string;
-  startDate: string;
-  completionDate: string;
-  hours: number;
-  certificateNo: string;
+  startDate?: string;
+  endDate?: string;
+  completionDate?: string;
+  hours?: number;
+  category?: string;
+  certificateRef?: string;
+  certificateNo?: string;
 }
 
 export interface LeaveRecord {
   id: string;
   personnelId: string;
-  leaveType: 'Vacation' | 'Sick' | 'Mandatory' | 'Study' | 'Special Privilege' | 'Emergency';
+  leaveType: 'Vacation' | 'Sick' | 'Maternity' | 'Paternity' | 'Special' | string;
   startDate: string;
   endDate: string;
-  days: number;
-  status: 'Approved' | 'Pending' | 'Completed' | 'Rejected';
-  approvedBy: string;
+  daysCount?: number;
+  days?: number;
   purpose?: string;
+  status: 'Pending' | 'Approved' | 'Rejected' | string;
+  approvedBy?: string;
 }
-
-export type UserRole = 'admin' | 'view_only';

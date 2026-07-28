@@ -8,7 +8,7 @@ export const PromotionPage: React.FC = () => {
   const { personnelList, promotionsList } = useAuthRole();
 
   const tigRoster = personnelList.map(p => {
-    const tig = calculateTimeInGrade(p.lastPromotionDate);
+    const tig = calculateTimeInGrade(p.lastPromotionDate ?? '2000-01-01');
     const pPromotions = promotionsList.filter(prom => prom.personnelId === p.id);
     return {
       personnel: p,

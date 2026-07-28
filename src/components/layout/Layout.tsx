@@ -12,7 +12,7 @@ export const Layout: React.FC = () => {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden bg-slate-50">
         <Header />
-        <main className="flex-1 p-6 md:p-8 max-w-7xl w-full mx-auto">
+        <main className="flex-1 p-3 md:p-4 w-full">
           <Outlet />
         </main>
       </div>

@@ -61,9 +61,9 @@ export const EducationPage: React.FC = () => {
                       </div>
                       <p className="text-[11px] text-blue-700 font-extrabold">{edu.institution}</p>
 
-                      {edu.certifications.length > 0 && (
+                      {(edu.certifications?.length ?? 0) > 0 && (
                         <div className="flex flex-wrap gap-1 pt-1">
-                          {edu.certifications.map((c, i) => (
+                          {edu.certifications?.map((c, i) => (
                             <span key={i} className="text-[10px] px-2 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-200 font-mono font-extrabold">
                               {c}
                             </span>

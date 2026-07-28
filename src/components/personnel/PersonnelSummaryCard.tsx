@@ -20,7 +20,7 @@ interface PersonnelSummaryCardProps {
 
 export const PersonnelSummaryCard: React.FC<PersonnelSummaryCardProps> = ({ personnel, onEdit }) => {
   const { role } = useAuthRole();
-  const tig = calculateTimeInGrade(personnel.lastPromotionDate);
+  const tig = calculateTimeInGrade(personnel.lastPromotionDate ?? '2000-01-01');
 
   return (
     <div className="rounded-2xl p-6 space-y-6 border border-slate-200 bg-white relative overflow-hidden shadow-2xs">

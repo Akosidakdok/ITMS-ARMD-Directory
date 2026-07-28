@@ -1,5 +1,7 @@
 import express from 'express';
 import cors from 'cors';
+import { connectDB, getDBStatus } from './config/db.js';
+import { checkSupabaseStatus } from './config/supabase.js';
 
 import personnelRoutes from './routes/personnelRoutes.js';
 import ordersRoutes from './routes/ordersRoutes.js';
@@ -24,11 +26,18 @@ app.use((req, res, next) => {
 });
 
 // API Health & Status Endpoint
-app.get('/api/health', (req, res) => {
+app.get('/api/health', async (req, res) => {
+  const mongoStatus = getDBStatus();
+  const supabaseStatus = await checkSupabaseStatus();
+  
   res.json({
     status: 'online',
     system: 'PNP-ITMS PAIS 2.0 Backend Service',
-    databaseAdapter: 'In-Memory Repository (Database Ready)',
+    database: {
+      activeAdapter: supabaseStatus.isConnected ? 'Supabase PostgreSQL (Connected - HTTPS Port 443)' : (mongoStatus.isConnected ? 'MongoDB Atlas (Connected)' : 'In-Memory Fallback'),
+      supabase: supabaseStatus,
+      mongoDB: mongoStatus
+    },
     timestamp: new Date().toISOString(),
     endpoints: [
       '/api/personnel',
@@ -69,11 +78,19 @@ app.use((req, res) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`===================================================`);
-  console.log(` PNP ITMS PAIS 2.0 REST API Server is running`);
-  console.log(` URL: http://localhost:${PORT}`);
-  console.log(` Health Check: http://localhost:${PORT}/api/health`);
-  console.log(` Ready for Database Migration (Prisma/Postgres/SQLite)`);
-  console.log(`===================================================`);
-});
+// Connect Databases and Start Server
+const startServer = async () => {
+  await connectDB();
+  const supabaseStatus = await checkSupabaseStatus();
+  
+  app.listen(PORT, () => {
+    console.log(`===================================================`);
+    console.log(` PNP ITMS PAIS 2.0 REST API Server is running`);
+    console.log(` URL: http://localhost:${PORT}`);
+    console.log(` Health Check: http://localhost:${PORT}/api/health`);
+    console.log(` Primary Database: Supabase PostgreSQL (${supabaseStatus.isConnected ? 'CONNECTED' : 'DISCONNECTED'})`);
+    console.log(`===================================================`);
+  });
+};
+
+startServer();

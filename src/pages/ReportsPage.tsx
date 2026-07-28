@@ -69,7 +69,7 @@ export const ReportsPage: React.FC = () => {
 
   // 3. Education / Certification Report Data
   const courseOptions = Array.from(new Set([
-    ...educationList.flatMap(e => e.certifications),
+    ...educationList.flatMap(e => e.certifications ?? []),
     ...trainingList.map(t => t.courseName)
   ]));
 
@@ -78,7 +78,7 @@ export const ReportsPage: React.FC = () => {
       if (courseFilter === 'ALL') return true;
       const pEdus = educationList.filter(e => e.personnelId === p.id);
       const pTrns = trainingList.filter(t => t.personnelId === p.id);
-      const hasCert = pEdus.some(e => e.certifications.includes(courseFilter));
+      const hasCert = pEdus.some(e => e.certifications?.includes(courseFilter));
       const hasTrn = pTrns.some(t => t.courseName === courseFilter);
       return hasCert || hasTrn;
     })
@@ -86,7 +86,7 @@ export const ReportsPage: React.FC = () => {
       const pEdus = educationList.filter(e => e.personnelId === p.id);
       const pTrns = trainingList.filter(t => t.personnelId === p.id);
       const highestDegree = pEdus[0]?.degree || 'BS Degree';
-      const certsList = pEdus.flatMap(e => e.certifications).join(', ') || 'N/A';
+      const certsList = pEdus.flatMap(e => e.certifications ?? []).join(', ') || 'N/A';
       const recentTrn = pTrns[0]?.courseName || 'Standard Police IT';
 
       return {
@@ -103,7 +103,7 @@ export const ReportsPage: React.FC = () => {
 
   // 4. Promotion / Time-In-Grade (TIG) Report Data
   const promotionReportData = personnelList.map(p => {
-    const tig = calculateTimeInGrade(p.lastPromotionDate);
+    const tig = calculateTimeInGrade(p.lastPromotionDate ?? '2000-01-01');
     return {
       id: p.id,
       rank: p.rank,

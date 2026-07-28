@@ -2,14 +2,11 @@
  * Data Repository Abstraction Layer
  * 
  * DESIGN PATTERN: Repository Pattern
- * Current Storage Engine: In-Memory Data Store (Initialized with Seed Data)
- * 
- * FUTURE DATABASE INTEGRATION NOTE:
- * When connecting a persistent database (SQLite, PostgreSQL, MongoDB, Prisma, Drizzle),
- * ONLY swap the inner implementations of these repository methods.
- * Controllers and API routes will remain 100% untouched.
+ * Primary Storage Engine: Supabase (PostgreSQL Cloud via HTTPS Port 443)
+ * Fallback Engine: In-Memory Data Store
  */
 
+import { supabase } from '../config/supabase.js';
 import { 
   INITIAL_PERSONNEL, 
   INITIAL_ASSIGNMENTS, 
@@ -22,18 +19,40 @@ import {
 
 class PAISRepository {
   constructor() {
-    this.personnel = [...INITIAL_PERSONNEL];
-    this.assignments = [...INITIAL_ASSIGNMENTS];
-    this.education = [...INITIAL_EDUCATION];
-    this.promotions = [...INITIAL_PROMOTIONS];
-    this.orders = [...INITIAL_ORDERS];
-    this.training = [...INITIAL_TRAINING];
-    this.leave = [...INITIAL_LEAVE];
+    this.inMemoryPersonnel = [...INITIAL_PERSONNEL];
+    this.inMemoryAssignments = [...INITIAL_ASSIGNMENTS];
+    this.inMemoryEducation = [...INITIAL_EDUCATION];
+    this.inMemoryPromotions = [...INITIAL_PROMOTIONS];
+    this.inMemoryOrders = [...INITIAL_ORDERS];
+    this.inMemoryTraining = [...INITIAL_TRAINING];
+    this.inMemoryLeave = [...INITIAL_LEAVE];
+  }
+
+  isSupabaseConnected() {
+    return !!supabase;
   }
 
   // ================= PERSONNEL CRUD =================
   async getPersonnel(query = {}) {
-    let result = [...this.personnel];
+    if (this.isSupabaseConnected()) {
+      try {
+        let req = supabase.from('personnel').select('*');
+        if (query.division && query.division !== 'ALL') {
+          req = req.eq('division', query.division);
+        }
+        if (query.status) {
+          req = req.eq('status', query.status);
+        }
+        if (query.search) {
+          req = req.or(`fullName.ilike.%${query.search}%,badgeNo.ilike.%${query.search}%,division.ilike.%${query.search}%,designation.ilike.%${query.search}%`);
+        }
+        const { data, error } = await req;
+        console.log('--- SUPABASE QUERY RESULT ---', { dataCount: data?.length, error: error?.message });
+        if (!error && Array.isArray(data)) return data;
+      } catch (e) {}
+    }
+
+    let result = [...this.inMemoryPersonnel];
     if (query.division && query.division !== 'ALL') {
       result = result.filter(p => p.division === query.division);
     }
@@ -53,7 +72,13 @@ class PAISRepository {
   }
 
   async getPersonnelById(id) {
-    return this.personnel.find(p => p.id === id) || null;
+    if (this.isSupabaseConnected()) {
+      try {
+        const { data, error } = await supabase.from('personnel').select('*').eq('id', id).single();
+        if (!error && data) return data;
+      } catch (e) {}
+    }
+    return this.inMemoryPersonnel.find(p => p.id === id) || null;
   }
 
   async createPersonnel(data) {
@@ -61,31 +86,65 @@ class PAISRepository {
       id: data.id || `pnp-${Date.now()}`,
       ...data
     };
-    this.personnel.unshift(newRecord);
+
+    if (this.isSupabaseConnected()) {
+      try {
+        const { data: inserted, error } = await supabase.from('personnel').insert([newRecord]).select().single();
+        if (!error && inserted) return inserted;
+      } catch (e) {}
+    }
+
+    this.inMemoryPersonnel.unshift(newRecord);
     return newRecord;
   }
 
   async updatePersonnel(id, data) {
-    const index = this.personnel.findIndex(p => p.id === id);
+    if (this.isSupabaseConnected()) {
+      try {
+        const { data: updated, error } = await supabase.from('personnel').update(data).eq('id', id).select().single();
+        if (!error && updated) return updated;
+      } catch (e) {}
+    }
+
+    const index = this.inMemoryPersonnel.findIndex(p => p.id === id);
     if (index === -1) return null;
-    this.personnel[index] = { ...this.personnel[index], ...data };
-    return this.personnel[index];
+    this.inMemoryPersonnel[index] = { ...this.inMemoryPersonnel[index], ...data };
+    return this.inMemoryPersonnel[index];
   }
 
   async deletePersonnel(id) {
-    const index = this.personnel.findIndex(p => p.id === id);
+    if (this.isSupabaseConnected()) {
+      try {
+        const { error } = await supabase.from('personnel').delete().eq('id', id);
+        if (!error) return true;
+      } catch (e) {}
+    }
+
+    const index = this.inMemoryPersonnel.findIndex(p => p.id === id);
     if (index === -1) return false;
-    this.personnel.splice(index, 1);
+    this.inMemoryPersonnel.splice(index, 1);
     return true;
   }
 
   // ================= ORDERS CRUD =================
   async getOrders() {
-    return [...this.orders];
+    if (this.isSupabaseConnected()) {
+      try {
+        const { data, error } = await supabase.from('orders').select('*');
+        if (!error && Array.isArray(data)) return data;
+      } catch (e) {}
+    }
+    return [...this.inMemoryOrders];
   }
 
   async getOrderById(id) {
-    return this.orders.find(o => o.id === id) || null;
+    if (this.isSupabaseConnected()) {
+      try {
+        const { data, error } = await supabase.from('orders').select('*').eq('id', id).single();
+        if (!error && data) return data;
+      } catch (e) {}
+    }
+    return this.inMemoryOrders.find(o => o.id === id) || null;
   }
 
   async createOrder(data) {
@@ -93,30 +152,61 @@ class PAISRepository {
       id: data.id || `ord-${Date.now()}`,
       ...data
     };
-    this.orders.unshift(newRecord);
+
+    if (this.isSupabaseConnected()) {
+      try {
+        const { data: inserted, error } = await supabase.from('orders').insert([newRecord]).select().single();
+        if (!error && inserted) return inserted;
+      } catch (e) {}
+    }
+
+    this.inMemoryOrders.unshift(newRecord);
     return newRecord;
   }
 
   async updateOrder(id, data) {
-    const index = this.orders.findIndex(o => o.id === id);
+    if (this.isSupabaseConnected()) {
+      try {
+        const { data: updated, error } = await supabase.from('orders').update(data).eq('id', id).select().single();
+        if (!error && updated) return updated;
+      } catch (e) {}
+    }
+
+    const index = this.inMemoryOrders.findIndex(o => o.id === id);
     if (index === -1) return null;
-    this.orders[index] = { ...this.orders[index], ...data };
-    return this.orders[index];
+    this.inMemoryOrders[index] = { ...this.inMemoryOrders[index], ...data };
+    return this.inMemoryOrders[index];
   }
 
   async deleteOrder(id) {
-    const index = this.orders.findIndex(o => o.id === id);
+    if (this.isSupabaseConnected()) {
+      try {
+        const { error } = await supabase.from('orders').delete().eq('id', id);
+        if (!error) return true;
+      } catch (e) {}
+    }
+
+    const index = this.inMemoryOrders.findIndex(o => o.id === id);
     if (index === -1) return false;
-    this.orders.splice(index, 1);
+    this.inMemoryOrders.splice(index, 1);
     return true;
   }
 
   // ================= ASSIGNMENTS CRUD =================
   async getAssignments(personnelId = null) {
-    if (personnelId) {
-      return this.assignments.filter(a => a.personnelId === personnelId);
+    if (this.isSupabaseConnected()) {
+      try {
+        let req = supabase.from('assignments').select('*');
+        if (personnelId) req = req.eq('personnelId', personnelId);
+        const { data, error } = await req;
+        if (!error && Array.isArray(data)) return data;
+      } catch (e) {}
     }
-    return [...this.assignments];
+
+    if (personnelId) {
+      return this.inMemoryAssignments.filter(a => a.personnelId === personnelId);
+    }
+    return [...this.inMemoryAssignments];
   }
 
   async createAssignment(data) {
@@ -124,23 +214,47 @@ class PAISRepository {
       id: data.id || `asg-${Date.now()}`,
       ...data
     };
-    this.assignments.unshift(newRecord);
+
+    if (this.isSupabaseConnected()) {
+      try {
+        const { data: inserted, error } = await supabase.from('assignments').insert([newRecord]).select().single();
+        if (!error && inserted) return inserted;
+      } catch (e) {}
+    }
+
+    this.inMemoryAssignments.unshift(newRecord);
     return newRecord;
   }
 
   async deleteAssignment(id) {
-    const index = this.assignments.findIndex(a => a.id === id);
+    if (this.isSupabaseConnected()) {
+      try {
+        const { error } = await supabase.from('assignments').delete().eq('id', id);
+        if (!error) return true;
+      } catch (e) {}
+    }
+
+    const index = this.inMemoryAssignments.findIndex(a => a.id === id);
     if (index === -1) return false;
-    this.assignments.splice(index, 1);
+    this.inMemoryAssignments.splice(index, 1);
     return true;
   }
 
   // ================= EDUCATION CRUD =================
   async getEducation(personnelId = null) {
-    if (personnelId) {
-      return this.education.filter(e => e.personnelId === personnelId);
+    if (this.isSupabaseConnected()) {
+      try {
+        let req = supabase.from('education').select('*');
+        if (personnelId) req = req.eq('personnelId', personnelId);
+        const { data, error } = await req;
+        if (!error && Array.isArray(data)) return data;
+      } catch (e) {}
     }
-    return [...this.education];
+
+    if (personnelId) {
+      return this.inMemoryEducation.filter(e => e.personnelId === personnelId);
+    }
+    return [...this.inMemoryEducation];
   }
 
   async createEducation(data) {
@@ -148,23 +262,47 @@ class PAISRepository {
       id: data.id || `edu-${Date.now()}`,
       ...data
     };
-    this.education.unshift(newRecord);
+
+    if (this.isSupabaseConnected()) {
+      try {
+        const { data: inserted, error } = await supabase.from('education').insert([newRecord]).select().single();
+        if (!error && inserted) return inserted;
+      } catch (e) {}
+    }
+
+    this.inMemoryEducation.unshift(newRecord);
     return newRecord;
   }
 
   async deleteEducation(id) {
-    const index = this.education.findIndex(e => e.id === id);
+    if (this.isSupabaseConnected()) {
+      try {
+        const { error } = await supabase.from('education').delete().eq('id', id);
+        if (!error) return true;
+      } catch (e) {}
+    }
+
+    const index = this.inMemoryEducation.findIndex(e => e.id === id);
     if (index === -1) return false;
-    this.education.splice(index, 1);
+    this.inMemoryEducation.splice(index, 1);
     return true;
   }
 
   // ================= PROMOTIONS CRUD =================
   async getPromotions(personnelId = null) {
-    if (personnelId) {
-      return this.promotions.filter(p => p.personnelId === personnelId);
+    if (this.isSupabaseConnected()) {
+      try {
+        let req = supabase.from('promotions').select('*');
+        if (personnelId) req = req.eq('personnelId', personnelId);
+        const { data, error } = await req;
+        if (!error && Array.isArray(data)) return data;
+      } catch (e) {}
     }
-    return [...this.promotions];
+
+    if (personnelId) {
+      return this.inMemoryPromotions.filter(p => p.personnelId === personnelId);
+    }
+    return [...this.inMemoryPromotions];
   }
 
   async createPromotion(data) {
@@ -172,33 +310,61 @@ class PAISRepository {
       id: data.id || `prm-${Date.now()}`,
       ...data
     };
-    this.promotions.unshift(newRecord);
 
-    // Side Effect: update personnel rank & promotion date
-    const pIndex = this.personnel.findIndex(p => p.id === data.personnelId);
-    if (pIndex !== -1 && data.rankTo) {
-      this.personnel[pIndex].rank = data.rankTo;
-      if (data.promotionDate) {
-        this.personnel[pIndex].lastPromotionDate = data.promotionDate;
-      }
+    if (this.isSupabaseConnected()) {
+      try {
+        const { data: inserted, error } = await supabase.from('promotions').insert([newRecord]).select().single();
+        if (!error && inserted) {
+          if (data.rankTo) {
+            const updateObj = { rank: data.rankTo };
+            if (data.promotionDate) updateObj.lastPromotionDate = data.promotionDate;
+            await supabase.from('personnel').update(updateObj).eq('id', data.personnelId);
+          }
+          return inserted;
+        }
+      } catch (e) {}
     }
 
+    this.inMemoryPromotions.unshift(newRecord);
+    const pIndex = this.inMemoryPersonnel.findIndex(p => p.id === data.personnelId);
+    if (pIndex !== -1 && data.rankTo) {
+      this.inMemoryPersonnel[pIndex].rank = data.rankTo;
+      if (data.promotionDate) {
+        this.inMemoryPersonnel[pIndex].lastPromotionDate = data.promotionDate;
+      }
+    }
     return newRecord;
   }
 
   async deletePromotion(id) {
-    const index = this.promotions.findIndex(p => p.id === id);
+    if (this.isSupabaseConnected()) {
+      try {
+        const { error } = await supabase.from('promotions').delete().eq('id', id);
+        if (!error) return true;
+      } catch (e) {}
+    }
+
+    const index = this.inMemoryPromotions.findIndex(p => p.id === id);
     if (index === -1) return false;
-    this.promotions.splice(index, 1);
+    this.inMemoryPromotions.splice(index, 1);
     return true;
   }
 
   // ================= TRAINING CRUD =================
   async getTraining(personnelId = null) {
-    if (personnelId) {
-      return this.training.filter(t => t.personnelId === personnelId);
+    if (this.isSupabaseConnected()) {
+      try {
+        let req = supabase.from('training').select('*');
+        if (personnelId) req = req.eq('personnelId', personnelId);
+        const { data, error } = await req;
+        if (!error && Array.isArray(data)) return data;
+      } catch (e) {}
     }
-    return [...this.training];
+
+    if (personnelId) {
+      return this.inMemoryTraining.filter(t => t.personnelId === personnelId);
+    }
+    return [...this.inMemoryTraining];
   }
 
   async createTraining(data) {
@@ -206,23 +372,47 @@ class PAISRepository {
       id: data.id || `trn-${Date.now()}`,
       ...data
     };
-    this.training.unshift(newRecord);
+
+    if (this.isSupabaseConnected()) {
+      try {
+        const { data: inserted, error } = await supabase.from('training').insert([newRecord]).select().single();
+        if (!error && inserted) return inserted;
+      } catch (e) {}
+    }
+
+    this.inMemoryTraining.unshift(newRecord);
     return newRecord;
   }
 
   async deleteTraining(id) {
-    const index = this.training.findIndex(t => t.id === id);
+    if (this.isSupabaseConnected()) {
+      try {
+        const { error } = await supabase.from('training').delete().eq('id', id);
+        if (!error) return true;
+      } catch (e) {}
+    }
+
+    const index = this.inMemoryTraining.findIndex(t => t.id === id);
     if (index === -1) return false;
-    this.training.splice(index, 1);
+    this.inMemoryTraining.splice(index, 1);
     return true;
   }
 
   // ================= LEAVE CRUD =================
   async getLeave(personnelId = null) {
-    if (personnelId) {
-      return this.leave.filter(l => l.personnelId === personnelId);
+    if (this.isSupabaseConnected()) {
+      try {
+        let req = supabase.from('leave').select('*');
+        if (personnelId) req = req.eq('personnelId', personnelId);
+        const { data, error } = await req;
+        if (!error && Array.isArray(data)) return data;
+      } catch (e) {}
     }
-    return [...this.leave];
+
+    if (personnelId) {
+      return this.inMemoryLeave.filter(l => l.personnelId === personnelId);
+    }
+    return [...this.inMemoryLeave];
   }
 
   async createLeave(data) {
@@ -230,22 +420,46 @@ class PAISRepository {
       id: data.id || `lve-${Date.now()}`,
       ...data
     };
-    this.leave.unshift(newRecord);
+
+    if (this.isSupabaseConnected()) {
+      try {
+        const { data: inserted, error } = await supabase.from('leave').insert([newRecord]).select().single();
+        if (!error && inserted) return inserted;
+      } catch (e) {}
+    }
+
+    this.inMemoryLeave.unshift(newRecord);
     return newRecord;
   }
 
   async updateLeaveStatus(id, status, approvedBy = null) {
-    const index = this.leave.findIndex(l => l.id === id);
+    if (this.isSupabaseConnected()) {
+      try {
+        const updateData = { status };
+        if (approvedBy) updateData.approvedBy = approvedBy;
+        const { data: updated, error } = await supabase.from('leave').update(updateData).eq('id', id).select().single();
+        if (!error && updated) return updated;
+      } catch (e) {}
+    }
+
+    const index = this.inMemoryLeave.findIndex(l => l.id === id);
     if (index === -1) return null;
-    this.leave[index].status = status;
-    if (approvedBy) this.leave[index].approvedBy = approvedBy;
-    return this.leave[index];
+    this.inMemoryLeave[index].status = status;
+    if (approvedBy) this.inMemoryLeave[index].approvedBy = approvedBy;
+    return this.inMemoryLeave[index];
   }
 
   async deleteLeave(id) {
-    const index = this.leave.findIndex(l => l.id === id);
+    if (this.isSupabaseConnected()) {
+      try {
+        const { error } = await supabase.from('leave').delete().eq('id', id);
+        if (!error) return true;
+      } catch (e) {}
+    }
+
+    const index = this.inMemoryLeave.findIndex(l => l.id === id);
     if (index === -1) return false;
-    this.leave.splice(index, 1);
+    this.inMemoryLeave.splice(index, 1);
     return true;
   }
 }

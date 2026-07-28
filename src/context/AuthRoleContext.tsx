@@ -84,13 +84,13 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [selectedPersonnelId, setSelectedPersonnelId] = useState('pnp-001');
   const [backendConnected, setBackendConnected] = useState(false);
 
-  const [personnelList, setPersonnelList] = useState<Personnel[]>(INITIAL_PERSONNEL);
-  const [assignmentsList, setAssignmentsList] = useState<AssignmentRecord[]>(INITIAL_ASSIGNMENTS);
-  const [educationList, setEducationList] = useState<EducationRecord[]>(INITIAL_EDUCATION);
-  const [promotionsList, setPromotionsList] = useState<PromotionRecord[]>(INITIAL_PROMOTIONS);
-  const [ordersList, setOrdersList] = useState<OrderRecord[]>(INITIAL_ORDERS);
-  const [trainingList, setTrainingList] = useState<TrainingRecord[]>(INITIAL_TRAINING);
-  const [leaveList, setLeaveList] = useState<LeaveRecord[]>(INITIAL_LEAVE);
+  const [personnelList, setPersonnelList] = useState<Personnel[]>([]);
+  const [assignmentsList, setAssignmentsList] = useState<AssignmentRecord[]>([]);
+  const [educationList, setEducationList] = useState<EducationRecord[]>([]);
+  const [promotionsList, setPromotionsList] = useState<PromotionRecord[]>([]);
+  const [ordersList, setOrdersList] = useState<OrderRecord[]>([]);
+  const [trainingList, setTrainingList] = useState<TrainingRecord[]>([]);
+  const [leaveList, setLeaveList] = useState<LeaveRecord[]>([]);
 
   // Initialize and load backend data if server is online
   const loadDataFromBackend = async () => {
@@ -116,8 +116,17 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setTrainingList(tData);
         setLeaveList(lData);
       } catch (err) {
-        console.warn('Backend reachable but error fetching data, using fallback store:', err);
+        console.warn('Backend reachable but error fetching data:', err);
       }
+    } else {
+      // Offline fallback only when backend server is not running at all
+      setPersonnelList(INITIAL_PERSONNEL);
+      setAssignmentsList(INITIAL_ASSIGNMENTS);
+      setEducationList(INITIAL_EDUCATION);
+      setPromotionsList(INITIAL_PROMOTIONS);
+      setOrdersList(INITIAL_ORDERS);
+      setTrainingList(INITIAL_TRAINING);
+      setLeaveList(INITIAL_LEAVE);
     }
   };
 

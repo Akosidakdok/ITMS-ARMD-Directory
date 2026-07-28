@@ -28,7 +28,7 @@ export const DashboardPage: React.FC = () => {
   const activeAssignments = assignmentsList.filter(a => a.status === 'Current').length;
   const onLeaveToday = personnelList.filter(p => p.status === 'On Leave').length;
   const upcomingTrainings = trainingList.length;
-  const eligibleForPromotion = personnelList.filter(p => calculateTimeInGrade(p.lastPromotionDate).eligibleForPromotion).length;
+  const eligibleForPromotion = personnelList.filter(p => calculateTimeInGrade(p.lastPromotionDate ?? '2000-01-01').eligibleForPromotion).length;
 
   // Chart Data: Personnel by Division
   const divisionCounts: Record<string, number> = {};

@@ -14,7 +14,7 @@ export const PromotionSubTab: React.FC<PromotionSubTabProps> = ({ personnel }) =
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const personnelPromotions = promotionsList.filter(p => p.personnelId === personnel.id);
-  const currentTig = calculateTimeInGrade(personnel.lastPromotionDate);
+  const currentTig = calculateTimeInGrade(personnel.lastPromotionDate ?? '2000-01-01');
 
   const [rankFrom, setRankFrom] = useState<RankAbbr>(personnel.rank);
   const [rankTo, setRankTo] = useState<RankAbbr>('PCOL');

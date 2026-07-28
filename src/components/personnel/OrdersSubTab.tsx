@@ -15,7 +15,7 @@ export const OrdersSubTab: React.FC<OrdersSubTabProps> = ({ personnel }) => {
     o.subject.toLowerCase().includes(personnel.lastName.toLowerCase()) ||
     o.description?.toLowerCase().includes(personnel.lastName.toLowerCase()) ||
     o.subject.toLowerCase().includes(personnel.badgeNo.toLowerCase()) ||
-    o.orderNumber.toLowerCase().includes('045') ||
+    (o.orderNumber && o.orderNumber.toLowerCase().includes('045')) ||
     o.orderType === 'Assignment Order'
   );
 

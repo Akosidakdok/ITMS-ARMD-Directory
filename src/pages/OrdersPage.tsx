@@ -27,9 +27,9 @@ export const OrdersPage: React.FC = () => {
   const filteredOrders = ordersList.filter(ord => {
     const matchesType = filterType === 'ALL' || ord.orderType === filterType;
     const matchesStatus = filterStatus === 'ALL' || ord.status === filterStatus;
-    const matchesSearch = ord.orderNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    const matchesSearch = (ord.orderNumber ?? '').toLowerCase().includes(searchQuery.toLowerCase()) ||
                           ord.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          ord.signatory.toLowerCase().includes(searchQuery.toLowerCase());
+                          (ord.signatory ?? '').toLowerCase().includes(searchQuery.toLowerCase());
     return matchesType && matchesStatus && matchesSearch;
   });
 
@@ -180,7 +180,7 @@ export const OrdersPage: React.FC = () => {
               <p className="text-[11px] text-blue-200">Camp BGen Rafael T Crame, Quezon City</p>
               
               <div className="pt-3 border-t border-blue-800">
-                <span className="text-xs font-mono font-bold text-blue-300 block">{selectedOrder.orderType.toUpperCase()}</span>
+                <span className="text-xs font-mono font-bold text-blue-300 block">{(selectedOrder.orderType ?? '').toUpperCase()}</span>
                 <h2 className="text-base font-extrabold text-white uppercase mt-1">{selectedOrder.orderNumber}</h2>
               </div>
             </div>
