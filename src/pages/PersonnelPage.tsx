@@ -2,13 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useAuthRole } from '../context/AuthRoleContext';
 import { Personnel } from '../types/pais';
 import { BulkImportModal } from '../components/personnel/BulkImportModal';
-import { PersonnelInfoTab } from '../components/personnel/PersonnelInfoTab';
-import { AssignmentsSubTab } from '../components/personnel/AssignmentsSubTab';
-import { EducationSubTab } from '../components/personnel/EducationSubTab';
-import { PromotionSubTab } from '../components/personnel/PromotionSubTab';
-import { OrdersSubTab } from '../components/personnel/OrdersSubTab';
-import { TrainingSubTab } from '../components/personnel/TrainingSubTab';
-import { LeaveSubTab } from '../components/personnel/LeaveSubTab';
+import { PersonnelSummaryCard } from '../components/personnel/PersonnelSummaryCard';
 import { 
   Users, 
   Search, 
@@ -19,13 +13,6 @@ import {
   Edit3, 
   Trash2, 
   X,
-  User,
-  Briefcase,
-  GraduationCap,
-  Award,
-  FileText,
-  BookOpen,
-  Calendar,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
@@ -34,17 +21,17 @@ import {
   Maximize2
 } from 'lucide-react';
 
-type SubTabType = 'info' | 'assignments' | 'education' | 'promotion' | 'orders' | 'training' | 'leave';
-
 export const PersonnelPage: React.FC = () => {
   const { 
     personnelList, 
     addPersonnel, 
+    bulkImportPersonnel,
     deletePersonnel, 
     selectedPersonnelId, 
     setSelectedPersonnelId,
     globalSearchQuery,
-    setGlobalSearchQuery
+    setGlobalSearchQuery,
+    backendConnected
   } = useAuthRole();
 
   // Search Inputs State (Real-Time Reactive & Filterable)
@@ -61,7 +48,6 @@ export const PersonnelPage: React.FC = () => {
   // Modals & Action Menus
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [inspectModalOpen, setInspectModalOpen] = useState(false);
-  const [inspectTab, setInspectTab] = useState<SubTabType>('info');
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [activeActionMenuId, setActiveActionMenuId] = useState<string | null>(null);
   
@@ -192,10 +178,6 @@ export const PersonnelPage: React.FC = () => {
   }, [filteredPersonnel, currentPage, pageSize]);
 
   // Bulk Import Confirm Handler
-  const handleBulkImportConfirm = (importedRecords: Personnel[]) => {
-    importedRecords.forEach(rec => addPersonnel(rec));
-  };
-
   // Inspect Personnel Handler
   const handleInspectRow = (personnelId: string) => {
     setSelectedPersonnelId(personnelId);
@@ -239,16 +221,6 @@ export const PersonnelPage: React.FC = () => {
   };
 
   const selectedPerson = personnelList.find(p => p.id === selectedPersonnelId) || personnelList[0];
-
-  const subTabs: { id: SubTabType; label: string; icon: any }[] = [
-    { id: 'info', label: 'Personnel Info', icon: User },
-    { id: 'assignments', label: 'Assignments', icon: Briefcase },
-    { id: 'education', label: 'Education', icon: GraduationCap },
-    { id: 'promotion', label: 'Promotion', icon: Award },
-    { id: 'orders', label: 'Orders', icon: FileText },
-    { id: 'training', label: 'Training', icon: BookOpen },
-    { id: 'leave', label: 'Leave', icon: Calendar }
-  ];
 
   return (
     <div className="w-full space-y-4 animate-fade-in font-sans text-slate-800 text-xs">
@@ -452,27 +424,29 @@ export const PersonnelPage: React.FC = () => {
             <thead>
               <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 uppercase tracking-wider text-3xs">
                 <th className="p-3 border-r border-slate-200 text-center">PHOTO</th>
-                <th className="p-3 border-r border-slate-200 text-center">STATUS</th>
-                <th className="p-3 border-r border-slate-200">RANK</th>
-                <th className="p-3 border-r border-slate-200">LASTNAME</th>
-                <th className="p-3 border-r border-slate-200">FIRSTNAME</th>
+                <th className="p-3 border-r border-slate-200">FIRST NAME</th>
                 <th className="p-3 border-r border-slate-200">MIDDLE NAME</th>
-                <th className="p-3 border-r border-slate-200 text-center">QUAL</th>
-                <th className="p-3 border-r border-slate-200">ACCOUNT NUMBER</th>
-                <th className="p-3 border-r border-slate-200 text-center">SG-ST</th>
-                <th className="p-3 border-r border-slate-200">UNIT</th>
-                <th className="p-3 border-r border-slate-200">SUB-UNIT</th>
-                <th className="p-3 border-r border-slate-200">STATION</th>
-                <th className="p-3 border-r border-slate-200">DESIGNATION</th>
+                <th className="p-3 border-r border-slate-200">LAST NAME</th>
+                <th className="p-3 border-r border-slate-200 text-center">QUALIFIER</th>
+                <th className="p-3 border-r border-slate-200">ADDRESS</th>
+                <th className="p-3 border-r border-slate-200 text-center">GENDER</th>
+                <th className="p-3 border-r border-slate-200">CONTACT NUMBER</th>
+                <th className="p-3 border-r border-slate-200 text-center">BIRTHDAY</th>
+                <th className="p-3 border-r border-slate-200 text-center">DATE OF ENTRY</th>
+                <th className="p-3 border-r border-slate-200 text-center">ENTER IN OFFICER POSITION</th>
+                <th className="p-3 border-r border-slate-200 text-center">STATUS</th>
                 <th className="p-3 text-center">ACTIONS</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 text-slate-800">
               {paginatedPersonnel.length > 0 ? (
                 paginatedPersonnel.map((person) => (
-                  <tr key={person.id} className="hover:bg-cyan-50/40 transition-colors">
-
-                    {/* PHOTO - TALL 3:4 PORTRAIT OFFICER BADGE PHOTO */}
+                  <tr
+                    key={person.id}
+                    className="hover:bg-cyan-50/60 transition-colors cursor-pointer"
+                    onClick={() => handleInspectRow(person.id)}
+                  >
+                    {/* PHOTO */}
                     <td className="p-3 border-r border-slate-200 text-center align-middle">
                       <div className="relative group mx-auto inline-block">
                         <img 
@@ -496,74 +470,69 @@ export const PersonnelPage: React.FC = () => {
                       </div>
                     </td>
 
-                    {/* Status Badge Tag */}
+                    {/* First Name */}
+                    <td className="p-3 border-r border-slate-200 font-bold uppercase align-middle text-xs">
+                      {person.firstName}
+                    </td>
+
+                    {/* Middle Name */}
+                    <td className="p-3 border-r border-slate-200 uppercase text-slate-600 align-middle text-xs">
+                      {person.middleName || '-'}
+                    </td>
+
+                    {/* Last Name */}
+                    <td className="p-3 border-r border-slate-200 font-bold uppercase align-middle text-xs">
+                      {person.lastName}
+                    </td>
+
+                    {/* Qualifier */}
+                    <td className="p-3 border-r border-slate-200 text-center font-bold text-slate-700 align-middle text-xs">
+                      {person.qualifier || '-'}
+                    </td>
+
+                    {/* Address */}
+                    <td className="p-3 border-r border-slate-200 text-slate-700 align-middle max-w-[150px] truncate text-xs" title={person.address}>
+                      {person.address || '-'}
+                    </td>
+
+                    {/* Gender */}
+                    <td className="p-3 border-r border-slate-200 text-center text-slate-700 align-middle text-xs">
+                      {person.gender || '-'}
+                    </td>
+
+                    {/* Contact Number */}
+                    <td className="p-3 border-r border-slate-200 font-mono text-emerald-700 font-bold align-middle whitespace-nowrap text-xs">
+                      {person.contactNumber || '-'}
+                    </td>
+
+                    {/* Birthday */}
+                    <td className="p-3 border-r border-slate-200 text-center text-slate-700 align-middle font-mono text-xs whitespace-nowrap">
+                      {person.birthday || '-'}
+                    </td>
+
+                    {/* Date of Entry */}
+                    <td className="p-3 border-r border-slate-200 text-center text-slate-700 align-middle font-mono text-xs whitespace-nowrap">
+                      {person.dateOfEntry || '-'}
+                    </td>
+
+                    {/* Enter in Officer Position */}
+                    <td className="p-3 border-r border-slate-200 text-center text-slate-700 align-middle font-mono text-xs whitespace-nowrap">
+                      {person.enterInOfficerPositionDate || '-'}
+                    </td>
+
+                    {/* Status */}
                     <td className="p-3 border-r border-slate-200 text-center align-middle whitespace-nowrap">
                       <span className={`px-2.5 py-1 rounded text-3xs font-bold uppercase tracking-wider inline-block ${
-                        person.status === 'Active' 
-                          ? 'bg-[#337ab7] text-white' 
+                        person.status === 'Active'
+                          ? 'bg-[#337ab7] text-white'
                           : 'bg-amber-100 text-amber-900 border border-amber-300'
                       }`}>
                         {person.status === 'Active' ? 'ON DUTY/ACTIVE' : person.status}
                       </span>
                     </td>
 
-                    {/* Rank */}
-                    <td className="p-3 border-r border-slate-200 font-bold text-blue-900 whitespace-nowrap align-middle text-xs">
-                      {person.rank}
-                    </td>
-
-                    {/* Lastname */}
-                    <td className="p-3 border-r border-slate-200 font-bold uppercase align-middle text-xs">
-                      {person.lastName}
-                    </td>
-
-                    {/* Firstname */}
-                    <td className="p-3 border-r border-slate-200 uppercase align-middle text-xs">
-                      {person.firstName}
-                    </td>
-
-                    {/* Middle Name */}
-                    <td className="p-3 border-r border-slate-200 uppercase text-slate-600 align-middle">
-                      {person.middleName || '-'}
-                    </td>
-
-                    {/* Qualifier */}
-                    <td className="p-3 border-r border-slate-200 text-center font-bold text-slate-700 align-middle">
-                      {person.qualifier || '-'}
-                    </td>
-
-                    {/* Account Number / Badge */}
-                    <td className="p-3 border-r border-slate-200 font-mono text-[#337ab7] font-bold align-middle whitespace-nowrap text-xs">
-                      {person.badgeNo}
-                    </td>
-
-                    {/* SG-ST */}
-                    <td className="p-3 border-r border-slate-200 text-center font-bold text-slate-700 align-middle text-xs">
-                      {person.salaryGrade || 14}
-                    </td>
-
-                    {/* Unit */}
-                    <td className="p-3 border-r border-slate-200 font-medium text-slate-800 align-middle max-w-[130px] truncate" title={person.division}>
-                      {person.division.includes('C02') ? person.division : `C02 - ${person.division}`}
-                    </td>
-
-                    {/* Sub-Unit */}
-                    <td className="p-3 border-r border-slate-200 text-slate-600 align-middle max-w-[130px] truncate" title={person.plantilla}>
-                      {person.plantilla || 'C0216 - Administrative Division*'}
-                    </td>
-
-                    {/* Station */}
-                    <td className="p-3 border-r border-slate-200 text-slate-600 align-middle max-w-[130px] truncate" title={person.detail}>
-                      {person.detail || 'Personnel Section*'}
-                    </td>
-
-                    {/* Designation */}
-                    <td className="p-3 border-r border-slate-200 text-slate-800 font-medium align-middle max-w-[120px] truncate" title={person.designation}>
-                      {person.designation}
-                    </td>
-
                     {/* ACTIONS DROPDOWN BUTTON */}
-                    <td className="p-3 text-center align-middle relative whitespace-nowrap">
+                    <td className="p-3 text-center align-middle relative whitespace-nowrap" onClick={e => e.stopPropagation()}>
                       <div className="relative inline-block">
                         <button
                           onClick={() => setActiveActionMenuId(activeActionMenuId === person.id ? null : person.id)}
@@ -609,7 +578,7 @@ export const PersonnelPage: React.FC = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={14} className="p-8 text-center text-slate-500 font-bold italic">
+                  <td colSpan={13} className="p-8 text-center text-slate-500 font-bold italic">
                     No record found.
                   </td>
                 </tr>
@@ -705,66 +674,40 @@ export const PersonnelPage: React.FC = () => {
       )}
 
       {/* BULK IMPORT MASSIVE DATA MODAL */}
-      <BulkImportModal 
+      <BulkImportModal
         isOpen={isImportModalOpen}
+        backendConnected={backendConnected}
         onClose={() => setIsImportModalOpen(false)}
-        onImport={handleBulkImportConfirm}
+        onImport={bulkImportPersonnel}
       />
 
-      {/* INSPECT & EDIT FULL PROFILE MODAL */}
+      {/* SUMMARY PROFILE MODAL — opens when clicking a row */}
       {inspectModalOpen && selectedPerson && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-6xl max-h-[92vh] flex flex-col overflow-hidden animate-scale-in">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto"
+          onClick={() => setInspectModalOpen(false)}
+        >
+          <div
+            className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-md animate-scale-in"
+            onClick={e => e.stopPropagation()}
+          >
             {/* Modal Header */}
-            <div className="bg-slate-800 text-white px-6 py-3 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <img 
-                  src={selectedPerson.avatarUrl || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200'} 
-                  className="w-10 h-10 rounded-lg border border-cyan-400 object-cover" 
-                  alt="" 
-                />
-                <div>
-                  <h3 className="text-sm font-bold">{selectedPerson.fullName}</h3>
-                  <p className="text-2xs text-cyan-300 font-mono">Badge #{selectedPerson.badgeNo} • {selectedPerson.division} ({selectedPerson.rank})</p>
-                </div>
+            <div className="bg-slate-800 text-white px-5 py-3 flex items-center justify-between rounded-t-2xl">
+              <div className="flex items-center gap-2">
+                <Eye className="w-4 h-4 text-cyan-400" />
+                <span className="text-sm font-bold">Summary Profile</span>
               </div>
-              <button 
+              <button
                 onClick={() => setInspectModalOpen(false)}
-                className="p-1 rounded-lg hover:bg-slate-700 text-slate-300 hover:text-white"
+                className="p-1 rounded-lg hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Sub-tabs Header */}
-            <div className="flex items-center gap-1.5 p-2 bg-slate-100 border-b border-slate-200 overflow-x-auto">
-              {subTabs.map(tab => {
-                const Icon = tab.icon;
-                const isActive = inspectTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setInspectTab(tab.id)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                      isActive ? 'bg-cyan-600 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-200'
-                    }`}
-                  >
-                    <Icon className="w-3.5 h-3.5" />
-                    <span>{tab.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Tab Content */}
-            <div className="p-6 overflow-y-auto flex-1 bg-white">
-              {inspectTab === 'info' && <PersonnelInfoTab personnel={selectedPerson} />}
-              {inspectTab === 'assignments' && <AssignmentsSubTab personnel={selectedPerson} />}
-              {inspectTab === 'education' && <EducationSubTab personnel={selectedPerson} />}
-              {inspectTab === 'promotion' && <PromotionSubTab personnel={selectedPerson} />}
-              {inspectTab === 'orders' && <OrdersSubTab personnel={selectedPerson} />}
-              {inspectTab === 'training' && <TrainingSubTab personnel={selectedPerson} />}
-              {inspectTab === 'leave' && <LeaveSubTab personnel={selectedPerson} />}
+            {/* Summary Profile Card */}
+            <div className="p-4">
+              <PersonnelSummaryCard personnel={selectedPerson} />
             </div>
           </div>
         </div>

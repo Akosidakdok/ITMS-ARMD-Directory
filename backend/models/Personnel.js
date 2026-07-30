@@ -1,18 +1,18 @@
 import mongoose from 'mongoose';
 
 const PersonnelSchema = new mongoose.Schema({
-  id: { type: String, required: true, unique: true },
-  rank: { type: String, required: true },
+  id: { type: String, unique: true, sparse: true },
+  rank: { type: String, default: '' },
   rankFullName: { type: String },
   firstName: { type: String, required: true },
   middleName: { type: String, default: '' },
   lastName: { type: String, required: true },
   qualifier: { type: String, default: '' },
-  fullName: { type: String, required: true },
-  badgeNo: { type: String, required: true },
+  fullName: { type: String, default: '' },
+  badgeNo: { type: String, default: '' },
   salaryGrade: { type: Number },
   plantilla: { type: String },
-  division: { type: String, required: true },
+  division: { type: String, default: '' },
   detail: { type: String },
   designation: { type: String },
   address: { type: String },

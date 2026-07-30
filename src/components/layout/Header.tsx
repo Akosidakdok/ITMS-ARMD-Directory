@@ -53,9 +53,9 @@ export const Header: React.FC = () => {
   };
 
   return (
-    <header className="h-16 bg-white border-b border-slate-200 sticky top-0 z-40 px-6 flex items-center justify-between">
+    <header className="h-16 bg-white border-b border-slate-200 sticky top-0 z-40 px-3 sm:px-6 flex items-center justify-between">
       {/* Search Input Container */}
-      <div className="relative w-full max-w-md" ref={searchRef}>
+      <div className="relative hidden w-full max-w-md sm:block" ref={searchRef}>
         <div className="relative">
           <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
@@ -115,7 +115,7 @@ export const Header: React.FC = () => {
       </div>
 
       {/* Header Right Actions */}
-      <div className="flex items-center gap-3">
+      <div className="ml-auto flex items-center gap-2 sm:gap-3">
         {/* Backend Server Status Indicator */}
         <div 
           className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl border text-[11px] font-bold ${

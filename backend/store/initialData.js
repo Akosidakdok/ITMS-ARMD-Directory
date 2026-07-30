@@ -6,3 +6,4 @@ export const INITIAL_PROMOTIONS = [];
 export const INITIAL_ORDERS = [];
 export const INITIAL_TRAINING = [];
 export const INITIAL_LEAVE = [];
+export const INITIAL_AWARDS = [];

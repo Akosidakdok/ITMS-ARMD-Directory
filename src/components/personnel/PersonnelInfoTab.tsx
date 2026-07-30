@@ -112,6 +112,16 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({ personnel })
             />
           </div>
 
+          <div className="md:col-span-2">
+            <label className="block text-xs font-bold text-slate-600 mb-1">Address</label>
+            <input
+              type="text"
+              value={formData.address}
+              onChange={e => setFormData({ ...formData, address: e.target.value })}
+              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
+            />
+          </div>
+
           <div>
             <label className="block text-xs font-bold text-slate-600 mb-1">Gender</label>
             <select
@@ -130,16 +140,6 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({ personnel })
               type="text"
               value={formData.contactNumber}
               onChange={e => setFormData({ ...formData, contactNumber: e.target.value })}
-              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
-            />
-          </div>
-
-          <div className="md:col-span-2">
-            <label className="block text-xs font-bold text-slate-600 mb-1">Address</label>
-            <input
-              type="text"
-              value={formData.address}
-              onChange={e => setFormData({ ...formData, address: e.target.value })}
               className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
             />
           </div>
@@ -221,7 +221,7 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({ personnel })
 
           <div className="md:col-span-2 p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
             <span className="text-[11px] text-slate-500 uppercase font-semibold flex items-center gap-1.5">
-              <MapPin className="w-3.5 h-3.5 text-rose-500" /> Residential Address
+              <MapPin className="w-3.5 h-3.5 text-rose-500" /> Address
             </span>
             <p className="text-xs font-bold text-slate-900">{personnel.address}</p>
           </div>
@@ -240,14 +240,14 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({ personnel })
 
           <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
             <span className="text-[11px] text-slate-500 uppercase font-semibold flex items-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5 text-sky-600" /> Date of Birth
+              <Calendar className="w-3.5 h-3.5 text-sky-600" /> Birthday
             </span>
             <p className="text-xs font-bold text-slate-900 font-mono">{personnel.birthday}</p>
           </div>
 
           <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
             <span className="text-[11px] text-slate-500 uppercase font-semibold flex items-center gap-1.5">
-              <Shield className="w-3.5 h-3.5 text-blue-600" /> Date of Entry into PNP
+              <Shield className="w-3.5 h-3.5 text-blue-600" /> Date of Entry
             </span>
             <p className="text-xs font-bold text-slate-900 font-mono">{personnel.dateOfEntry}</p>
           </div>
@@ -260,7 +260,7 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({ personnel })
           </div>
 
           <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
-            <span className="text-[11px] text-slate-500 uppercase font-semibold">Duty Status</span>
+            <span className="text-[11px] text-slate-500 uppercase font-semibold">Status</span>
             <div>
               <Badge variant={personnel.status === 'Active' ? 'success' : 'warning'}>
                 {personnel.status}

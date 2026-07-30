@@ -1,7 +1,6 @@
 import React from 'react';
 import { Personnel } from '../../types/pais';
 import { Badge } from '../common/Badge';
-import { calculateTimeInGrade } from '../../utils/timeInGrade';
 import { 
   ShieldCheck, 
   MapPin, 
@@ -20,7 +19,6 @@ interface PersonnelSummaryCardProps {
 
 export const PersonnelSummaryCard: React.FC<PersonnelSummaryCardProps> = ({ personnel, onEdit }) => {
   const { role } = useAuthRole();
-  const tig = calculateTimeInGrade(personnel.lastPromotionDate ?? '2000-01-01');
 
   return (
     <div className="rounded-2xl p-6 space-y-6 border border-slate-200 bg-white relative overflow-hidden shadow-2xs">
@@ -29,7 +27,7 @@ export const PersonnelSummaryCard: React.FC<PersonnelSummaryCardProps> = ({ pers
         <ShieldCheck className="w-48 h-48 text-blue-600" />
       </div>
 
-      {/* Profile Header Avatar & Main Identifiers */}
+      {/* Profile Header Avatar */}
       <div className="flex flex-col items-center text-center space-y-3 relative z-10">
         <div className="relative group">
           <img
@@ -47,17 +45,6 @@ export const PersonnelSummaryCard: React.FC<PersonnelSummaryCardProps> = ({ pers
           </span>
         </div>
 
-        <div>
-          <div className="flex items-center justify-center gap-2 mb-1">
-            <span className="text-xs font-extrabold px-2.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
-              {personnel.rank}
-            </span>
-            <span className="text-xs font-mono text-slate-500 font-bold">Badge #{personnel.badgeNo}</span>
-          </div>
-          <h2 className="text-lg font-bold text-slate-900 tracking-tight">{personnel.fullName}</h2>
-          <p className="text-xs font-bold text-blue-700 mt-0.5">{personnel.designation}</p>
-        </div>
-
         {role === 'admin' && onEdit && (
           <button
             onClick={onEdit}
@@ -70,22 +57,50 @@ export const PersonnelSummaryCard: React.FC<PersonnelSummaryCardProps> = ({ pers
 
       <hr className="border-slate-200" />
 
-      {/* Quick Reference Card Specs */}
+      {/* Summary Profile Fields — Rank, Name, Badge No., SG, Plantilla, Division, Detail, Designation */}
       <div className="space-y-3 text-xs">
+
+        {/* Rank */}
         <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200/80">
           <span className="text-slate-500 flex items-center gap-2 font-medium">
-            <Award className="w-4 h-4 text-blue-600" /> Salary Grade (SG)
+            <Award className="w-4 h-4 text-blue-600" /> Rank
+          </span>
+          <span className="font-extrabold text-blue-700">{personnel.rank}</span>
+        </div>
+
+        {/* Name */}
+        <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-0.5">
+          <span className="text-slate-500 flex items-center gap-2 font-medium">
+            <ShieldCheck className="w-4 h-4 text-slate-500" /> Name
+          </span>
+          <p className="font-bold text-slate-900 pl-6 leading-tight">{personnel.fullName}</p>
+        </div>
+
+        {/* Badge No. */}
+        <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200/80">
+          <span className="text-slate-500 flex items-center gap-2 font-medium">
+            <IdCard className="w-4 h-4 text-sky-600" /> Badge No.
+          </span>
+          <span className="font-bold text-slate-800 font-mono text-[11px]">{personnel.badgeNo}</span>
+        </div>
+
+        {/* SG (Salary Grade) */}
+        <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200/80">
+          <span className="text-slate-500 flex items-center gap-2 font-medium">
+            <Award className="w-4 h-4 text-indigo-600" /> SG
           </span>
           <span className="font-bold text-slate-900 font-mono">SG {personnel.salaryGrade}</span>
         </div>
 
+        {/* Plantilla */}
         <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200/80">
           <span className="text-slate-500 flex items-center gap-2 font-medium">
-            <IdCard className="w-4 h-4 text-sky-600" /> Plantilla Item No.
+            <IdCard className="w-4 h-4 text-sky-600" /> Plantilla
           </span>
           <span className="font-bold text-slate-800 font-mono text-[11px]">{personnel.plantilla}</span>
         </div>
 
+        {/* Division */}
         <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200/80">
           <span className="text-slate-500 flex items-center gap-2 font-medium">
             <Building className="w-4 h-4 text-indigo-600" /> Division
@@ -93,24 +108,22 @@ export const PersonnelSummaryCard: React.FC<PersonnelSummaryCardProps> = ({ pers
           <span className="font-bold text-blue-700">{personnel.division}</span>
         </div>
 
-        <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
+        {/* Detail */}
+        <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-0.5">
           <span className="text-slate-500 flex items-center gap-2 text-[11px] font-medium">
-            <MapPin className="w-3.5 h-3.5 text-emerald-600" /> Current Detail / Posting
+            <MapPin className="w-3.5 h-3.5 text-emerald-600" /> Detail
           </span>
           <p className="text-xs font-semibold text-slate-800 pl-5 leading-tight">{personnel.detail}</p>
         </div>
 
-        <div className="p-3 rounded-xl bg-blue-50/70 border border-blue-200 space-y-1">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-blue-700 flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5" /> Time-In-Grade (TIG)
-            </span>
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${tig.eligibleForPromotion ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
-              {tig.eligibleForPromotion ? 'Eligible' : 'Accruing'}
-            </span>
-          </div>
-          <p className="text-sm font-bold text-slate-900 pl-5 font-mono">{tig.formatted}</p>
+        {/* Designation */}
+        <div className="p-2.5 rounded-xl bg-blue-50/70 border border-blue-200 space-y-0.5">
+          <span className="text-[11px] font-bold text-blue-700 flex items-center gap-1.5">
+            <Clock className="w-3.5 h-3.5" /> Designation
+          </span>
+          <p className="text-sm font-bold text-slate-900 pl-5">{personnel.designation}</p>
         </div>
+
       </div>
     </div>
   );

@@ -81,6 +81,24 @@ export interface OrderRecord {
   affectedPersonnelCount?: number;
   status?: 'Active' | 'Archived' | 'Revoked' | string;
   downloadUrl?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export type AwardOrderType = 'General Order' | 'Special Order' | 'Letter Order';
+
+export interface AwardRecord {
+  id: string;
+  orderType: AwardOrderType;
+  title: string;
+  citationDetails: string;
+  awardName: string;
+  authorityDate: string;
+  personnelId: string;
+  personnelName: string;
+  status: 'Active' | 'Archived' | string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface TrainingRecord {
@@ -108,4 +126,6 @@ export interface LeaveRecord {
   purpose?: string;
   status: 'Pending' | 'Approved' | 'Rejected' | string;
   approvedBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }

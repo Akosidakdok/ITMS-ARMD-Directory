@@ -5,10 +5,23 @@ import {
   EducationRecord, 
   PromotionRecord, 
   TrainingRecord, 
-  LeaveRecord 
+  LeaveRecord,
+  AwardRecord
 } from '../types/pais';
+import type {
+  PersonnelImportIssue,
+  PersonnelImportRow
+} from '../utils/personnelCsv';
 
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '');
+const BULK_IMPORT_BATCH_SIZE = 250;
+
+export interface BulkPersonnelImportResult {
+  created: Personnel[];
+  importedCount: number;
+  rejectedCount: number;
+  errors: PersonnelImportIssue[];
+}
 
 /**
  * Health Check helper to test if backend service is live
@@ -60,6 +73,41 @@ export const deletePersonnelApi = async (id: string): Promise<boolean> => {
   return true;
 };
 
+export const bulkCreatePersonnelApi = async (
+  rows: PersonnelImportRow[],
+  onProgress?: (completed: number, total: number) => void
+): Promise<BulkPersonnelImportResult> => {
+  const result: BulkPersonnelImportResult = {
+    created: [],
+    importedCount: 0,
+    rejectedCount: 0,
+    errors: []
+  };
+
+  for (let start = 0; start < rows.length; start += BULK_IMPORT_BATCH_SIZE) {
+    const batch = rows.slice(start, start + BULK_IMPORT_BATCH_SIZE);
+    const res = await fetch(`${API_BASE_URL}/personnel/import/bulk`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ records: batch })
+    });
+    const json = await res.json().catch(() => null);
+
+    if (!res.ok && res.status !== 207) {
+      throw new Error(json?.message || json?.error || 'Bulk personnel import failed');
+    }
+
+    const batchResult = json?.data;
+    result.created.push(...(batchResult?.created || []));
+    result.importedCount += Number(batchResult?.importedCount || 0);
+    result.rejectedCount += Number(batchResult?.rejectedCount || 0);
+    result.errors.push(...(batchResult?.errors || []));
+    onProgress?.(Math.min(start + batch.length, rows.length), rows.length);
+  }
+
+  return result;
+};
+
 // ================= ORDERS API =================
 export const fetchOrders = async (): Promise<OrderRecord[]> => {
   const res = await fetch(`${API_BASE_URL}/orders`);
@@ -74,8 +122,8 @@ export const createOrderApi = async (order: OrderRecord): Promise<OrderRecord> =
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(order)
   });
-  if (!res.ok) throw new Error('Failed to create order');
-  const json = await res.json();
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(json?.message || json?.error || 'Failed to create order');
   return json.data;
 };
 
@@ -87,6 +135,32 @@ export const updateOrderApi = async (order: OrderRecord): Promise<OrderRecord> =
   });
   if (!res.ok) throw new Error('Failed to update order');
   const json = await res.json();
+  return json.data;
+};
+
+// ================= AWARDS API =================
+export const fetchAwards = async (): Promise<AwardRecord[]> => {
+  const res = await fetch(`${API_BASE_URL}/awards`);
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(json?.message || 'Failed to fetch awards');
+  return json.data;
+};
+
+export const createAwardApi = async (
+  award: Omit<AwardRecord, 'id' | 'status'>
+): Promise<AwardRecord> => {
+  const res = await fetch(`${API_BASE_URL}/awards`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(award)
+  });
+  const json = await res.json().catch(() => null);
+  if (!res.ok) {
+    const details = json?.error && json?.message && !json.message.includes(json.error)
+      ? `${json.message} (${json.error})`
+      : json?.message || json?.error;
+    throw new Error(details || 'Failed to save award');
+  }
   return json.data;
 };
 
@@ -180,7 +254,18 @@ export const createLeaveApi = async (leave: LeaveRecord): Promise<LeaveRecord> =
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(leave)
   });
-  if (!res.ok) throw new Error('Failed to file leave');
-  const json = await res.json();
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(json?.message || json?.error || 'Failed to file leave');
+  return json.data;
+};
+
+export const updateLeaveApi = async (leave: LeaveRecord): Promise<LeaveRecord> => {
+  const res = await fetch(`${API_BASE_URL}/leave/${leave.id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(leave)
+  });
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(json?.message || json?.error || 'Failed to update leave record');
   return json.data;
 };

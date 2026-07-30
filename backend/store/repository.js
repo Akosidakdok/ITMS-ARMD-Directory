@@ -14,7 +14,8 @@ import {
   INITIAL_PROMOTIONS, 
   INITIAL_ORDERS, 
   INITIAL_TRAINING, 
-  INITIAL_LEAVE 
+  INITIAL_LEAVE,
+  INITIAL_AWARDS
 } from './initialData.js';
 
 class PAISRepository {
@@ -26,6 +27,7 @@ class PAISRepository {
     this.inMemoryOrders = [...INITIAL_ORDERS];
     this.inMemoryTraining = [...INITIAL_TRAINING];
     this.inMemoryLeave = [...INITIAL_LEAVE];
+    this.inMemoryAwards = [...INITIAL_AWARDS];
   }
 
   isSupabaseConnected() {
@@ -96,6 +98,25 @@ class PAISRepository {
 
     this.inMemoryPersonnel.unshift(newRecord);
     return newRecord;
+  }
+
+  async createPersonnelBulk(records) {
+    if (!Array.isArray(records) || records.length === 0) return [];
+
+    if (this.isSupabaseConnected()) {
+      const { data: inserted, error } = await supabase
+        .from('personnel')
+        .insert(records)
+        .select();
+
+      if (error) {
+        throw new Error(`Bulk personnel insert failed: ${error.message}`);
+      }
+      return inserted || [];
+    }
+
+    this.inMemoryPersonnel.unshift(...records);
+    return records;
   }
 
   async updatePersonnel(id, data) {
@@ -190,6 +211,47 @@ class PAISRepository {
     if (index === -1) return false;
     this.inMemoryOrders.splice(index, 1);
     return true;
+  }
+
+  // ================= AWARDS CRUD =================
+  async getAwards(personnelId = null) {
+    if (this.isSupabaseConnected()) {
+      try {
+        let req = supabase.from('awards').select('*').order('authorityDate', { ascending: false });
+        if (personnelId) req = req.eq('personnelId', personnelId);
+        const { data, error } = await req;
+        if (!error && Array.isArray(data)) return data;
+      } catch (e) {}
+    }
+
+    const awards = [...this.inMemoryAwards];
+    return personnelId
+      ? awards.filter(award => award.personnelId === personnelId)
+      : awards;
+  }
+
+  async createAward(data) {
+    const newRecord = {
+      ...data,
+      id: data.id || `awd-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    };
+
+    if (this.isSupabaseConnected()) {
+      const { data: inserted, error } = await supabase
+        .from('awards')
+        .insert([newRecord])
+        .select()
+        .single();
+      if (error) {
+        const insertError = new Error(`Award insert failed: ${error.message}`);
+        insertError.code = error.code;
+        throw insertError;
+      }
+      return inserted;
+    }
+
+    this.inMemoryAwards.unshift(newRecord);
+    return newRecord;
   }
 
   // ================= ASSIGNMENTS CRUD =================
@@ -417,15 +479,18 @@ class PAISRepository {
 
   async createLeave(data) {
     const newRecord = {
-      id: data.id || `lve-${Date.now()}`,
-      ...data
+      ...data,
+      id: data.id || `lve-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     };
 
     if (this.isSupabaseConnected()) {
-      try {
-        const { data: inserted, error } = await supabase.from('leave').insert([newRecord]).select().single();
-        if (!error && inserted) return inserted;
-      } catch (e) {}
+      const { data: inserted, error } = await supabase
+        .from('leave')
+        .insert([newRecord])
+        .select()
+        .single();
+      if (error) throw new Error(`Leave insert failed: ${error.message}`);
+      return inserted;
     }
 
     this.inMemoryLeave.unshift(newRecord);
@@ -446,6 +511,24 @@ class PAISRepository {
     if (index === -1) return null;
     this.inMemoryLeave[index].status = status;
     if (approvedBy) this.inMemoryLeave[index].approvedBy = approvedBy;
+    return this.inMemoryLeave[index];
+  }
+
+  async updateLeave(id, data) {
+    if (this.isSupabaseConnected()) {
+      const { data: updated, error } = await supabase
+        .from('leave')
+        .update(data)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw new Error(`Leave update failed: ${error.message}`);
+      return updated;
+    }
+
+    const index = this.inMemoryLeave.findIndex(leave => leave.id === id);
+    if (index === -1) return null;
+    this.inMemoryLeave[index] = { ...this.inMemoryLeave[index], ...data, id };
     return this.inMemoryLeave[index];
   }
 

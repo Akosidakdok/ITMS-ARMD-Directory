@@ -10,13 +10,30 @@ import educationRoutes from './routes/educationRoutes.js';
 import promotionsRoutes from './routes/promotionsRoutes.js';
 import trainingRoutes from './routes/trainingRoutes.js';
 import leaveRoutes from './routes/leaveRoutes.js';
+import awardsRoutes from './routes/awardsRoutes.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const configuredOrigins = (process.env.CORS_ORIGIN || '')
+  .split(',')
+  .map(origin => origin.trim())
+  .filter(Boolean);
+const allowedOrigins = new Set([
+  ...configuredOrigins,
+  'http://localhost:3000',
+  'http://127.0.0.1:3000'
+]);
 
 // Middleware
-app.use(cors());
-app.use(express.json());
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.has(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('Origin is not allowed by CORS'));
+  }
+}));
+app.use(express.json({ limit: '5mb' }));
 
 // Request logger middleware
 app.use((req, res, next) => {
@@ -46,7 +63,8 @@ app.get('/api/health', async (req, res) => {
       '/api/education',
       '/api/promotions',
       '/api/training',
-      '/api/leave'
+      '/api/leave',
+      '/api/awards',
     ]
   });
 });
@@ -59,6 +77,7 @@ app.use('/api/education', educationRoutes);
 app.use('/api/promotions', promotionsRoutes);
 app.use('/api/training', trainingRoutes);
 app.use('/api/leave', leaveRoutes);
+app.use('/api/awards', awardsRoutes);
 
 // Global Error Handler
 app.use((err, req, res, next) => {
@@ -80,8 +99,12 @@ app.use((req, res) => {
 
 // Connect Databases and Start Server
 const startServer = async () => {
-  await connectDB();
+  // Supabase is the primary adapter. Only attempt MongoDB when Supabase is
+  // unavailable so an unused Mongo connection cannot delay server startup.
   const supabaseStatus = await checkSupabaseStatus();
+  if (!supabaseStatus.isConnected) {
+    await connectDB();
+  }
   
   app.listen(PORT, () => {
     console.log(`===================================================`);

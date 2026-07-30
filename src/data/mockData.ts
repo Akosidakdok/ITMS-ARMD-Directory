@@ -5,7 +5,8 @@ import {
   PromotionRecord, 
   OrderRecord, 
   TrainingRecord, 
-  LeaveRecord 
+  LeaveRecord,
+  AwardRecord
 } from '../types/pais';
 
 // Clear mock arrays - Clean database mode (Only Admin imported data or live DB records will display)
@@ -16,3 +17,4 @@ export const INITIAL_PROMOTIONS: PromotionRecord[] = [];
 export const INITIAL_ORDERS: OrderRecord[] = [];
 export const INITIAL_TRAINING: TrainingRecord[] = [];
 export const INITIAL_LEAVE: LeaveRecord[] = [];
+export const INITIAL_AWARDS: AwardRecord[] = [];

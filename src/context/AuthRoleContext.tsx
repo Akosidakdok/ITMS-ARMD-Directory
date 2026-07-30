@@ -7,7 +7,8 @@ import {
   PromotionRecord, 
   OrderRecord, 
   TrainingRecord, 
-  LeaveRecord 
+  LeaveRecord,
+  AwardRecord
 } from '../types/pais';
 import { 
   INITIAL_PERSONNEL, 
@@ -16,7 +17,8 @@ import {
   INITIAL_PROMOTIONS, 
   INITIAL_ORDERS, 
   INITIAL_TRAINING, 
-  INITIAL_LEAVE 
+  INITIAL_LEAVE,
+  INITIAL_AWARDS
 } from '../data/mockData';
 import {
   checkBackendHealth,
@@ -36,8 +38,14 @@ import {
   fetchTraining,
   createTrainingApi,
   fetchLeave,
-  createLeaveApi
+  createLeaveApi,
+  updateLeaveApi,
+  fetchAwards,
+  createAwardApi,
+  bulkCreatePersonnelApi
 } from '../services/api';
+import type { BulkPersonnelImportResult } from '../services/api';
+import type { PersonnelImportRow } from '../utils/personnelCsv';
 
 interface AuthRoleContextType {
   role: UserRole;
@@ -60,13 +68,18 @@ interface AuthRoleContextType {
   ordersList: OrderRecord[];
   trainingList: TrainingRecord[];
   leaveList: LeaveRecord[];
+  awardsList: AwardRecord[];
 
   // Action helpers
   addPersonnel: (personnel: Personnel) => void;
+  bulkImportPersonnel: (
+    rows: PersonnelImportRow[],
+    onProgress?: (completed: number, total: number) => void
+  ) => Promise<BulkPersonnelImportResult>;
   updatePersonnel: (personnel: Personnel) => void;
   deletePersonnel: (id: string) => void;
 
-  addOrder: (order: OrderRecord) => void;
+  addOrder: (order: OrderRecord) => Promise<OrderRecord>;
   updateOrder: (order: OrderRecord) => void;
 
   addAssignment: (assignment: AssignmentRecord) => void;
@@ -74,6 +87,9 @@ interface AuthRoleContextType {
   addPromotion: (promotion: PromotionRecord) => void;
   addTraining: (training: TrainingRecord) => void;
   addLeave: (leave: LeaveRecord) => void;
+  createAward: (award: Omit<AwardRecord, 'id' | 'status'>) => Promise<AwardRecord>;
+  createCalendarLeave: (leave: LeaveRecord) => Promise<LeaveRecord>;
+  updateCalendarLeave: (leave: LeaveRecord) => Promise<LeaveRecord>;
 }
 
 const AuthRoleContext = createContext<AuthRoleContextType | undefined>(undefined);
@@ -91,6 +107,7 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [ordersList, setOrdersList] = useState<OrderRecord[]>([]);
   const [trainingList, setTrainingList] = useState<TrainingRecord[]>([]);
   const [leaveList, setLeaveList] = useState<LeaveRecord[]>([]);
+  const [awardsList, setAwardsList] = useState<AwardRecord[]>([]);
 
   // Initialize and load backend data if server is online
   const loadDataFromBackend = async () => {
@@ -99,14 +116,15 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     if (isOnline) {
       try {
-        const [pData, oData, aData, eData, prData, tData, lData] = await Promise.all([
+        const [pData, oData, aData, eData, prData, tData, lData, awData] = await Promise.all([
           fetchPersonnel(),
           fetchOrders(),
           fetchAssignments(),
           fetchEducation(),
           fetchPromotions(),
           fetchTraining(),
-          fetchLeave()
+          fetchLeave(),
+          fetchAwards()
         ]);
         setPersonnelList(pData);
         setOrdersList(oData);
@@ -115,6 +133,7 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setPromotionsList(prData);
         setTrainingList(tData);
         setLeaveList(lData);
+        setAwardsList(awData);
       } catch (err) {
         console.warn('Backend reachable but error fetching data:', err);
       }
@@ -127,6 +146,7 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setOrdersList(INITIAL_ORDERS);
       setTrainingList(INITIAL_TRAINING);
       setLeaveList(INITIAL_LEAVE);
+      setAwardsList(INITIAL_AWARDS);
     }
   };
 
@@ -148,6 +168,21 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         console.error('Failed to sync new personnel with backend:', e);
       }
     }
+  };
+
+  const bulkImportPersonnel = async (
+    rows: PersonnelImportRow[],
+    onProgress?: (completed: number, total: number) => void
+  ) => {
+    if (!backendConnected) {
+      throw new Error('The backend is offline. Start the server before importing personnel records.');
+    }
+
+    const result = await bulkCreatePersonnelApi(rows, onProgress);
+    if (result.created.length > 0) {
+      setPersonnelList(prev => [...result.created, ...prev]);
+    }
+    return result;
   };
 
   const updatePersonnel = async (updated: Personnel) => {
@@ -174,14 +209,13 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   // Order Mutations
   const addOrder = async (order: OrderRecord) => {
-    setOrdersList(prev => [order, ...prev]);
     if (backendConnected) {
-      try {
-        await createOrderApi(order);
-      } catch (e) {
-        console.error('Failed to sync new order with backend:', e);
-      }
+      const created = await createOrderApi(order);
+      setOrdersList(prev => [created, ...prev]);
+      return created;
     }
+    setOrdersList(prev => [order, ...prev]);
+    return order;
   };
 
   const updateOrder = async (order: OrderRecord) => {
@@ -266,6 +300,33 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
+  const createAward = async (award: Omit<AwardRecord, 'id' | 'status'>) => {
+    if (!backendConnected) {
+      throw new Error('The backend is offline. Start the server before saving an award.');
+    }
+    const created = await createAwardApi(award);
+    setAwardsList(prev => [created, ...prev]);
+    return created;
+  };
+
+  const createCalendarLeave = async (leave: LeaveRecord) => {
+    if (!backendConnected) {
+      throw new Error('The backend is offline. Start the server before saving leave.');
+    }
+    const created = await createLeaveApi(leave);
+    setLeaveList(prev => [created, ...prev]);
+    return created;
+  };
+
+  const updateCalendarLeave = async (leave: LeaveRecord) => {
+    if (!backendConnected) {
+      throw new Error('The backend is offline. Start the server before updating leave.');
+    }
+    const updated = await updateLeaveApi(leave);
+    setLeaveList(prev => prev.map(item => item.id === updated.id ? updated : item));
+    return updated;
+  };
+
   return (
     <AuthRoleContext.Provider
       value={{
@@ -285,7 +346,9 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         ordersList,
         trainingList,
         leaveList,
+        awardsList,
         addPersonnel,
+        bulkImportPersonnel,
         updatePersonnel,
         deletePersonnel,
         addOrder,
@@ -294,7 +357,10 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         addEducation,
         addPromotion,
         addTraining,
-        addLeave
+        addLeave,
+        createAward,
+        createCalendarLeave,
+        updateCalendarLeave
       }}
     >
       {children}
