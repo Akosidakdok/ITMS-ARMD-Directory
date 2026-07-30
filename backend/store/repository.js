@@ -464,7 +464,7 @@ class PAISRepository {
   async getLeave(personnelId = null) {
     if (this.isSupabaseConnected()) {
       try {
-        let req = supabase.from('leave').select('*');
+        let req = supabase.from('leaves').select('*');
         if (personnelId) req = req.eq('personnelId', personnelId);
         const { data, error } = await req;
         if (!error && Array.isArray(data)) return data;
@@ -485,7 +485,7 @@ class PAISRepository {
 
     if (this.isSupabaseConnected()) {
       const { data: inserted, error } = await supabase
-        .from('leave')
+        .from('leaves')
         .insert([newRecord])
         .select()
         .single();
@@ -502,7 +502,7 @@ class PAISRepository {
       try {
         const updateData = { status };
         if (approvedBy) updateData.approvedBy = approvedBy;
-        const { data: updated, error } = await supabase.from('leave').update(updateData).eq('id', id).select().single();
+        const { data: updated, error } = await supabase.from('leaves').update(updateData).eq('id', id).select().single();
         if (!error && updated) return updated;
       } catch (e) {}
     }
@@ -517,7 +517,7 @@ class PAISRepository {
   async updateLeave(id, data) {
     if (this.isSupabaseConnected()) {
       const { data: updated, error } = await supabase
-        .from('leave')
+        .from('leaves')
         .update(data)
         .eq('id', id)
         .select()
@@ -535,7 +535,7 @@ class PAISRepository {
   async deleteLeave(id) {
     if (this.isSupabaseConnected()) {
       try {
-        const { error } = await supabase.from('leave').delete().eq('id', id);
+        const { error } = await supabase.from('leaves').delete().eq('id', id);
         if (!error) return true;
       } catch (e) {}
     }

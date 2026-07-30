@@ -117,7 +117,7 @@ export const LeaveCalendarForm: React.FC<LeaveCalendarFormProps> = ({
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="block text-xs font-bold text-slate-700 mb-1.5">
+          <label className="block text-xs font-bold text-green-700 mb-1.5">
             Start Date of Leave <span className="text-rose-500">*</span>
           </label>
           <input
@@ -134,7 +134,7 @@ export const LeaveCalendarForm: React.FC<LeaveCalendarFormProps> = ({
           {errors.startDate && <p className="text-[11px] text-rose-600 mt-1">{errors.startDate}</p>}
         </div>
         <div>
-          <label className="block text-xs font-bold text-slate-700 mb-1.5">
+          <label className="block text-xs font-bold text-red-600 mb-1.5">
             End Date of Leave <span className="text-slate-400 font-medium">(if applicable)</span>
           </label>
           <input

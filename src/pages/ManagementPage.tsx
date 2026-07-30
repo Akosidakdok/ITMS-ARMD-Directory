@@ -35,7 +35,7 @@ export const ManagementPage: React.FC = () => {
   const [badgeNo, setBadgeNo] = useState('');
   const [salaryGrade, setSalaryGrade] = useState(22);
   const [plantilla, setPlantilla] = useState('');
-  const [division, setDivision] = useState('SDD');
+  const [division, setDivision] = useState('ITSD');
   const [detail, setDetail] = useState('ITMS Headquarters - Camp Crame');
   const [designation, setDesignation] = useState('Software Engineer');
   const [address, setAddress] = useState('Quezon City, Metro Manila');
@@ -259,14 +259,23 @@ export const ManagementPage: React.FC = () => {
                 }}
                 className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
               >
-                <option value="PCOL">PCOL (Police Colonel)</option>
-                <option value="PLTCOL">PLTCOL (Police Lieutenant Colonel)</option>
-                <option value="PMAJ">PMAJ (Police Major)</option>
-                <option value="PCPT">PCPT (Police Captain)</option>
-                <option value="PLT">PLT (Police Lieutenant)</option>
-                <option value="PEMS">PEMS (Police Executive Master Sergeant)</option>
-                <option value="PCMS">PCMS (Police Chief Master Sergeant)</option>
-                <option value="PCPL">PCPL (Police Corporal)</option>
+                <option value="PGEN">PGEN</option>
+                <option value="PLTGEN">PLTGEN</option>
+                <option value="PMGEN">PMGEN</option>
+                <option value="PBGEN">PBGEN</option>
+                <option value="PCOL">PCOL</option>
+                <option value="PLTCOL">PLTCOL</option>
+                <option value="PMAJ">PMAJ</option>
+                <option value="PCPT">PCPT</option>
+                <option value="PLT">PLT</option>
+                <option value="PEMS">PEMS</option>
+                <option value="PCMS">PCMS</option>
+                <option value="PSMS">PSMS</option>
+                <option value="PMSg">PMSg</option>
+                <option value="PSSg">PSSg</option>
+                <option value="PCpl">PCpl</option>
+                <option value="Pat">Pat</option>
+                <option value="NUP">NUP</option>
               </select>
             </div>
             <div>
@@ -343,12 +352,12 @@ export const ManagementPage: React.FC = () => {
                 onChange={e => setDivision(e.target.value)}
                 className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
               >
-                <option value="ARMD">ARMD</option>
-                <option value="CSD">CSD</option>
-                <option value="SDD">SDD</option>
-                <option value="NDCMD">NDCMD</option>
-                <option value="OMD">OMD</option>
-                <option value="PPD">PPD</option>
+                <option value="ITSD">ITSD – Information Technology Support Division</option>
+                <option value="PTD">PTD – Plans and Training Division</option>
+                <option value="SMD">SMD – Systems Management Division</option>
+                <option value="DMD">DMD – Data Management Division</option>
+                <option value="ARMD">ARMD – Administrative and Resource Management Division</option>
+                <option value="ISSD">ISSD – Information Systems Security Division</option>
               </select>
             </div>
           </div>

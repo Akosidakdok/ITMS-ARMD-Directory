@@ -272,14 +272,12 @@ export const ReportsPage: React.FC = () => {
               className="px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-extrabold focus:outline-none focus:border-blue-500"
             >
               <option value="ALL">All Divisions & Offices</option>
-              <option value="ARMD">ARMD (Administrative)</option>
-              <option value="CSD">CSD (Cyber Security)</option>
-              <option value="SDD">SDD (Software Dev)</option>
-              <option value="NDCMD">NDCMD (Data Center)</option>
-              <option value="OMD">OMD (Operations)</option>
-              <option value="PPD">PPD (Plans & Programs)</option>
-              <option value="ISSD">ISSD (Systems Audit)</option>
-              <option value="RITMO 4A">RITMO 4A (CALABARZON)</option>
+              <option value="ITSD">ITSD – Information Technology Support Division</option>
+              <option value="PTD">PTD – Plans and Training Division</option>
+              <option value="SMD">SMD – Systems Management Division</option>
+              <option value="DMD">DMD – Data Management Division</option>
+              <option value="ARMD">ARMD – Administrative and Resource Management Division</option>
+              <option value="ISSD">ISSD – Information Systems Security Division</option>
             </select>
           </div>
         )}

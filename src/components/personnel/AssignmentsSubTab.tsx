@@ -112,7 +112,7 @@ export const AssignmentsSubTab: React.FC<AssignmentsSubTabProps> = ({ personnel 
               type="text"
               value={unit}
               onChange={e => setUnit(e.target.value)}
-              placeholder="e.g. Cyber Security Division (CSD)"
+              placeholder="e.g. Information Technology Support Division (ITSD)"
               className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
               required
             />

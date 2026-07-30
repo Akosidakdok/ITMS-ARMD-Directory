@@ -1,9 +1,9 @@
 export type UserRole = 'admin' | 'user' | 'command' | string;
 
 export type RankAbbr = 
-  | 'PGen' | 'PLTGEN' | 'PMGEN' | 'PBGEN' | 'PCOL' | 'PLTCOL' 
-  | 'PMAJ' | 'PCPT' | 'PLT' | 'PEMS' | 'PCMS' | 'PSMS' | 'MSMS' 
-  | 'SMS' | 'CPL' | 'PCPL' | 'Pat' | string;
+  | 'PGEN' | 'PLTGEN' | 'PMGEN' | 'PBGEN' | 'PCOL' | 'PLTCOL' 
+  | 'PMAJ' | 'PCPT' | 'PLT' | 'PEMS' | 'PCMS' | 'PSMS' | 'PMSg' 
+  | 'PSSg' | 'PCpl' | 'Pat' | 'NUP' | string;
 
 export interface Personnel {
   id: string;
