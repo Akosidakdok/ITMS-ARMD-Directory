@@ -1,6 +1,5 @@
 import express from 'express';
 import cors from 'cors';
-import { connectDB, getDBStatus } from './config/db.js';
 import { checkSupabaseStatus } from './config/supabase.js';
 
 import personnelRoutes from './routes/personnelRoutes.js';
@@ -44,16 +43,18 @@ app.use((req, res, next) => {
 
 // API Health & Status Endpoint
 app.get('/api/health', async (req, res) => {
-  const mongoStatus = getDBStatus();
   const supabaseStatus = await checkSupabaseStatus();
   
   res.json({
     status: 'online',
     system: 'PNP-ITMS PAIS 2.0 Backend Service',
     database: {
-      activeAdapter: supabaseStatus.isConnected ? 'Supabase PostgreSQL (Connected - HTTPS Port 443)' : (mongoStatus.isConnected ? 'MongoDB Atlas (Connected)' : 'In-Memory Fallback'),
-      supabase: supabaseStatus,
-      mongoDB: mongoStatus
+      activeAdapter: supabaseStatus.isConnected
+        ? 'Supabase PostgreSQL (Connected - HTTPS Port 443)'
+        : 'Supabase Unavailable - Local Memory Fallback',
+      primary: 'Supabase PostgreSQL',
+      fallback: 'Local Memory',
+      supabase: supabaseStatus
     },
     timestamp: new Date().toISOString(),
     endpoints: [
@@ -97,23 +98,24 @@ app.use((req, res) => {
   });
 });
 
-// Connect Databases and Start Server
+// Start the API first, then check Supabase in the background. Supabase is the
+// only external database adapter; local memory is used only as a temporary
+// fallback when Supabase is paused or unreachable.
 const startServer = async () => {
-  // Supabase is the primary adapter. Only attempt MongoDB when Supabase is
-  // unavailable so an unused Mongo connection cannot delay server startup.
-  const supabaseStatus = await checkSupabaseStatus();
-  if (!supabaseStatus.isConnected) {
-    await connectDB();
-  }
-  
   app.listen(PORT, () => {
     console.log(`===================================================`);
     console.log(` PNP ITMS PAIS 2.0 REST API Server is running`);
     console.log(` URL: http://localhost:${PORT}`);
     console.log(` Health Check: http://localhost:${PORT}/api/health`);
-    console.log(` Primary Database: Supabase PostgreSQL (${supabaseStatus.isConnected ? 'CONNECTED' : 'DISCONNECTED'})`);
+    console.log(` Primary Database: Checking external database status...`);
     console.log(`===================================================`);
   });
+
+  const supabaseStatus = await checkSupabaseStatus();
+  console.log(` Supabase PostgreSQL: ${supabaseStatus.isConnected ? 'CONNECTED' : supabaseStatus.state}`);
+  if (!supabaseStatus.isConnected) {
+    console.log(` Fallback Store: Local Memory (temporary until Supabase is available)`);
+  }
 };
 
 startServer();

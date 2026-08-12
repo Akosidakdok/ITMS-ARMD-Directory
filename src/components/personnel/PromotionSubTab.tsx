@@ -146,7 +146,7 @@ export const PromotionSubTab: React.FC<PromotionSubTabProps> = ({ personnel }) =
         subtitle={`Promote ${personnel.fullName} to Next Rank`}
       >
         <form onSubmit={handleAddPromotion} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-600 mb-1">Previous Rank</label>
               <input

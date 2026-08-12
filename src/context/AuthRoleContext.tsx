@@ -21,7 +21,7 @@ import {
   INITIAL_AWARDS
 } from '../data/mockData';
 import {
-  checkBackendHealth,
+  fetchBackendHealth,
   fetchPersonnel,
   createPersonnelApi,
   updatePersonnelApi,
@@ -31,6 +31,7 @@ import {
   updateOrderApi,
   fetchAssignments,
   createAssignmentApi,
+  updateAssignmentApi,
   fetchEducation,
   createEducationApi,
   fetchPromotions,
@@ -42,9 +43,10 @@ import {
   updateLeaveApi,
   fetchAwards,
   createAwardApi,
+  updateAwardApi,
   bulkCreatePersonnelApi
 } from '../services/api';
-import type { BulkPersonnelImportResult } from '../services/api';
+import type { BackendHealthStatus, BulkPersonnelImportResult } from '../services/api';
 import type { PersonnelImportRow } from '../utils/personnelCsv';
 
 interface AuthRoleContextType {
@@ -58,6 +60,7 @@ interface AuthRoleContextType {
 
   // Backend status indicator
   backendConnected: boolean;
+  backendHealth: BackendHealthStatus | null;
   refreshData: () => Promise<void>;
   
   // Data state & handlers
@@ -80,14 +83,16 @@ interface AuthRoleContextType {
   deletePersonnel: (id: string) => void;
 
   addOrder: (order: OrderRecord) => Promise<OrderRecord>;
-  updateOrder: (order: OrderRecord) => void;
+  updateOrder: (order: OrderRecord) => Promise<OrderRecord>;
 
-  addAssignment: (assignment: AssignmentRecord) => void;
+  addAssignment: (assignment: AssignmentRecord) => Promise<AssignmentRecord>;
+  updateAssignment: (assignment: AssignmentRecord) => Promise<AssignmentRecord>;
   addEducation: (edu: EducationRecord) => void;
   addPromotion: (promotion: PromotionRecord) => void;
   addTraining: (training: TrainingRecord) => void;
   addLeave: (leave: LeaveRecord) => void;
   createAward: (award: Omit<AwardRecord, 'id' | 'status'>) => Promise<AwardRecord>;
+  updateAward: (award: AwardRecord) => Promise<AwardRecord>;
   createCalendarLeave: (leave: LeaveRecord) => Promise<LeaveRecord>;
   updateCalendarLeave: (leave: LeaveRecord) => Promise<LeaveRecord>;
 }
@@ -99,6 +104,7 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [globalSearchQuery, setGlobalSearchQuery] = useState('');
   const [selectedPersonnelId, setSelectedPersonnelId] = useState('pnp-001');
   const [backendConnected, setBackendConnected] = useState(false);
+  const [backendHealth, setBackendHealth] = useState<BackendHealthStatus | null>(null);
 
   const [personnelList, setPersonnelList] = useState<Personnel[]>([]);
   const [assignmentsList, setAssignmentsList] = useState<AssignmentRecord[]>([]);
@@ -111,7 +117,9 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   // Initialize and load backend data if server is online
   const loadDataFromBackend = async () => {
-    const isOnline = await checkBackendHealth();
+    const health = await fetchBackendHealth();
+    const isOnline = health?.status === 'online';
+    setBackendHealth(health);
     setBackendConnected(isOnline);
 
     if (isOnline) {
@@ -152,6 +160,10 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   useEffect(() => {
     loadDataFromBackend();
+    const refreshInterval = window.setInterval(() => {
+      loadDataFromBackend();
+    }, 10000);
+    return () => window.clearInterval(refreshInterval);
   }, []);
 
   const toggleRole = () => {
@@ -219,26 +231,34 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const updateOrder = async (order: OrderRecord) => {
-    setOrdersList(prev => prev.map(o => o.id === order.id ? order : o));
     if (backendConnected) {
-      try {
-        await updateOrderApi(order);
-      } catch (e) {
-        console.error('Failed to sync updated order with backend:', e);
-      }
+      const updated = await updateOrderApi(order);
+      setOrdersList(prev => prev.map(o => o.id === updated.id ? updated : o));
+      return updated;
     }
+    setOrdersList(prev => prev.map(o => o.id === order.id ? order : o));
+    return order;
   };
 
   // Assignment Mutations
   const addAssignment = async (assignment: AssignmentRecord) => {
-    setAssignmentsList(prev => [assignment, ...prev]);
     if (backendConnected) {
-      try {
-        await createAssignmentApi(assignment);
-      } catch (e) {
-        console.error('Failed to sync assignment with backend:', e);
-      }
+      const created = await createAssignmentApi(assignment);
+      setAssignmentsList(prev => [created, ...prev]);
+      return created;
     }
+    setAssignmentsList(prev => [assignment, ...prev]);
+    return assignment;
+  };
+
+  const updateAssignment = async (assignment: AssignmentRecord) => {
+    if (backendConnected) {
+      const updated = await updateAssignmentApi(assignment);
+      setAssignmentsList(prev => prev.map(item => item.id === updated.id ? updated : item));
+      return updated;
+    }
+    setAssignmentsList(prev => prev.map(item => item.id === assignment.id ? assignment : item));
+    return assignment;
   };
 
   // Education Mutations
@@ -309,6 +329,16 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return created;
   };
 
+  const updateAward = async (award: AwardRecord) => {
+    if (!backendConnected) {
+      setAwardsList(prev => prev.map(item => item.id === award.id ? award : item));
+      return award;
+    }
+    const updated = await updateAwardApi(award);
+    setAwardsList(prev => prev.map(item => item.id === updated.id ? updated : item));
+    return updated;
+  };
+
   const createCalendarLeave = async (leave: LeaveRecord) => {
     if (!backendConnected) {
       throw new Error('The backend is offline. Start the server before saving leave.');
@@ -338,6 +368,7 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         selectedPersonnelId,
         setSelectedPersonnelId,
         backendConnected,
+        backendHealth,
         refreshData: loadDataFromBackend,
         personnelList,
         assignmentsList,
@@ -354,11 +385,13 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         addOrder,
         updateOrder,
         addAssignment,
+        updateAssignment,
         addEducation,
         addPromotion,
         addTraining,
         addLeave,
         createAward,
+        updateAward,
         createCalendarLeave,
         updateCalendarLeave
       }}

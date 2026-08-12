@@ -11,12 +11,11 @@ interface OrdersSubTabProps {
 export const OrdersSubTab: React.FC<OrdersSubTabProps> = ({ personnel }) => {
   const { ordersList } = useAuthRole();
 
-  const relatedOrders = ordersList.filter(o => 
+  const relatedOrders = ordersList.filter(o =>
+    o.personnelIds?.includes(personnel.id) ||
     o.subject.toLowerCase().includes(personnel.lastName.toLowerCase()) ||
     o.description?.toLowerCase().includes(personnel.lastName.toLowerCase()) ||
-    o.subject.toLowerCase().includes(personnel.badgeNo.toLowerCase()) ||
-    (o.orderNumber && o.orderNumber.toLowerCase().includes('045')) ||
-    o.orderType === 'Assignment Order'
+    o.subject.toLowerCase().includes(personnel.badgeNo.toLowerCase())
   );
 
   return (

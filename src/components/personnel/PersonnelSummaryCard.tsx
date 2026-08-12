@@ -18,7 +18,15 @@ interface PersonnelSummaryCardProps {
 }
 
 export const PersonnelSummaryCard: React.FC<PersonnelSummaryCardProps> = ({ personnel, onEdit }) => {
-  const { role } = useAuthRole();
+  const { role, assignmentsList, ordersList, leaveList, awardsList } = useAuthRole();
+  const personnelAssignments = assignmentsList.filter(record => record.personnelId === personnel.id);
+  const personnelOrders = ordersList.filter(record =>
+    record.personnelIds?.includes(personnel.id) ||
+    record.subject.toLowerCase().includes(personnel.lastName.toLowerCase()) ||
+    record.description?.toLowerCase().includes(personnel.lastName.toLowerCase())
+  );
+  const personnelLeaves = leaveList.filter(record => record.personnelId === personnel.id);
+  const personnelAwards = awardsList.filter(record => record.personnelId === personnel.id);
 
   return (
     <div className="rounded-2xl p-6 space-y-6 border border-slate-200 bg-white relative overflow-hidden shadow-2xs">
@@ -27,23 +35,14 @@ export const PersonnelSummaryCard: React.FC<PersonnelSummaryCardProps> = ({ pers
         <ShieldCheck className="w-48 h-48 text-blue-600" />
       </div>
 
-      {/* Profile Header Avatar */}
+      {/* Profile Header */}
       <div className="flex flex-col items-center text-center space-y-3 relative z-10">
-        <div className="relative group">
-          <img
-            src={personnel.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200'}
-            alt={personnel.fullName}
-            className="w-24 h-24 rounded-2xl object-cover border-2 border-blue-200 shadow-md shadow-blue-500/10 group-hover:scale-105 transition-transform"
-          />
-          <span className="absolute bottom-0 right-0 translate-x-1 translate-y-1">
-            <Badge 
-              variant={personnel.status === 'Active' ? 'success' : personnel.status === 'On Leave' ? 'warning' : 'neutral'} 
-              size="sm"
-            >
-              {personnel.status}
-            </Badge>
-          </span>
-        </div>
+        <Badge
+          variant={personnel.status === 'Active' ? 'success' : personnel.status === 'On Leave' ? 'warning' : 'neutral'}
+          size="sm"
+        >
+          {personnel.status}
+        </Badge>
 
         {role === 'admin' && onEdit && (
           <button
@@ -124,6 +123,24 @@ export const PersonnelSummaryCard: React.FC<PersonnelSummaryCardProps> = ({ pers
           <p className="text-sm font-bold text-slate-900 pl-5">{personnel.designation}</p>
         </div>
 
+      </div>
+
+      <div className="space-y-3 text-xs">
+        <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-slate-500">Connected Records</h3>
+        {[
+          ['Assignments', personnelAssignments.length, personnelAssignments[0]?.position || 'No assignment records'],
+          ['Orders', personnelOrders.length, personnelOrders[0]?.subject || 'No linked orders'],
+          ['Leave', personnelLeaves.length, personnelLeaves[0] ? `${personnelLeaves[0].leaveType} (${personnelLeaves[0].startDate})` : 'No leave records'],
+          ['Awards', personnelAwards.length, personnelAwards[0]?.awardName || 'No award records']
+        ].map(([label, count, detail]) => (
+          <div key={label} className="rounded-xl border border-slate-200 bg-white p-3">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-bold text-slate-700">{label}</span>
+              <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-extrabold text-blue-700">{count}</span>
+            </div>
+            <p className="mt-1 line-clamp-2 text-[11px] font-semibold text-slate-500">{detail}</p>
+          </div>
+        ))}
       </div>
     </div>
   );

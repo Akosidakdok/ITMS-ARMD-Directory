@@ -23,18 +23,38 @@ export interface BulkPersonnelImportResult {
   errors: PersonnelImportIssue[];
 }
 
+export interface BackendHealthStatus {
+  status: 'online' | string;
+  database?: {
+    activeAdapter?: string;
+    primary?: string;
+    fallback?: string;
+    supabase?: {
+      isConnected: boolean;
+      state: string;
+      url?: string;
+      tablesReady?: boolean;
+      error?: string;
+    };
+  };
+}
+
 /**
  * Health Check helper to test if backend service is live
  */
-export const checkBackendHealth = async (): Promise<boolean> => {
+export const fetchBackendHealth = async (): Promise<BackendHealthStatus | null> => {
   try {
-    const res = await fetch(`${API_BASE_URL}/health`, { signal: AbortSignal.timeout(2000) });
-    if (!res.ok) return false;
-    const data = await res.json();
-    return data.status === 'online';
+    const res = await fetch(`${API_BASE_URL}/health`, { signal: AbortSignal.timeout(12000) });
+    if (!res.ok) return null;
+    return await res.json();
   } catch (err) {
-    return false;
+    return null;
   }
+};
+
+export const checkBackendHealth = async (): Promise<boolean> => {
+  const data = await fetchBackendHealth();
+  return data?.status === 'online';
 };
 
 // ================= PERSONNEL API =================
@@ -164,6 +184,17 @@ export const createAwardApi = async (
   return json.data;
 };
 
+export const updateAwardApi = async (award: AwardRecord): Promise<AwardRecord> => {
+  const res = await fetch(`${API_BASE_URL}/awards/${award.id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(award)
+  });
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(json?.message || json?.error || 'Failed to update award');
+  return json.data;
+};
+
 // ================= ASSIGNMENTS API =================
 export const fetchAssignments = async (): Promise<AssignmentRecord[]> => {
   const res = await fetch(`${API_BASE_URL}/assignments`);
@@ -256,6 +287,17 @@ export const createLeaveApi = async (leave: LeaveRecord): Promise<LeaveRecord> =
   });
   const json = await res.json().catch(() => null);
   if (!res.ok) throw new Error(json?.message || json?.error || 'Failed to file leave');
+  return json.data;
+};
+
+export const updateAssignmentApi = async (assignment: AssignmentRecord): Promise<AssignmentRecord> => {
+  const res = await fetch(`${API_BASE_URL}/assignments/${assignment.id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(assignment)
+  });
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(json?.message || json?.error || 'Failed to update assignment');
   return json.data;
 };
 

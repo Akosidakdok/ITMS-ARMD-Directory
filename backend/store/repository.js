@@ -6,7 +6,7 @@
  * Fallback Engine: In-Memory Data Store
  */
 
-import { supabase } from '../config/supabase.js';
+import { supabase, isSupabaseAvailable } from '../config/supabase.js';
 import { 
   INITIAL_PERSONNEL, 
   INITIAL_ASSIGNMENTS, 
@@ -31,7 +31,7 @@ class PAISRepository {
   }
 
   isSupabaseConnected() {
-    return !!supabase;
+    return isSupabaseAvailable();
   }
 
   // ================= PERSONNEL CRUD =================
@@ -254,6 +254,40 @@ class PAISRepository {
     return newRecord;
   }
 
+  async updateAward(id, data) {
+    const updateData = { ...data, updatedAt: new Date().toISOString() };
+
+    if (this.isSupabaseConnected()) {
+      const { data: updated, error } = await supabase
+        .from('awards')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw new Error(`Award update failed: ${error.message}`);
+      return updated;
+    }
+
+    const index = this.inMemoryAwards.findIndex(award => award.id === id);
+    if (index === -1) return null;
+    this.inMemoryAwards[index] = { ...this.inMemoryAwards[index], ...updateData, id };
+    return this.inMemoryAwards[index];
+  }
+
+  async deleteAward(id) {
+    if (this.isSupabaseConnected()) {
+      try {
+        const { error } = await supabase.from('awards').delete().eq('id', id);
+        if (!error) return true;
+      } catch (e) {}
+    }
+
+    const index = this.inMemoryAwards.findIndex(award => award.id === id);
+    if (index === -1) return false;
+    this.inMemoryAwards.splice(index, 1);
+    return true;
+  }
+
   // ================= ASSIGNMENTS CRUD =================
   async getAssignments(personnelId = null) {
     if (this.isSupabaseConnected()) {
@@ -286,6 +320,25 @@ class PAISRepository {
 
     this.inMemoryAssignments.unshift(newRecord);
     return newRecord;
+  }
+
+  async updateAssignment(id, data) {
+    if (this.isSupabaseConnected()) {
+      try {
+        const { data: updated, error } = await supabase
+          .from('assignments')
+          .update(data)
+          .eq('id', id)
+          .select()
+          .single();
+        if (!error && updated) return updated;
+      } catch (e) {}
+    }
+
+    const index = this.inMemoryAssignments.findIndex(a => a.id === id);
+    if (index === -1) return null;
+    this.inMemoryAssignments[index] = { ...this.inMemoryAssignments[index], ...data, id };
+    return this.inMemoryAssignments[index];
   }
 
   async deleteAssignment(id) {

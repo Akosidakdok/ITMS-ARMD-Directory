@@ -51,7 +51,7 @@ export const DashboardPage: React.FC = () => {
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Top Command Center Hero Banner */}
-      <div className="p-6 rounded-3xl bg-gradient-to-r from-blue-700 via-blue-800 to-indigo-900 text-white relative overflow-hidden shadow-md">
+      <div className="p-4 sm:p-6 rounded-3xl bg-gradient-to-r from-blue-700 via-blue-800 to-indigo-900 text-white relative overflow-hidden shadow-md">
         <div className="absolute top-0 right-0 translate-x-10 -translate-y-10 opacity-15 pointer-events-none">
           <ShieldCheck className="w-80 h-80 text-blue-200" />
         </div>
@@ -119,7 +119,7 @@ export const DashboardPage: React.FC = () => {
       {/* Main Visuals & Action Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Chart: Personnel Distribution by Division */}
-        <div className="lg:col-span-2 p-6 rounded-2xl border border-slate-200 bg-white space-y-4 shadow-2xs">
+        <div className="lg:col-span-2 p-4 sm:p-6 rounded-2xl border border-slate-200 bg-white space-y-4 shadow-2xs">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
@@ -156,7 +156,7 @@ export const DashboardPage: React.FC = () => {
         </div>
 
         {/* Quick Actions Panel */}
-        <div className="p-6 rounded-2xl border border-slate-200 bg-white space-y-4 flex flex-col justify-between shadow-2xs">
+        <div className="p-4 sm:p-6 rounded-2xl border border-slate-200 bg-white space-y-4 flex flex-col justify-between shadow-2xs">
           <div>
             <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 mb-1">
               <Zap className="w-4 h-4 text-blue-600" /> Administrative Quick Actions
@@ -226,7 +226,7 @@ export const DashboardPage: React.FC = () => {
       {/* Bottom Roster Showcase & Recent Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Personnel Showcase Table */}
-        <div className="lg:col-span-2 p-6 rounded-2xl border border-slate-200 bg-white space-y-4 shadow-2xs">
+        <div className="lg:col-span-2 p-4 sm:p-6 rounded-2xl border border-slate-200 bg-white space-y-4 shadow-2xs">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
@@ -256,12 +256,7 @@ export const DashboardPage: React.FC = () => {
               <tbody className="divide-y divide-slate-100 text-slate-800 font-semibold">
                 {personnelList.slice(0, 5).map((person) => (
                   <tr key={person.id} className="hover:bg-slate-50">
-                    <td className="py-3 px-3 flex items-center gap-3">
-                      <img
-                        src={person.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=100'}
-                        alt={person.fullName}
-                        className="w-8 h-8 rounded-full object-cover border border-blue-200"
-                      />
+                    <td className="py-3 px-3">
                       <div>
                         <div className="font-extrabold text-slate-900">{person.rank} {person.lastName}, {person.firstName}</div>
                         <div className="text-[10px] text-slate-500 font-medium">{person.rankFullName}</div>
@@ -286,7 +281,7 @@ export const DashboardPage: React.FC = () => {
         </div>
 
         {/* Recent Activity Log */}
-        <div className="p-6 rounded-2xl border border-slate-200 bg-white space-y-4 shadow-2xs">
+        <div className="p-4 sm:p-6 rounded-2xl border border-slate-200 bg-white space-y-4 shadow-2xs">
           <div>
             <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
               <Clock className="w-4 h-4 text-blue-600" /> Recent Administrative Activity

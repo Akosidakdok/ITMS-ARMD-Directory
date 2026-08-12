@@ -20,7 +20,7 @@ export const PromotionPage: React.FC = () => {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header Banner */}
-      <div className="p-6 rounded-2xl bg-white border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-2xs">
+      <div className="p-4 sm:p-6 rounded-2xl bg-white border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-2xs">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="px-2.5 py-0.5 rounded text-xs font-extrabold bg-blue-50 text-blue-700 border border-blue-200">
@@ -45,23 +45,16 @@ export const PromotionPage: React.FC = () => {
             key={personnel.id}
             className="p-5 rounded-2xl border border-slate-200 bg-white flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-2xs"
           >
-            <div className="flex items-center gap-4">
-              <img
-                src={personnel.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=100'}
-                alt={personnel.fullName}
-                className="w-12 h-12 rounded-2xl object-cover border border-blue-200"
-              />
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-extrabold px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
-                    {personnel.rank}
-                  </span>
-                  <h3 className="text-sm font-extrabold text-slate-900">{personnel.fullName}</h3>
-                </div>
-                <p className="text-xs text-slate-600 mt-0.5 font-medium">{personnel.designation} • <strong className="text-slate-900">{personnel.division}</strong></p>
-                <div className="text-[11px] text-slate-500 font-mono mt-1 font-semibold">
-                  Last Promotion Date: <strong className="text-slate-900">{personnel.lastPromotionDate}</strong>
-                </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-extrabold px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
+                  {personnel.rank}
+                </span>
+                <h3 className="text-sm font-extrabold text-slate-900">{personnel.fullName}</h3>
+              </div>
+              <p className="text-xs text-slate-600 mt-0.5 font-medium">{personnel.designation} • <strong className="text-slate-900">{personnel.division}</strong></p>
+              <div className="text-[11px] text-slate-500 font-mono mt-1 font-semibold">
+                Last Promotion Date: <strong className="text-slate-900">{personnel.lastPromotionDate}</strong>
               </div>
             </div>
 

@@ -6,7 +6,8 @@ import { SearchableSelect } from '../common/SearchableSelect';
 
 interface AwardFormProps {
   personnel: Personnel[];
-  onSubmit: (award: Omit<AwardRecord, 'id' | 'status'>) => Promise<void>;
+  initialRecord?: AwardRecord;
+  onSubmit: (award: Omit<AwardRecord, 'id' | 'status'> | AwardRecord) => Promise<void>;
   onCancel: () => void;
 }
 
@@ -17,22 +18,23 @@ type AwardFormErrors = Partial<Record<
 
 export const AwardForm: React.FC<AwardFormProps> = ({
   personnel,
+  initialRecord,
   onSubmit,
   onCancel
 }) => {
-  const [orderType, setOrderType] = useState<AwardOrderType | ''>('');
-  const [title, setTitle] = useState('');
-  const [citationDetails, setCitationDetails] = useState('');
-  const [awardName, setAwardName] = useState('');
-  const [authorityDate, setAuthorityDate] = useState('');
-  const [personnelId, setPersonnelId] = useState('');
+  const [orderType, setOrderType] = useState<AwardOrderType | ''>(initialRecord?.orderType || '');
+  const [title, setTitle] = useState(initialRecord?.title || '');
+  const [citationDetails, setCitationDetails] = useState(initialRecord?.citationDetails || '');
+  const [awardName, setAwardName] = useState(initialRecord?.awardName || '');
+  const [authorityDate, setAuthorityDate] = useState(initialRecord?.authorityDate || '');
+  const [personnelId, setPersonnelId] = useState(initialRecord?.personnelId || '');
   const [errors, setErrors] = useState<AwardFormErrors>({});
   const [isSaving, setIsSaving] = useState(false);
 
   const personnelOptions = useMemo(() => personnel.map(person => ({
     value: person.id,
     label: `${person.rank} ${person.fullName}`,
-    description: `${person.badgeNo} · ${person.division} · ${person.designation}`
+    description: `${person.badgeNo} - ${person.division} - ${person.designation}`
   })), [personnel]);
 
   const titleOptions = AWARD_TITLE_OPTIONS.map(option => ({ value: option, label: option }));
@@ -69,14 +71,16 @@ export const AwardForm: React.FC<AwardFormProps> = ({
     setIsSaving(true);
     try {
       await onSubmit({
+        ...(initialRecord
+          ? { id: initialRecord.id, status: initialRecord.status, updatedAt: new Date().toISOString() }
+          : { createdAt: new Date().toISOString() }),
         orderType: orderType as AwardOrderType,
         title,
         citationDetails: citationDetails.trim(),
         awardName: awardName.trim(),
         authorityDate,
         personnelId,
-        personnelName: `${selectedPersonnel.rank} ${selectedPersonnel.fullName}`,
-        createdAt: new Date().toISOString()
+        personnelName: `${selectedPersonnel.rank} ${selectedPersonnel.fullName}`
       });
     } catch (error) {
       setErrors({
@@ -138,7 +142,7 @@ export const AwardForm: React.FC<AwardFormProps> = ({
         <textarea
           value={citationDetails}
           onChange={event => setCitationDetails(event.target.value)}
-          placeholder="Encode the complete award citation or description…"
+          placeholder="Encode the complete award citation or description..."
           rows={5}
           className={`w-full px-3 py-2.5 rounded-xl border bg-white text-xs leading-relaxed outline-none resize-y focus:border-blue-500 ${
             errors.citationDetails ? 'border-rose-400' : 'border-slate-300'
@@ -191,7 +195,7 @@ export const AwardForm: React.FC<AwardFormProps> = ({
           className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center justify-center gap-2 disabled:opacity-60"
         >
           {isSaving ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-          {isSaving ? 'Saving Award…' : 'Save Award'}
+          {isSaving ? 'Saving Award...' : initialRecord ? 'Update Award' : 'Save Award'}
         </button>
       </div>
     </form>

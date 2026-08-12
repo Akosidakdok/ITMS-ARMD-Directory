@@ -44,13 +44,13 @@ export const Modal: React.FC<ModalProps> = ({
   }[maxWidth];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-2 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
       <div 
-        className={`w-full ${maxWidthClass} bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]`}
+        className={`my-2 sm:my-4 w-full ${maxWidthClass} bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[calc(100vh-1rem)] sm:max-h-[90vh]`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50">
+        <div className="flex items-start justify-between gap-3 px-4 py-4 sm:px-6 border-b border-slate-200 bg-slate-50">
           <div>
             <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-blue-600"></span>
@@ -67,7 +67,7 @@ export const Modal: React.FC<ModalProps> = ({
         </div>
 
         {/* Modal Body */}
-        <div className="p-6 overflow-y-auto flex-1 text-slate-900">
+        <div className="p-4 sm:p-6 overflow-y-auto flex-1 text-slate-900">
           {children}
         </div>
       </div>

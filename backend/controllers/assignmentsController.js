@@ -35,6 +35,30 @@ export const createAssignment = async (req, res) => {
   }
 };
 
+export const updateAssignment = async (req, res) => {
+  try {
+    const { personnelId, unit, position, orderRef, startDate } = req.body;
+    if (!personnelId || !unit || !position || !orderRef || !startDate) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields: personnelId, unit, position, orderRef, startDate are required'
+      });
+    }
+
+    const updated = await db.updateAssignment(req.params.id, req.body);
+    if (!updated) {
+      return res.status(404).json({ success: false, message: 'Assignment record not found' });
+    }
+    res.json({
+      success: true,
+      message: 'Assignment record updated successfully',
+      data: updated
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
 export const deleteAssignment = async (req, res) => {
   try {
     const success = await db.deleteAssignment(req.params.id);

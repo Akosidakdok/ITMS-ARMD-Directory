@@ -642,11 +642,11 @@ export const PersonnelPage: React.FC = () => {
       {/* SUMMARY PROFILE MODAL — opens when clicking a row */}
       {inspectModalOpen && selectedPerson && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto"
+          className="fixed inset-0 z-50 flex items-start justify-center bg-slate-900/60 backdrop-blur-sm p-2 sm:p-4 overflow-y-auto"
           onClick={() => setInspectModalOpen(false)}
         >
           <div
-            className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-md animate-scale-in"
+            className="my-2 sm:my-4 bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-md animate-scale-in"
             onClick={e => e.stopPropagation()}
           >
             {/* Modal Header */}
@@ -673,8 +673,8 @@ export const PersonnelPage: React.FC = () => {
 
       {/* ADD NEW PERSONNEL MODAL */}
       {addModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-3xl overflow-hidden animate-scale-in my-6">
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-900/60 backdrop-blur-xs p-2 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-3xl overflow-hidden animate-scale-in my-2 sm:my-6">
             {/* Header */}
             <div className="bg-cyan-700 text-white px-6 py-4 flex items-center justify-between">
               <div className="flex items-center gap-2 font-bold text-sm">
@@ -686,7 +686,7 @@ export const PersonnelPage: React.FC = () => {
               </button>
             </div>
 
-            <form onSubmit={handleAddPersonnelSubmit} className="p-6 space-y-5 text-xs">
+            <form onSubmit={handleAddPersonnelSubmit} className="p-4 sm:p-6 space-y-5 text-xs">
 
               {/* ── Section: Identity ── */}
               <div>

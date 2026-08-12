@@ -73,8 +73,7 @@ export const ManagementPage: React.FC = () => {
       dateOfEntry,
       enterInOfficerPositionDate: dateOfEntry,
       lastPromotionDate: dateOfEntry,
-      status: 'Active',
-      avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200'
+      status: 'Active'
     };
 
     addPersonnel(newPerson);
@@ -88,7 +87,7 @@ export const ManagementPage: React.FC = () => {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header Banner with Role Status Indicator */}
-      <div className="p-6 rounded-2xl bg-white border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-2xs">
+      <div className="p-4 sm:p-6 rounded-2xl bg-white border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-2xs">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="px-2.5 py-0.5 rounded text-xs font-extrabold bg-blue-50 text-blue-700 border border-blue-200">
@@ -136,7 +135,7 @@ export const ManagementPage: React.FC = () => {
       )}
 
       {/* Data Management Table Container */}
-      <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden space-y-4 p-6 shadow-2xs">
+      <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden space-y-4 p-4 sm:p-6 shadow-2xs">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pb-4 border-b border-slate-200">
           <div className="relative w-full sm:w-80">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -180,12 +179,7 @@ export const ManagementPage: React.FC = () => {
             <tbody className="divide-y divide-slate-100 text-slate-900 font-bold">
               {filteredPersonnel.map((person) => (
                 <tr key={person.id} className="hover:bg-slate-50">
-                  <td className="py-3 px-4 flex items-center gap-3">
-                    <img
-                      src={person.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=100'}
-                      alt={person.fullName}
-                      className="w-8 h-8 rounded-full object-cover border border-blue-200"
-                    />
+                  <td className="py-3 px-4">
                     <div>
                       <div className="font-extrabold text-slate-900">{person.rank} {person.lastName}, {person.firstName}</div>
                       <div className="text-[10px] text-slate-500 font-medium">{person.rankFullName}</div>
@@ -240,7 +234,7 @@ export const ManagementPage: React.FC = () => {
         maxWidth="2xl"
       >
         <form onSubmit={handleAddPersonnelSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-600 mb-1">Rank Abbreviation</label>
               <select
@@ -291,7 +285,7 @@ export const ManagementPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-600 mb-1">First Name</label>
               <input
@@ -323,7 +317,7 @@ export const ManagementPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-600 mb-1">Salary Grade (SG)</label>
               <input

@@ -89,3 +89,79 @@ export const createAward = async (req, res) => {
     });
   }
 };
+
+export const updateAward = async (req, res) => {
+  try {
+    const award = {
+      orderType: cleanText(req.body.orderType),
+      title: cleanText(req.body.title),
+      citationDetails: cleanText(req.body.citationDetails),
+      awardName: cleanText(req.body.awardName),
+      authorityDate: cleanText(req.body.authorityDate),
+      personnelId: cleanText(req.body.personnelId),
+      personnelName: cleanText(req.body.personnelName),
+      status: cleanText(req.body.status) || 'Active'
+    };
+
+    const missing = [
+      'orderType',
+      'title',
+      'citationDetails',
+      'awardName',
+      'authorityDate',
+      'personnelId',
+      'personnelName'
+    ].filter(field => !award[field]);
+
+    if (missing.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Missing required fields: ${missing.join(', ')}`
+      });
+    }
+    if (!AWARD_ORDER_TYPES.has(award.orderType)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Order Type must be General Order, Special Order, or Letter Order'
+      });
+    }
+    if (Number.isNaN(Date.parse(award.authorityDate))) {
+      return res.status(400).json({ success: false, message: 'Authority Date is invalid' });
+    }
+
+    const updated = await db.updateAward(req.params.id, award);
+    if (!updated) {
+      return res.status(404).json({ success: false, message: 'Award record not found' });
+    }
+    return res.json({
+      success: true,
+      message: 'Award record updated successfully',
+      data: updated
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Unable to update award record',
+      error: error.message
+    });
+  }
+};
+
+export const deleteAward = async (req, res) => {
+  try {
+    const success = await db.deleteAward(req.params.id);
+    if (!success) {
+      return res.status(404).json({ success: false, message: 'Award record not found' });
+    }
+    return res.json({
+      success: true,
+      message: 'Award record deleted successfully'
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Unable to delete award record',
+      error: error.message
+    });
+  }
+};

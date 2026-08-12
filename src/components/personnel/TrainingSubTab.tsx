@@ -122,7 +122,7 @@ export const TrainingSubTab: React.FC<TrainingSubTabProps> = ({ personnel }) => 
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-600 mb-1">Category</label>
               <select
@@ -150,7 +150,7 @@ export const TrainingSubTab: React.FC<TrainingSubTabProps> = ({ personnel }) => 
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-600 mb-1">Start Date</label>
               <input

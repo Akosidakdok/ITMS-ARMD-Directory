@@ -67,6 +67,7 @@ export interface PromotionRecord {
 
 export interface OrderRecord {
   id: string;
+  personnelIds?: string[];
   orderNo?: string;
   orderNumber?: string;
   subject: string;
@@ -99,6 +100,26 @@ export interface AwardRecord {
   status: 'Active' | 'Archived' | string;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export type DocumentTemplateType =
+  | 'Assignment Order'
+  | 'Administrative Order'
+  | 'Leave Endorsement'
+  | 'Award Citation';
+
+export interface DocumentTemplateField {
+  key: string;
+  label: string;
+  value: string;
+}
+
+export interface DocumentTemplate {
+  id: string;
+  type: DocumentTemplateType;
+  title: string;
+  description: string;
+  fields: DocumentTemplateField[];
 }
 
 export interface TrainingRecord {

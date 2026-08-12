@@ -9,7 +9,7 @@ export const EducationPage: React.FC = () => {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header Banner */}
-      <div className="p-6 rounded-2xl bg-white border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-2xs">
+      <div className="p-4 sm:p-6 rounded-2xl bg-white border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-2xs">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="px-2.5 py-0.5 rounded text-xs font-extrabold bg-blue-50 text-blue-700 border border-blue-200">
@@ -33,16 +33,9 @@ export const EducationPage: React.FC = () => {
               key={person.id}
               className="p-5 rounded-2xl border border-slate-200 bg-white space-y-4 shadow-2xs"
             >
-              <div className="flex items-center gap-3 pb-3 border-b border-slate-200">
-                <img
-                  src={person.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=100'}
-                  alt={person.fullName}
-                  className="w-10 h-10 rounded-full object-cover border border-blue-200"
-                />
-                <div>
-                  <div className="text-sm font-extrabold text-slate-900">{person.rank} {person.fullName}</div>
-                  <div className="text-xs text-blue-700 font-bold">{person.designation} • {person.division}</div>
-                </div>
+              <div className="pb-3 border-b border-slate-200">
+                <div className="text-sm font-extrabold text-slate-900">{person.rank} {person.fullName}</div>
+                <div className="text-xs text-blue-700 font-bold">{person.designation} • {person.division}</div>
               </div>
 
               {/* Degrees */}

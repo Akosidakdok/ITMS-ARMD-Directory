@@ -1,26 +1,60 @@
 import React from 'react';
 import { useAuthRole } from '../../context/AuthRoleContext';
-import { Bell } from 'lucide-react';
+import { Bell, Menu } from 'lucide-react';
 
-export const Header: React.FC = () => {
-  const { backendConnected } = useAuthRole();
+interface HeaderProps {
+  onMenuClick?: () => void;
+}
+
+export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
+  const { backendConnected, backendHealth } = useAuthRole();
+  const checkingBackend = backendHealth === null;
+  const supabaseStatus = backendHealth?.database?.supabase;
+  const supabaseConnected = !!supabaseStatus?.isConnected;
+  const statusLabel = checkingBackend
+    ? 'Checking API'
+    : !backendConnected
+    ? 'API Offline'
+    : supabaseConnected
+      ? 'Supabase Connected'
+      : 'Supabase Offline';
+  const statusTitle = checkingBackend
+    ? 'Checking backend API status'
+    : !backendConnected
+    ? 'Backend API is not reachable'
+    : supabaseConnected
+      ? 'Connected to Supabase PostgreSQL'
+      : `Backend API is online, but Supabase is unavailable${supabaseStatus?.state ? ` (${supabaseStatus.state})` : ''}`;
 
   return (
     <header className="h-16 bg-white border-b border-slate-200 sticky top-0 z-40 px-3 sm:px-6 flex items-center justify-between">
+      <button
+        type="button"
+        onClick={onMenuClick}
+        className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-700 shadow-2xs transition-colors hover:bg-slate-100 hover:text-slate-950 lg:hidden"
+        aria-label="Open navigation menu"
+      >
+        <Menu className="h-5 w-5" />
+      </button>
+
       {/* Header Right Actions */}
       <div className="ml-auto flex items-center gap-2 sm:gap-3">
 
         {/* Backend Server Status Indicator */}
         <div
           className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl border text-[11px] font-bold ${
-            backendConnected
+            supabaseConnected
               ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-              : 'bg-amber-50 text-amber-800 border-amber-200'
+              : backendConnected
+                ? 'bg-orange-50 text-orange-800 border-orange-200'
+                : checkingBackend
+                  ? 'bg-slate-50 text-slate-700 border-slate-200'
+                  : 'bg-amber-50 text-amber-800 border-amber-200'
           }`}
-          title={backendConnected ? 'Connected to live Node.js Express REST API' : 'Running in Standalone Local Store Mode'}
+          title={statusTitle}
         >
-          <span className={`w-2 h-2 rounded-full ${backendConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
-          <span className="hidden lg:inline">{backendConnected ? 'API: Connected' : 'Local Store'}</span>
+          <span className={`w-2 h-2 rounded-full ${supabaseConnected ? 'bg-emerald-500 animate-pulse' : backendConnected ? 'bg-orange-500' : checkingBackend ? 'bg-slate-400 animate-pulse' : 'bg-amber-500'}`} />
+          <span className="hidden lg:inline">{statusLabel}</span>
         </div>
 
         {/* Notifications Icon */}

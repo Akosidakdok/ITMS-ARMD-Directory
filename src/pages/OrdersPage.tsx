@@ -4,6 +4,7 @@ import {
   CalendarDays,
   ChevronRight,
   ClipboardList,
+  Edit3,
   Eye,
   FilePlus2,
   Filter,
@@ -13,6 +14,7 @@ import {
   X,
 } from 'lucide-react';
 import { AwardForm } from '../components/orders/AwardForm';
+import { DocumentTemplatePanel } from '../components/orders/DocumentTemplatePanel';
 import { LeaveCalendar } from '../components/orders/LeaveCalendar';
 import { LeaveCalendarForm, CALENDAR_LEAVE_TYPES } from '../components/orders/LeaveCalendarForm';
 import { OrderTypeSelectorModal } from '../components/orders/OrderTypeSelectorModal';
@@ -53,9 +55,9 @@ const ModalShell = ({
   children: React.ReactNode;
   maxWidth?: string;
 }) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
-    <div className={`max-h-[92vh] w-full ${maxWidth} overflow-y-auto rounded-2xl bg-white shadow-2xl`}>
-      <div className="sticky top-0 z-10 flex items-start justify-between border-b border-slate-200 bg-white px-5 py-4 sm:px-6">
+  <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/50 p-2 sm:p-4 backdrop-blur-sm">
+    <div className={`my-2 sm:my-4 max-h-[calc(100vh-1rem)] sm:max-h-[92vh] w-full ${maxWidth} overflow-y-auto rounded-2xl bg-white shadow-2xl`}>
+      <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-slate-200 bg-white px-4 py-4 sm:px-6">
         <div>
           {eyebrow && <p className="text-xs font-semibold uppercase tracking-[0.16em] text-teal-700">{eyebrow}</p>}
           <h2 className="mt-1 text-xl font-bold text-slate-900">{title}</h2>
@@ -77,18 +79,22 @@ export const OrdersPage = () => {
     awardsList,
     leaveList,
     addOrder,
+    updateOrder,
     createAward,
+    updateAward,
     createCalendarLeave,
     updateCalendarLeave,
   } = useAuthRole();
 
   const canEdit = role === 'admin';
-  const [activeView, setActiveView] = useState<'list' | 'calendar'>('list');
+  const [activeView, setActiveView] = useState<'list' | 'calendar' | 'templates'>('list');
   const [selectorOpen, setSelectorOpen] = useState(false);
   const [awardFormOpen, setAwardFormOpen] = useState(false);
   const [leaveFormOpen, setLeaveFormOpen] = useState(false);
   const [orderFormOpen, setOrderFormOpen] = useState(false);
   const [editingLeave, setEditingLeave] = useState<LeaveRecord | null>(null);
+  const [editingOrder, setEditingOrder] = useState<OrderRecord | null>(null);
+  const [editingAward, setEditingAward] = useState<AwardRecord | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<OrderRecord | null>(null);
   const [selectedAward, setSelectedAward] = useState<AwardRecord | null>(null);
   const [selectedLeave, setSelectedLeave] = useState<LeaveRecord | null>(null);
@@ -111,6 +117,7 @@ export const OrdersPage = () => {
   const [signatory, setSignatory] = useState('PBGEN BENJAMIN H ACORDA');
   const [signatoryTitle, setSignatoryTitle] = useState('Director, ITMS');
   const [affectedPersonnelCount, setAffectedPersonnelCount] = useState(1);
+  const [selectedPersonnelIds, setSelectedPersonnelIds] = useState<string[]>([]);
   const [description, setDescription] = useState('');
   const [orderError, setOrderError] = useState('');
   const [savingOrder, setSavingOrder] = useState(false);
@@ -130,6 +137,47 @@ export const OrdersPage = () => {
     [leaveList],
   );
 
+  const resetOrderForm = () => {
+    setEditingOrder(null);
+    setOrderNumber('');
+    setOrderType('Special Order');
+    setSubject('');
+    setIssuedDate('');
+    setEffectiveDate('');
+    setStatus('Active');
+    setSignatory('PBGEN BENJAMIN H ACORDA');
+    setSignatoryTitle('Director, ITMS');
+    setAffectedPersonnelCount(1);
+    setSelectedPersonnelIds([]);
+    setDescription('');
+    setOrderError('');
+  };
+
+  const openOrderEdit = (order: OrderRecord) => {
+    setSelectedOrder(null);
+    setEditingOrder(order);
+    setOrderNumber(order.orderNumber || order.orderNo || '');
+    setOrderType(order.orderType || order.type || 'Special Order');
+    setSubject(order.subject || '');
+    setIssuedDate(order.issuedDate || '');
+    setEffectiveDate(order.effectiveDate || '');
+    setStatus(order.status || 'Active');
+    setSignatory(order.signatory || 'PBGEN BENJAMIN H ACORDA');
+    setSignatoryTitle(order.signatoryTitle || 'Director, ITMS');
+    setAffectedPersonnelCount(order.affectedPersonnelCount || order.personnelIds?.length || 1);
+    setSelectedPersonnelIds(order.personnelIds || []);
+    setDescription(order.description || '');
+    setOrderFormOpen(true);
+  };
+
+  const toggleOrderPersonnel = (personnelId: string) => {
+    setSelectedPersonnelIds(prev => (
+      prev.includes(personnelId)
+        ? prev.filter(id => id !== personnelId)
+        : [...prev, personnelId]
+    ));
+  };
+
   const rows = useMemo<DashboardRecord[]>(() => {
     const orderRows: DashboardRecord[] = ordersList.map((order) => ({
       kind: 'order',
@@ -138,7 +186,9 @@ export const OrdersPage = () => {
       recordType: 'Administrative Order',
       subtype: order.orderType || order.type || 'Administrative Order',
       title: order.subject,
-      personnel: `${order.affectedPersonnelCount || 1} personnel`,
+      personnel: order.personnelIds?.length
+        ? order.personnelIds.map(id => personnelNames.get(id) || 'Unknown personnel').join(', ')
+        : `${order.affectedPersonnelCount || 1} personnel`,
       date: order.issuedDate || order.effectiveDate || '',
       status: order.status || 'Active',
       source: order,
@@ -149,7 +199,7 @@ export const OrdersPage = () => {
       reference: `AWD-${award.id.slice(-6).toUpperCase()}`,
       recordType: 'Award',
       subtype: award.orderType,
-      title: `${award.awardName} · ${award.title}`,
+      title: `${award.awardName} - ${award.title}`,
       personnel: award.personnelName,
       date: award.authorityDate,
       status: award.status || 'Active',
@@ -180,6 +230,7 @@ export const OrdersPage = () => {
       const matchesType = !recordType || row.recordType === recordType;
       const matchesSubtype = !subtypeFilter || row.subtype === subtypeFilter;
       const matchesPersonnel = !personnelFilter
+        || (row.kind === 'order' && !!row.source.personnelIds?.includes(personnelFilter))
         || (row.kind === 'leave' && row.source.personnelId === personnelFilter)
         || (row.kind === 'award' && row.source.personnelId === personnelFilter);
       const matchesStatus = !statusFilter || row.status.toLowerCase() === statusFilter.toLowerCase();
@@ -218,8 +269,9 @@ export const OrdersPage = () => {
     setSavingOrder(true);
     setOrderError('');
     try {
-      await addOrder({
-        id: crypto.randomUUID(),
+      const payload: OrderRecord = {
+        id: editingOrder?.id || crypto.randomUUID(),
+        personnelIds: selectedPersonnelIds,
         orderNumber: orderNumber.trim(),
         orderType,
         subject: subject.trim(),
@@ -227,19 +279,18 @@ export const OrdersPage = () => {
         effectiveDate,
         signatory: signatory.trim(),
         signatoryTitle: signatoryTitle.trim(),
-        affectedPersonnelCount,
+        affectedPersonnelCount: selectedPersonnelIds.length || affectedPersonnelCount,
         description: description.trim(),
         status,
-      });
+      };
+      if (editingOrder) {
+        await updateOrder(payload);
+      } else {
+        await addOrder(payload);
+      }
       setOrderFormOpen(false);
-      setOrderNumber('');
-      setSubject('');
-      setIssuedDate('');
-      setEffectiveDate('');
-      setStatus('Active');
-      setAffectedPersonnelCount(1);
-      setDescription('');
-      setToast({ type: 'success', message: 'Administrative order saved successfully.' });
+      resetOrderForm();
+      setToast({ type: 'success', message: editingOrder ? 'Administrative order updated successfully.' : 'Administrative order saved successfully.' });
     } catch (error) {
       setOrderError(error instanceof Error ? error.message : 'Unable to save the order.');
     } finally {
@@ -247,9 +298,14 @@ export const OrdersPage = () => {
     }
   };
 
-  const handleAwardSubmit = async (award: Omit<AwardRecord, 'id' | 'status'>) => {
-    await createAward(award);
+  const handleAwardSubmit = async (award: Omit<AwardRecord, 'id' | 'status'> | AwardRecord) => {
+    if ('id' in award) {
+      await updateAward(award);
+    } else {
+      await createAward(award);
+    }
     setAwardFormOpen(false);
+    setEditingAward(null);
     setToast({ type: 'success', message: 'Award record saved and added to All Orders.' });
   };
 
@@ -278,18 +334,23 @@ export const OrdersPage = () => {
   ];
 
   return (
-    <div className="mx-auto max-w-[1600px] space-y-6">
+    <div className="mx-auto w-full max-w-[1600px] space-y-4 sm:space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <div className="mb-2 flex items-center gap-2 text-sm text-slate-500">
             <span>Records Management</span><ChevronRight size={14} /><span className="font-medium text-slate-800">All Orders</span>
             {activeView === 'calendar' && <><ChevronRight size={14} /><span className="font-medium text-slate-800">Leave Calendar</span></>}
+            {activeView === 'templates' && <><ChevronRight size={14} /><span className="font-medium text-slate-800">Document Templates</span></>}
           </div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-950">{activeView === 'list' ? 'All Orders' : 'Leave Calendar'}</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-950">
+            {activeView === 'list' ? 'All Orders' : activeView === 'calendar' ? 'Leave Calendar' : 'Document Templates'}
+          </h1>
           <p className="mt-1 text-sm text-slate-600">
             {activeView === 'list'
               ? 'Search and review administrative orders, awards, and scheduled leaves in one place.'
-              : 'A visual overview of approved leave schedules. Leave dates are encoded through the separate form.'}
+              : activeView === 'calendar'
+                ? 'A visual overview of approved leave schedules. Leave dates are encoded through the separate form.'
+                : 'Open fixed-format templates, edit allowed fields, and autofill personnel details from system records.'}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -304,14 +365,21 @@ export const OrdersPage = () => {
                 </button>
               )}
             </>
+          ) : activeView === 'templates' ? (
+            <button type="button" onClick={() => setActiveView('list')} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+              Back to All Orders
+            </button>
           ) : (
             <>
+              <button type="button" onClick={() => setActiveView('templates')} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                <FilePlus2 size={17} /> Document Templates
+              </button>
               <button type="button" onClick={() => setActiveView('calendar')} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
                 <CalendarDays size={17} /> View Leave Calendar
               </button>
               {canEdit && (
                 <>
-                  <button type="button" onClick={() => setOrderFormOpen(true)} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                  <button type="button" onClick={() => { resetOrderForm(); setOrderFormOpen(true); }} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
                     <FilePlus2 size={17} /> Administrative Order
                   </button>
                   <button type="button" onClick={() => setSelectorOpen(true)} className="inline-flex items-center gap-2 rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-teal-800">
@@ -324,7 +392,9 @@ export const OrdersPage = () => {
         </div>
       </div>
 
-      {activeView === 'calendar' ? (
+      {activeView === 'templates' ? (
+        <DocumentTemplatePanel personnel={personnelList} />
+      ) : activeView === 'calendar' ? (
         <LeaveCalendar
           leaves={calendarLeaves}
           personnel={personnelList}
@@ -339,7 +409,7 @@ export const OrdersPage = () => {
         />
       ) : (
         <>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {stats.map(({ label, value, icon: Icon, className }) => (
               <div key={label} className={`flex items-center justify-between rounded-2xl p-5 ${className}`}>
                 <div><p className="text-sm opacity-75">{label}</p><p className="mt-1 text-3xl font-bold">{value}</p></div>
@@ -358,7 +428,7 @@ export const OrdersPage = () => {
                 <span className="mb-1.5 block text-sm font-medium text-slate-700">Search records</span>
                 <div className="relative">
                   <Search size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Reference, title, personnel…" className="w-full rounded-xl border border-slate-300 py-2.5 pl-10 pr-3 text-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" />
+                  <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Reference, title, personnel..." className="w-full rounded-xl border border-slate-300 py-2.5 pl-10 pr-3 text-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" />
                 </div>
               </label>
               <SearchableSelect label="Record type" value={recordType} onChange={setRecordType} placeholder="All record types" options={['Administrative Order', 'Award', 'Leave Calendar'].map((value) => ({ value, label: value }))} />
@@ -389,7 +459,7 @@ export const OrdersPage = () => {
               </div>
             </div>
             <div className="overflow-x-auto">
-              <table className="min-w-[980px] w-full text-left">
+              <table className="min-w-[760px] lg:min-w-[980px] w-full text-left">
                 <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
                   <tr>
                     <th className="px-5 py-3">Reference</th>
@@ -445,8 +515,8 @@ export const OrdersPage = () => {
       />
 
       {awardFormOpen && (
-        <ModalShell title="Encode Award" eyebrow="All Orders · Award" onClose={() => setAwardFormOpen(false)} maxWidth="max-w-4xl">
-          <AwardForm personnel={personnelList} onSubmit={handleAwardSubmit} onCancel={() => setAwardFormOpen(false)} />
+        <ModalShell title={editingAward ? 'Edit Award' : 'Encode Award'} eyebrow="All Orders - Award" onClose={() => { setAwardFormOpen(false); setEditingAward(null); }} maxWidth="max-w-4xl">
+          <AwardForm personnel={personnelList} initialRecord={editingAward || undefined} onSubmit={handleAwardSubmit} onCancel={() => { setAwardFormOpen(false); setEditingAward(null); }} />
         </ModalShell>
       )}
 
@@ -457,7 +527,7 @@ export const OrdersPage = () => {
       )}
 
       {orderFormOpen && (
-        <ModalShell title="New Administrative Order" eyebrow="All Orders" onClose={() => setOrderFormOpen(false)} maxWidth="max-w-4xl">
+        <ModalShell title={editingOrder ? 'Edit Administrative Order' : 'New Administrative Order'} eyebrow="All Orders" onClose={() => { setOrderFormOpen(false); resetOrderForm(); }} maxWidth="max-w-4xl">
           <form onSubmit={submitOrder} className="space-y-5 p-5 sm:p-6">
             {orderError && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{orderError}</div>}
             <div className="grid gap-4 md:grid-cols-2">
@@ -468,13 +538,34 @@ export const OrdersPage = () => {
               <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Effective date *</span><input type="date" value={effectiveDate} onChange={(e) => setEffectiveDate(e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
               <SearchableSelect label="Status *" value={status} onChange={setStatus} options={ORDER_STATUSES.map((value) => ({ value, label: value }))} />
               <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Affected personnel count *</span><input type="number" min={1} value={affectedPersonnelCount} onChange={(e) => setAffectedPersonnelCount(Math.max(1, Number(e.target.value)))} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
+              <div className="md:col-span-2">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <span className="text-sm font-medium text-slate-700">Personnel involved</span>
+                  <span className="text-xs font-semibold text-slate-500">{selectedPersonnelIds.length} selected</span>
+                </div>
+                <div className="max-h-44 overflow-y-auto rounded-xl border border-slate-300 bg-slate-50 p-2">
+                  {personnelList.map((person) => (
+                    <label key={person.id} className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm hover:bg-white">
+                      <input
+                        type="checkbox"
+                        checked={selectedPersonnelIds.includes(person.id)}
+                        onChange={() => toggleOrderPersonnel(person.id)}
+                        className="h-4 w-4 rounded border-slate-300 text-teal-700 focus:ring-teal-600"
+                      />
+                      <span className="font-semibold text-slate-900">{person.rank} {person.fullName}</span>
+                      <span className="text-xs text-slate-500">{person.badgeNo} - {person.division}</span>
+                    </label>
+                  ))}
+                  {!personnelList.length && <p className="px-3 py-6 text-center text-sm text-slate-500">No personnel records available.</p>}
+                </div>
+              </div>
               <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Signatory *</span><input value={signatory} onChange={(e) => setSignatory(e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
               <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Signatory title *</span><input value={signatoryTitle} onChange={(e) => setSignatoryTitle(e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
               <label className="md:col-span-2"><span className="mb-1.5 block text-sm font-medium text-slate-700">Directives and particulars</span><textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
             </div>
             <div className="flex justify-end gap-2 border-t border-slate-200 pt-4">
-              <button type="button" onClick={() => setOrderFormOpen(false)} disabled={savingOrder} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700">Cancel</button>
-              <button type="submit" disabled={savingOrder} className="rounded-xl bg-teal-700 px-5 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">{savingOrder ? 'Saving…' : 'Save order'}</button>
+              <button type="button" onClick={() => { setOrderFormOpen(false); resetOrderForm(); }} disabled={savingOrder} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700">Cancel</button>
+              <button type="submit" disabled={savingOrder} className="rounded-xl bg-teal-700 px-5 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">{savingOrder ? 'Saving...' : editingOrder ? 'Update order' : 'Save order'}</button>
             </div>
           </form>
         </ModalShell>
@@ -488,9 +579,16 @@ export const OrdersPage = () => {
             <Detail label="Issued date" value={formatDate(selectedOrder.issuedDate)} />
             <Detail label="Effective date" value={formatDate(selectedOrder.effectiveDate)} />
             <div className="sm:col-span-2"><Detail label="Subject" value={selectedOrder.subject} /></div>
-            <Detail label="Affected personnel" value={String(selectedOrder.affectedPersonnelCount || 1)} />
-            <Detail label="Signatory" value={[selectedOrder.signatory, selectedOrder.signatoryTitle].filter(Boolean).join(' · ')} />
+            <Detail label="Affected personnel" value={selectedOrder.personnelIds?.length ? selectedOrder.personnelIds.map(id => personnelNames.get(id) || 'Unknown personnel').join('\n') : String(selectedOrder.affectedPersonnelCount || 1)} />
+            <Detail label="Signatory" value={[selectedOrder.signatory, selectedOrder.signatoryTitle].filter(Boolean).join(' - ')} />
             {selectedOrder.description && <div className="sm:col-span-2"><Detail label="Directives and particulars" value={selectedOrder.description} /></div>}
+            {canEdit && (
+              <div className="sm:col-span-2 flex justify-end border-t border-slate-200 pt-4">
+                <button type="button" onClick={() => openOrderEdit(selectedOrder)} className="inline-flex items-center gap-2 rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-800">
+                  <Edit3 size={16} /> Edit order
+                </button>
+              </div>
+            )}
           </div>
         </ModalShell>
       )}
@@ -503,6 +601,21 @@ export const OrdersPage = () => {
             <Detail label="Award title" value={selectedAward.title} />
             <Detail label="Name of personnel" value={selectedAward.personnelName} />
             <div className="sm:col-span-2"><Detail label="Citation details" value={selectedAward.citationDetails} /></div>
+            {canEdit && (
+              <div className="sm:col-span-2 flex justify-end border-t border-slate-200 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedAward(null);
+                    setEditingAward(selectedAward);
+                    setAwardFormOpen(true);
+                  }}
+                  className="inline-flex items-center gap-2 rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-800"
+                >
+                  <Edit3 size={16} /> Edit award
+                </button>
+              </div>
+            )}
           </div>
         </ModalShell>
       )}

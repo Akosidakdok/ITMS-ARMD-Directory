@@ -129,8 +129,8 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
   const displayedErrors = importResult?.errors || parsed.errors;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-scale-in">
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-900/60 backdrop-blur-xs p-2 sm:p-4 overflow-y-auto">
+      <div className="my-2 sm:my-4 bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-4xl max-h-[calc(100vh-1rem)] sm:max-h-[90vh] flex flex-col overflow-hidden animate-scale-in">
         <div className="bg-slate-800 text-white px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-cyan-500 text-white">
@@ -151,7 +151,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
           </button>
         </div>
 
-        <div className="p-6 overflow-y-auto space-y-5 flex-1">
+        <div className="p-4 sm:p-6 overflow-y-auto space-y-5 flex-1">
           {!backendConnected && (
             <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800 flex gap-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
