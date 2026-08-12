@@ -374,7 +374,7 @@ class PAISRepository {
 
   async createEducation(data) {
     const newRecord = {
-      id: data.id || `edu-${Date.now()}`,
+      id: data.id || `edu-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       ...data
     };
 
@@ -389,6 +389,27 @@ class PAISRepository {
     return newRecord;
   }
 
+  async updateEducation(id, data) {
+    const updateData = { ...data, updatedAt: new Date().toISOString() };
+
+    if (this.isSupabaseConnected()) {
+      try {
+        const { data: updated, error } = await supabase
+          .from('education')
+          .update(updateData)
+          .eq('id', id)
+          .select()
+          .single();
+        if (!error && updated) return updated;
+      } catch (e) {}
+    }
+
+    const index = this.inMemoryEducation.findIndex(e => e.id === id);
+    if (index === -1) return null;
+    this.inMemoryEducation[index] = { ...this.inMemoryEducation[index], ...updateData, id };
+    return this.inMemoryEducation[index];
+  }
+
   async deleteEducation(id) {
     if (this.isSupabaseConnected()) {
       try {
@@ -401,6 +422,37 @@ class PAISRepository {
     if (index === -1) return false;
     this.inMemoryEducation.splice(index, 1);
     return true;
+  }
+
+  /**
+   * Bulk upsert education records.
+   * Match key: personnelId + degree (case-insensitive trim).
+   * If match found → update; else → insert.
+   */
+  async bulkUpsertEducation(records) {
+    const results = { added: [], replaced: [], skipped: [] };
+
+    for (const raw of records) {
+      if (!raw.personnelId || !raw.degree) {
+        results.skipped.push({ ...raw, reason: 'Missing personnelId or degree' });
+        continue;
+      }
+
+      const existingAll = await this.getEducation(raw.personnelId);
+      const match = existingAll.find(
+        e => e.degree.trim().toLowerCase() === raw.degree.trim().toLowerCase()
+      );
+
+      if (match) {
+        const updated = await this.updateEducation(match.id, raw);
+        results.replaced.push(updated);
+      } else {
+        const created = await this.createEducation(raw);
+        results.added.push(created);
+      }
+    }
+
+    return results;
   }
 
   // ================= PROMOTIONS CRUD =================
@@ -484,7 +536,7 @@ class PAISRepository {
 
   async createTraining(data) {
     const newRecord = {
-      id: data.id || `trn-${Date.now()}`,
+      id: data.id || `trn-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       ...data
     };
 
@@ -499,6 +551,27 @@ class PAISRepository {
     return newRecord;
   }
 
+  async updateTraining(id, data) {
+    const updateData = { ...data, updatedAt: new Date().toISOString() };
+
+    if (this.isSupabaseConnected()) {
+      try {
+        const { data: updated, error } = await supabase
+          .from('training')
+          .update(updateData)
+          .eq('id', id)
+          .select()
+          .single();
+        if (!error && updated) return updated;
+      } catch (e) {}
+    }
+
+    const index = this.inMemoryTraining.findIndex(t => t.id === id);
+    if (index === -1) return null;
+    this.inMemoryTraining[index] = { ...this.inMemoryTraining[index], ...updateData, id };
+    return this.inMemoryTraining[index];
+  }
+
   async deleteTraining(id) {
     if (this.isSupabaseConnected()) {
       try {
@@ -511,6 +584,37 @@ class PAISRepository {
     if (index === -1) return false;
     this.inMemoryTraining.splice(index, 1);
     return true;
+  }
+
+  /**
+   * Bulk upsert training records.
+   * Match key: personnelId + courseName (case-insensitive trim).
+   * If match found → update; else → insert.
+   */
+  async bulkUpsertTraining(records) {
+    const results = { added: [], replaced: [], skipped: [] };
+
+    for (const raw of records) {
+      if (!raw.personnelId || !raw.courseName) {
+        results.skipped.push({ ...raw, reason: 'Missing personnelId or courseName' });
+        continue;
+      }
+
+      const existingAll = await this.getTraining(raw.personnelId);
+      const match = existingAll.find(
+        t => t.courseName.trim().toLowerCase() === raw.courseName.trim().toLowerCase()
+      );
+
+      if (match) {
+        const updated = await this.updateTraining(match.id, raw);
+        results.replaced.push(updated);
+      } else {
+        const created = await this.createTraining(raw);
+        results.added.push(created);
+      }
+    }
+
+    return results;
   }
 
   // ================= LEAVE CRUD =================

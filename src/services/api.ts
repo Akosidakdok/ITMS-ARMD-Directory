@@ -209,7 +209,6 @@ export const createAssignmentApi = async (assignment: AssignmentRecord): Promise
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(assignment)
   });
-  if (!res.ok) throw new Error('Failed to create assignment');
   const json = await res.json();
   return json.data;
 };
@@ -230,6 +229,43 @@ export const createEducationApi = async (edu: EducationRecord): Promise<Educatio
   });
   if (!res.ok) throw new Error('Failed to create education record');
   const json = await res.json();
+  return json.data;
+};
+
+export const updateEducationApi = async (edu: EducationRecord): Promise<EducationRecord> => {
+  const res = await fetch(`${API_BASE_URL}/education/${edu.id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(edu)
+  });
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(json?.message || json?.error || 'Failed to update education record');
+  return json.data;
+};
+
+export const deleteEducationApi = async (id: string): Promise<boolean> => {
+  const res = await fetch(`${API_BASE_URL}/education/${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Failed to delete education record');
+  return true;
+};
+
+export interface BulkUpsertResult {
+  addedCount: number;
+  replacedCount: number;
+  skippedCount: number;
+  added: unknown[];
+  replaced: unknown[];
+  skipped: Array<Record<string, unknown> & { reason: string }>;
+}
+
+export const bulkUpsertEducationApi = async (records: Partial<EducationRecord>[]): Promise<BulkUpsertResult> => {
+  const res = await fetch(`${API_BASE_URL}/education/bulk`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ records })
+  });
+  const json = await res.json().catch(() => null);
+  if (!res.ok && res.status !== 207) throw new Error(json?.message || json?.error || 'Bulk education upsert failed');
   return json.data;
 };
 
@@ -268,6 +304,34 @@ export const createTrainingApi = async (training: TrainingRecord): Promise<Train
   });
   if (!res.ok) throw new Error('Failed to create training');
   const json = await res.json();
+  return json.data;
+};
+
+export const updateTrainingApi = async (training: TrainingRecord): Promise<TrainingRecord> => {
+  const res = await fetch(`${API_BASE_URL}/training/${training.id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(training)
+  });
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(json?.message || json?.error || 'Failed to update training record');
+  return json.data;
+};
+
+export const deleteTrainingApi = async (id: string): Promise<boolean> => {
+  const res = await fetch(`${API_BASE_URL}/training/${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Failed to delete training record');
+  return true;
+};
+
+export const bulkUpsertTrainingApi = async (records: Partial<TrainingRecord>[]): Promise<BulkUpsertResult> => {
+  const res = await fetch(`${API_BASE_URL}/training/bulk`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ records })
+  });
+  const json = await res.json().catch(() => null);
+  if (!res.ok && res.status !== 207) throw new Error(json?.message || json?.error || 'Bulk training upsert failed');
   return json.data;
 };
 

@@ -3,6 +3,7 @@ import { useAuthRole } from '../context/AuthRoleContext';
 import { Personnel } from '../types/pais';
 import { BulkImportModal } from '../components/personnel/BulkImportModal';
 import { PersonnelSummaryCard } from '../components/personnel/PersonnelSummaryCard';
+import { exportPersonnelCsv, exportPersonnelPdf } from '../utils/personnelExport';
 import { 
   Users, 
   Search, 
@@ -17,8 +18,121 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
-  ChevronDown
+  ChevronDown,
+  Download,
+  FileText,
+  FileSpreadsheet,
+  CheckSquare,
+  Square,
+  Check,
+  Loader2
 } from 'lucide-react';
+
+// ─── Export Modal Component ───────────────────────────────────────────────────
+
+type ExportFormat = 'csv' | 'pdf';
+
+const PersonnelExportModal: React.FC<{
+  records: Personnel[];
+  onClose: () => void;
+}> = ({ records, onClose }) => {
+  const [format, setFormat] = useState<ExportFormat>('pdf');
+  const [exporting, setExporting] = useState(false);
+  const [done, setDone] = useState(false);
+
+  const now = new Date().toISOString().slice(0, 10);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      if (format === 'csv') {
+        exportPersonnelCsv(records, `personnel_${now}.csv`);
+      } else {
+        await exportPersonnelPdf(records, `personnel_${now}.pdf`);
+      }
+      setDone(true);
+    } catch (e) {
+      console.error('Export failed:', e);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 border border-slate-200 overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-[#4682B4]/10 to-cyan-50">
+          <div className="flex items-center gap-2">
+            <Download className="w-4 h-4 text-[#4682B4]" />
+            <h2 className="text-sm font-extrabold text-slate-800">Export Personnel</h2>
+          </div>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-slate-100 transition-colors">
+            <X className="w-4 h-4 text-slate-500" />
+          </button>
+        </div>
+
+        <div className="px-5 py-4 space-y-4">
+          {/* Count badge */}
+          <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-100 rounded-xl">
+            <CheckSquare className="w-4 h-4 text-[#4682B4] flex-shrink-0" />
+            <p className="text-xs font-bold text-blue-700">
+              Exporting <span className="font-extrabold text-blue-900">{records.length} personnel</span> records
+            </p>
+          </div>
+
+          {/* Format */}
+          <div>
+            <p className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider mb-2">File Format</p>
+            <div className="grid grid-cols-2 gap-2">
+              {([['pdf', 'PDF Document', 'Formatted, printable'], ['csv', 'CSV Spreadsheet', 'Raw data for Excel']] as const).map(([key, label, desc]) => (
+                <button
+                  key={key}
+                  onClick={() => setFormat(key as ExportFormat)}
+                  className={`px-4 py-3 rounded-xl border-2 transition-all text-left ${
+                    format === key ? 'border-[#4682B4] bg-blue-50' : 'border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    {key === 'pdf'
+                      ? <FileText className={`w-4 h-4 ${format === key ? 'text-red-500' : 'text-slate-400'}`} />
+                      : <FileSpreadsheet className={`w-4 h-4 ${format === key ? 'text-green-600' : 'text-slate-400'}`} />
+                    }
+                    <span className={`text-xs font-extrabold ${format === key ? 'text-[#4682B4]' : 'text-slate-700'}`}>{label}</span>
+                  </div>
+                  <p className="text-[10px] text-slate-400">{desc}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {done && (
+            <div className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+              <Check className="w-4 h-4 text-emerald-600" />
+              <p className="text-xs font-bold text-emerald-700">File downloaded successfully!</p>
+            </div>
+          )}
+        </div>
+
+        <div className="px-5 py-3 border-t border-slate-100 bg-slate-50 flex justify-end gap-2">
+          <button onClick={onClose} className="px-4 py-2 text-xs rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 font-bold transition-colors">Close</button>
+          <button
+            onClick={handleExport}
+            disabled={exporting}
+            className="px-5 py-2 text-xs rounded-lg bg-[#4682B4] text-white font-extrabold hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-60 shadow-sm"
+          >
+            {exporting
+              ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Generating…</>
+              : <><Download className="w-3.5 h-3.5" /> Export {format.toUpperCase()}</>
+            }
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
 
 export const PersonnelPage: React.FC = () => {
   const { 
@@ -49,6 +163,20 @@ export const PersonnelPage: React.FC = () => {
   const [inspectModalOpen, setInspectModalOpen] = useState(false);
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [activeActionMenuId, setActiveActionMenuId] = useState<string | null>(null);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+
+  // Selection state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectMode, setSelectMode] = useState(false);
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const clearSelection = () => { setSelectedIds(new Set()); setSelectMode(false); };
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -91,6 +219,7 @@ export const PersonnelPage: React.FC = () => {
     setSearchPStatus('Please select');
     setGlobalSearchQuery('');
     setCurrentPage(1);
+    clearSelection();
   };
 
   // REAL-TIME REACTIVE FILTER LOGIC
@@ -172,6 +301,15 @@ export const PersonnelPage: React.FC = () => {
     searchSubUnit,
     searchPStatus
   ]);
+
+  // Selection helpers (placed after filteredPersonnel)
+  const selectAllFiltered = () => setSelectedIds(new Set(filteredPersonnel.map(p => p.id)));
+  const exportRecords = useMemo<Personnel[]>(() =>
+    selectedIds.size > 0
+      ? personnelList.filter(p => selectedIds.has(p.id))
+      : filteredPersonnel,
+    [selectedIds, personnelList, filteredPersonnel]
+  );
 
   // Paginated Data
   const totalPages = Math.ceil(filteredPersonnel.length / pageSize) || 1;
@@ -421,14 +559,35 @@ export const PersonnelPage: React.FC = () => {
 
       {/* PERSONNEL TABLE CONTAINER */}
       <div className="w-full bg-white rounded-md border border-slate-200 shadow-xs overflow-hidden">
-        {/* Solid Blue Header Bar matching user's screenshot (#4682B4) */}
-        <div className="bg-[#4682B4] text-white px-4 py-2.5 flex items-center justify-between">
+        {/* Solid Blue Header Bar */}
+        <div className="bg-[#4682B4] text-white px-4 py-2.5 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 font-bold text-xs">
             <Users className="w-4 h-4 text-white" />
             <span>Personnel</span>
           </div>
-          <div className="flex items-center gap-2 text-2xs text-blue-100">
-            <span>Showing {filteredPersonnel.length} Matched Records (Total {personnelList.length})</span>
+          <div className="flex items-center gap-2">
+            <span className="text-2xs text-blue-100">Showing {filteredPersonnel.length} Matched (Total {personnelList.length})</span>
+            {selectedIds.size > 0 && (
+              <span className="text-2xs font-bold text-yellow-300">• {selectedIds.size} selected</span>
+            )}
+            {/* Select toggle */}
+            <button
+              onClick={() => { setSelectMode(v => !v); if (selectMode) clearSelection(); }}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded text-2xs font-extrabold transition-colors ${
+                selectMode ? 'bg-yellow-400 text-slate-900' : 'bg-white/20 hover:bg-white/30 text-white'
+              }`}
+            >
+              {selectMode ? <CheckSquare className="w-3 h-3" /> : <Square className="w-3 h-3" />}
+              {selectMode ? 'Selecting' : 'Select'}
+            </button>
+            {/* Export button */}
+            <button
+              onClick={() => setExportModalOpen(true)}
+              className="flex items-center gap-1 px-2.5 py-1 rounded text-2xs font-extrabold bg-violet-600 hover:bg-violet-500 text-white transition-colors shadow-sm"
+            >
+              <Download className="w-3 h-3" />
+              {selectedIds.size > 0 ? `Export (${selectedIds.size})` : 'Export All'}
+            </button>
           </div>
         </div>
 
@@ -437,6 +596,14 @@ export const PersonnelPage: React.FC = () => {
           <table className="w-full text-left text-[11px] border-collapse table-auto">
             <thead>
               <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 uppercase tracking-wider text-3xs">
+                {selectMode && <th className="p-3 w-8 border-r border-slate-200">
+                  <button onClick={selectAllFiltered} title="Select all filtered">
+                    {selectedIds.size === filteredPersonnel.length && filteredPersonnel.length > 0
+                      ? <CheckSquare className="w-3.5 h-3.5 text-violet-600" />
+                      : <Square className="w-3.5 h-3.5 text-slate-400" />
+                    }
+                  </button>
+                </th>}
                 <th className="p-3 border-r border-slate-200">FIRST NAME</th>
                 <th className="p-3 border-r border-slate-200">MIDDLE NAME</th>
                 <th className="p-3 border-r border-slate-200">LAST NAME</th>
@@ -456,9 +623,22 @@ export const PersonnelPage: React.FC = () => {
                 paginatedPersonnel.map((person) => (
                   <tr
                     key={person.id}
-                    className="hover:bg-cyan-50/60 transition-colors cursor-pointer"
-                    onClick={() => handleInspectRow(person.id)}
+                    className={`hover:bg-cyan-50/60 transition-colors cursor-pointer ${
+                      selectedIds.has(person.id) ? 'bg-violet-50 border-l-2 border-violet-400' : ''
+                    }`}
+                    onClick={() => selectMode ? toggleSelect(person.id) : handleInspectRow(person.id)}
                   >
+                    {/* Selection checkbox cell */}
+                    {selectMode && (
+                      <td className="p-3 border-r border-slate-200 text-center align-middle" onClick={e => e.stopPropagation()}>
+                        <button onClick={() => toggleSelect(person.id)}>
+                          {selectedIds.has(person.id)
+                            ? <CheckSquare className="w-3.5 h-3.5 text-violet-600" />
+                            : <Square className="w-3.5 h-3.5 text-slate-400" />
+                          }
+                        </button>
+                      </td>
+                    )}
                     {/* First Name */}
                     <td className="p-3 border-r border-slate-200 font-bold uppercase align-middle text-xs">
                       {person.firstName}
@@ -567,7 +747,7 @@ export const PersonnelPage: React.FC = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={12} className="p-8 text-center text-slate-500 font-bold italic">
+                  <td colSpan={selectMode ? 13 : 12} className="p-8 text-center text-slate-500 font-bold italic">
                     No record found.
                   </td>
                 </tr>
@@ -638,6 +818,35 @@ export const PersonnelPage: React.FC = () => {
         onClose={() => setIsImportModalOpen(false)}
         onImport={bulkImportPersonnel}
       />
+
+      {/* EXPORT MODAL */}
+      {exportModalOpen && (
+        <PersonnelExportModal
+          records={exportRecords}
+          onClose={() => setExportModalOpen(false)}
+        />
+      )}
+
+      {/* FLOATING SELECTION TOOLBAR */}
+      {selectMode && selectedIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-5 py-3 bg-slate-900 text-white rounded-2xl shadow-2xl border border-slate-700">
+          <CheckSquare className="w-4 h-4 text-yellow-400" />
+          <span className="text-sm font-bold">{selectedIds.size} personnel selected</span>
+          <div className="w-px h-5 bg-slate-700" />
+          <button
+            onClick={() => setExportModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-sm font-extrabold transition-colors"
+          >
+            <Download className="w-3.5 h-3.5" /> Export Selected
+          </button>
+          <button
+            onClick={clearSelection}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-xl hover:bg-slate-700 text-sm font-semibold text-slate-300 transition-colors"
+          >
+            <X className="w-3.5 h-3.5" /> Clear
+          </button>
+        </div>
+      )}
 
       {/* SUMMARY PROFILE MODAL — opens when clicking a row */}
       {inspectModalOpen && selectedPerson && (

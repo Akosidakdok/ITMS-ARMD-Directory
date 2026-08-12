@@ -48,7 +48,7 @@ export interface EducationRecord {
   personnelId: string;
   degree: string;
   institution: string;
-  yearGraduated: number;
+  yearGraduated?: number;
   honors?: string;
   certifications?: string[];
 }

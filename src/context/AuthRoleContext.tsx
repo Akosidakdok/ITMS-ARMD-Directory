@@ -34,10 +34,16 @@ import {
   updateAssignmentApi,
   fetchEducation,
   createEducationApi,
+  updateEducationApi,
+  deleteEducationApi,
+  bulkUpsertEducationApi,
   fetchPromotions,
   createPromotionApi,
   fetchTraining,
   createTrainingApi,
+  updateTrainingApi,
+  deleteTrainingApi,
+  bulkUpsertTrainingApi,
   fetchLeave,
   createLeaveApi,
   updateLeaveApi,
@@ -46,7 +52,7 @@ import {
   updateAwardApi,
   bulkCreatePersonnelApi
 } from '../services/api';
-import type { BackendHealthStatus, BulkPersonnelImportResult } from '../services/api';
+import type { BackendHealthStatus, BulkPersonnelImportResult, BulkUpsertResult } from '../services/api';
 import type { PersonnelImportRow } from '../utils/personnelCsv';
 
 interface AuthRoleContextType {
@@ -88,8 +94,14 @@ interface AuthRoleContextType {
   addAssignment: (assignment: AssignmentRecord) => Promise<AssignmentRecord>;
   updateAssignment: (assignment: AssignmentRecord) => Promise<AssignmentRecord>;
   addEducation: (edu: EducationRecord) => void;
+  updateEducation: (edu: EducationRecord) => Promise<EducationRecord>;
+  deleteEducation: (id: string) => Promise<void>;
+  bulkUpsertEducation: (records: Partial<EducationRecord>[]) => Promise<BulkUpsertResult>;
   addPromotion: (promotion: PromotionRecord) => void;
   addTraining: (training: TrainingRecord) => void;
+  updateTraining: (training: TrainingRecord) => Promise<TrainingRecord>;
+  deleteTraining: (id: string) => Promise<void>;
+  bulkUpsertTraining: (records: Partial<TrainingRecord>[]) => Promise<BulkUpsertResult>;
   addLeave: (leave: LeaveRecord) => void;
   createAward: (award: Omit<AwardRecord, 'id' | 'status'>) => Promise<AwardRecord>;
   updateAward: (award: AwardRecord) => Promise<AwardRecord>;
@@ -273,6 +285,42 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
+  const updateEducation = async (edu: EducationRecord) => {
+    setEducationList(prev => prev.map(e => e.id === edu.id ? edu : e));
+    if (backendConnected) {
+      const updated = await updateEducationApi(edu);
+      setEducationList(prev => prev.map(e => e.id === updated.id ? updated : e));
+      return updated;
+    }
+    return edu;
+  };
+
+  const deleteEducation = async (id: string) => {
+    setEducationList(prev => prev.filter(e => e.id !== id));
+    if (backendConnected) {
+      try {
+        await deleteEducationApi(id);
+      } catch (e) {
+        console.error('Failed to delete education on backend:', e);
+      }
+    }
+  };
+
+  const bulkUpsertEducation = async (records: Partial<EducationRecord>[]) => {
+    if (!backendConnected) {
+      throw new Error('The backend is offline. Start the server before running a bulk upload.');
+    }
+    const result = await bulkUpsertEducationApi(records);
+    // Refresh full education list after bulk operation
+    try {
+      const fresh = await fetchEducation();
+      setEducationList(fresh);
+    } catch (e) {
+      console.error('Failed to refresh education list after bulk upsert:', e);
+    }
+    return result;
+  };
+
   // Promotion Mutations
   const addPromotion = async (promotion: PromotionRecord) => {
     setPromotionsList(prev => [promotion, ...prev]);
@@ -306,6 +354,42 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         console.error('Failed to sync training with backend:', e);
       }
     }
+  };
+
+  const updateTraining = async (training: TrainingRecord) => {
+    setTrainingList(prev => prev.map(t => t.id === training.id ? training : t));
+    if (backendConnected) {
+      const updated = await updateTrainingApi(training);
+      setTrainingList(prev => prev.map(t => t.id === updated.id ? updated : t));
+      return updated;
+    }
+    return training;
+  };
+
+  const deleteTraining = async (id: string) => {
+    setTrainingList(prev => prev.filter(t => t.id !== id));
+    if (backendConnected) {
+      try {
+        await deleteTrainingApi(id);
+      } catch (e) {
+        console.error('Failed to delete training on backend:', e);
+      }
+    }
+  };
+
+  const bulkUpsertTraining = async (records: Partial<TrainingRecord>[]) => {
+    if (!backendConnected) {
+      throw new Error('The backend is offline. Start the server before running a bulk upload.');
+    }
+    const result = await bulkUpsertTrainingApi(records);
+    // Refresh full training list after bulk operation
+    try {
+      const fresh = await fetchTraining();
+      setTrainingList(fresh);
+    } catch (e) {
+      console.error('Failed to refresh training list after bulk upsert:', e);
+    }
+    return result;
   };
 
   // Leave Mutations
@@ -387,8 +471,14 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         addAssignment,
         updateAssignment,
         addEducation,
+        updateEducation,
+        deleteEducation,
+        bulkUpsertEducation,
         addPromotion,
         addTraining,
+        updateTraining,
+        deleteTraining,
+        bulkUpsertTraining,
         addLeave,
         createAward,
         updateAward,
