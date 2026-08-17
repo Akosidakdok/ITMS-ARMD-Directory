@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
+import { useAuthRole } from '../../context/AuthRoleContext';
 import {
   Award,
   Briefcase,
@@ -12,6 +13,7 @@ import {
   Settings,
   ShieldCheck,
   Users,
+  UserCog,
   X
 } from 'lucide-react';
 
@@ -27,6 +29,7 @@ const mobileNavItems = [
 ];
 
 export const Layout: React.FC = () => {
+  const { role } = useAuthRole();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileMenuClosing, setMobileMenuClosing] = useState(false);
   const closeTimerRef = useRef<number | null>(null);
@@ -84,7 +87,7 @@ export const Layout: React.FC = () => {
               <div className="px-3 pb-1.5 text-[10px] font-extrabold uppercase tracking-widest text-blue-300/60">
                 Administration
               </div>
-              {mobileNavItems.map((item) => {
+              {[...mobileNavItems, ...(role === 'superadmin' ? [{ label: 'Admin Accounts', path: '/admin-accounts', icon: UserCog, badge: 'Super' }] : [])].map((item) => {
                 const Icon = item.icon;
                 return (
                   <NavLink

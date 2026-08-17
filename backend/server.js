@@ -10,6 +10,13 @@ import promotionsRoutes from './routes/promotionsRoutes.js';
 import trainingRoutes from './routes/trainingRoutes.js';
 import leaveRoutes from './routes/leaveRoutes.js';
 import awardsRoutes from './routes/awardsRoutes.js';
+import adminUsersRoutes from './routes/adminUsersRoutes.js';
+import {
+  authenticateRequest,
+  isAuthConfigured,
+  login,
+  requireAdminForMutation
+} from './middleware/auth.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -47,6 +54,7 @@ app.get('/api/health', async (req, res) => {
   
   res.json({
     status: 'online',
+    authentication: { configured: isAuthConfigured() },
     system: 'PNP-ITMS PAIS 2.0 Backend Service',
     database: {
       activeAdapter: supabaseStatus.isConnected
@@ -70,6 +78,24 @@ app.get('/api/health', async (req, res) => {
   });
 });
 
+app.post('/api/auth/login', async (req, res) => {
+  if (!isAuthConfigured()) {
+    return res.status(503).json({ success: false, message: 'Authentication is not configured on the server.' });
+  }
+  try {
+    const result = await login(String(req.body?.email || req.body?.username || '').trim().toLowerCase(), String(req.body?.password || ''));
+    return res.json({ success: true, data: result });
+  } catch (error) {
+    return res.status(401).json({ success: false, message: error.message || 'Invalid email or password.' });
+  }
+});
+
+app.get('/api/auth/session', authenticateRequest, (req, res) => {
+  res.json({ success: true, data: { user: req.user } });
+});
+
+app.use('/api', authenticateRequest, requireAdminForMutation);
+
 // Mount Routes
 app.use('/api/personnel', personnelRoutes);
 app.use('/api/orders', ordersRoutes);
@@ -79,6 +105,7 @@ app.use('/api/promotions', promotionsRoutes);
 app.use('/api/training', trainingRoutes);
 app.use('/api/leave', leaveRoutes);
 app.use('/api/awards', awardsRoutes);
+app.use('/api/admin-users', adminUsersRoutes);
 
 // Global Error Handler
 app.use((err, req, res, next) => {
@@ -110,6 +137,10 @@ const startServer = async () => {
     console.log(` Primary Database: Checking external database status...`);
     console.log(`===================================================`);
   });
+
+  if (!isAuthConfigured()) {
+    console.warn(' Authentication is disabled until AUTH_TOKEN_SECRET and at least one account are configured.');
+  }
 
   const supabaseStatus = await checkSupabaseStatus();
   console.log(` Supabase PostgreSQL: ${supabaseStatus.isConnected ? 'CONNECTED' : supabaseStatus.state}`);

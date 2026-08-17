@@ -9,13 +9,14 @@ import {
   GraduationCap, 
   Award, 
   Settings,
+  UserCog,
   ShieldCheck,
   LogOut
 } from 'lucide-react';
 import { useAuthRole } from '../../context/AuthRoleContext';
 
 export const Sidebar: React.FC = () => {
-  const { role } = useAuthRole();
+  const { role, authUser, logout } = useAuthRole();
 
   const navItems = [
     { label: 'Dashboard', path: '/', icon: LayoutDashboard },
@@ -27,6 +28,7 @@ export const Sidebar: React.FC = () => {
     { label: 'Promotion', path: '/promotion', icon: Award },
     { label: 'Management', path: '/management', icon: Settings, badge: 'Admin' }
   ];
+  if (role === 'superadmin') navItems.push({ label: 'Admin Accounts', path: '/admin-accounts', icon: UserCog, badge: 'Super' });
 
   return (
     <aside className="fixed inset-y-0 left-0 z-30 hidden h-dvh w-64 flex-col border-r border-[#0f285e] bg-[#061942] text-white shadow-xl select-none lg:flex">
@@ -47,12 +49,12 @@ export const Sidebar: React.FC = () => {
       <div className="px-4 py-3">
         <div className="p-3 rounded-xl bg-white/5 border border-white/10 flex items-center gap-3 shadow-inner">
           <div className="w-9 h-9 rounded-full bg-blue-600 font-bold text-white text-xs flex items-center justify-center flex-shrink-0 border border-blue-400/30">
-            DA
+            {authUser?.displayName.split(/\s+/).map(part => part[0]).join('').slice(0, 2).toUpperCase() || 'U'}
           </div>
           <div className="overflow-hidden">
-            <div className="text-xs font-bold text-white truncate">Demo Admin</div>
+            <div className="text-xs font-bold text-white truncate">{authUser?.displayName || authUser?.username}</div>
             <div className="text-[11px] text-blue-200/60 font-medium capitalize truncate">
-              {role === 'admin' ? 'Administrator' : 'View-Only User'}
+              {role === 'superadmin' ? 'Superadmin' : role === 'admin' ? 'Administrator' : 'View-Only User'}
             </div>
           </div>
         </div>
@@ -110,7 +112,7 @@ export const Sidebar: React.FC = () => {
       {/* Sidebar Footer */}
       <div className="p-4 border-t border-white/10 space-y-2">
         <button
-          onClick={() => {}}
+          onClick={logout}
           className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-blue-200/80 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
         >
           <LogOut className="w-4 h-4 text-blue-300/70" />

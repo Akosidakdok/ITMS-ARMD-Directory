@@ -6,16 +6,18 @@ import {
   GraduationCap, 
   Award, 
   Users, 
-  Filter
+  Filter,
+  FileText,
+  Medal
 } from 'lucide-react';
 import { Badge } from '../components/common/Badge';
 import { calculateTimeInGrade } from '../utils/timeInGrade';
 import { ExportPrintModal } from '../components/common/ExportPrintModal';
 
-type ReportTab = 'alpha_list' | 'leave' | 'education' | 'promotion';
+type ReportTab = 'alpha_list' | 'leave' | 'education' | 'training' | 'promotion' | 'orders' | 'awards';
 
 export const ReportsPage: React.FC = () => {
-  const { personnelList, assignmentsList, leaveList, educationList, trainingList } = useAuthRole();
+  const { personnelList, assignmentsList, leaveList, educationList, trainingList, ordersList, awardsList } = useAuthRole();
   const [activeReportTab, setActiveReportTab] = useState<ReportTab>('alpha_list');
 
   // Filters
@@ -103,7 +105,7 @@ export const ReportsPage: React.FC = () => {
 
   // 4. Promotion / Time-In-Grade (TIG) Report Data
   const promotionReportData = personnelList.map(p => {
-    const tig = calculateTimeInGrade(p.lastPromotionDate ?? '2000-01-01');
+    const tig = calculateTimeInGrade(p.lastPromotionDate ?? '');
     return {
       id: p.id,
       rank: p.rank,
@@ -113,9 +115,24 @@ export const ReportsPage: React.FC = () => {
       lastPromotionDate: p.lastPromotionDate,
       timeInGrade: tig.formatted,
       totalDays: tig.totalDays,
-      eligible: tig.eligibleForPromotion ? 'ELIGIBLE' : 'Accruing'
+      eligible: !p.lastPromotionDate ? 'N/A' : tig.eligibleForPromotion ? 'ELIGIBLE' : 'Accruing'
     };
   }).sort((a, b) => b.totalDays - a.totalDays);
+
+  const personnelNames = new Map(personnelList.map(person => [person.id, `${person.rank} ${person.fullName}`]));
+  const trainingReportData = trainingList.map(training => ({
+    ...training,
+    personnelName: personnelNames.get(training.personnelId) || 'Unknown personnel',
+    date: training.completionDate || training.endDate || training.startDate || '—'
+  }));
+  const ordersReportData = ordersList.map(order => ({
+    ...order,
+    orderNumber: order.orderNumber || order.orderNo || '—',
+    orderType: order.orderType || order.type || 'Administrative Order',
+    personnel: order.personnelIds?.map(id => personnelNames.get(id) || 'Unknown personnel').join(', ') || `${order.affectedPersonnelCount || 0} personnel`,
+    date: order.issuedDate || order.effectiveDate || '—'
+  }));
+  const awardsReportData = awardsList.map(award => ({ ...award, personnelName: personnelNames.get(award.personnelId) || award.personnelName }));
 
   const getExportConfig = () => {
     switch (activeReportTab) {
@@ -174,6 +191,24 @@ export const ReportsPage: React.FC = () => {
             { key: 'eligible', label: 'Board Status' }
           ]
         };
+      case 'training':
+        return { title: 'PNP ITMS Completed Training Report', data: trainingReportData, columns: [
+          { key: 'personnelName', label: 'Personnel' }, { key: 'courseName', label: 'Training' },
+          { key: 'provider', label: 'Provider' }, { key: 'date', label: 'Completion / End Date' },
+          { key: 'hours', label: 'Hours' }, { key: 'certificateNo', label: 'Certificate No.' }
+        ] };
+      case 'orders':
+        return { title: 'PNP ITMS Administrative Orders Report', data: ordersReportData, columns: [
+          { key: 'orderNumber', label: 'Order No.' }, { key: 'orderType', label: 'Order Type' },
+          { key: 'subject', label: 'Subject' }, { key: 'personnel', label: 'Personnel' },
+          { key: 'date', label: 'Issued Date' }, { key: 'status', label: 'Status' }
+        ] };
+      case 'awards':
+        return { title: 'PNP ITMS Awards and Recognition Report', data: awardsReportData, columns: [
+          { key: 'personnelName', label: 'Personnel' }, { key: 'awardName', label: 'Award' },
+          { key: 'title', label: 'Title' }, { key: 'orderType', label: 'Authority Type' },
+          { key: 'authorityDate', label: 'Authority Date' }, { key: 'status', label: 'Status' }
+        ] };
     }
   };
 
@@ -203,7 +238,7 @@ export const ReportsPage: React.FC = () => {
       </div>
 
       {/* Report Selection Tabs Bar */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3">
         <button
           onClick={() => setActiveReportTab('alpha_list')}
           className={`p-4 rounded-xl border text-left transition-all ${
@@ -215,6 +250,18 @@ export const ReportsPage: React.FC = () => {
           <Users className={`w-5 h-5 mb-2 ${activeReportTab === 'alpha_list' ? 'text-white' : 'text-blue-600'}`} />
           <h3 className="text-xs font-bold block">Alpha List</h3>
           <p className={`text-[10px] ${activeReportTab === 'alpha_list' ? 'text-blue-100' : 'text-slate-500'}`}>Active Duty Postings</p>
+        </button>
+
+        <button onClick={() => setActiveReportTab('training')} className={`p-4 rounded-xl border text-left transition-all ${activeReportTab === 'training' ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-slate-800 border-slate-200 hover:bg-blue-50/50'}`}>
+          <GraduationCap className="mb-2 h-5 w-5" /><h3 className="text-xs font-bold">Training</h3><p className="text-[10px] opacity-75">Completed Courses</p>
+        </button>
+
+        <button onClick={() => setActiveReportTab('orders')} className={`p-4 rounded-xl border text-left transition-all ${activeReportTab === 'orders' ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-slate-800 border-slate-200 hover:bg-blue-50/50'}`}>
+          <FileText className="mb-2 h-5 w-5" /><h3 className="text-xs font-bold">Orders</h3><p className="text-[10px] opacity-75">Administrative Orders</p>
+        </button>
+
+        <button onClick={() => setActiveReportTab('awards')} className={`p-4 rounded-xl border text-left transition-all ${activeReportTab === 'awards' ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-slate-800 border-slate-200 hover:bg-blue-50/50'}`}>
+          <Medal className="mb-2 h-5 w-5" /><h3 className="text-xs font-bold">Awards</h3><p className="text-[10px] opacity-75">Recognition Records</p>
         </button>
 
         <button

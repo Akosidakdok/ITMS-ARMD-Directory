@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { Download, FilePenLine, RefreshCw } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Download, FileDown, FilePenLine, Printer, RefreshCw, Save } from 'lucide-react';
 import { SearchableSelect } from '../common/SearchableSelect';
 import type { DocumentTemplateType, Personnel } from '../../types/pais';
 
@@ -15,6 +15,9 @@ const TEMPLATE_TYPES: DocumentTemplateType[] = [
 ];
 
 const today = new Date().toISOString().slice(0, 10);
+const escapeHtml = (value: string) => value.replace(/[&<>"']/g, character => ({
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+}[character] || character));
 
 const buildFields = (templateType: DocumentTemplateType, person?: Personnel) => ({
   referenceNo: `${templateType.toUpperCase().replace(/\s+/g, '-')}-${today.replace(/-/g, '')}`,
@@ -39,6 +42,22 @@ export const DocumentTemplatePanel = ({ personnel }: DocumentTemplatePanelProps)
     [personnel, personnelId]
   );
   const [fields, setFields] = useState(buildFields('Administrative Order'));
+  const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem(`pais.template.${templateType}`);
+    if (saved) {
+      try {
+        setFields(JSON.parse(saved));
+        setMessage('Saved draft loaded.');
+        return;
+      } catch {
+        window.localStorage.removeItem(`pais.template.${templateType}`);
+      }
+    }
+    setFields(buildFields(templateType, selectedPerson));
+    setMessage('');
+  }, [templateType]);
 
   const personnelOptions = personnel.map(person => ({
     value: person.id,
@@ -54,8 +73,10 @@ export const DocumentTemplatePanel = ({ personnel }: DocumentTemplatePanelProps)
     setFields(prev => ({ ...prev, [key]: value }));
   };
 
+  const documentHtml = () => `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(fields.referenceNo)}</title><style>body{font-family:Arial,sans-serif;margin:40px;color:#0f172a}.document{max-width:760px;margin:auto;border:1px solid #cbd5e1;padding:40px}.center{text-align:center}.meta{display:grid;grid-template-columns:140px 1fr;gap:8px;margin:28px 0}.label{font-weight:700}.subject{font-weight:700;text-transform:uppercase;margin-top:24px}.body{line-height:1.7;text-align:justify;margin-top:18px;white-space:pre-wrap}.signatory{margin-top:64px;text-align:right}@media print{body{margin:0}.document{border:0}}</style></head><body><main class="document"><div class="center"><strong>PHILIPPINE NATIONAL POLICE</strong><br>Information Technology Management Service</div><div class="meta"><span class="label">Reference No.</span><span>${escapeHtml(fields.referenceNo)}</span><span class="label">Date</span><span>${escapeHtml(fields.date)}</span><span class="label">Personnel</span><span>${escapeHtml(fields.personnelName)}</span><span class="label">Badge No.</span><span>${escapeHtml(fields.badgeNo)}</span><span class="label">Unit</span><span>${escapeHtml(fields.unit)}</span></div><p class="subject">${escapeHtml(fields.subject)}</p><p class="body">${escapeHtml(fields.particulars)}</p><div class="signatory"><strong>${escapeHtml(fields.signatory)}</strong><br>${escapeHtml(fields.signatoryTitle)}</div></main></body></html>`;
+
   const downloadHtml = () => {
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${fields.referenceNo}</title><style>body{font-family:Arial,sans-serif;margin:40px;color:#0f172a}.document{max-width:760px;margin:auto;border:1px solid #cbd5e1;padding:40px}.center{text-align:center}.meta{display:grid;grid-template-columns:140px 1fr;gap:8px;margin:28px 0}.label{font-weight:700}.subject{font-weight:700;text-transform:uppercase;margin-top:24px}.body{line-height:1.7;text-align:justify;margin-top:18px}.signatory{margin-top:64px;text-align:right}</style></head><body><main class="document"><div class="center"><strong>PHILIPPINE NATIONAL POLICE</strong><br>Information Technology Management Service</div><div class="meta"><span class="label">Reference No.</span><span>${fields.referenceNo}</span><span class="label">Date</span><span>${fields.date}</span><span class="label">Personnel</span><span>${fields.personnelName}</span><span class="label">Badge No.</span><span>${fields.badgeNo}</span><span class="label">Unit</span><span>${fields.unit}</span></div><p class="subject">${fields.subject}</p><p class="body">${fields.particulars}</p><div class="signatory"><strong>${fields.signatory}</strong><br>${fields.signatoryTitle}</div></main></body></html>`;
+    const html = documentHtml();
     const blob = new Blob([html], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -63,6 +84,36 @@ export const DocumentTemplatePanel = ({ personnel }: DocumentTemplatePanelProps)
     link.download = `${fields.referenceNo || 'document-template'}.html`;
     link.click();
     URL.revokeObjectURL(url);
+  };
+
+  const saveDraft = () => {
+    window.localStorage.setItem(`pais.template.${templateType}`, JSON.stringify(fields));
+    setMessage('Draft saved in this browser.');
+  };
+
+  const printDocument = () => {
+    const popup = window.open('', '_blank', 'noopener,noreferrer');
+    if (!popup) return setMessage('Allow pop-ups to print the document.');
+    popup.document.write(documentHtml());
+    popup.document.close();
+    popup.addEventListener('load', () => popup.print(), { once: true });
+  };
+
+  const exportPdf = async () => {
+    const { default: jsPDF } = await import('jspdf');
+    const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
+    pdf.setFontSize(11);
+    pdf.text('PHILIPPINE NATIONAL POLICE', 105, 20, { align: 'center' });
+    pdf.text('Information Technology Management Service', 105, 27, { align: 'center' });
+    pdf.setFontSize(9);
+    pdf.text([`Reference No.: ${fields.referenceNo}`, `Date: ${fields.date}`, `Personnel: ${fields.personnelName}`, `Badge No.: ${fields.badgeNo}`, `Unit: ${fields.unit}`], 20, 42);
+    pdf.setFontSize(11);
+    pdf.text(fields.subject.toUpperCase(), 20, 76);
+    pdf.setFontSize(10);
+    pdf.text(pdf.splitTextToSize(fields.particulars, 170), 20, 88);
+    pdf.text(fields.signatory, 190, 245, { align: 'right' });
+    pdf.text(fields.signatoryTitle, 190, 251, { align: 'right' });
+    pdf.save(`${fields.referenceNo || 'document-template'}.pdf`);
   };
 
   return (
@@ -75,6 +126,9 @@ export const DocumentTemplatePanel = ({ personnel }: DocumentTemplatePanelProps)
           <p className="mt-1 text-sm text-slate-500">Fixed layout preview with editable fields and personnel autofill.</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={saveDraft} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"><Save size={16} /> Save draft</button>
+          <button type="button" onClick={printDocument} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"><Printer size={16} /> Print</button>
+          <button type="button" onClick={exportPdf} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"><FileDown size={16} /> PDF</button>
           <button type="button" onClick={refreshFields} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
             <RefreshCw size={16} /> Autofill
           </button>
@@ -83,6 +137,8 @@ export const DocumentTemplatePanel = ({ personnel }: DocumentTemplatePanelProps)
           </button>
         </div>
       </div>
+
+      {message && <p role="status" className="mx-5 mt-4 rounded-xl bg-blue-50 px-4 py-2 text-sm font-medium text-blue-800">{message}</p>}
 
       <div className="grid gap-5 p-3 sm:p-5 xl:grid-cols-[minmax(280px,360px)_minmax(0,1fr)]">
         <div className="space-y-4">

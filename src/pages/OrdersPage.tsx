@@ -11,6 +11,7 @@ import {
   Plus,
   RotateCcw,
   Search,
+  Trash2,
   X,
 } from 'lucide-react';
 import { AwardForm } from '../components/orders/AwardForm';
@@ -80,10 +81,13 @@ export const OrdersPage = () => {
     leaveList,
     addOrder,
     updateOrder,
+    deleteOrder,
     createAward,
     updateAward,
+    deleteAward,
     createCalendarLeave,
     updateCalendarLeave,
+    deleteCalendarLeave,
   } = useAuthRole();
 
   const canEdit = role === 'admin';
@@ -325,6 +329,21 @@ export const OrdersPage = () => {
     setSelectedLeave(null);
     setEditingLeave(leave);
     setLeaveFormOpen(true);
+  };
+
+  const removeRecord = async (kind: 'order' | 'award' | 'leave', id: string, label: string) => {
+    if (!window.confirm(`Delete ${label}? This action cannot be undone.`)) return;
+    try {
+      if (kind === 'order') await deleteOrder(id);
+      if (kind === 'award') await deleteAward(id);
+      if (kind === 'leave') await deleteCalendarLeave(id);
+      setSelectedOrder(null);
+      setSelectedAward(null);
+      setSelectedLeave(null);
+      setToast({ type: 'success', message: `${label} deleted successfully.` });
+    } catch (error) {
+      setToast({ type: 'error', message: error instanceof Error ? error.message : `Unable to delete ${label}.` });
+    }
   };
 
   const stats = [
@@ -583,7 +602,8 @@ export const OrdersPage = () => {
             <Detail label="Signatory" value={[selectedOrder.signatory, selectedOrder.signatoryTitle].filter(Boolean).join(' - ')} />
             {selectedOrder.description && <div className="sm:col-span-2"><Detail label="Directives and particulars" value={selectedOrder.description} /></div>}
             {canEdit && (
-              <div className="sm:col-span-2 flex justify-end border-t border-slate-200 pt-4">
+              <div className="sm:col-span-2 flex justify-end gap-2 border-t border-slate-200 pt-4">
+                <button type="button" onClick={() => removeRecord('order', selectedOrder.id, 'administrative order')} className="inline-flex items-center gap-2 rounded-xl border border-rose-300 px-4 py-2.5 text-sm font-semibold text-rose-700 hover:bg-rose-50"><Trash2 size={16} /> Delete</button>
                 <button type="button" onClick={() => openOrderEdit(selectedOrder)} className="inline-flex items-center gap-2 rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-800">
                   <Edit3 size={16} /> Edit order
                 </button>
@@ -602,7 +622,8 @@ export const OrdersPage = () => {
             <Detail label="Name of personnel" value={selectedAward.personnelName} />
             <div className="sm:col-span-2"><Detail label="Citation details" value={selectedAward.citationDetails} /></div>
             {canEdit && (
-              <div className="sm:col-span-2 flex justify-end border-t border-slate-200 pt-4">
+              <div className="sm:col-span-2 flex justify-end gap-2 border-t border-slate-200 pt-4">
+                <button type="button" onClick={() => removeRecord('award', selectedAward.id, 'award record')} className="inline-flex items-center gap-2 rounded-xl border border-rose-300 px-4 py-2.5 text-sm font-semibold text-rose-700 hover:bg-rose-50"><Trash2 size={16} /> Delete</button>
                 <button
                   type="button"
                   onClick={() => {
@@ -633,7 +654,8 @@ export const OrdersPage = () => {
               {selectedLeave.purpose && <div className="sm:col-span-2"><Detail label="Notes" value={selectedLeave.purpose} /></div>}
             </div>
             {canEdit && (
-              <div className="flex justify-end border-t border-slate-200 pt-4">
+              <div className="flex justify-end gap-2 border-t border-slate-200 pt-4">
+                <button type="button" onClick={() => removeRecord('leave', selectedLeave.id, 'leave record')} className="inline-flex items-center gap-2 rounded-xl border border-rose-300 px-4 py-2.5 text-sm font-semibold text-rose-700 hover:bg-rose-50"><Trash2 size={16} /> Delete</button>
                 <button type="button" onClick={() => openLeaveEdit(selectedLeave)} className="rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-800">Edit through leave form</button>
               </div>
             )}

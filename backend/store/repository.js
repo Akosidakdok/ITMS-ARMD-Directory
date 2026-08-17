@@ -90,14 +90,11 @@ class PAISRepository {
     };
 
     if (this.isSupabaseConnected()) {
-      try {
-        const { data: inserted, error } = await supabase.from('personnel').insert([newRecord]).select().single();
-        if (!error && inserted) return inserted;
-      } catch (e) {}
+      const { data: inserted, error } = await supabase.from('personnel').insert([newRecord]).select().single();
+      if (error) throw new Error(`Personnel insert failed: ${error.message}`);
+      return inserted;
     }
-
-    this.inMemoryPersonnel.unshift(newRecord);
-    return newRecord;
+    throw new Error('Supabase is unavailable. Personnel records were not changed.');
   }
 
   async createPersonnelBulk(records) {
@@ -121,30 +118,20 @@ class PAISRepository {
 
   async updatePersonnel(id, data) {
     if (this.isSupabaseConnected()) {
-      try {
-        const { data: updated, error } = await supabase.from('personnel').update(data).eq('id', id).select().single();
-        if (!error && updated) return updated;
-      } catch (e) {}
+      const { data: updated, error } = await supabase.from('personnel').update(data).eq('id', id).select().single();
+      if (error) throw new Error(`Personnel update failed: ${error.message}`);
+      return updated;
     }
-
-    const index = this.inMemoryPersonnel.findIndex(p => p.id === id);
-    if (index === -1) return null;
-    this.inMemoryPersonnel[index] = { ...this.inMemoryPersonnel[index], ...data };
-    return this.inMemoryPersonnel[index];
+    throw new Error('Supabase is unavailable. Personnel records were not changed.');
   }
 
   async deletePersonnel(id) {
     if (this.isSupabaseConnected()) {
-      try {
-        const { error } = await supabase.from('personnel').delete().eq('id', id);
-        if (!error) return true;
-      } catch (e) {}
+      const { data: deleted, error } = await supabase.from('personnel').delete().eq('id', id).select('id');
+      if (error) throw new Error(`Personnel delete failed: ${error.message}`);
+      return Array.isArray(deleted) && deleted.length > 0;
     }
-
-    const index = this.inMemoryPersonnel.findIndex(p => p.id === id);
-    if (index === -1) return false;
-    this.inMemoryPersonnel.splice(index, 1);
-    return true;
+    throw new Error('Supabase is unavailable. Personnel records were not changed.');
   }
 
   // ================= ORDERS CRUD =================
@@ -515,6 +502,21 @@ class PAISRepository {
     if (index === -1) return false;
     this.inMemoryPromotions.splice(index, 1);
     return true;
+  }
+
+  async updatePromotion(id, data) {
+    if (this.isSupabaseConnected()) {
+      const { data: updated, error } = await supabase.from('promotions').update(data).eq('id', id).select().single();
+      if (error) throw error;
+      if (data.rankTo || data.promotionDate) {
+        await supabase.from('personnel').update({ rank: data.rankTo, lastPromotionDate: data.promotionDate }).eq('id', updated.personnelId);
+      }
+      return updated;
+    }
+    const index = this.inMemoryPromotions.findIndex(item => item.id === id);
+    if (index === -1) return null;
+    this.inMemoryPromotions[index] = { ...this.inMemoryPromotions[index], ...data, id };
+    return this.inMemoryPromotions[index];
   }
 
   // ================= TRAINING CRUD =================

@@ -21,6 +21,8 @@ High-performance, RESTful Node.js + Express backend service for the **PNP ITMS A
 
 ## Getting Started
 
+All domain endpoints require a Supabase Auth bearer session. Configure Supabase and `AUTH_ADMIN_EMAILS`, then obtain a token through `POST /api/auth/login`. Read-only accounts may use GET endpoints; only administrator accounts may create, update, or delete records.
+
 ### 1. Running the Backend Server
 
 Start the Node.js backend server on port `5000`:

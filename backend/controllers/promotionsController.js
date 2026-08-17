@@ -49,3 +49,17 @@ export const deletePromotion = async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 };
+
+export const updatePromotion = async (req, res) => {
+  try {
+    const { personnelId, rankFrom, rankTo, promotionDate } = req.body;
+    if (!personnelId || !rankFrom || !rankTo || !promotionDate) {
+      return res.status(400).json({ success: false, message: 'Personnel, ranks, and promotion date are required.' });
+    }
+    const updated = await db.updatePromotion(req.params.id, req.body);
+    if (!updated) return res.status(404).json({ success: false, message: 'Promotion record not found' });
+    return res.json({ success: true, message: 'Promotion record updated successfully', data: updated });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+};

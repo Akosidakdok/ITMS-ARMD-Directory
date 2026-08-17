@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Personnel, RankAbbr } from '../../types/pais';
+import { Personnel, PromotionRecord, RankAbbr } from '../../types/pais';
 import { useAuthRole } from '../../context/AuthRoleContext';
-import { Award, Plus, Calendar, ShieldCheck, TrendingUp } from 'lucide-react';
+import { Award, Plus, Calendar, Edit3, ShieldCheck, TrendingUp, Trash2 } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { calculateTimeInGrade } from '../../utils/timeInGrade';
 
@@ -10,11 +10,12 @@ interface PromotionSubTabProps {
 }
 
 export const PromotionSubTab: React.FC<PromotionSubTabProps> = ({ personnel }) => {
-  const { role, promotionsList, addPromotion } = useAuthRole();
+  const { role, promotionsList, addPromotion, updatePromotion, deletePromotion } = useAuthRole();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingPromotion, setEditingPromotion] = useState<PromotionRecord | null>(null);
 
   const personnelPromotions = promotionsList.filter(p => p.personnelId === personnel.id);
-  const currentTig = calculateTimeInGrade(personnel.lastPromotionDate ?? '2000-01-01');
+  const currentTig = calculateTimeInGrade(personnel.lastPromotionDate ?? '');
 
   const [rankFrom, setRankFrom] = useState<RankAbbr>(personnel.rank);
   const [rankTo, setRankTo] = useState<RankAbbr>('PCOL');
@@ -22,10 +23,10 @@ export const PromotionSubTab: React.FC<PromotionSubTabProps> = ({ personnel }) =
   const [orderNumber, setOrderNumber] = useState('');
   const [remarks, setRemarks] = useState('');
 
-  const handleAddPromotion = (e: React.FormEvent) => {
+  const handleAddPromotion = async (e: React.FormEvent) => {
     e.preventDefault();
-    addPromotion({
-      id: `prm-${Date.now()}`,
+    const record = {
+      id: editingPromotion?.id || `prm-${Date.now()}`,
       personnelId: personnel.id,
       rankFrom,
       rankTo,
@@ -33,8 +34,21 @@ export const PromotionSubTab: React.FC<PromotionSubTabProps> = ({ personnel }) =
       orderNumber,
       timeInGradeAtPromotion: currentTig.formatted,
       remarks
-    });
+    };
+    if (editingPromotion) await updatePromotion(record);
+    else await addPromotion(record);
+    setEditingPromotion(null);
     setIsModalOpen(false);
+  };
+
+  const editPromotion = (promotion: PromotionRecord) => {
+    setEditingPromotion(promotion);
+    setRankFrom(promotion.rankFrom);
+    setRankTo(promotion.rankTo);
+    setPromotionDate(promotion.promotionDate);
+    setOrderNumber(promotion.orderNumber);
+    setRemarks(promotion.remarks || '');
+    setIsModalOpen(true);
   };
 
   return (
@@ -114,6 +128,9 @@ export const PromotionSubTab: React.FC<PromotionSubTabProps> = ({ personnel }) =
                     <span className="text-xs font-mono font-bold text-sky-700 flex items-center gap-1">
                       <Calendar className="w-3.5 h-3.5 text-sky-600" /> {prm.promotionDate}
                     </span>
+                    {role === 'admin' && (
+                      <span className="flex gap-1"><button type="button" onClick={() => editPromotion(prm)} aria-label="Edit promotion record" className="rounded-lg p-1.5 text-blue-600 hover:bg-blue-50"><Edit3 className="h-4 w-4" /></button><button type="button" onClick={() => window.confirm('Delete this promotion record?') && deletePromotion(prm.id)} aria-label="Delete promotion record" className="rounded-lg p-1.5 text-rose-600 hover:bg-rose-50"><Trash2 className="h-4 w-4" /></button></span>
+                    )}
                   </div>
 
                   <div className="text-xs text-slate-700 font-medium">
@@ -142,7 +159,7 @@ export const PromotionSubTab: React.FC<PromotionSubTabProps> = ({ personnel }) =
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title="Record Rank Promotion"
+        title={editingPromotion ? 'Edit Rank Promotion' : 'Record Rank Promotion'}
         subtitle={`Promote ${personnel.fullName} to Next Rank`}
       >
         <form onSubmit={handleAddPromotion} className="space-y-4">
@@ -216,7 +233,7 @@ export const PromotionSubTab: React.FC<PromotionSubTabProps> = ({ personnel }) =
               type="submit"
               className="px-4 py-2 text-xs font-bold rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
             >
-              Submit Promotion Record
+              {editingPromotion ? 'Save Promotion Changes' : 'Submit Promotion Record'}
             </button>
           </div>
         </form>

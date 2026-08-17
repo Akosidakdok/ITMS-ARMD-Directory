@@ -17,7 +17,7 @@ export const getAllPersonnel = async (req, res) => {
       data: personnel
     });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, message: error.message, error: error.message });
   }
 };
 
@@ -29,7 +29,7 @@ export const getPersonnelById = async (req, res) => {
     }
     res.json({ success: true, data: person });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, message: error.message, error: error.message });
   }
 };
 
@@ -50,7 +50,7 @@ export const createPersonnel = async (req, res) => {
       data: created
     });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, message: error.message, error: error.message });
   }
 };
 
@@ -144,7 +144,7 @@ export const updatePersonnel = async (req, res) => {
       data: updated
     });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, message: error.message, error: error.message });
   }
 };
 
@@ -159,6 +159,6 @@ export const deletePersonnel = async (req, res) => {
       message: 'Personnel record deleted successfully'
     });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, message: error.message, error: error.message });
   }
 };

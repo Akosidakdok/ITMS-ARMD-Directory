@@ -7,7 +7,7 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
-  const { backendConnected, backendHealth } = useAuthRole();
+  const { backendConnected, backendHealth, authUser } = useAuthRole();
   const checkingBackend = backendHealth === null;
   const supabaseStatus = backendHealth?.database?.supabase;
   const supabaseConnected = !!supabaseStatus?.isConnected;
@@ -66,11 +66,11 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
         {/* User Profile Pill */}
         <div className="flex items-center gap-2 pl-2">
           <div className="w-8 h-8 rounded-full bg-blue-600 font-bold text-white text-xs flex items-center justify-center shadow-xs">
-            DA
+            {authUser?.displayName.split(/\s+/).map(part => part[0]).join('').slice(0, 2).toUpperCase() || 'U'}
           </div>
           <div className="hidden md:block text-left leading-tight">
-            <div className="text-xs font-bold text-slate-900">Demo Admin</div>
-            <div className="text-[10px] text-slate-500 font-medium">Admin</div>
+            <div className="text-xs font-bold text-slate-900">{authUser?.displayName || authUser?.username}</div>
+            <div className="text-[10px] text-slate-500 font-medium">{authUser?.role === 'superadmin' ? 'Superadmin' : authUser?.role === 'admin' ? 'Administrator' : 'View only'}</div>
           </div>
         </div>
 

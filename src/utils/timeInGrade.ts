@@ -12,28 +12,56 @@ export interface TimeInGrade {
   eligibleForPromotion: boolean; // e.g. TIG >= 3 years
 }
 
-export function calculateTimeInGrade(fromDateStr: string, targetDateStr?: string): TimeInGrade {
-  const fromDate = new Date(fromDateStr);
-  const targetDate = targetDateStr ? new Date(targetDateStr) : new Date();
+const EMPTY_TIME_IN_GRADE: TimeInGrade = {
+  years: 0,
+  months: 0,
+  days: 0,
+  formatted: 'N/A',
+  totalDays: 0,
+  eligibleForPromotion: false
+};
 
-  if (isNaN(fromDate.getTime())) {
-    return {
-      years: 0,
-      months: 0,
-      days: 0,
-      formatted: 'N/A',
-      totalDays: 0,
-      eligibleForPromotion: false
-    };
+function parseCalendarDate(value: string): Date | null {
+  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+
+  if (dateOnly) {
+    const year = Number(dateOnly[1]);
+    const month = Number(dateOnly[2]);
+    const day = Number(dateOnly[3]);
+    const parsed = new Date(Date.UTC(year, month - 1, day));
+
+    if (
+      parsed.getUTCFullYear() !== year ||
+      parsed.getUTCMonth() !== month - 1 ||
+      parsed.getUTCDate() !== day
+    ) {
+      return null;
+    }
+
+    return parsed;
   }
 
-  let years = targetDate.getFullYear() - fromDate.getFullYear();
-  let months = targetDate.getMonth() - fromDate.getMonth();
-  let days = targetDate.getDate() - fromDate.getDate();
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+export function calculateTimeInGrade(fromDateStr: string, targetDateStr?: string): TimeInGrade {
+  const fromDate = parseCalendarDate(fromDateStr);
+  const targetDate = targetDateStr ? parseCalendarDate(targetDateStr) : new Date();
+
+  if (!fromDate || !targetDate || fromDate.getTime() > targetDate.getTime()) {
+    return { ...EMPTY_TIME_IN_GRADE };
+  }
+
+  let years = targetDate.getUTCFullYear() - fromDate.getUTCFullYear();
+  let months = targetDate.getUTCMonth() - fromDate.getUTCMonth();
+  let days = targetDate.getUTCDate() - fromDate.getUTCDate();
 
   if (days < 0) {
     months -= 1;
-    const prevMonthLastDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), 0).getDate();
+    const prevMonthLastDay = new Date(
+      Date.UTC(targetDate.getUTCFullYear(), targetDate.getUTCMonth(), 0)
+    ).getUTCDate();
     days += prevMonthLastDay;
   }
 
@@ -54,11 +82,11 @@ export function calculateTimeInGrade(fromDateStr: string, targetDateStr?: string
   const eligibleForPromotion = years >= 3; // Standard PNP benchmark demo
 
   return {
-    years: Math.max(0, years),
-    months: Math.max(0, months),
-    days: Math.max(0, days),
+    years,
+    months,
+    days,
     formatted,
-    totalDays: Math.max(0, totalDays),
+    totalDays,
     eligibleForPromotion
   };
 }

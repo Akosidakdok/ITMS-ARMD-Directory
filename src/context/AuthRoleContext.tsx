@@ -29,9 +29,11 @@ import {
   fetchOrders,
   createOrderApi,
   updateOrderApi,
+  deleteOrderApi,
   fetchAssignments,
   createAssignmentApi,
   updateAssignmentApi,
+  deleteAssignmentApi,
   fetchEducation,
   createEducationApi,
   updateEducationApi,
@@ -39,6 +41,8 @@ import {
   bulkUpsertEducationApi,
   fetchPromotions,
   createPromotionApi,
+  updatePromotionApi,
+  deletePromotionApi,
   fetchTraining,
   createTrainingApi,
   updateTrainingApi,
@@ -47,18 +51,25 @@ import {
   fetchLeave,
   createLeaveApi,
   updateLeaveApi,
+  deleteLeaveApi,
   fetchAwards,
   createAwardApi,
   updateAwardApi,
-  bulkCreatePersonnelApi
+  deleteAwardApi,
+  bulkCreatePersonnelApi,
+  loginApi,
+  verifySessionApi,
+  clearAuthSession
 } from '../services/api';
-import type { BackendHealthStatus, BulkPersonnelImportResult, BulkUpsertResult } from '../services/api';
+import type { AuthenticatedUser, BackendHealthStatus, BulkPersonnelImportResult, BulkUpsertResult } from '../services/api';
 import type { PersonnelImportRow } from '../utils/personnelCsv';
 
 interface AuthRoleContextType {
+  authReady: boolean;
+  authUser: AuthenticatedUser | null;
+  login: (username: string, password: string) => Promise<void>;
+  logout: () => void;
   role: UserRole;
-  setRole: (role: UserRole) => void;
-  toggleRole: () => void;
   globalSearchQuery: string;
   setGlobalSearchQuery: (query: string) => void;
   selectedPersonnelId: string;
@@ -80,24 +91,28 @@ interface AuthRoleContextType {
   awardsList: AwardRecord[];
 
   // Action helpers
-  addPersonnel: (personnel: Personnel) => void;
+  addPersonnel: (personnel: Personnel) => Promise<Personnel>;
   bulkImportPersonnel: (
     rows: PersonnelImportRow[],
     onProgress?: (completed: number, total: number) => void
   ) => Promise<BulkPersonnelImportResult>;
-  updatePersonnel: (personnel: Personnel) => void;
-  deletePersonnel: (id: string) => void;
+  updatePersonnel: (personnel: Personnel) => Promise<Personnel>;
+  deletePersonnel: (id: string) => Promise<void>;
 
   addOrder: (order: OrderRecord) => Promise<OrderRecord>;
   updateOrder: (order: OrderRecord) => Promise<OrderRecord>;
+  deleteOrder: (id: string) => Promise<void>;
 
   addAssignment: (assignment: AssignmentRecord) => Promise<AssignmentRecord>;
   updateAssignment: (assignment: AssignmentRecord) => Promise<AssignmentRecord>;
+  deleteAssignment: (id: string) => Promise<void>;
   addEducation: (edu: EducationRecord) => void;
   updateEducation: (edu: EducationRecord) => Promise<EducationRecord>;
   deleteEducation: (id: string) => Promise<void>;
   bulkUpsertEducation: (records: Partial<EducationRecord>[]) => Promise<BulkUpsertResult>;
   addPromotion: (promotion: PromotionRecord) => void;
+  updatePromotion: (promotion: PromotionRecord) => Promise<void>;
+  deletePromotion: (id: string) => Promise<void>;
   addTraining: (training: TrainingRecord) => void;
   updateTraining: (training: TrainingRecord) => Promise<TrainingRecord>;
   deleteTraining: (id: string) => Promise<void>;
@@ -105,14 +120,18 @@ interface AuthRoleContextType {
   addLeave: (leave: LeaveRecord) => void;
   createAward: (award: Omit<AwardRecord, 'id' | 'status'>) => Promise<AwardRecord>;
   updateAward: (award: AwardRecord) => Promise<AwardRecord>;
+  deleteAward: (id: string) => Promise<void>;
   createCalendarLeave: (leave: LeaveRecord) => Promise<LeaveRecord>;
   updateCalendarLeave: (leave: LeaveRecord) => Promise<LeaveRecord>;
+  deleteCalendarLeave: (id: string) => Promise<void>;
 }
 
 const AuthRoleContext = createContext<AuthRoleContextType | undefined>(undefined);
 
 export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [role, setRole] = useState<UserRole>('admin');
+  const [authReady, setAuthReady] = useState(false);
+  const [authUser, setAuthUser] = useState<AuthenticatedUser | null>(null);
   const [globalSearchQuery, setGlobalSearchQuery] = useState('');
   const [selectedPersonnelId, setSelectedPersonnelId] = useState('pnp-001');
   const [backendConnected, setBackendConnected] = useState(false);
@@ -171,27 +190,50 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   useEffect(() => {
+    verifySessionApi()
+      .then(user => {
+        setAuthUser(user);
+        if (user) setRole(user.role);
+      })
+      .finally(() => setAuthReady(true));
+  }, []);
+
+  useEffect(() => {
+    if (!authUser) return;
     loadDataFromBackend();
     const refreshInterval = window.setInterval(() => {
       loadDataFromBackend();
     }, 10000);
     return () => window.clearInterval(refreshInterval);
-  }, []);
+  }, [authUser]);
 
-  const toggleRole = () => {
-    setRole(prev => prev === 'admin' ? 'view_only' : 'admin');
+  const login = async (username: string, password: string) => {
+    const user = await loginApi(username, password);
+    setAuthUser(user);
+    setRole(user.role);
+  };
+
+  const logout = () => {
+    clearAuthSession();
+    setAuthUser(null);
+    setPersonnelList([]);
+    setAssignmentsList([]);
+    setEducationList([]);
+    setPromotionsList([]);
+    setOrdersList([]);
+    setTrainingList([]);
+    setLeaveList([]);
+    setAwardsList([]);
   };
 
   // Personnel Mutations
   const addPersonnel = async (personnel: Personnel) => {
-    setPersonnelList(prev => [personnel, ...prev]);
-    if (backendConnected) {
-      try {
-        await createPersonnelApi(personnel);
-      } catch (e) {
-        console.error('Failed to sync new personnel with backend:', e);
-      }
+    if (!backendConnected) {
+      throw new Error('The backend is offline. Personnel changes require a Supabase connection.');
     }
+    const created = await createPersonnelApi(personnel);
+    setPersonnelList(prev => [created, ...prev]);
+    return created;
   };
 
   const bulkImportPersonnel = async (
@@ -210,25 +252,20 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const updatePersonnel = async (updated: Personnel) => {
-    setPersonnelList(prev => prev.map(p => p.id === updated.id ? updated : p));
-    if (backendConnected) {
-      try {
-        await updatePersonnelApi(updated);
-      } catch (e) {
-        console.error('Failed to sync updated personnel with backend:', e);
-      }
+    if (!backendConnected) {
+      throw new Error('The backend is offline. Personnel changes require a Supabase connection.');
     }
+    const saved = await updatePersonnelApi(updated);
+    setPersonnelList(prev => prev.map(p => p.id === saved.id ? saved : p));
+    return saved;
   };
 
   const deletePersonnel = async (id: string) => {
-    setPersonnelList(prev => prev.filter(p => p.id !== id));
-    if (backendConnected) {
-      try {
-        await deletePersonnelApi(id);
-      } catch (e) {
-        console.error('Failed to delete personnel on backend:', e);
-      }
+    if (!backendConnected) {
+      throw new Error('The backend is offline. Personnel changes require a Supabase connection.');
     }
+    await deletePersonnelApi(id);
+    setPersonnelList(prev => prev.filter(p => p.id !== id));
   };
 
   // Order Mutations
@@ -252,6 +289,11 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return order;
   };
 
+  const deleteOrder = async (id: string) => {
+    if (backendConnected) await deleteOrderApi(id);
+    setOrdersList(prev => prev.filter(item => item.id !== id));
+  };
+
   // Assignment Mutations
   const addAssignment = async (assignment: AssignmentRecord) => {
     if (backendConnected) {
@@ -271,6 +313,11 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
     setAssignmentsList(prev => prev.map(item => item.id === assignment.id ? assignment : item));
     return assignment;
+  };
+
+  const deleteAssignment = async (id: string) => {
+    if (backendConnected) await deleteAssignmentApi(id);
+    setAssignmentsList(prev => prev.filter(item => item.id !== id));
   };
 
   // Education Mutations
@@ -356,6 +403,17 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
+  const deletePromotion = async (id: string) => {
+    if (backendConnected) await deletePromotionApi(id);
+    setPromotionsList(prev => prev.filter(item => item.id !== id));
+  };
+
+  const updatePromotion = async (promotion: PromotionRecord) => {
+    const updated = backendConnected ? await updatePromotionApi(promotion) : promotion;
+    setPromotionsList(prev => prev.map(item => item.id === updated.id ? updated : item));
+    setPersonnelList(prev => prev.map(person => person.id === updated.personnelId ? { ...person, rank: updated.rankTo, lastPromotionDate: updated.promotionDate } : person));
+  };
+
   const updateTraining = async (training: TrainingRecord) => {
     setTrainingList(prev => prev.map(t => t.id === training.id ? training : t));
     if (backendConnected) {
@@ -423,6 +481,11 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return updated;
   };
 
+  const deleteAward = async (id: string) => {
+    if (backendConnected) await deleteAwardApi(id);
+    setAwardsList(prev => prev.filter(item => item.id !== id));
+  };
+
   const createCalendarLeave = async (leave: LeaveRecord) => {
     if (!backendConnected) {
       throw new Error('The backend is offline. Start the server before saving leave.');
@@ -441,12 +504,19 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return updated;
   };
 
+  const deleteCalendarLeave = async (id: string) => {
+    if (backendConnected) await deleteLeaveApi(id);
+    setLeaveList(prev => prev.filter(item => item.id !== id));
+  };
+
   return (
     <AuthRoleContext.Provider
       value={{
+        authReady,
+        authUser,
+        login,
+        logout,
         role,
-        setRole,
-        toggleRole,
         globalSearchQuery,
         setGlobalSearchQuery,
         selectedPersonnelId,
@@ -468,13 +538,17 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         deletePersonnel,
         addOrder,
         updateOrder,
+        deleteOrder,
         addAssignment,
         updateAssignment,
+        deleteAssignment,
         addEducation,
         updateEducation,
         deleteEducation,
         bulkUpsertEducation,
         addPromotion,
+        updatePromotion,
+        deletePromotion,
         addTraining,
         updateTraining,
         deleteTraining,
@@ -482,8 +556,10 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         addLeave,
         createAward,
         updateAward,
+        deleteAward,
         createCalendarLeave,
-        updateCalendarLeave
+        updateCalendarLeave,
+        deleteCalendarLeave
       }}
     >
       {children}

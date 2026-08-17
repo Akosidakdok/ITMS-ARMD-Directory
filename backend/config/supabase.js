@@ -10,6 +10,7 @@ dotenv.config({ path: path.join(__dirname, '../.env') });
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_KEY;
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 // Hosted projects can take a few seconds to answer immediately after resuming.
 // Keep this below the frontend health timeout so the API always returns cleanly.
 const SUPABASE_HEALTH_TIMEOUT_MS = Number(process.env.SUPABASE_HEALTH_TIMEOUT_MS || 8000);
@@ -29,6 +30,18 @@ const withTimeout = (promise, timeoutMs, timeoutMessage) => (
 
 export const supabase = (supabaseUrl && supabaseKey) 
   ? createClient(supabaseUrl, supabaseKey) 
+  : null;
+
+export const isSupabaseConfigured = () => Boolean(supabaseUrl && supabaseKey);
+
+export const createSupabaseAuthClient = () => isSupabaseConfigured()
+  ? createClient(supabaseUrl, supabaseKey, {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+    })
+  : null;
+
+export const supabaseAdmin = (supabaseUrl && supabaseServiceRoleKey)
+  ? createClient(supabaseUrl, supabaseServiceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } })
   : null;
 
 let supabaseAvailable = false;

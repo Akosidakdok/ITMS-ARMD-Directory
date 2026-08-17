@@ -20,15 +20,31 @@ import { calculateTimeInGrade } from '../utils/timeInGrade';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from 'recharts';
 
 export const DashboardPage: React.FC = () => {
-  const { personnelList, assignmentsList, trainingList, setSelectedPersonnelId } = useAuthRole();
+  const { personnelList, assignmentsList, trainingList, leaveList, ordersList, setSelectedPersonnelId } = useAuthRole();
   const navigate = useNavigate();
 
   // Compute live KPIs
   const totalPersonnel = personnelList.length;
   const activeAssignments = assignmentsList.filter(a => a.status === 'Current').length;
-  const onLeaveToday = personnelList.filter(p => p.status === 'On Leave').length;
-  const upcomingTrainings = trainingList.length;
-  const eligibleForPromotion = personnelList.filter(p => calculateTimeInGrade(p.lastPromotionDate ?? '2000-01-01').eligibleForPromotion).length;
+  const today = new Date().toISOString().slice(0, 10);
+  const onLeaveToday = new Set(
+    leaveList
+      .filter(leave => leave.status === 'Approved' && leave.startDate <= today && leave.endDate >= today)
+      .map(leave => leave.personnelId)
+  ).size;
+  const upcomingTrainings = trainingList.filter(training => {
+    const scheduledDate = training.startDate || training.completionDate || training.endDate;
+    return scheduledDate ? scheduledDate >= today : false;
+  }).length;
+  const eligibleForPromotion = personnelList.filter(
+    personnel => personnel.lastPromotionDate && calculateTimeInGrade(personnel.lastPromotionDate).eligibleForPromotion
+  ).length;
+  const personnelNames = new Map(personnelList.map(person => [person.id, `${person.rank} ${person.fullName}`]));
+  const recentActivities = [
+    ...ordersList.map(order => ({ date: order.issuedDate || order.effectiveDate || '', type: 'Order', title: order.orderNumber || order.orderNo || 'Administrative order', detail: order.subject })),
+    ...leaveList.map(leave => ({ date: leave.updatedAt || leave.createdAt || leave.startDate, type: `Leave ${leave.status}`, title: `${personnelNames.get(leave.personnelId) || 'Personnel'} — ${leave.leaveType}`, detail: `${leave.startDate} to ${leave.endDate}` })),
+    ...trainingList.map(training => ({ date: training.completionDate || training.endDate || training.startDate || '', type: 'Training', title: training.courseName, detail: personnelNames.get(training.personnelId) || training.provider }))
+  ].filter(activity => activity.date).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 3);
 
   // Chart Data: Personnel by Division
   const divisionCounts: Record<string, number> = {};
@@ -174,7 +190,7 @@ export const DashboardPage: React.FC = () => {
                   </div>
                   <div>
                     <span className="text-xs font-extrabold text-slate-900 block">View Personnel Roster</span>
-                    <span className="text-[10px] text-slate-500 font-medium">Inspect full 201 profile records</span>
+                    <span className="text-[10px] text-slate-500 font-medium">Inspect {totalPersonnel} personnel profile records</span>
                   </div>
                 </div>
                 <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all" />
@@ -290,32 +306,17 @@ export const DashboardPage: React.FC = () => {
           </div>
 
           <div className="space-y-3.5">
-            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
-              <div className="flex items-center justify-between text-[11px]">
-                <Badge variant="primary" size="sm">Special Order Issued</Badge>
-                <span className="text-slate-500 font-mono">Today</span>
+            {recentActivities.map((activity, index) => (
+              <div key={`${activity.type}-${activity.date}-${index}`} className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                <div className="flex items-center justify-between text-[11px]">
+                  <Badge variant="primary" size="sm">{activity.type}</Badge>
+                  <span className="text-slate-500 font-mono">{activity.date.slice(0, 10)}</span>
+                </div>
+                <p className="text-xs font-bold text-slate-900">{activity.title}</p>
+                <p className="text-[11px] text-slate-600">{activity.detail || 'No additional details'}</p>
               </div>
-              <p className="text-xs font-bold text-slate-900">SO-ITMS-2024-045 Reassignment</p>
-              <p className="text-[11px] text-slate-600">PCOL Dela Cruz designated as Chief, ARMD</p>
-            </div>
-
-            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
-              <div className="flex items-center justify-between text-[11px]">
-                <Badge variant="success" size="sm">Leave Approved</Badge>
-                <span className="text-slate-500 font-mono">Yesterday</span>
-              </div>
-              <p className="text-xs font-bold text-slate-900">PCPT Garcia Vacation Leave</p>
-              <p className="text-[11px] text-slate-600">5-day wellness leave approved by Chief ARMD</p>
-            </div>
-
-            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
-              <div className="flex items-center justify-between text-[11px]">
-                <Badge variant="info" size="sm">Training Completed</Badge>
-                <span className="text-slate-500 font-mono">3 days ago</span>
-              </div>
-              <p className="text-xs font-bold text-slate-900">Advanced Threat Hunting Course</p>
-              <p className="text-[11px] text-slate-600">PLTCOL Reyes completed 120-hr SANS course</p>
-            </div>
+            ))}
+            {!recentActivities.length && <p className="rounded-xl border border-dashed border-slate-200 p-5 text-center text-xs text-slate-500">No recent activity is available.</p>}
           </div>
         </div>
       </div>

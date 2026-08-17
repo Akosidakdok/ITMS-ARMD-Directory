@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Modal } from './Modal';
-import { Printer, CheckCircle, FileSpreadsheet } from 'lucide-react';
+import { Printer, CheckCircle, FileSpreadsheet, FileDown } from 'lucide-react';
 
 interface ExportPrintModalProps {
   isOpen: boolean;
@@ -18,6 +18,7 @@ export const ExportPrintModal: React.FC<ExportPrintModalProps> = ({
   columns
 }) => {
   const [downloadSuccess, setDownloadSuccess] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   const handleExportCSV = () => {
     // Generate CSV string
@@ -46,6 +47,29 @@ export const ExportPrintModal: React.FC<ExportPrintModalProps> = ({
     window.print();
   };
 
+  const handleExportPdf = async () => {
+    setExportingPdf(true);
+    try {
+      const { default: jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
+      const document = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      document.setFontSize(14);
+      document.text(reportTitle, 14, 16);
+      document.setFontSize(8);
+      document.text(`Generated: ${new Date().toLocaleString('en-PH')} • ${data.length} records`, 14, 22);
+      autoTable(document, {
+        startY: 27,
+        head: [columns.map(column => column.label)],
+        body: data.map(row => columns.map(column => String(row[column.key] ?? '—'))),
+        styles: { fontSize: 7, cellPadding: 2, overflow: 'linebreak' },
+        headStyles: { fillColor: [29, 78, 216], textColor: 255 }
+      });
+      document.save(`${reportTitle.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')}.pdf`);
+    } finally {
+      setExportingPdf(false);
+    }
+  };
+
   return (
     <Modal
       isOpen={isOpen}
@@ -65,6 +89,9 @@ export const ExportPrintModal: React.FC<ExportPrintModalProps> = ({
           </div>
 
           <div className="flex items-center gap-3">
+            <button onClick={handleExportPdf} disabled={exportingPdf} className="flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl bg-slate-800 hover:bg-slate-900 text-white transition-colors disabled:opacity-60">
+              <FileDown className="w-4 h-4" /> {exportingPdf ? 'Creating PDF…' : 'Export PDF'}
+            </button>
             <button
               onClick={handleExportCSV}
               className="flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition-colors shadow-xs"

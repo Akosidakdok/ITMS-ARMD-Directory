@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useAuthRole } from '../context/AuthRoleContext';
-import { Edit3, Eye, Plus, Search } from 'lucide-react';
+import { ChevronDown, Edit3, Eye, Plus, Search, Trash2, X } from 'lucide-react';
 import { Badge } from '../components/common/Badge';
 import { Modal } from '../components/common/Modal';
 import type { AssignmentRecord } from '../types/pais';
 
 export const AssignmentPage: React.FC = () => {
-  const { role, personnelList, assignmentsList, addAssignment, updateAssignment } = useAuthRole();
+  const { role, personnelList, assignmentsList, addAssignment, updateAssignment, deleteAssignment } = useAuthRole();
   const [selectedDivision, setSelectedDivision] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -23,6 +23,37 @@ export const AssignmentPage: React.FC = () => {
   const [status, setStatus] = useState('Current');
   const [remarks, setRemarks] = useState('');
 
+  // Searchable personnel picker state
+  const [personnelSearch, setPersonnelSearch] = useState('');
+  const [isPersonnelDropdownOpen, setIsPersonnelDropdownOpen] = useState(false);
+  const personnelDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (personnelDropdownRef.current && !personnelDropdownRef.current.contains(e.target as Node)) {
+        setIsPersonnelDropdownOpen(false);
+        setPersonnelSearch('');
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filteredPersonnelOptions = personnelList.filter(p => {
+    const q = personnelSearch.toLowerCase();
+    return (
+      p.fullName?.toLowerCase().includes(q) ||
+      p.lastName?.toLowerCase().includes(q) ||
+      p.firstName?.toLowerCase().includes(q) ||
+      p.rank?.toLowerCase().includes(q) ||
+      p.badgeNo?.toLowerCase().includes(q) ||
+      p.division?.toLowerCase().includes(q)
+    );
+  });
+
+  const selectedPersonnel = personnelList.find(p => p.id === personnelId);
+
   const filteredAssignments = assignmentsList.filter(asg => {
     const person = personnelList.find(p => p.id === asg.personnelId);
     const matchesDiv = selectedDivision === 'ALL' || (person && person.division === selectedDivision);
@@ -35,6 +66,8 @@ export const AssignmentPage: React.FC = () => {
 
   const resetForm = () => {
     setPersonnelId(personnelList[0]?.id || '');
+    setPersonnelSearch('');
+    setIsPersonnelDropdownOpen(false);
     setUnit('');
     setPosition('');
     setOrderRef('');
@@ -221,19 +254,86 @@ export const AssignmentPage: React.FC = () => {
         subtitle={editingAssignment ? 'Update unit assignment, order reference, and assignment status' : 'Issue new unit assignment with Special Order tracking'}
       >
         <form onSubmit={handleSaveAssignment} className="space-y-4">
+          {/* Searchable Personnel Picker */}
           <div>
             <label className="block text-xs font-bold text-slate-600 mb-1">Select Personnel</label>
-            <select
-              value={personnelId}
-              onChange={e => setPersonnelId(e.target.value)}
-              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-bold focus:outline-none focus:border-blue-500"
-            >
-              {personnelList.map(p => (
-                <option key={p.id} value={p.id}>
-                  {p.rank} {p.lastName}, {p.firstName} ({p.division} - #{p.badgeNo})
-                </option>
-              ))}
-            </select>
+            <div className="relative" ref={personnelDropdownRef}>
+              {/* Trigger button */}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsPersonnelDropdownOpen(prev => !prev);
+                  setPersonnelSearch('');
+                }}
+                className="w-full flex items-center justify-between px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-bold focus:outline-none focus:border-blue-500 hover:border-blue-400 transition-colors"
+              >
+                <span className="truncate">
+                  {selectedPersonnel
+                    ? `${selectedPersonnel.rank} ${selectedPersonnel.lastName}, ${selectedPersonnel.firstName} (${selectedPersonnel.division} - #${selectedPersonnel.badgeNo})`
+                    : 'Select a personnel...'}
+                </span>
+                <ChevronDown className={`w-3.5 h-3.5 ml-2 flex-shrink-0 text-slate-400 transition-transform duration-200 ${isPersonnelDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {/* Dropdown panel */}
+              {isPersonnelDropdownOpen && (
+                <div className="absolute z-50 mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden">
+                  {/* Search input */}
+                  <div className="p-2 border-b border-slate-100">
+                    <div className="relative">
+                      <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        autoFocus
+                        type="text"
+                        value={personnelSearch}
+                        onChange={e => setPersonnelSearch(e.target.value)}
+                        placeholder="Search by name, rank, badge, or division..."
+                        className="w-full pl-7 pr-7 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
+                      />
+                      {personnelSearch && (
+                        <button
+                          type="button"
+                          onClick={() => setPersonnelSearch('')}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Options list */}
+                  <ul className="max-h-48 overflow-y-auto divide-y divide-slate-50">
+                    {filteredPersonnelOptions.length > 0 ? (
+                      filteredPersonnelOptions.map(p => (
+                        <li key={p.id}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPersonnelId(p.id);
+                              setIsPersonnelDropdownOpen(false);
+                              setPersonnelSearch('');
+                            }}
+                            className={`w-full text-left px-3 py-2 text-xs transition-colors ${
+                              p.id === personnelId
+                                ? 'bg-blue-50 text-blue-700 font-extrabold'
+                                : 'text-slate-800 font-semibold hover:bg-slate-50'
+                            }`}
+                          >
+                            <span className="font-extrabold">{p.rank} {p.lastName}, {p.firstName}</span>
+                            <span className="ml-1.5 text-[10px] text-slate-500 font-mono">{p.division} · #{p.badgeNo}</span>
+                          </button>
+                        </li>
+                      ))
+                    ) : (
+                      <li className="px-3 py-4 text-center text-xs text-slate-400 font-semibold">
+                        No personnel match your search.
+                      </li>
+                    )}
+                  </ul>
+                </div>
+              )}
+            </div>
           </div>
 
           <div>
@@ -360,7 +460,18 @@ export const AssignmentPage: React.FC = () => {
               </div>
             ))}
             {role === 'admin' && (
-              <div className="flex justify-end border-t border-slate-200 pt-3">
+              <div className="flex justify-end gap-2 border-t border-slate-200 pt-3">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!window.confirm('Delete this assignment record?')) return;
+                    await deleteAssignment(selectedAssignment.id);
+                    setSelectedAssignment(null);
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-rose-300 px-4 py-2 text-xs font-bold text-rose-700 hover:bg-rose-50"
+                >
+                  <Trash2 className="h-3.5 w-3.5" /> Delete
+                </button>
                 <button
                   type="button"
                   onClick={() => {
