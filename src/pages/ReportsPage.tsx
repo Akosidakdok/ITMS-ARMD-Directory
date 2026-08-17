@@ -13,8 +13,19 @@ import {
 import { Badge } from '../components/common/Badge';
 import { calculateTimeInGrade } from '../utils/timeInGrade';
 import { ExportPrintModal } from '../components/common/ExportPrintModal';
+import { Button, PageHeader } from '../components/common/SystemUI';
 
 type ReportTab = 'alpha_list' | 'leave' | 'education' | 'training' | 'promotion' | 'orders' | 'awards';
+
+const reportTabs: Array<{ key: ReportTab; label: string; description: string; icon: React.ComponentType<{ className?: string }> }> = [
+  { key: 'alpha_list', label: 'Alpha List', description: 'Active postings', icon: Users },
+  { key: 'training', label: 'Training', description: 'Completed courses', icon: GraduationCap },
+  { key: 'orders', label: 'Orders', description: 'Administrative orders', icon: FileText },
+  { key: 'awards', label: 'Awards', description: 'Recognition records', icon: Medal },
+  { key: 'leave', label: 'Leave', description: 'Date-filtered roster', icon: Calendar },
+  { key: 'education', label: 'Education', description: 'Qualifications', icon: GraduationCap },
+  { key: 'promotion', label: 'Promotion TIG', description: 'Eligibility audit', icon: Award }
+];
 
 export const ReportsPage: React.FC = () => {
   const { personnelList, assignmentsList, leaveList, educationList, trainingList, ordersList, awardsList } = useAuthRole();
@@ -216,98 +227,42 @@ export const ReportsPage: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Top Banner */}
-      <div className="p-4 sm:p-6 rounded-2xl bg-white border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-2xs">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="px-2.5 py-0.5 rounded text-xs font-extrabold bg-blue-50 text-blue-700 border border-blue-200">
-              Official Reporting Module
-            </span>
-            <span className="text-xs text-slate-500 font-mono">ITMS Administrative Records</span>
-          </div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">System Administrative Reports</h1>
-          <p className="text-xs text-slate-500 mt-0.5">Generate filtered Alpha lists, leave status, IT education matrices, and promotion TIG audits</p>
-        </div>
-
-        <button
-          onClick={() => setIsExportOpen(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-all hover:scale-105"
-        >
-          <Printer className="w-4 h-4" /> Export / Print Report
-        </button>
-      </div>
+      <PageHeader
+        eyebrow="Official reporting module"
+        title="Administrative Reports"
+        description="Review filtered personnel, leave, education, training, orders, awards, and time-in-grade records in a print-ready format."
+        meta={<span className="text-[11px] text-slate-500">PNP–ITMS administrative records</span>}
+        actions={<Button variant="primary" icon={Printer} onClick={() => setIsExportOpen(true)}>Export / print report</Button>}
+      />
 
       {/* Report Selection Tabs Bar */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3">
-        <button
-          onClick={() => setActiveReportTab('alpha_list')}
-          className={`p-4 rounded-xl border text-left transition-all ${
-            activeReportTab === 'alpha_list'
-              ? 'bg-blue-600 text-white border-blue-600 shadow-md'
-              : 'bg-white text-slate-800 border-slate-200 hover:bg-blue-50/50 hover:border-blue-300 shadow-2xs'
-          }`}
-        >
-          <Users className={`w-5 h-5 mb-2 ${activeReportTab === 'alpha_list' ? 'text-white' : 'text-blue-600'}`} />
-          <h3 className="text-xs font-bold block">Alpha List</h3>
-          <p className={`text-[10px] ${activeReportTab === 'alpha_list' ? 'text-blue-100' : 'text-slate-500'}`}>Active Duty Postings</p>
-        </button>
-
-        <button onClick={() => setActiveReportTab('training')} className={`p-4 rounded-xl border text-left transition-all ${activeReportTab === 'training' ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-slate-800 border-slate-200 hover:bg-blue-50/50'}`}>
-          <GraduationCap className="mb-2 h-5 w-5" /><h3 className="text-xs font-bold">Training</h3><p className="text-[10px] opacity-75">Completed Courses</p>
-        </button>
-
-        <button onClick={() => setActiveReportTab('orders')} className={`p-4 rounded-xl border text-left transition-all ${activeReportTab === 'orders' ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-slate-800 border-slate-200 hover:bg-blue-50/50'}`}>
-          <FileText className="mb-2 h-5 w-5" /><h3 className="text-xs font-bold">Orders</h3><p className="text-[10px] opacity-75">Administrative Orders</p>
-        </button>
-
-        <button onClick={() => setActiveReportTab('awards')} className={`p-4 rounded-xl border text-left transition-all ${activeReportTab === 'awards' ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-slate-800 border-slate-200 hover:bg-blue-50/50'}`}>
-          <Medal className="mb-2 h-5 w-5" /><h3 className="text-xs font-bold">Awards</h3><p className="text-[10px] opacity-75">Recognition Records</p>
-        </button>
-
-        <button
-          onClick={() => setActiveReportTab('leave')}
-          className={`p-4 rounded-xl border text-left transition-all ${
-            activeReportTab === 'leave'
-              ? 'bg-blue-600 text-white border-blue-600 shadow-md'
-              : 'bg-white text-slate-800 border-slate-200 hover:bg-blue-50/50 hover:border-blue-300 shadow-2xs'
-          }`}
-        >
-          <Calendar className={`w-5 h-5 mb-2 ${activeReportTab === 'leave' ? 'text-white' : 'text-emerald-600'}`} />
-          <h3 className="text-xs font-bold block">Leave Status</h3>
-          <p className={`text-[10px] ${activeReportTab === 'leave' ? 'text-blue-100' : 'text-slate-500'}`}>Date Filtered Roster</p>
-        </button>
-
-        <button
-          onClick={() => setActiveReportTab('education')}
-          className={`p-4 rounded-xl border text-left transition-all ${
-            activeReportTab === 'education'
-              ? 'bg-blue-600 text-white border-blue-600 shadow-md'
-              : 'bg-white text-slate-800 border-slate-200 hover:bg-blue-50/50 hover:border-blue-300 shadow-2xs'
-          }`}
-        >
-          <GraduationCap className={`w-5 h-5 mb-2 ${activeReportTab === 'education' ? 'text-white' : 'text-indigo-600'}`} />
-          <h3 className="text-xs font-bold block">Education & Certs</h3>
-          <p className={`text-[10px] ${activeReportTab === 'education' ? 'text-blue-100' : 'text-slate-500'}`}>Course Qualifications</p>
-        </button>
-
-        <button
-          onClick={() => setActiveReportTab('promotion')}
-          className={`p-4 rounded-xl border text-left transition-all ${
-            activeReportTab === 'promotion'
-              ? 'bg-blue-600 text-white border-blue-600 shadow-md'
-              : 'bg-white text-slate-800 border-slate-200 hover:bg-blue-50/50 hover:border-blue-300 shadow-2xs'
-          }`}
-        >
-          <Award className={`w-5 h-5 mb-2 ${activeReportTab === 'promotion' ? 'text-white' : 'text-sky-600'}`} />
-          <h3 className="text-xs font-bold block">Promotion TIG</h3>
-          <p className={`text-[10px] ${activeReportTab === 'promotion' ? 'text-blue-100' : 'text-slate-500'}`}>Time-In-Grade Audits</p>
-        </button>
+      <div className="app-surface flex gap-1 overflow-x-auto p-1" role="tablist" aria-label="Report type">
+        {reportTabs.map(tab => {
+          const Icon = tab.icon;
+          const active = activeReportTab === tab.key;
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setActiveReportTab(tab.key)}
+              className={`flex min-w-32 flex-1 items-center gap-2 rounded-md border px-3 py-2.5 text-left ${active ? 'border-blue-200 bg-blue-50 text-blue-800' : 'border-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
+            >
+              <Icon className={`h-4 w-4 shrink-0 ${active ? 'text-blue-700' : 'text-slate-400'}`} />
+              <span>
+                <span className="block text-xs font-semibold">{tab.label}</span>
+                <span className="block text-[10px] text-slate-500">{tab.description}</span>
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Dynamic Filter Controls per Report */}
-      <div className="p-4 rounded-xl border border-slate-200 bg-white flex flex-wrap items-center justify-between gap-4 shadow-2xs">
-        <div className="flex items-center gap-2 text-xs font-extrabold text-blue-700 uppercase tracking-wider">
-          <Filter className="w-4 h-4" /> Report Filters & Parameters:
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white p-3 shadow-2xs">
+        <div className="flex items-center gap-2 text-xs font-semibold text-slate-700">
+          <Filter className="w-4 h-4 text-blue-700" /> Report filters
         </div>
 
         {activeReportTab === 'alpha_list' && (
@@ -365,13 +320,13 @@ export const ReportsPage: React.FC = () => {
       </div>
 
       {/* Report Data Table Display */}
-      <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-2xs">
-        <div className="p-4 bg-blue-700 text-white flex items-center justify-between">
-          <h3 className="text-sm font-extrabold uppercase tracking-wide flex items-center gap-2 text-white">
-            <span className="w-2 h-2 rounded-full bg-white animate-pulse"></span>
+      <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-2xs">
+        <div className="flex items-center justify-between border-b border-slate-200 bg-white p-4">
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+            <FileText className="h-4 w-4 text-blue-700" />
             {currentExportConfig.title}
           </h3>
-          <span className="text-xs text-blue-100 font-semibold">Total Entries: <strong className="text-white font-mono">{currentExportConfig.data.length}</strong></span>
+          <span className="text-xs text-slate-500">Record count: <strong className="font-mono font-semibold text-slate-800">{currentExportConfig.data.length}</strong></span>
         </div>
 
         <div className="overflow-x-auto">

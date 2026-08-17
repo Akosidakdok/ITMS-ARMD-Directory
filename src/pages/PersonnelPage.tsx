@@ -3,6 +3,7 @@ import { useAuthRole } from '../context/AuthRoleContext';
 import { Personnel } from '../types/pais';
 import { BulkImportModal } from '../components/personnel/BulkImportModal';
 import { PersonnelSummaryCard } from '../components/personnel/PersonnelSummaryCard';
+import { PageHeader } from '../components/common/SystemUI';
 import { exportPersonnelCsv, exportPersonnelPdf } from '../utils/personnelExport';
 import { 
   Users, 
@@ -62,9 +63,9 @@ const PersonnelExportModal: React.FC<{
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 border border-slate-200 overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-[#4682B4]/10 to-cyan-50">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 bg-white">
           <div className="flex items-center gap-2">
-            <Download className="w-4 h-4 text-[#4682B4]" />
+            <Download className="w-4 h-4 text-blue-700" />
             <h2 className="text-sm font-extrabold text-slate-800">Export Personnel</h2>
           </div>
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-slate-100 transition-colors">
@@ -75,7 +76,7 @@ const PersonnelExportModal: React.FC<{
         <div className="px-5 py-4 space-y-4">
           {/* Count badge */}
           <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-100 rounded-xl">
-            <CheckSquare className="w-4 h-4 text-[#4682B4] flex-shrink-0" />
+            <CheckSquare className="w-4 h-4 text-blue-700 flex-shrink-0" />
             <p className="text-xs font-bold text-blue-700">
               Exporting <span className="font-extrabold text-blue-900">{records.length} personnel</span> records
             </p>
@@ -90,7 +91,7 @@ const PersonnelExportModal: React.FC<{
                   key={key}
                   onClick={() => setFormat(key as ExportFormat)}
                   className={`px-4 py-3 rounded-xl border-2 transition-all text-left ${
-                    format === key ? 'border-[#4682B4] bg-blue-50' : 'border-slate-200 hover:border-slate-300'
+                    format === key ? 'border-blue-600 bg-blue-50' : 'border-slate-200 hover:border-slate-300'
                   }`}
                 >
                   <div className="flex items-center gap-2 mb-1">
@@ -98,7 +99,7 @@ const PersonnelExportModal: React.FC<{
                       ? <FileText className={`w-4 h-4 ${format === key ? 'text-red-500' : 'text-slate-400'}`} />
                       : <FileSpreadsheet className={`w-4 h-4 ${format === key ? 'text-green-600' : 'text-slate-400'}`} />
                     }
-                    <span className={`text-xs font-extrabold ${format === key ? 'text-[#4682B4]' : 'text-slate-700'}`}>{label}</span>
+                    <span className={`text-xs font-extrabold ${format === key ? 'text-blue-700' : 'text-slate-700'}`}>{label}</span>
                   </div>
                   <p className="text-[10px] text-slate-400">{desc}</p>
                 </button>
@@ -119,7 +120,7 @@ const PersonnelExportModal: React.FC<{
           <button
             onClick={handleExport}
             disabled={exporting}
-            className="px-5 py-2 text-xs rounded-lg bg-[#4682B4] text-white font-extrabold hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-60 shadow-sm"
+            className="px-5 py-2 text-xs rounded-lg bg-blue-700 text-white font-semibold hover:bg-blue-800 transition-colors flex items-center gap-2 disabled:opacity-60"
           >
             {exporting
               ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Generating…</>
@@ -380,21 +381,15 @@ export const PersonnelPage: React.FC = () => {
   return (
     <div className="w-full space-y-4 animate-fade-in font-sans text-slate-800 text-xs">
 
-      {/* Top Header Breadcrumb Matching Screenshot */}
-      <div className="flex flex-col gap-1 border-b border-slate-200 pb-3">
-        <div className="flex items-center gap-1 text-2xs text-slate-500 font-medium">
-          <span className="text-slate-600">Personnel</span>
-          <span>•</span>
-          <span className="text-slate-400">List</span>
-        </div>
-        <div className="flex items-baseline gap-2">
-          <h1 className="text-xl font-bold text-slate-900">Personnel</h1>
-          <span className="text-xs text-slate-500 italic">view, add, edit personnel</span>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Personnel records"
+        title="Personnel Information"
+        description="Search, review, and maintain official PNP–ITMS personnel profiles and service information."
+        meta={<span className="text-[11px] text-slate-500">{personnelList.length} total records</span>}
+      />
 
       {/* SEARCH PANEL CONTAINER (Full Width, No Outer Overflow) */}
-      <div className="w-full bg-white rounded-md border border-cyan-500/40 shadow-xs overflow-hidden">
+      <div className="w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-2xs">
         <div className="p-4 space-y-4">
           <h2 className="text-xs font-bold text-slate-600 tracking-wide">Search</h2>
 
@@ -521,7 +516,7 @@ export const PersonnelPage: React.FC = () => {
             <div className="md:col-span-3 flex items-center gap-1.5 flex-wrap">
               <button
                 onClick={() => setCurrentPage(1)}
-                className="flex-1 min-w-[75px] px-3 py-1.5 bg-[#17a2b8] hover:bg-cyan-600 text-white font-bold text-xs rounded flex items-center justify-center gap-1 shadow-xs transition-colors"
+                className="flex-1 min-w-[75px] px-3 py-1.5 bg-blue-700 hover:bg-blue-800 text-white font-semibold text-xs rounded-lg flex items-center justify-center gap-1 transition-colors"
               >
                 <Search className="w-3.5 h-3.5" />
                 <span>SEARCH</span>
@@ -537,7 +532,7 @@ export const PersonnelPage: React.FC = () => {
 
               <button
                 onClick={() => setIsImportModalOpen(true)}
-                className="px-2.5 py-1.5 bg-[#17a2b8] hover:bg-cyan-700 text-white font-bold text-xs rounded flex items-center gap-1 shadow-xs transition-colors"
+                className="px-2.5 py-1.5 border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-lg flex items-center gap-1 transition-colors"
                 title="Import Bulk CSV/Excel Data"
               >
                 <Upload className="w-3.5 h-3.5" />
@@ -546,11 +541,11 @@ export const PersonnelPage: React.FC = () => {
 
               <button
                 onClick={() => setAddModalOpen(true)}
-                className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded flex items-center gap-1 shadow-xs transition-colors"
+                className="px-2.5 py-1.5 bg-blue-700 hover:bg-blue-800 text-white font-semibold text-xs rounded-lg flex items-center gap-1 transition-colors"
                 title="Add New Personnel Record"
               >
                 <UserPlus className="w-3.5 h-3.5" />
-                <span>ADD NEW</span>
+                <span>ADD PERSONNEL</span>
               </button>
             </div>
           </div>
@@ -559,22 +554,21 @@ export const PersonnelPage: React.FC = () => {
 
       {/* PERSONNEL TABLE CONTAINER */}
       <div className="w-full bg-white rounded-md border border-slate-200 shadow-xs overflow-hidden">
-        {/* Solid Blue Header Bar */}
-        <div className="bg-[#4682B4] text-white px-4 py-2.5 flex items-center justify-between gap-2">
+        <div className="border-b border-slate-200 bg-white px-4 py-2.5 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 font-bold text-xs">
-            <Users className="w-4 h-4 text-white" />
-            <span>Personnel</span>
+            <Users className="w-4 h-4 text-blue-700" />
+            <span className="text-slate-900">Personnel directory</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-2xs text-blue-100">Showing {filteredPersonnel.length} Matched (Total {personnelList.length})</span>
+            <span className="text-2xs text-slate-500">Showing {filteredPersonnel.length} matched (total {personnelList.length})</span>
             {selectedIds.size > 0 && (
-              <span className="text-2xs font-bold text-yellow-300">• {selectedIds.size} selected</span>
+              <span className="text-2xs font-bold text-blue-700">• {selectedIds.size} selected</span>
             )}
             {/* Select toggle */}
             <button
               onClick={() => { setSelectMode(v => !v); if (selectMode) clearSelection(); }}
               className={`flex items-center gap-1 px-2.5 py-1 rounded text-2xs font-extrabold transition-colors ${
-                selectMode ? 'bg-yellow-400 text-slate-900' : 'bg-white/20 hover:bg-white/30 text-white'
+                selectMode ? 'bg-blue-700 text-white' : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
               }`}
             >
               {selectMode ? <CheckSquare className="w-3 h-3" /> : <Square className="w-3 h-3" />}
@@ -583,7 +577,7 @@ export const PersonnelPage: React.FC = () => {
             {/* Export button */}
             <button
               onClick={() => setExportModalOpen(true)}
-              className="flex items-center gap-1 px-2.5 py-1 rounded text-2xs font-extrabold bg-violet-600 hover:bg-violet-500 text-white transition-colors shadow-sm"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-2xs font-semibold bg-blue-700 hover:bg-blue-800 text-white transition-colors"
             >
               <Download className="w-3 h-3" />
               {selectedIds.size > 0 ? `Export (${selectedIds.size})` : 'Export All'}
@@ -693,7 +687,7 @@ export const PersonnelPage: React.FC = () => {
                     <td className="p-3 border-r border-slate-200 text-center align-middle whitespace-nowrap">
                       <span className={`px-2.5 py-1 rounded text-3xs font-bold uppercase tracking-wider inline-block ${
                         person.status === 'Active'
-                          ? 'bg-[#337ab7] text-white'
+                          ? 'bg-blue-700 text-white'
                           : 'bg-amber-100 text-amber-900 border border-amber-300'
                       }`}>
                         {person.status === 'Active' ? 'ON DUTY/ACTIVE' : person.status}
@@ -705,7 +699,7 @@ export const PersonnelPage: React.FC = () => {
                       <div className="relative inline-block">
                         <button
                           onClick={() => setActiveActionMenuId(activeActionMenuId === person.id ? null : person.id)}
-                          className="px-3 py-1.5 bg-[#17a2b8] hover:bg-cyan-600 text-white font-bold text-xs rounded flex items-center justify-center gap-1 shadow-xs transition-colors"
+                          className="px-3 py-1.5 bg-blue-700 hover:bg-blue-800 text-white font-semibold text-xs rounded-lg flex items-center justify-center gap-1 transition-colors"
                         >
                           <span>ACTIONS</span>
                           <ChevronDown className="w-3.5 h-3.5 text-white" />
@@ -835,7 +829,7 @@ export const PersonnelPage: React.FC = () => {
           <div className="w-px h-5 bg-slate-700" />
           <button
             onClick={() => setExportModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-sm font-extrabold transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-700 hover:bg-blue-800 text-sm font-semibold transition-colors"
           >
             <Download className="w-3.5 h-3.5" /> Export Selected
           </button>
@@ -859,14 +853,14 @@ export const PersonnelPage: React.FC = () => {
             onClick={e => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="bg-slate-800 text-white px-5 py-3 flex items-center justify-between rounded-t-2xl">
+            <div className="bg-white text-slate-900 px-5 py-3 flex items-center justify-between border-b border-slate-200 rounded-t-xl">
               <div className="flex items-center gap-2">
-                <Eye className="w-4 h-4 text-cyan-400" />
+                <Eye className="w-4 h-4 text-blue-700" />
                 <span className="text-sm font-bold">Summary Profile</span>
               </div>
               <button
                 onClick={() => setInspectModalOpen(false)}
-                className="p-1 rounded-lg hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
+                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-900 transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -885,12 +879,12 @@ export const PersonnelPage: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-900/60 backdrop-blur-xs p-2 sm:p-4 overflow-y-auto">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-3xl overflow-hidden animate-scale-in my-2 sm:my-6">
             {/* Header */}
-            <div className="bg-cyan-700 text-white px-6 py-4 flex items-center justify-between">
+            <div className="bg-white text-slate-900 px-6 py-4 flex items-center justify-between border-b border-slate-200">
               <div className="flex items-center gap-2 font-bold text-sm">
                 <UserPlus className="w-5 h-5" />
                 <span>Register New Personnel Record</span>
               </div>
-              <button onClick={() => setAddModalOpen(false)} className="text-white hover:text-cyan-200">
+              <button onClick={() => setAddModalOpen(false)} className="text-slate-400 hover:text-slate-900" aria-label="Close add personnel dialog">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1189,7 +1183,7 @@ export const PersonnelPage: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold text-xs shadow-md"
+                  className="px-5 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-lg font-semibold text-xs"
                 >
                   Save Record
                 </button>

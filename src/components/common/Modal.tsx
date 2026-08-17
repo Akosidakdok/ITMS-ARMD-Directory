@@ -44,30 +44,30 @@ export const Modal: React.FC<ModalProps> = ({
   }[maxWidth];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-2 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/55 p-2 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="modal-title">
       <div 
-        className={`my-2 sm:my-4 w-full ${maxWidthClass} bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[calc(100vh-1rem)] sm:max-h-[90vh]`}
+        className={`my-2 flex max-h-[calc(100vh-1rem)] w-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl sm:my-4 sm:max-h-[90vh] ${maxWidthClass}`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div className="flex items-start justify-between gap-3 px-4 py-4 sm:px-6 border-b border-slate-200 bg-slate-50">
+        <div className="flex items-start justify-between gap-3 border-b border-slate-200 bg-white px-4 py-4 sm:px-5">
           <div>
-            <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-blue-600"></span>
+            <h3 id="modal-title" className="text-base font-semibold text-slate-900">
               {title}
             </h3>
-            {subtitle && <p className="text-xs text-slate-500 mt-0.5 font-medium">{subtitle}</p>}
+            {subtitle && <p className="mt-1 text-xs leading-5 text-slate-500">{subtitle}</p>}
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-slate-200 transition-colors"
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-900"
+            aria-label="Close dialog"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Modal Body */}
-        <div className="p-4 sm:p-6 overflow-y-auto flex-1 text-slate-900">
+        <div className="flex-1 overflow-y-auto p-4 text-slate-900 sm:p-5">
           {children}
         </div>
       </div>

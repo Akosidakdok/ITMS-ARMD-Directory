@@ -3,6 +3,7 @@ import { useAuthRole } from '../context/AuthRoleContext';
 import { ChevronDown, Edit3, Eye, Plus, Search, Trash2, X } from 'lucide-react';
 import { Badge } from '../components/common/Badge';
 import { Modal } from '../components/common/Modal';
+import { Button, PageHeader } from '../components/common/SystemUI';
 import type { AssignmentRecord } from '../types/pais';
 
 export const AssignmentPage: React.FC = () => {
@@ -120,31 +121,16 @@ export const AssignmentPage: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Header Banner */}
-      <div className="p-4 sm:p-6 rounded-2xl bg-white border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-2xs">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="px-2.5 py-0.5 rounded text-xs font-extrabold bg-blue-50 text-blue-700 border border-blue-200">
-              Assignments Module
-            </span>
-            <span className="text-xs text-slate-500 font-mono">ITMS Personnel Postings</span>
-          </div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">Duty Postings & Unit Detail Management</h1>
-          <p className="text-xs text-slate-500 mt-0.5">Manage unit assignments, position designations, and regional details</p>
-        </div>
-
-        {role === 'admin' && (
-          <button
-            onClick={openCreateModal}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-all hover:scale-105"
-          >
-            <Plus className="w-4 h-4" /> Reassign Personnel
-          </button>
-        )}
-      </div>
+      <PageHeader
+        eyebrow="Personnel records"
+        title="Duty Postings & Assignments"
+        description="Manage unit assignments, position designations, duty periods, and regional details."
+        meta={<span className="text-[11px] text-slate-500">PNP–ITMS personnel postings</span>}
+        actions={role === 'admin' ? <Button variant="primary" icon={Plus} onClick={openCreateModal}>Add assignment</Button> : undefined}
+      />
 
       {/* Filter Bar */}
-      <div className="p-4 rounded-xl border border-slate-200 bg-white flex flex-col lg:flex-row lg:flex-wrap lg:items-center justify-between gap-4 shadow-2xs">
+      <div className="p-3 rounded-lg border border-slate-200 bg-white flex flex-col lg:flex-row lg:flex-wrap lg:items-center justify-between gap-3 shadow-2xs">
         <div className="relative flex-1 min-w-[240px]">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input

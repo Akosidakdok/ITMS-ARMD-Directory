@@ -347,21 +347,21 @@ export const OrdersPage = () => {
   };
 
   const stats = [
-    { label: 'All records', value: rows.length, icon: ClipboardList, className: 'bg-slate-900 text-white' },
-    { label: 'Awards', value: awardsList.length, icon: Award, className: 'bg-amber-50 text-amber-800' },
-    { label: 'Scheduled leaves', value: calendarLeaves.length, icon: CalendarDays, className: 'bg-teal-50 text-teal-800' },
+    { label: 'All records', value: rows.length, icon: ClipboardList },
+    { label: 'Awards', value: awardsList.length, icon: Award },
+    { label: 'Scheduled leaves', value: calendarLeaves.length, icon: CalendarDays },
   ];
 
   return (
     <div className="mx-auto w-full max-w-[1600px] space-y-4 sm:space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <div className="app-surface flex flex-col gap-4 p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <div className="mb-2 flex items-center gap-2 text-sm text-slate-500">
+          <div className="mb-1 flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.06em] text-slate-500">
             <span>Records Management</span><ChevronRight size={14} /><span className="font-medium text-slate-800">All Orders</span>
             {activeView === 'calendar' && <><ChevronRight size={14} /><span className="font-medium text-slate-800">Leave Calendar</span></>}
             {activeView === 'templates' && <><ChevronRight size={14} /><span className="font-medium text-slate-800">Document Templates</span></>}
           </div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-950">
+          <h1 className="text-2xl font-bold tracking-tight text-slate-950">
             {activeView === 'list' ? 'All Orders' : activeView === 'calendar' ? 'Leave Calendar' : 'Document Templates'}
           </h1>
           <p className="mt-1 text-sm text-slate-600">
@@ -379,7 +379,7 @@ export const OrdersPage = () => {
                 Back to All Orders
               </button>
               {canEdit && (
-                <button type="button" onClick={() => { setEditingLeave(null); setLeaveFormOpen(true); }} className="inline-flex items-center gap-2 rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-teal-800">
+                <button type="button" onClick={() => { setEditingLeave(null); setLeaveFormOpen(true); }} className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-800">
                   <Plus size={17} /> Add Leave Record
                 </button>
               )}
@@ -401,7 +401,7 @@ export const OrdersPage = () => {
                   <button type="button" onClick={() => { resetOrderForm(); setOrderFormOpen(true); }} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
                     <FilePlus2 size={17} /> Administrative Order
                   </button>
-                  <button type="button" onClick={() => setSelectorOpen(true)} className="inline-flex items-center gap-2 rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-teal-800">
+                  <button type="button" onClick={() => setSelectorOpen(true)} className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-800">
                     <Plus size={17} /> Select Order Type
                   </button>
                 </>
@@ -429,10 +429,10 @@ export const OrdersPage = () => {
       ) : (
         <>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {stats.map(({ label, value, icon: Icon, className }) => (
-              <div key={label} className={`flex items-center justify-between rounded-2xl p-5 ${className}`}>
-                <div><p className="text-sm opacity-75">{label}</p><p className="mt-1 text-3xl font-bold">{value}</p></div>
-                <Icon size={26} className="opacity-70" />
+            {stats.map(({ label, value, icon: Icon }) => (
+              <div key={label} className="flex items-center justify-between rounded-lg border border-slate-200 bg-white p-4 shadow-2xs">
+                <div><p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-500">{label}</p><p className="mt-1 text-2xl font-bold text-slate-900">{value}</p></div>
+                <span className="rounded-lg border border-blue-200 bg-blue-50 p-2 text-blue-700"><Icon size={18} /></span>
               </div>
             ))}
           </div>

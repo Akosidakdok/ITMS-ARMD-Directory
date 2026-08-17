@@ -3,6 +3,7 @@ import { useAuthRole } from '../context/AuthRoleContext';
 import { Clock } from 'lucide-react';
 import { Badge } from '../components/common/Badge';
 import { calculateTimeInGrade } from '../utils/timeInGrade';
+import { EmptyState, PageHeader } from '../components/common/SystemUI';
 
 export const PromotionPage: React.FC = () => {
   const { personnelList, promotionsList } = useAuthRole();
@@ -19,62 +20,48 @@ export const PromotionPage: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Header Banner */}
-      <div className="p-4 sm:p-6 rounded-2xl bg-white border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-2xs">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="px-2.5 py-0.5 rounded text-xs font-extrabold bg-blue-50 text-blue-700 border border-blue-200">
-              Promotion & TIG Engine
-            </span>
-            <span className="text-xs text-slate-500 font-mono">DPRM & NAPOLCOM Benchmarks</span>
-          </div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">Time-In-Grade Audit & Rank Progression</h1>
-          <p className="text-xs text-slate-500 mt-0.5">Automated Time-In-Grade calculation based on last promotion date to evaluate promotion board eligibility</p>
+      <PageHeader
+        eyebrow="Personnel records"
+        title="Time-in-Grade & Rank Progression"
+        description="Review calculated service time in the current rank against promotion board eligibility benchmarks."
+        meta={<span className="text-[11px] text-slate-500">DPRM & NAPOLCOM benchmarks</span>}
+        actions={<div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"><Clock className="h-4 w-4 text-blue-700" /><span className="text-xs font-semibold text-slate-700">Automatic calculation active</span></div>}
+      />
+
+      <section className="app-surface overflow-hidden" aria-labelledby="tig-roster-heading">
+        <div className="border-b border-slate-200 px-4 py-3.5">
+          <h2 id="tig-roster-heading" className="app-section-title">Time-in-grade roster</h2>
+          <p className="mt-0.5 text-xs text-slate-500">Personnel sorted by longest recorded service time in their current rank</p>
         </div>
-
-        <div className="flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-          <Clock className="w-4 h-4 text-blue-600" />
-          <span className="text-xs font-mono font-extrabold text-blue-700">Auto-Compute Engine Active</span>
-        </div>
-      </div>
-
-      {/* TIG Roster List */}
-      <div className="space-y-4">
-        {tigRoster.map(({ personnel, tig }) => (
-          <div
-            key={personnel.id}
-            className="p-5 rounded-2xl border border-slate-200 bg-white flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-2xs"
-          >
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-extrabold px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
-                  {personnel.rank}
-                </span>
-                <h3 className="text-sm font-extrabold text-slate-900">{personnel.fullName}</h3>
-              </div>
-              <p className="text-xs text-slate-600 mt-0.5 font-medium">{personnel.designation} • <strong className="text-slate-900">{personnel.division}</strong></p>
-              <div className="text-[11px] text-slate-500 font-mono mt-1 font-semibold">
-                Last Promotion Date: <strong className="text-slate-900">{personnel.lastPromotionDate}</strong>
-              </div>
-            </div>
-
-            {/* Computed TIG Box */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
-              <div>
-                <span className="text-[10px] font-extrabold uppercase text-slate-500 block">Computed Time-In-Grade</span>
-                <span className="text-base font-extrabold text-blue-700 font-mono">{tig.formatted}</span>
-                <span className="text-[10px] text-slate-500 block font-mono font-semibold">({tig.totalDays} Total Days)</span>
-              </div>
-
-              <div className="border-t sm:border-t-0 sm:border-l border-slate-200 pt-2 sm:pt-0 sm:pl-4">
-                <Badge variant={tig.eligibleForPromotion ? 'success' : 'neutral'} size="md">
-                  {tig.eligibleForPromotion ? 'Eligible for Board Review' : 'Accruing Service Time'}
-                </Badge>
-              </div>
-            </div>
+        {tigRoster.length ? (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[860px] text-left text-xs">
+              <thead className="bg-slate-50 uppercase">
+                <tr className="border-b border-slate-200">
+                  <th className="px-4 py-3">Personnel</th>
+                  <th className="px-4 py-3">Division / designation</th>
+                  <th className="px-4 py-3">Last promotion</th>
+                  <th className="px-4 py-3">Time in grade</th>
+                  <th className="px-4 py-3">Promotion records</th>
+                  <th className="px-4 py-3 text-right">Board status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {tigRoster.map(({ personnel, tig, promotions }) => (
+                  <tr key={personnel.id}>
+                    <td className="px-4 py-3"><p className="font-semibold text-slate-900">{personnel.rank} {personnel.lastName}, {personnel.firstName}</p><p className="mt-0.5 text-[10px] text-slate-500">{personnel.badgeNo || 'No badge recorded'}</p></td>
+                    <td className="px-4 py-3"><p className="font-semibold text-blue-700">{personnel.division}</p><p className="mt-0.5 text-[10px] text-slate-500">{personnel.designation || 'Not assigned'}</p></td>
+                    <td className="px-4 py-3 font-mono text-[11px] text-slate-600">{personnel.lastPromotionDate || 'Not recorded'}</td>
+                    <td className="px-4 py-3"><p className="font-mono font-semibold text-slate-900">{tig.formatted}</p><p className="mt-0.5 text-[10px] text-slate-500">{tig.totalDays.toLocaleString()} total days</p></td>
+                    <td className="px-4 py-3 text-slate-600">{promotions.length}</td>
+                    <td className="px-4 py-3 text-right"><Badge variant={tig.eligibleForPromotion ? 'success' : 'neutral'} size="sm">{tig.eligibleForPromotion ? 'Eligible for review' : 'Accruing service time'}</Badge></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        ))}
-      </div>
+        ) : <EmptyState title="No promotion records available" description="Personnel time-in-grade information will appear after profile dates are recorded." icon={Clock} />}
+      </section>
     </div>
   );
 };

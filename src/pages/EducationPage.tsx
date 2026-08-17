@@ -106,7 +106,7 @@ const EduModal: React.FC<{
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 border border-slate-200 overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-blue-50 to-indigo-50">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-white">
           <div className="flex items-center gap-2">
             <GraduationCap className="w-5 h-5 text-blue-600" />
             <h2 className="text-sm font-extrabold text-slate-800">
@@ -201,7 +201,7 @@ const TrnModal: React.FC<{
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 border border-slate-200 overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-indigo-50 to-purple-50">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-white">
           <div className="flex items-center gap-2">
             <BookOpen className="w-5 h-5 text-indigo-600" />
             <h2 className="text-sm font-extrabold text-slate-800">
@@ -351,7 +351,7 @@ const BulkUploadModal: React.FC<{
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 border border-slate-200 overflow-hidden max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-emerald-50 to-teal-50 flex-shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-white flex-shrink-0">
           <div className="flex items-center gap-2">
             <Upload className="w-5 h-5 text-emerald-600" />
             <h2 className="text-sm font-extrabold text-slate-800">Bulk Upload — Education &amp; Training</h2>
@@ -562,7 +562,7 @@ const ExportModal: React.FC<{
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 border border-slate-200 overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-violet-50 to-purple-50">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-white">
           <div className="flex items-center gap-2">
             <Download className="w-5 h-5 text-violet-600" />
             <h2 className="text-sm font-extrabold text-slate-800">Export Records</h2>
@@ -832,10 +832,10 @@ export const EducationPage: React.FC = () => {
             <div className="flex gap-2 flex-shrink-0">
               <button
                 onClick={() => { setSelectMode(v => !v); if (selectMode) clearSelection(); }}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-extrabold transition-all shadow-sm whitespace-nowrap ${
+                className={`flex items-center gap-2 px-3.5 py-2.5 rounded-lg border text-xs font-semibold transition-colors whitespace-nowrap ${
                   selectMode
-                    ? 'bg-violet-600 text-white hover:bg-violet-700'
-                    : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                    ? 'border-blue-700 bg-blue-700 text-white hover:bg-blue-800'
+                    : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
                 }`}
               >
                 {selectMode ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
@@ -843,14 +843,14 @@ export const EducationPage: React.FC = () => {
               </button>
               <button
                 onClick={() => setExportOpen(true)}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-violet-600 text-white text-sm font-extrabold hover:bg-violet-700 transition-all shadow-sm hover:shadow-md active:scale-95 whitespace-nowrap"
+                className="flex items-center gap-2 px-3.5 py-2.5 rounded-lg bg-blue-700 text-white text-xs font-semibold hover:bg-blue-800 transition-colors whitespace-nowrap"
               >
                 <Download className="w-4 h-4" />
                 {selectedIds.size > 0 ? `Export (${selectedIds.size})` : 'Export All'}
               </button>
               <button
                 onClick={() => setBulkOpen(true)}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-extrabold hover:bg-emerald-700 transition-all shadow-sm hover:shadow-md active:scale-95 whitespace-nowrap"
+                className="flex items-center gap-2 px-3.5 py-2.5 rounded-lg border border-slate-300 bg-white text-slate-700 text-xs font-semibold hover:bg-slate-50 transition-colors whitespace-nowrap"
               >
                 <Upload className="w-4 h-4" /> Bulk Upload
               </button>
@@ -863,11 +863,11 @@ export const EducationPage: React.FC = () => {
           {[
             { label: 'Total Personnel', value: personnelList.length, color: 'text-slate-700' },
             { label: 'Have Education Record', value: withEdu, color: 'text-blue-700' },
-            { label: 'Education Records', value: totalEdu, color: 'text-indigo-700' },
-            { label: 'Training Records', value: totalTrn, color: 'text-purple-700' },
+            { label: 'Education Records', value: totalEdu, color: 'text-blue-700' },
+            { label: 'Training Records', value: totalTrn, color: 'text-blue-700' },
           ].map(s => (
-            <div key={s.label} className="flex flex-col items-center px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl min-w-[90px]">
-              <span className={`text-xl font-extrabold ${s.color}`}>{s.value}</span>
+            <div key={s.label} className="flex flex-col items-center px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg min-w-[90px]">
+              <span className={`text-xl font-bold ${s.color}`}>{s.value}</span>
               <span className="text-[11px] text-slate-500 text-center leading-tight">{s.label}</span>
             </div>
           ))}
