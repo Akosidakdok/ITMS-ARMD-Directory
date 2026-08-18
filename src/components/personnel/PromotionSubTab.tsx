@@ -4,6 +4,7 @@ import { useAuthRole } from '../../context/AuthRoleContext';
 import { Award, Plus, Calendar, Edit3, ShieldCheck, TrendingUp, Trash2 } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { calculateTimeInGrade } from '../../utils/timeInGrade';
+import { hasManagementAccess } from '../../utils/accessControl';
 
 interface PromotionSubTabProps {
   personnel: Personnel;
@@ -11,6 +12,7 @@ interface PromotionSubTabProps {
 
 export const PromotionSubTab: React.FC<PromotionSubTabProps> = ({ personnel }) => {
   const { role, promotionsList, addPromotion, updatePromotion, deletePromotion } = useAuthRole();
+  const canManage = hasManagementAccess(role);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPromotion, setEditingPromotion] = useState<PromotionRecord | null>(null);
 
@@ -93,7 +95,7 @@ export const PromotionSubTab: React.FC<PromotionSubTabProps> = ({ personnel }) =
             <p className="text-xs text-slate-500 mt-0.5">Historical promotions and DPRM Special Order references</p>
           </div>
 
-          {role === 'admin' && (
+          {canManage && (
             <button
               onClick={() => setIsModalOpen(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-colors"
@@ -128,7 +130,7 @@ export const PromotionSubTab: React.FC<PromotionSubTabProps> = ({ personnel }) =
                     <span className="text-xs font-mono font-bold text-sky-700 flex items-center gap-1">
                       <Calendar className="w-3.5 h-3.5 text-sky-600" /> {prm.promotionDate}
                     </span>
-                    {role === 'admin' && (
+                    {canManage && (
                       <span className="flex gap-1"><button type="button" onClick={() => editPromotion(prm)} aria-label="Edit promotion record" className="rounded-lg p-1.5 text-blue-600 hover:bg-blue-50"><Edit3 className="h-4 w-4" /></button><button type="button" onClick={() => window.confirm('Delete this promotion record?') && deletePromotion(prm.id)} aria-label="Delete promotion record" className="rounded-lg p-1.5 text-rose-600 hover:bg-rose-50"><Trash2 className="h-4 w-4" /></button></span>
                     )}
                   </div>

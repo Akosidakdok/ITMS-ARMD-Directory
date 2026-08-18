@@ -1,0 +1,492 @@
+.pais-login {
+  position: relative;
+  display: grid;
+  min-height: 100svh;
+  place-items: center;
+  overflow: hidden;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 12% 10%, rgb(37 99 166 / 0.09), transparent 31%),
+    radial-gradient(circle at 90% 92%, rgb(22 58 95 / 0.06), transparent 28%),
+    #eef3f7;
+}
+
+.pais-login::before {
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(rgb(22 58 95 / 0.025) 1px, transparent 1px), linear-gradient(90deg, rgb(22 58 95 / 0.025) 1px, transparent 1px);
+  background-size: 48px 48px;
+  content: '';
+  mask-image: linear-gradient(to bottom right, #000, transparent 65%);
+  pointer-events: none;
+}
+
+.pais-login__shell {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(390px, 0.92fr) minmax(510px, 1.08fr);
+  width: min(100%, 1080px);
+  min-height: min(670px, calc(100svh - 48px));
+  overflow: hidden;
+  border: 1px solid #d3dce5;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 24px 64px rgb(15 35 56 / 0.14), 0 2px 8px rgb(15 35 56 / 0.06);
+}
+
+.pais-login__brand {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 34px 38px 28px;
+  color: #ffffff;
+  background:
+    radial-gradient(circle at 88% 14%, rgb(255 255 255 / 0.08), transparent 27%),
+    linear-gradient(155deg, #173d60 0%, #0d2c49 55%, #09233c 100%);
+}
+
+.pais-login__brand::before {
+  position: absolute;
+  right: -115px;
+  bottom: 62px;
+  width: 320px;
+  height: 320px;
+  border: 1px solid rgb(255 255 255 / 0.055);
+  border-radius: 50%;
+  box-shadow: 0 0 0 44px rgb(255 255 255 / 0.018), 0 0 0 88px rgb(255 255 255 / 0.012);
+  content: '';
+  pointer-events: none;
+}
+
+.pais-login__brand-accent {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: linear-gradient(to bottom, #cf2938 0 64%, #e0bd45 64% 100%);
+}
+
+.pais-login__agency {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.pais-login__agency-mark {
+  display: grid;
+  width: 62px;
+  height: 70px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 0.15);
+  border-radius: 10px;
+  background: rgb(255 255 255 / 0.07);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.08);
+}
+
+.pais-login__agency-mark img {
+  width: 42px;
+  height: 58px;
+  object-fit: contain;
+}
+
+.pais-login__agency p {
+  color: #afc7da;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.pais-login__agency strong {
+  display: block;
+  margin-top: 2px;
+  font-size: 1.02rem;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+}
+
+.pais-login__agency > div > span {
+  display: block;
+  margin-top: 1px;
+  color: #89a9c2;
+  font-size: 0.6rem;
+  letter-spacing: 0.035em;
+}
+
+.pais-login__brand-copy {
+  position: relative;
+  z-index: 1;
+  margin: auto 0;
+  padding: 38px 0 32px;
+}
+
+.pais-login__version {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgb(255 255 255 / 0.12);
+  border-radius: 999px;
+  padding: 6px 8px 6px 10px;
+  color: #b9cfdf;
+  background: rgb(5 22 37 / 0.22);
+  font-size: 0.63rem;
+  font-weight: 650;
+  letter-spacing: 0.035em;
+}
+
+.pais-login__version > span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #65b891;
+  box-shadow: 0 0 0 3px rgb(101 184 145 / 0.12);
+}
+
+.pais-login__version b {
+  border-radius: 999px;
+  padding: 3px 7px;
+  color: #0e2e4a;
+  background: #e5c553;
+  font-size: 0.61rem;
+  font-weight: 800;
+  letter-spacing: 0.045em;
+}
+
+.pais-login__brand-copy h1 {
+  max-width: 390px;
+  margin-top: 22px;
+  font-size: clamp(1.85rem, 3vw, 2.35rem);
+  font-weight: 760;
+  line-height: 1.14;
+  letter-spacing: -0.035em;
+}
+
+.pais-login__brand-copy > p {
+  max-width: 390px;
+  margin-top: 15px;
+  color: #bad0e0;
+  font-size: 0.82rem;
+  line-height: 1.75;
+}
+
+.pais-login__assurances {
+  display: grid;
+  gap: 11px;
+  margin-top: 28px;
+}
+
+.pais-login__assurances > div {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pais-login__assurance-icon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 0.11);
+  border-radius: 8px;
+  color: #e6c854;
+  background: rgb(255 255 255 / 0.055);
+}
+
+.pais-login__assurance-icon svg { width: 15px; height: 15px; }
+.pais-login__assurances strong { display: block; font-size: 0.73rem; font-weight: 700; }
+.pais-login__assurances small { display: block; margin-top: 2px; color: #8eacc3; font-size: 0.62rem; }
+
+.pais-login__brand-footer {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-top: 1px solid rgb(255 255 255 / 0.09);
+  padding-top: 17px;
+  color: #8eabc1;
+  font-size: 0.58rem;
+}
+
+.pais-login__brand-footer span { display: flex; align-items: center; gap: 7px; }
+.pais-login__brand-footer i { width: 5px; height: 5px; border-radius: 50%; background: #e1c254; }
+.pais-login__brand-footer small { font-size: inherit; }
+
+.pais-login__form {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 18px;
+  padding: 38px clamp(38px, 4.4vw, 58px) 28px;
+  background: #ffffff;
+}
+
+.pais-login__form-heading > p {
+  color: #2563a6;
+  font-size: 0.66rem;
+  font-weight: 750;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.pais-login__form-heading h2 {
+  margin-top: 4px;
+  color: #18273a;
+  font-size: 1.65rem;
+  font-weight: 760;
+  line-height: 1.2;
+  letter-spacing: -0.035em;
+}
+
+.pais-login__form-heading > span {
+  display: block;
+  margin-top: 6px;
+  color: #68798b;
+  font-size: 0.74rem;
+}
+
+.pais-login__error {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  border: 1px solid #e9b7b7;
+  border-radius: 9px;
+  padding: 10px 12px;
+  color: #8f2f36;
+  background: #faeded;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.pais-login__error svg { width: 15px; height: 15px; flex: 0 0 auto; margin-top: 1px; }
+
+.pais-login__development {
+  overflow: hidden;
+  border: 1px solid #d6e0e9;
+  border-radius: 10px;
+  background: #f6f9fb;
+}
+
+.pais-login__development-toggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 11px 13px;
+  text-align: left;
+}
+
+.pais-login__development-toggle:hover { background: #edf4f9; }
+.pais-login__development-toggle > span { display: flex; align-items: center; gap: 10px; }
+.pais-login__development-toggle > span > svg { width: 16px; height: 16px; color: #2563a6; }
+.pais-login__development-toggle strong { display: block; color: #23405b; font-size: 0.7rem; font-weight: 750; }
+.pais-login__development-toggle small { display: block; margin-top: 1px; color: #7b8c9d; font-size: 0.6rem; }
+.pais-login__development-toggle > svg { width: 15px; height: 15px; color: #7890a5; transition: transform 180ms ease; }
+.pais-login__development-toggle > svg.is-open { transform: rotate(180deg); }
+
+.pais-login__account-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  border-top: 1px solid #dce5ec;
+  padding: 9px;
+}
+
+.pais-login__account {
+  display: flex;
+  min-height: 86px;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid #d8e1e8;
+  border-radius: 8px;
+  padding: 11px;
+  text-align: left;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgb(15 35 56 / 0.025);
+}
+
+.pais-login__account:hover { border-color: #8fb5d2; background: #fbfdff; }
+.pais-login__account.is-selected { border-color: #3476ac; box-shadow: 0 0 0 2px rgb(52 118 172 / 0.12); }
+
+.pais-login__account-icon {
+  display: grid;
+  width: 31px;
+  height: 31px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 7px;
+  color: #2563a6;
+  background: #e8f1f8;
+}
+
+.pais-login__account-icon.is-superadmin { color: #ffffff; background: #163a5f; }
+.pais-login__account-icon svg { width: 14px; height: 14px; }
+.pais-login__account-copy { display: block; overflow: hidden; flex: 1; }
+.pais-login__account-copy strong { display: block; color: #263b4e; font-size: 0.68rem; font-weight: 750; }
+.pais-login__account-copy small { display: block; overflow: hidden; margin-top: 2px; color: #76889a; font-size: 0.59rem; text-overflow: ellipsis; white-space: nowrap; }
+
+.pais-login__account-copy > span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  color: #2563a6;
+  font-size: 0.59rem;
+  font-weight: 700;
+}
+
+.pais-login__account-copy > span svg { width: 11px; height: 11px; }
+.pais-login__fields { display: grid; gap: 14px; }
+.pais-login__field label { display: block; margin-bottom: 6px; color: #34475a; font-size: 0.7rem; font-weight: 700; }
+
+.pais-login__input {
+  display: flex;
+  min-height: 46px;
+  align-items: center;
+  border: 1px solid #cdd7e0;
+  border-radius: 9px;
+  padding: 0 12px;
+  background: #ffffff;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.pais-login__input:focus-within { border-color: #3476ac; box-shadow: 0 0 0 3px rgb(52 118 172 / 0.11); }
+.pais-login__input > svg { width: 15px; height: 15px; flex: 0 0 auto; color: #8da0b2; }
+
+.pais-login__input input {
+  width: 100%;
+  min-height: 44px !important;
+  border: 0;
+  padding: 0 10px;
+  color: #1d2d3f;
+  background: transparent;
+  font-size: 0.78rem;
+  font-weight: 550;
+  outline: 0;
+}
+
+.pais-login__input input::placeholder { color: #9aa9b8; font-weight: 450; }
+
+.pais-login__input button {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 7px;
+  color: #71869a;
+}
+
+.pais-login__input button:hover { color: #254f74; background: #edf3f7; }
+.pais-login__input button svg { width: 15px; height: 15px; }
+
+.pais-login__submit {
+  display: flex;
+  min-height: 47px;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border-radius: 9px;
+  color: #ffffff;
+  background: #1e5d93;
+  box-shadow: 0 5px 12px rgb(30 93 147 / 0.18);
+  font-size: 0.76rem;
+  font-weight: 750;
+}
+
+.pais-login__submit:hover:not(:disabled) { background: #164d7d; transform: translateY(-1px); }
+.pais-login__submit:disabled { cursor: not-allowed; opacity: 0.5; box-shadow: none; }
+.pais-login__submit svg { width: 15px; height: 15px; }
+.pais-login__submit .is-spinning { animation: pais-login-spin 850ms linear infinite; }
+
+.pais-login__security-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #687b8d;
+}
+
+.pais-login__security-note > svg { width: 15px; height: 15px; color: #438164; }
+.pais-login__security-note strong { display: block; font-size: 0.62rem; font-weight: 700; }
+.pais-login__security-note small { display: block; margin-top: 1px; color: #8a99a7; font-size: 0.56rem; }
+
+.pais-login__form-footer {
+  margin-top: auto;
+  color: #8a99a7;
+  font-size: 0.57rem;
+  text-align: center;
+}
+
+.pais-login__form-footer span { margin: 0 5px; color: #bdc8d1; }
+
+@keyframes pais-login-spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 900px) {
+  .pais-login { overflow: auto; padding: 18px; }
+
+  .pais-login__shell {
+    grid-template-columns: 1fr;
+    width: min(100%, 660px);
+    min-height: 0;
+  }
+
+  .pais-login__brand { min-height: 270px; padding: 26px 30px 24px; }
+  .pais-login__agency-mark { width: 54px; height: 61px; }
+  .pais-login__agency-mark img { width: 36px; height: 50px; }
+  .pais-login__brand-copy { padding: 28px 0 22px; }
+  .pais-login__brand-copy h1 { max-width: 520px; margin-top: 17px; font-size: 1.75rem; }
+  .pais-login__brand-copy > p { max-width: 540px; margin-top: 10px; }
+  .pais-login__assurances { display: none; }
+  .pais-login__form { padding: 34px 42px 28px; }
+}
+
+@media (max-width: 520px) {
+  .pais-login { display: block; padding: 0; background: #ffffff; }
+
+  .pais-login__shell {
+    min-height: 100svh;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .pais-login__brand { min-height: 238px; padding: 22px 22px 20px; }
+  .pais-login__agency { gap: 11px; }
+  .pais-login__agency-mark { width: 48px; height: 54px; border-radius: 8px; }
+  .pais-login__agency-mark img { width: 31px; height: 44px; }
+  .pais-login__agency p { font-size: 0.54rem; }
+  .pais-login__agency strong { font-size: 0.9rem; }
+  .pais-login__agency > div > span { font-size: 0.52rem; }
+  .pais-login__brand-copy { padding: 23px 0 8px; }
+  .pais-login__version { padding-block: 5px; }
+  .pais-login__brand-copy h1 { margin-top: 14px; font-size: 1.42rem; }
+  .pais-login__brand-copy > p { display: none; }
+  .pais-login__brand-footer { display: none; }
+
+  .pais-login__form {
+    justify-content: flex-start;
+    gap: 17px;
+    padding: 27px 22px 24px;
+  }
+
+  .pais-login__form-heading h2 { font-size: 1.45rem; }
+  .pais-login__account-grid { gap: 7px; padding: 8px; }
+  .pais-login__account { min-height: 82px; gap: 7px; padding: 9px 8px; }
+  .pais-login__account-icon { width: 27px; height: 27px; }
+  .pais-login__account-copy small { max-width: 92px; }
+  .pais-login__form-footer { margin-top: 4px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pais-login__submit:hover:not(:disabled) { transform: none; }
+  .pais-login__submit .is-spinning { animation-duration: 1.4s !important; }
+}

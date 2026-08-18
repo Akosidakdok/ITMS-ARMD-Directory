@@ -5,6 +5,7 @@ import { Modal } from '../components/common/Modal';
 import { FormSection, PageHeader } from '../components/common/SystemUI';
 import { useAuthRole } from '../context/AuthRoleContext';
 import { Personnel, RankAbbr } from '../types/pais';
+import { hasManagementAccess } from '../utils/accessControl';
 
 const rankNames: Record<string, string> = {
   PGEN: 'Police General', PLTGEN: 'Police Lieutenant General', PMGEN: 'Police Major General',
@@ -67,7 +68,7 @@ const PersonnelFormFields: React.FC<FormFieldsProps> = ({ draft, setDraft }) => 
 
 export const ManagementPage: React.FC = () => {
   const { role, personnelList, addPersonnel, updatePersonnel, deletePersonnel, backendConnected } = useAuthRole();
-  const canManage = role === 'admin' || role === 'superadmin';
+  const canManage = hasManagementAccess(role);
   const [searchQuery, setSearchQuery] = useState('');
   const [draft, setDraft] = useState<Personnel>(createEmptyPersonnel);
   const [editorMode, setEditorMode] = useState<'create' | 'edit' | null>(null);

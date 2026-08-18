@@ -29,7 +29,7 @@ export const Layout: React.FC = () => {
   }, []);
 
   return (
-    <div className="flex min-h-screen overflow-x-hidden bg-slate-50 text-slate-900">
+    <div className="authenticated-shell flex min-h-dvh overflow-x-hidden text-slate-900">
       <Sidebar />
 
       {mobileMenuOpen && (
@@ -54,11 +54,17 @@ export const Layout: React.FC = () => {
         </div>
       )}
 
-      <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden bg-slate-50 lg:ml-60">
+      <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden lg:ml-60">
         <Header onMenuClick={openMobileMenu} />
-        <main className="w-full min-w-0 flex-1 p-3 sm:p-4 lg:p-5 xl:p-6">
-          <Outlet />
+        <main className="authenticated-main w-full min-w-0 flex-1 p-3 sm:p-4 lg:p-5 xl:p-6">
+          <div className="mx-auto w-full max-w-[1680px]">
+            <Outlet />
+          </div>
         </main>
+        <footer className="no-print flex min-h-11 items-center justify-between gap-3 border-t border-slate-200 bg-white px-4 text-[10px] text-slate-500 sm:px-6">
+          <span>PAIS 2.0 · Personnel &amp; Assignment Information System</span>
+          <span className="hidden sm:inline">PNP Information Technology Management Service</span>
+        </footer>
       </div>
     </div>
   );

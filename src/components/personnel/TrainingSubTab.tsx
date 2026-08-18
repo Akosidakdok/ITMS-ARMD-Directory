@@ -4,6 +4,7 @@ import { useAuthRole } from '../../context/AuthRoleContext';
 import { Plus, Calendar, BookOpen } from 'lucide-react';
 import { Badge } from '../common/Badge';
 import { Modal } from '../common/Modal';
+import { hasManagementAccess } from '../../utils/accessControl';
 
 interface TrainingSubTabProps {
   personnel: Personnel;
@@ -11,6 +12,7 @@ interface TrainingSubTabProps {
 
 export const TrainingSubTab: React.FC<TrainingSubTabProps> = ({ personnel }) => {
   const { role, trainingList, addTraining } = useAuthRole();
+  const canManage = hasManagementAccess(role);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const personnelTrainings = trainingList.filter(t => t.personnelId === personnel.id);
@@ -52,7 +54,7 @@ export const TrainingSubTab: React.FC<TrainingSubTabProps> = ({ personnel }) => 
           <p className="text-xs text-slate-500 mt-0.5">Career development, technical bootcamps, and cyber security courses</p>
         </div>
 
-        {role === 'admin' && (
+        {canManage && (
           <button
             onClick={() => setIsModalOpen(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-colors"

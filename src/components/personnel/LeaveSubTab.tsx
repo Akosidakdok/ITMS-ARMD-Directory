@@ -4,6 +4,7 @@ import { useAuthRole } from '../../context/AuthRoleContext';
 import { Calendar, Plus } from 'lucide-react';
 import { Badge } from '../common/Badge';
 import { Modal } from '../common/Modal';
+import { hasManagementAccess } from '../../utils/accessControl';
 
 interface LeaveSubTabProps {
   personnel: Personnel;
@@ -11,6 +12,7 @@ interface LeaveSubTabProps {
 
 export const LeaveSubTab: React.FC<LeaveSubTabProps> = ({ personnel }) => {
   const { role, leaveList, addLeave } = useAuthRole();
+  const canManage = hasManagementAccess(role);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const personnelLeaves = leaveList.filter(l => l.personnelId === personnel.id);
@@ -64,7 +66,7 @@ export const LeaveSubTab: React.FC<LeaveSubTabProps> = ({ personnel }) => {
           <p className="text-xs text-slate-500 mt-0.5">Vacation, sick, mandatory, and study leave histories</p>
         </div>
 
-        {role === 'admin' && (
+        {canManage && (
           <button
             onClick={() => setIsModalOpen(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-colors"

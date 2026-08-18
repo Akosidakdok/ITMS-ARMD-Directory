@@ -1,6 +1,20 @@
 import React, { useRef, useState } from 'react';
-import { ChevronDown, Eye, EyeOff, LockKeyhole, Shield, ShieldCheck, User } from 'lucide-react';
+import {
+  ArrowRight,
+  ChevronDown,
+  Database,
+  Eye,
+  EyeOff,
+  FileCheck2,
+  LoaderCircle,
+  LockKeyhole,
+  Shield,
+  ShieldCheck,
+  User
+} from 'lucide-react';
+import pnpLogo from '../assets/pnp-logo-transparent.png';
 import { useAuthRole } from '../context/AuthRoleContext';
+import './LoginPage.css';
 
 const developmentAccounts = [
   {
@@ -27,7 +41,7 @@ export const LoginPage: React.FC = () => {
 
   const fillDevelopmentAccount = (account: (typeof developmentAccounts)[number]) => {
     setUsername(account.email);
-    if ('password' in account) setPassword(account.password);
+    setPassword(account.password);
     setError('');
     usernameInputRef.current?.focus();
   };
@@ -46,86 +60,153 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-50 p-4 sm:p-6">
-      <section className="grid w-full max-w-4xl overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg md:grid-cols-[0.9fr_1.1fr]" aria-labelledby="login-heading">
-        <div className="flex flex-col justify-between bg-blue-800 px-6 py-7 text-white sm:px-8 sm:py-9">
-          <div>
-            <div className="mb-8 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/15 bg-white/10">
-                <ShieldCheck aria-hidden="true" className="h-5 w-5 text-blue-100" />
+    <main className="pais-login">
+      <section className="pais-login__shell" aria-labelledby="login-heading">
+        <aside className="pais-login__brand" aria-label="PAIS 2.0 system information">
+          <span className="pais-login__brand-accent" aria-hidden="true" />
+          <header className="pais-login__agency">
+            <div className="pais-login__agency-mark">
+              <img src={pnpLogo} alt="Philippine National Police official logo" />
+            </div>
+            <div>
+              <p>Philippine National Police</p>
+              <strong>PNP–ITMS</strong>
+              <span>Information Technology Management Service</span>
+            </div>
+          </header>
+
+          <div className="pais-login__brand-copy">
+            <div className="pais-login__version">
+              <span aria-hidden="true" />
+              Secure internal portal
+              <b>PAIS 2.0</b>
+            </div>
+            <h1 id="login-heading">Personnel &amp; Assignment Information System</h1>
+            <p>One secure workspace for official personnel profiles, assignments, service records, training, and administrative reporting.</p>
+
+            <div className="pais-login__assurances">
+              <div>
+                <span className="pais-login__assurance-icon"><Database aria-hidden="true" /></span>
+                <span><strong>Unified personnel records</strong><small>Accurate, centralized administrative information</small></span>
               </div>
               <div>
-                <p className="text-sm font-bold tracking-wide">PNP–ITMS</p>
-                <p className="text-[10px] uppercase tracking-[0.12em] text-blue-200">Official information system</p>
+                <span className="pais-login__assurance-icon"><FileCheck2 aria-hidden="true" /></span>
+                <span><strong>Controlled system access</strong><small>Role-based permissions and protected sessions</small></span>
               </div>
             </div>
-            <h1 id="login-heading" className="max-w-sm text-2xl font-bold leading-tight tracking-[-0.025em]">Personnel & Assignment Information System</h1>
-            <p className="mt-3 max-w-sm text-sm leading-6 text-blue-100/85">Secure access to official personnel records, assignments, orders, training, and administrative reports.</p>
           </div>
-          <div className="mt-8 border-t border-white/10 pt-4 text-[11px] leading-5 text-blue-200/75">
-            Philippine National Police<br />Information Technology Management Service
-          </div>
-        </div>
 
-        <form className="space-y-5 p-6 sm:p-8 md:p-10" onSubmit={handleSubmit} noValidate>
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-blue-700">Authorized access</p>
-            <h2 className="mt-1 text-xl font-bold tracking-tight text-slate-900">Sign in to your account</h2>
-            <p className="mt-1 text-xs leading-5 text-slate-500">Use your assigned Supabase administrative or view-only credentials.</p>
+          <footer className="pais-login__brand-footer">
+            <span><i aria-hidden="true" /> Restricted government information system</span>
+            <small>Authorized PNP personnel only</small>
+          </footer>
+        </aside>
+
+        <form className="pais-login__form" onSubmit={handleSubmit} noValidate>
+          <div className="pais-login__form-heading">
+            <p>Authorized access</p>
+            <h2>Welcome back</h2>
+            <span>Enter your assigned credentials to continue to PAIS 2.0.</span>
           </div>
-          {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800">{error}</div>}
-          <div className="overflow-hidden rounded-lg border border-blue-200 bg-blue-50/70">
-            <button type="button" onClick={() => setDemoOpen(open => !open)} aria-expanded={demoOpen} className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-blue-100/60">
-              <span className="flex items-center gap-2">
-                <LockKeyhole aria-hidden="true" className="h-4 w-4 text-blue-700" />
-                <strong className="text-xs text-blue-900">Development access account</strong>
+
+          {error && (
+            <div role="alert" className="pais-login__error">
+              <Shield aria-hidden="true" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          <div className="pais-login__development">
+            <button type="button" onClick={() => setDemoOpen(open => !open)} aria-expanded={demoOpen} className="pais-login__development-toggle">
+              <span>
+                <LockKeyhole aria-hidden="true" />
+                <span><strong>Development access</strong><small>Choose a prepared test account</small></span>
               </span>
-              <ChevronDown aria-hidden="true" className={`h-4 w-4 text-blue-500 transition-transform ${demoOpen ? 'rotate-180' : ''}`} />
+              <ChevronDown aria-hidden="true" className={demoOpen ? 'is-open' : ''} />
             </button>
+
             {demoOpen && (
-              <div className="space-y-2 border-t border-blue-200 p-2.5">
+              <div className="pais-login__account-grid">
                 {developmentAccounts.map(account => {
                   const isSuperadmin = account.role === 'Superadmin';
+                  const isSelected = username === account.email;
                   return (
-                    <div key={account.email} className="flex items-center gap-3 rounded-lg border border-blue-200 bg-white p-3">
-                      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${isSuperadmin ? 'bg-blue-700 text-white' : 'bg-blue-100 text-blue-700'}`}>
-                        {isSuperadmin ? <ShieldCheck aria-hidden="true" className="h-4 w-4" /> : <Shield aria-hidden="true" className="h-4 w-4" />}
+                    <button
+                      key={account.email}
+                      type="button"
+                      onClick={() => fillDevelopmentAccount(account)}
+                      aria-label={`Use ${account.role} development account`}
+                      aria-pressed={isSelected}
+                      className={`pais-login__account${isSelected ? ' is-selected' : ''}`}
+                    >
+                      <span className={`pais-login__account-icon${isSuperadmin ? ' is-superadmin' : ''}`}>
+                        {isSuperadmin ? <ShieldCheck aria-hidden="true" /> : <Shield aria-hidden="true" />}
                       </span>
-                      <span className="min-w-0 flex-1">
-                        <strong className={`inline-flex rounded-md border px-2 py-0.5 text-[10px] font-semibold leading-none ${isSuperadmin ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-slate-200 bg-slate-100 text-slate-700'}`}>{account.role}</strong>
-                        <span className="mt-1 block truncate text-xs text-slate-500">{account.email}</span>
+                      <span className="pais-login__account-copy">
+                        <strong>{account.role}</strong>
+                        <small>{account.email}</small>
+                        <span>Use account <ArrowRight aria-hidden="true" /></span>
                       </span>
-                      <button type="button" onClick={() => fillDevelopmentAccount(account)} aria-label={`Use ${account.role} development account`} className="rounded-md border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100">
-                        {'password' in account ? 'Use account' : 'Use email'}
-                      </button>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
             )}
           </div>
 
-          <div>
-            <label htmlFor="login-username" className="mb-1.5 block text-sm font-bold text-slate-700">Email address</label>
-            <div className="flex items-center rounded-lg border border-slate-300 bg-white px-3 focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-100">
-              <User aria-hidden="true" className="pointer-events-none h-4 w-4 shrink-0 text-slate-400" />
-              <input ref={usernameInputRef} id="login-username" name="email" type="email" autoComplete="username" autoFocus required disabled={submitting} value={username} onChange={event => setUsername(event.target.value)} placeholder="Enter Supabase account email" className="relative z-10 w-full bg-transparent px-3 py-3 text-sm text-slate-900 outline-none disabled:cursor-wait" />
+          <div className="pais-login__fields">
+            <div className="pais-login__field">
+              <label htmlFor="login-username">Email address</label>
+              <div className="pais-login__input">
+                <User aria-hidden="true" />
+                <input
+                  ref={usernameInputRef}
+                  id="login-username"
+                  name="email"
+                  type="email"
+                  autoComplete="username"
+                  autoFocus
+                  required
+                  disabled={submitting}
+                  value={username}
+                  onChange={event => setUsername(event.target.value)}
+                  placeholder="name@pnp.gov.ph"
+                />
+              </div>
+            </div>
+
+            <div className="pais-login__field">
+              <label htmlFor="login-password">Password</label>
+              <div className="pais-login__input">
+                <LockKeyhole aria-hidden="true" />
+                <input
+                  id="login-password"
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  required
+                  disabled={submitting}
+                  value={password}
+                  onChange={event => setPassword(event.target.value)}
+                  placeholder="Enter your password"
+                />
+                <button type="button" onClick={() => setShowPassword(value => !value)} aria-label={showPassword ? 'Hide password' : 'Show password'}>
+                  {showPassword ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
+                </button>
+              </div>
             </div>
           </div>
-          <div>
-            <label htmlFor="login-password" className="mb-1.5 block text-sm font-bold text-slate-700">Password</label>
-            <div className="flex items-center rounded-lg border border-slate-300 bg-white px-3 focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-100">
-              <ShieldCheck aria-hidden="true" className="pointer-events-none h-4 w-4 shrink-0 text-slate-400" />
-              <input id="login-password" name="password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" required disabled={submitting} value={password} onChange={event => setPassword(event.target.value)} placeholder="Enter password" className="relative z-10 w-full bg-transparent px-3 py-3 text-sm text-slate-900 outline-none disabled:cursor-wait" />
-              <button type="button" onClick={() => setShowPassword(value => !value)} aria-label={showPassword ? 'Hide password' : 'Show password'} className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100">
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
-          </div>
-          <button type="submit" disabled={submitting || !username.trim() || !password} className="w-full rounded-lg bg-blue-700 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60">
-            {submitting ? 'Signing in…' : 'Sign In'}
+
+          <button type="submit" disabled={submitting || !username.trim() || !password} className="pais-login__submit">
+            {submitting ? <><LoaderCircle aria-hidden="true" className="is-spinning" /> Signing in…</> : <>Sign in securely <ArrowRight aria-hidden="true" /></>}
           </button>
-          <p className="text-center text-[11px] text-slate-500">Restricted system • Authorized PNP personnel only</p>
+
+          <div className="pais-login__security-note">
+            <ShieldCheck aria-hidden="true" />
+            <span><strong>Protected authentication</strong><small>Your session is encrypted and access-controlled.</small></span>
+          </div>
+
+          <p className="pais-login__form-footer">PAIS 2.0 <span aria-hidden="true">•</span> PNP Information Technology Management Service</p>
         </form>
       </section>
     </main>

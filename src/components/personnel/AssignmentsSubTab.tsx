@@ -4,6 +4,7 @@ import { useAuthRole } from '../../context/AuthRoleContext';
 import { Briefcase, Plus, Calendar, FileText } from 'lucide-react';
 import { Badge } from '../common/Badge';
 import { Modal } from '../common/Modal';
+import { hasManagementAccess } from '../../utils/accessControl';
 
 interface AssignmentsSubTabProps {
   personnel: Personnel;
@@ -11,6 +12,7 @@ interface AssignmentsSubTabProps {
 
 export const AssignmentsSubTab: React.FC<AssignmentsSubTabProps> = ({ personnel }) => {
   const { role, assignmentsList, addAssignment } = useAuthRole();
+  const canManage = hasManagementAccess(role);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const personnelAssignments = assignmentsList.filter(a => a.personnelId === personnel.id);
@@ -51,7 +53,7 @@ export const AssignmentsSubTab: React.FC<AssignmentsSubTabProps> = ({ personnel 
           <p className="text-xs text-slate-500 mt-0.5">Chronological record of positions and unit designations</p>
         </div>
 
-        {role === 'admin' && (
+        {canManage && (
           <button
             onClick={() => setIsModalOpen(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-colors"

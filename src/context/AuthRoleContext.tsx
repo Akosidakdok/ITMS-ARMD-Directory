@@ -66,6 +66,7 @@ import type { PersonnelImportRow } from '../utils/personnelCsv';
 
 interface AuthRoleContextType {
   authReady: boolean;
+  initialDataReady: boolean;
   authUser: AuthenticatedUser | null;
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
@@ -131,6 +132,7 @@ const AuthRoleContext = createContext<AuthRoleContextType | undefined>(undefined
 export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [role, setRole] = useState<UserRole>('admin');
   const [authReady, setAuthReady] = useState(false);
+  const [initialDataReady, setInitialDataReady] = useState(false);
   const [authUser, setAuthUser] = useState<AuthenticatedUser | null>(null);
   const [globalSearchQuery, setGlobalSearchQuery] = useState('');
   const [selectedPersonnelId, setSelectedPersonnelId] = useState('pnp-001');
@@ -193,22 +195,36 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     verifySessionApi()
       .then(user => {
         setAuthUser(user);
-        if (user) setRole(user.role);
+        if (user) {
+          setRole(user.role);
+          setInitialDataReady(false);
+        } else {
+          setInitialDataReady(true);
+        }
       })
+      .catch(() => setInitialDataReady(true))
       .finally(() => setAuthReady(true));
   }, []);
 
   useEffect(() => {
     if (!authUser) return;
-    loadDataFromBackend();
+    let cancelled = false;
+    setInitialDataReady(false);
+    loadDataFromBackend().finally(() => {
+      if (!cancelled) setInitialDataReady(true);
+    });
     const refreshInterval = window.setInterval(() => {
       loadDataFromBackend();
     }, 10000);
-    return () => window.clearInterval(refreshInterval);
+    return () => {
+      cancelled = true;
+      window.clearInterval(refreshInterval);
+    };
   }, [authUser]);
 
   const login = async (username: string, password: string) => {
     const user = await loginApi(username, password);
+    setInitialDataReady(false);
     setAuthUser(user);
     setRole(user.role);
   };
@@ -216,6 +232,7 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const logout = () => {
     clearAuthSession();
     setAuthUser(null);
+    setInitialDataReady(true);
     setPersonnelList([]);
     setAssignmentsList([]);
     setEducationList([]);
@@ -513,6 +530,7 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     <AuthRoleContext.Provider
       value={{
         authReady,
+        initialDataReady,
         authUser,
         login,
         logout,

@@ -5,9 +5,11 @@ import { Badge } from '../components/common/Badge';
 import { Modal } from '../components/common/Modal';
 import { Button, PageHeader } from '../components/common/SystemUI';
 import type { AssignmentRecord } from '../types/pais';
+import { hasManagementAccess } from '../utils/accessControl';
 
 export const AssignmentPage: React.FC = () => {
   const { role, personnelList, assignmentsList, addAssignment, updateAssignment, deleteAssignment } = useAuthRole();
+  const canManage = hasManagementAccess(role);
   const [selectedDivision, setSelectedDivision] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -126,7 +128,7 @@ export const AssignmentPage: React.FC = () => {
         title="Duty Postings & Assignments"
         description="Manage unit assignments, position designations, duty periods, and regional details."
         meta={<span className="text-[11px] text-slate-500">PNP–ITMS personnel postings</span>}
-        actions={role === 'admin' ? <Button variant="primary" icon={Plus} onClick={openCreateModal}>Add assignment</Button> : undefined}
+        actions={canManage ? <Button variant="primary" icon={Plus} onClick={openCreateModal}>Add assignment</Button> : undefined}
       />
 
       {/* Filter Bar */}
@@ -206,7 +208,7 @@ export const AssignmentPage: React.FC = () => {
                         >
                           <Eye className="h-3.5 w-3.5" /> View
                         </button>
-                        {role === 'admin' && (
+                        {canManage && (
                           <button
                             type="button"
                             onClick={() => openEditModal(asg)}
@@ -445,7 +447,7 @@ export const AssignmentPage: React.FC = () => {
                 <p className="mt-1 font-bold text-slate-900">{value}</p>
               </div>
             ))}
-            {role === 'admin' && (
+            {canManage && (
               <div className="flex justify-end gap-2 border-t border-slate-200 pt-3">
                 <button
                   type="button"

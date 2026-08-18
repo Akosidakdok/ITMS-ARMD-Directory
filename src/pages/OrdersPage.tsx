@@ -22,6 +22,7 @@ import { OrderTypeSelectorModal } from '../components/orders/OrderTypeSelectorMo
 import { NotificationToast } from '../components/common/NotificationToast';
 import { SearchableSelect } from '../components/common/SearchableSelect';
 import { useAuthRole } from '../context/AuthRoleContext';
+import { hasManagementAccess } from '../utils/accessControl';
 import type { AwardRecord, LeaveRecord, OrderRecord } from '../types/pais';
 
 type DashboardRecord =
@@ -90,7 +91,7 @@ export const OrdersPage = () => {
     deleteCalendarLeave,
   } = useAuthRole();
 
-  const canEdit = role === 'admin';
+  const canEdit = hasManagementAccess(role);
   const [activeView, setActiveView] = useState<'list' | 'calendar' | 'templates'>('list');
   const [selectorOpen, setSelectorOpen] = useState(false);
   const [awardFormOpen, setAwardFormOpen] = useState(false);
@@ -354,7 +355,7 @@ export const OrdersPage = () => {
 
   return (
     <div className="mx-auto w-full max-w-[1600px] space-y-4 sm:space-y-6">
-      <div className="app-surface flex flex-col gap-4 p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between">
+      <div className="app-page-header app-surface flex flex-col gap-4 p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <div className="mb-1 flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.06em] text-slate-500">
             <span>Records Management</span><ChevronRight size={14} /><span className="font-medium text-slate-800">All Orders</span>

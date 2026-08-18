@@ -11,6 +11,7 @@ import type { EducationRecord, TrainingRecord } from '../types/pais';
 import { parseEducationCsv, generateEducationCsvTemplate } from '../utils/educationCsv';
 import { parseTrainingCsv, generateTrainingCsvTemplate } from '../utils/trainingCsv';
 import type { BulkUpsertResult } from '../services/api';
+import { hasManagementAccess } from '../utils/accessControl';
 import {
   exportEducationCsv, exportTrainingCsv, exportCombinedCsv,
   exportEducationPdf, exportTrainingPdf, exportCombinedPdf,
@@ -668,7 +669,7 @@ export const EducationPage: React.FC = () => {
     backendConnected,
   } = useAuthRole();
 
-  const isAdmin = role === 'admin';
+  const isAdmin = hasManagementAccess(role);
 
   // ── Controls ──
   const [search, setSearch] = useState('');
@@ -818,7 +819,7 @@ export const EducationPage: React.FC = () => {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* ── Header Banner ── */}
-      <div className="p-4 sm:p-6 rounded-2xl bg-white border border-slate-200 shadow-2xs">
+      <div className="app-page-header app-surface p-4 sm:p-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">

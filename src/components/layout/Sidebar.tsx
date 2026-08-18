@@ -10,11 +10,12 @@ import {
   LayoutDashboard,
   LogOut,
   Settings,
-  ShieldCheck,
   UserCog,
   Users
 } from 'lucide-react';
 import { useAuthRole } from '../../context/AuthRoleContext';
+import pnpLogo from '../../assets/pnp-logo-transparent.png';
+import { getRoleDescription, getRoleLabel } from '../../utils/accessControl';
 
 interface NavigationItem {
   label: string;
@@ -69,7 +70,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobile = false, onNavigate }) 
     .join('')
     .slice(0, 2)
     .toUpperCase() || 'U';
-  const roleLabel = role === 'superadmin' ? 'Superadmin' : role === 'admin' ? 'Administrator' : 'View-only user';
+  const roleLabel = getRoleLabel(role);
+  const roleDescription = getRoleDescription(role);
 
   return (
     <aside
@@ -78,13 +80,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobile = false, onNavigate }) 
         ? 'flex h-full w-[min(17rem,86vw)] flex-col border-r border-white/10 bg-blue-800 text-white'
         : 'fixed inset-y-0 left-0 z-30 hidden h-dvh w-60 flex-col border-r border-blue-900 bg-blue-800 text-white lg:flex'}
     >
-      <div className="flex h-16 items-center gap-3 border-b border-white/10 px-4">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/15 bg-white/10">
-          <ShieldCheck aria-hidden="true" className="h-5 w-5 text-blue-100" />
+      <div className="flex h-[4.5rem] items-center gap-3 border-b border-white/10 px-4">
+        <div className="flex h-11 w-10 shrink-0 items-center justify-center rounded-lg border border-white/15 bg-white/8">
+          <img src={pnpLogo} alt="" aria-hidden="true" className="h-9 w-7 object-contain" />
         </div>
         <div>
-          <p className="text-sm font-bold tracking-[0.02em] text-white">PNP–ITMS</p>
-          <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-blue-200">Personnel Information</p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.11em] text-blue-200">PNP–ITMS</p>
+          <p className="text-sm font-bold tracking-[0.01em] text-white">PAIS 2.0</p>
+          <p className="text-[9px] font-medium text-blue-200/70">Personnel administration</p>
         </div>
       </div>
 
@@ -109,7 +112,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobile = false, onNavigate }) 
                         onClick={onNavigate}
                         className={({ isActive }) => `group relative flex min-h-9 items-center gap-3 rounded-lg px-3 py-2 text-xs transition-colors ${
                           isActive
-                            ? 'bg-white/12 font-semibold text-white before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:bg-blue-300'
+                            ? 'bg-white/12 font-semibold text-white shadow-sm before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:bg-amber-300'
                             : 'font-medium text-blue-100/75 hover:bg-white/6 hover:text-white'
                         }`}
                       >
@@ -130,11 +133,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobile = false, onNavigate }) 
       </nav>
 
       <div className="border-t border-white/10 p-3">
-        <div className="mb-2 flex items-center gap-2.5 px-2 py-1.5">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-[10px] font-bold text-white">{initials}</span>
+        <div className="mb-2 flex items-center gap-2.5 rounded-lg border border-white/8 bg-white/5 px-2.5 py-2.5">
+          <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[10px] font-bold text-white ${role === 'superadmin' ? 'bg-blue-950 ring-1 ring-amber-300/70' : 'bg-blue-600'}`}>{initials}</span>
           <span className="min-w-0 flex-1">
             <span className="block truncate text-xs font-semibold text-white">{authUser?.displayName || authUser?.username}</span>
-            <span className="block truncate text-[10px] text-blue-200/70">{roleLabel}</span>
+            <span className="mt-0.5 block truncate text-[10px] font-semibold text-blue-100">{roleLabel}</span>
+            <span className="block truncate text-[9px] text-blue-200/55">{roleDescription}</span>
           </span>
         </div>
         <button

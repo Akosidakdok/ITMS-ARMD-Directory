@@ -13,6 +13,7 @@ import {
   Save
 } from 'lucide-react';
 import { Badge } from '../common/Badge';
+import { hasManagementAccess } from '../../utils/accessControl';
 
 interface PersonnelInfoTabProps {
   personnel: Personnel;
@@ -20,6 +21,7 @@ interface PersonnelInfoTabProps {
 
 export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({ personnel }) => {
   const { role, updatePersonnel } = useAuthRole();
+  const canManage = hasManagementAccess(role);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<Personnel>(personnel);
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -49,7 +51,7 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({ personnel })
           </span>
         )}
 
-        {role === 'admin' ? (
+        {canManage ? (
           <button
             onClick={() => setIsEditing(!isEditing)}
             className={`px-4 py-2 text-xs font-bold rounded-lg transition-colors flex items-center gap-2 ${

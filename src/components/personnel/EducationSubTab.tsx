@@ -4,6 +4,7 @@ import { useAuthRole } from '../../context/AuthRoleContext';
 import { GraduationCap, Plus } from 'lucide-react';
 import { Badge } from '../common/Badge';
 import { Modal } from '../common/Modal';
+import { hasManagementAccess } from '../../utils/accessControl';
 
 interface EducationSubTabProps {
   personnel: Personnel;
@@ -11,6 +12,7 @@ interface EducationSubTabProps {
 
 export const EducationSubTab: React.FC<EducationSubTabProps> = ({ personnel }) => {
   const { role, educationList, addEducation } = useAuthRole();
+  const canManage = hasManagementAccess(role);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const personnelEducation = educationList.filter(e => e.personnelId === personnel.id);
@@ -49,7 +51,7 @@ export const EducationSubTab: React.FC<EducationSubTabProps> = ({ personnel }) =
           <p className="text-xs text-slate-500 mt-0.5">Degrees, academic honors, and professional IT credentials</p>
         </div>
 
-        {role === 'admin' && (
+        {canManage && (
           <button
             onClick={() => setIsModalOpen(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-colors"

@@ -11,6 +11,7 @@ import {
   Edit
 } from 'lucide-react';
 import { useAuthRole } from '../../context/AuthRoleContext';
+import { hasManagementAccess } from '../../utils/accessControl';
 
 interface PersonnelSummaryCardProps {
   personnel: Personnel;
@@ -19,6 +20,7 @@ interface PersonnelSummaryCardProps {
 
 export const PersonnelSummaryCard: React.FC<PersonnelSummaryCardProps> = ({ personnel, onEdit }) => {
   const { role, assignmentsList, ordersList, leaveList, awardsList } = useAuthRole();
+  const canManage = hasManagementAccess(role);
   const personnelAssignments = assignmentsList.filter(record => record.personnelId === personnel.id);
   const personnelOrders = ordersList.filter(record =>
     record.personnelIds?.includes(personnel.id) ||
@@ -44,7 +46,7 @@ export const PersonnelSummaryCard: React.FC<PersonnelSummaryCardProps> = ({ pers
           {personnel.status}
         </Badge>
 
-        {role === 'admin' && onEdit && (
+        {canManage && onEdit && (
           <button
             onClick={onEdit}
             className="w-full mt-2 flex items-center justify-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-blue-50 text-xs font-semibold text-blue-700 border border-slate-200 transition-colors"

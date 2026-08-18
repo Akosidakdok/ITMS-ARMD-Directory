@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ChevronDown, ChevronRight, Database, LogOut, Menu, UserRound } from 'lucide-react';
+import { ChevronDown, ChevronRight, Database, LogOut, Menu, ShieldCheck, UserRound } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { useAuthRole } from '../../context/AuthRoleContext';
+import { getRoleDescription, getRoleLabel } from '../../utils/accessControl';
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -27,7 +28,8 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   const pageTitle = pageTitles[pathname] || 'Personnel Administration';
   const supabaseConnected = Boolean(backendHealth?.database?.supabase?.isConnected);
   const checkingBackend = backendHealth === null;
-  const roleLabel = role === 'superadmin' ? 'Superadmin' : role === 'admin' ? 'Administrator' : 'View only';
+  const roleLabel = getRoleLabel(role);
+  const roleDescription = getRoleDescription(role);
   const initials = authUser?.displayName
     .split(/\s+/)
     .map(part => part[0])
@@ -53,7 +55,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   }, []);
 
   return (
-    <header role="banner" className="no-print sticky top-0 z-40 flex h-16 items-center border-b border-slate-200 bg-white px-3 sm:px-5">
+    <header role="banner" className="no-print sticky top-0 z-40 flex h-[4.5rem] items-center border-b border-slate-200 bg-white/95 px-3 shadow-2xs backdrop-blur sm:px-5">
       <button
         type="button"
         onClick={onMenuClick}
@@ -72,7 +74,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
 
       <div className="ml-auto flex items-center gap-2 sm:gap-3">
         <div
-          className="hidden items-center gap-2 border-r border-slate-200 pr-3 text-[11px] font-medium text-slate-600 md:flex"
+          className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-[10px] font-semibold text-slate-600 md:flex"
           title={systemLabel}
           role="status"
         >
@@ -89,19 +91,20 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
             aria-expanded={menuOpen}
             className="flex min-h-10 items-center gap-2 rounded-lg px-1.5 py-1 text-left hover:bg-slate-50 sm:px-2"
           >
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-700 text-[10px] font-bold text-white">{initials}</span>
+            <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[10px] font-bold text-white ${role === 'superadmin' ? 'bg-blue-900 ring-2 ring-amber-300/65' : 'bg-blue-700'}`}>{initials}</span>
             <span className="hidden min-w-0 sm:block">
               <span className="block max-w-36 truncate text-xs font-semibold text-slate-800">{authUser?.displayName || authUser?.username}</span>
-              <span className="block text-[10px] text-slate-500">{roleLabel}</span>
+              <span className="block text-[10px] font-medium text-slate-500">{roleLabel}</span>
             </span>
             <ChevronDown aria-hidden="true" className={`hidden h-3.5 w-3.5 text-slate-400 transition-transform sm:block ${menuOpen ? 'rotate-180' : ''}`} />
           </button>
 
           {menuOpen && (
             <div role="menu" className="absolute right-0 mt-1 w-56 rounded-lg border border-slate-200 bg-white p-1.5 shadow-lg">
-              <div className="border-b border-slate-100 px-2.5 py-2">
+              <div className="border-b border-slate-100 px-2.5 py-2.5">
                 <p className="truncate text-xs font-semibold text-slate-900">{authUser?.displayName || authUser?.username}</p>
-                <p className="mt-0.5 text-[11px] text-slate-500">{roleLabel} access</p>
+                <span className="mt-1.5 inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-[10px] font-semibold text-blue-700"><ShieldCheck aria-hidden="true" className="h-3 w-3" /> {roleLabel}</span>
+                <p className="mt-1.5 text-[10px] leading-4 text-slate-500">{roleDescription}</p>
               </div>
               <div className="flex items-center gap-2 px-2.5 py-2 text-xs text-slate-600">
                 <UserRound aria-hidden="true" className="h-4 w-4 text-slate-400" /> Authorized account

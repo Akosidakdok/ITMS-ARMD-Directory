@@ -10,7 +10,7 @@ interface PageHeaderProps {
 }
 
 export const PageHeader: React.FC<PageHeaderProps> = ({ eyebrow, title, description, meta, actions }) => (
-  <section className="app-surface flex flex-col gap-4 px-4 py-4 sm:px-5 md:flex-row md:items-center md:justify-between" aria-labelledby="page-heading">
+  <section className="app-page-header app-surface flex flex-col gap-4 px-4 py-4 sm:px-5 md:flex-row md:items-center md:justify-between" aria-labelledby="page-heading">
     <div>
       <div className="mb-1 flex flex-wrap items-center gap-2">
         {eyebrow && <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-blue-700">{eyebrow}</span>}

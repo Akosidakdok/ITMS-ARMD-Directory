@@ -5,6 +5,7 @@ import { BulkImportModal } from '../components/personnel/BulkImportModal';
 import { PersonnelSummaryCard } from '../components/personnel/PersonnelSummaryCard';
 import { PageHeader } from '../components/common/SystemUI';
 import { exportPersonnelCsv, exportPersonnelPdf } from '../utils/personnelExport';
+import { hasManagementAccess } from '../utils/accessControl';
 import { 
   Users, 
   Search, 
@@ -137,6 +138,7 @@ const PersonnelExportModal: React.FC<{
 
 export const PersonnelPage: React.FC = () => {
   const { 
+    role,
     personnelList, 
     addPersonnel, 
     bulkImportPersonnel,
@@ -147,6 +149,7 @@ export const PersonnelPage: React.FC = () => {
     setGlobalSearchQuery,
     backendConnected
   } = useAuthRole();
+  const canManage = hasManagementAccess(role);
 
   // Search Inputs State (Real-Time Reactive & Filterable)
   const [searchAccountNo, setSearchAccountNo] = useState('');
@@ -530,23 +533,27 @@ export const PersonnelPage: React.FC = () => {
                 <span>RESET</span>
               </button>
 
-              <button
-                onClick={() => setIsImportModalOpen(true)}
-                className="px-2.5 py-1.5 border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-lg flex items-center gap-1 transition-colors"
-                title="Import Bulk CSV/Excel Data"
-              >
-                <Upload className="w-3.5 h-3.5" />
-                <span>IMPORT MASSIVE DATA</span>
-              </button>
+              {canManage && (
+                <>
+                  <button
+                    onClick={() => setIsImportModalOpen(true)}
+                    className="px-2.5 py-1.5 border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-lg flex items-center gap-1 transition-colors"
+                    title="Import Bulk CSV/Excel Data"
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>IMPORT MASSIVE DATA</span>
+                  </button>
 
-              <button
-                onClick={() => setAddModalOpen(true)}
-                className="px-2.5 py-1.5 bg-blue-700 hover:bg-blue-800 text-white font-semibold text-xs rounded-lg flex items-center gap-1 transition-colors"
-                title="Add New Personnel Record"
-              >
-                <UserPlus className="w-3.5 h-3.5" />
-                <span>ADD PERSONNEL</span>
-              </button>
+                  <button
+                    onClick={() => setAddModalOpen(true)}
+                    className="px-2.5 py-1.5 bg-blue-700 hover:bg-blue-800 text-white font-semibold text-xs rounded-lg flex items-center gap-1 transition-colors"
+                    title="Add New Personnel Record"
+                  >
+                    <UserPlus className="w-3.5 h-3.5" />
+                    <span>ADD PERSONNEL</span>
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -715,24 +722,28 @@ export const PersonnelPage: React.FC = () => {
                               <Eye className="w-3.5 h-3.5 text-cyan-600" />
                               <span>View 201 Profile</span>
                             </button>
-                            <button
-                              onClick={() => handleInspectRow(person.id)}
-                              className="w-full px-3 py-1.5 text-2xs font-bold text-slate-700 hover:bg-amber-50 hover:text-amber-700 flex items-center gap-2"
-                            >
-                              <Edit3 className="w-3.5 h-3.5 text-amber-600" />
-                              <span>Edit Details</span>
-                            </button>
-                            <div className="my-1 border-t border-slate-100"></div>
-                            <button
-                              onClick={() => {
-                                deletePersonnel(person.id);
-                                setActiveActionMenuId(null);
-                              }}
-                              className="w-full px-3 py-1.5 text-2xs font-bold text-rose-600 hover:bg-rose-50 flex items-center gap-2"
-                            >
-                              <Trash2 className="w-3.5 h-3.5 text-rose-600" />
-                              <span>Delete Record</span>
-                            </button>
+                            {canManage && (
+                              <>
+                                <button
+                                  onClick={() => handleInspectRow(person.id)}
+                                  className="w-full px-3 py-1.5 text-2xs font-bold text-slate-700 hover:bg-amber-50 hover:text-amber-700 flex items-center gap-2"
+                                >
+                                  <Edit3 className="w-3.5 h-3.5 text-amber-600" />
+                                  <span>Edit Details</span>
+                                </button>
+                                <div className="my-1 border-t border-slate-100"></div>
+                                <button
+                                  onClick={() => {
+                                    deletePersonnel(person.id);
+                                    setActiveActionMenuId(null);
+                                  }}
+                                  className="w-full px-3 py-1.5 text-2xs font-bold text-rose-600 hover:bg-rose-50 flex items-center gap-2"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                                  <span>Delete Record</span>
+                                </button>
+                              </>
+                            )}
                           </div>
                         )}
                       </div>
@@ -875,7 +886,7 @@ export const PersonnelPage: React.FC = () => {
       )}
 
       {/* ADD NEW PERSONNEL MODAL */}
-      {addModalOpen && (
+      {addModalOpen && canManage && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-900/60 backdrop-blur-xs p-2 sm:p-4 overflow-y-auto">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-3xl overflow-hidden animate-scale-in my-2 sm:my-6">
             {/* Header */}
