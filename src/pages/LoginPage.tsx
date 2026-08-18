@@ -2,6 +2,19 @@ import React, { useRef, useState } from 'react';
 import { ChevronDown, Eye, EyeOff, LockKeyhole, Shield, ShieldCheck, User } from 'lucide-react';
 import { useAuthRole } from '../context/AuthRoleContext';
 
+const developmentAccounts = [
+  {
+    email: 'cjbaldonado11@gmail.com',
+    password: 'PAIS-Admin-2026!',
+    role: 'Superadmin'
+  },
+  {
+    email: 'admin@gmail.com',
+    password: '12345678',
+    role: 'Admin'
+  }
+] as const;
+
 export const LoginPage: React.FC = () => {
   const { login } = useAuthRole();
   const [username, setUsername] = useState('');
@@ -12,8 +25,9 @@ export const LoginPage: React.FC = () => {
   const [demoOpen, setDemoOpen] = useState(true);
   const usernameInputRef = useRef<HTMLInputElement>(null);
 
-  const fillAdministratorAccount = () => {
-    setUsername('cjbaldonado11@gmail.com');
+  const fillDevelopmentAccount = (account: (typeof developmentAccounts)[number]) => {
+    setUsername(account.email);
+    if ('password' in account) setPassword(account.password);
     setError('');
     usernameInputRef.current?.focus();
   };
@@ -69,15 +83,24 @@ export const LoginPage: React.FC = () => {
               <ChevronDown aria-hidden="true" className={`h-4 w-4 text-blue-500 transition-transform ${demoOpen ? 'rotate-180' : ''}`} />
             </button>
             {demoOpen && (
-              <div className="border-t border-blue-200 p-2.5">
-                <div className="flex items-center gap-3 rounded-lg border border-blue-200 bg-white p-3">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-700"><Shield aria-hidden="true" className="h-4 w-4" /></span>
-                  <span className="min-w-0 flex-1">
-                    <strong className="block text-sm text-blue-900">Administrator</strong>
-                    <span className="block truncate text-xs text-slate-500">cjbaldonado11@gmail.com</span>
-                  </span>
-                  <button type="button" onClick={fillAdministratorAccount} className="rounded-md border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100">Use email</button>
-                </div>
+              <div className="space-y-2 border-t border-blue-200 p-2.5">
+                {developmentAccounts.map(account => {
+                  const isSuperadmin = account.role === 'Superadmin';
+                  return (
+                    <div key={account.email} className="flex items-center gap-3 rounded-lg border border-blue-200 bg-white p-3">
+                      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${isSuperadmin ? 'bg-blue-700 text-white' : 'bg-blue-100 text-blue-700'}`}>
+                        {isSuperadmin ? <ShieldCheck aria-hidden="true" className="h-4 w-4" /> : <Shield aria-hidden="true" className="h-4 w-4" />}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <strong className={`inline-flex rounded-md border px-2 py-0.5 text-[10px] font-semibold leading-none ${isSuperadmin ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-slate-200 bg-slate-100 text-slate-700'}`}>{account.role}</strong>
+                        <span className="mt-1 block truncate text-xs text-slate-500">{account.email}</span>
+                      </span>
+                      <button type="button" onClick={() => fillDevelopmentAccount(account)} aria-label={`Use ${account.role} development account`} className="rounded-md border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100">
+                        {'password' in account ? 'Use account' : 'Use email'}
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
