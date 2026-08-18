@@ -4,9 +4,20 @@ import { X } from 'lucide-react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 
+const SIDEBAR_COLLAPSED_STORAGE_KEY = 'pais-sidebar-collapsed';
+
+const getInitialSidebarCollapsed = () => {
+  try {
+    return window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === 'true';
+  } catch {
+    return false;
+  }
+};
+
 export const Layout: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileMenuClosing, setMobileMenuClosing] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(getInitialSidebarCollapsed);
   const closeTimerRef = useRef<number | null>(null);
 
   const openMobileMenu = () => {
@@ -28,9 +39,17 @@ export const Layout: React.FC = () => {
     if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
   }, []);
 
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, String(sidebarCollapsed));
+    } catch {
+      // The layout remains usable when browser storage is unavailable.
+    }
+  }, [sidebarCollapsed]);
+
   return (
     <div className="authenticated-shell flex min-h-dvh overflow-x-hidden text-slate-900">
-      <Sidebar />
+      <Sidebar collapsed={sidebarCollapsed} />
 
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Navigation menu">
@@ -54,8 +73,12 @@ export const Layout: React.FC = () => {
         </div>
       )}
 
-      <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden lg:ml-60">
-        <Header onMenuClick={openMobileMenu} />
+      <div className={`flex min-w-0 flex-1 flex-col overflow-x-hidden transition-[margin] duration-200 ease-out ${sidebarCollapsed ? 'lg:ml-[4.5rem]' : 'lg:ml-60'}`}>
+        <Header
+          onMenuClick={openMobileMenu}
+          onSidebarToggle={() => setSidebarCollapsed(collapsed => !collapsed)}
+          sidebarCollapsed={sidebarCollapsed}
+        />
         <main className="authenticated-main w-full min-w-0 flex-1 p-3 sm:p-4 lg:p-5 xl:p-6">
           <div className="mx-auto w-full max-w-[1680px]">
             <Outlet />

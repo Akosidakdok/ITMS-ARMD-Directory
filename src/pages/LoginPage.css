@@ -1,29 +1,202 @@
 .pais-login {
   position: relative;
+  isolation: isolate;
   display: grid;
   min-height: 100svh;
   place-items: center;
   overflow: hidden;
   padding: 24px;
-  background:
-    radial-gradient(circle at 12% 10%, rgb(37 99 166 / 0.09), transparent 31%),
-    radial-gradient(circle at 90% 92%, rgb(22 58 95 / 0.06), transparent 28%),
-    #eef3f7;
+  background: linear-gradient(135deg, #e8f1f8 0%, #f5f8fa 48%, #eaf2f7 100%);
 }
 
 .pais-login::before {
   position: absolute;
   inset: 0;
-  background-image: linear-gradient(rgb(22 58 95 / 0.025) 1px, transparent 1px), linear-gradient(90deg, rgb(22 58 95 / 0.025) 1px, transparent 1px);
-  background-size: 48px 48px;
+  z-index: 0;
+  background-image:
+    radial-gradient(circle, rgb(22 58 95 / 0.07) 1px, transparent 1.5px),
+    linear-gradient(rgb(22 58 95 / 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(22 58 95 / 0.035) 1px, transparent 1px);
+  background-position: 0 0;
+  background-size: 64px 64px;
   content: '';
-  mask-image: linear-gradient(to bottom right, #000, transparent 65%);
+  mask-image: radial-gradient(ellipse at center, #000 0%, rgb(0 0 0 / 0.65) 54%, transparent 88%);
+  pointer-events: none;
+  animation: pais-login-grid-drift 42s linear infinite;
+  will-change: background-position;
+}
+
+.pais-login::after {
+  position: absolute;
+  inset: -18%;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 14% 20%, rgb(37 99 166 / 0.2), transparent 25%),
+    radial-gradient(circle at 85% 78%, rgb(22 58 95 / 0.16), transparent 27%),
+    radial-gradient(circle at 70% 12%, rgb(143 181 210 / 0.15), transparent 22%),
+    radial-gradient(circle at 24% 84%, rgb(224 189 69 / 0.08), transparent 16%);
+  content: '';
+  filter: blur(10px);
+  pointer-events: none;
+  animation: pais-login-glow-drift 24s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+.pais-login__ambient {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
   pointer-events: none;
 }
 
+.pais-login__ambient::after {
+  position: absolute;
+  inset: 7% 5%;
+  border: 1px solid rgb(37 99 166 / 0.055);
+  border-radius: 50%;
+  content: '';
+  opacity: 0.8;
+  transform: rotate(-8deg);
+  animation: pais-login-frame-breathe 12s ease-in-out infinite;
+}
+
+.pais-login__light-ribbon {
+  position: absolute;
+  top: -28%;
+  left: 42%;
+  width: 22%;
+  height: 160%;
+  background: linear-gradient(90deg, transparent, rgb(143 181 210 / 0.09), rgb(255 255 255 / 0.16), transparent);
+  filter: blur(9px);
+  opacity: 0.75;
+  transform: rotate(19deg);
+  animation: pais-login-ribbon-sweep 18s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+.pais-login__signal-routes {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.pais-login__signal-route {
+  fill: none;
+  stroke: url(#pais-signal-blue);
+  stroke-linecap: round;
+  stroke-width: 2;
+  stroke-dasharray: 2 16;
+  vector-effect: non-scaling-stroke;
+  animation: pais-login-signal-flow 24s linear infinite;
+}
+
+.pais-login__signal-route--two { animation-direction: reverse; animation-duration: 30s; }
+.pais-login__signal-route--three { animation-duration: 34s; }
+.pais-login__signal-route--four { animation-direction: reverse; animation-duration: 38s; }
+
+.pais-login__signal-points circle {
+  fill: rgb(37 99 166 / 0.52);
+  stroke: rgb(52 118 172 / 0.12);
+  stroke-width: 12;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pais-login-signal-pulse 5.5s ease-in-out infinite;
+}
+
+.pais-login__signal-points circle:nth-child(2n) { animation-delay: -1.8s; }
+.pais-login__signal-points circle:nth-child(3n) { animation-delay: -3.6s; }
+
+.pais-login__data-orbit {
+  position: absolute;
+  width: clamp(470px, 37vw, 710px);
+  height: auto;
+  overflow: visible;
+  filter: drop-shadow(0 16px 36px rgb(22 58 95 / 0.08));
+}
+
+.pais-login__data-orbit--left { top: -240px; left: -230px; }
+.pais-login__data-orbit--right { right: -280px; bottom: -290px; transform: rotate(17deg); }
+
+.pais-login__orbit-halo {
+  fill: rgb(255 255 255 / 0.12);
+  stroke: rgb(37 99 166 / 0.07);
+  stroke-width: 34;
+  animation: pais-login-orbit-breathe 9s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.pais-login__orbit-axis {
+  fill: none;
+  stroke: rgb(22 58 95 / 0.07);
+  stroke-dasharray: 2 10;
+  stroke-width: 1;
+}
+
+.pais-login__orbit-ring {
+  fill: none;
+  stroke: rgb(37 99 166 / 0.23);
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.pais-login__orbit-ring--outer {
+  stroke-dasharray: 4 11;
+  stroke-width: 1.4;
+  animation: pais-login-orbit-dash 32s linear infinite;
+}
+
+.pais-login__orbit-ring--middle {
+  stroke: rgb(22 58 95 / 0.2);
+  stroke-dasharray: 64 13 8 17;
+  stroke-width: 1.7;
+  animation: pais-login-orbit-dash-reverse 26s linear infinite;
+}
+
+.pais-login__orbit-ring--inner {
+  stroke: rgb(52 118 172 / 0.28);
+  stroke-dasharray: 3 8;
+  stroke-width: 2;
+  animation: pais-login-orbit-dash 18s linear infinite;
+}
+
+.pais-login__orbit-rotator {
+  transform-box: view-box;
+  transform-origin: center;
+}
+
+.pais-login__orbit-rotator--outer { animation: pais-login-orbit-rotate 28s linear infinite; }
+.pais-login__orbit-rotator--inner { animation: pais-login-orbit-rotate-reverse 17s linear infinite; }
+.pais-login__data-orbit--right .pais-login__orbit-rotator--outer { animation-duration: 34s; animation-direction: reverse; }
+.pais-login__data-orbit--right .pais-login__orbit-rotator--inner { animation-duration: 21s; animation-direction: reverse; }
+
+.pais-login__orbit-node {
+  fill: #3476ac;
+  stroke: rgb(255 255 255 / 0.75);
+  stroke-width: 3;
+  filter: drop-shadow(0 0 7px rgb(37 99 166 / 0.6));
+}
+
+.pais-login__orbit-node--small { fill: #8fb5d2; stroke-width: 2; }
+
+.pais-login__orbit-core-ping {
+  fill: rgb(37 99 166 / 0.055);
+  stroke: rgb(37 99 166 / 0.2);
+  stroke-width: 1;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pais-login-core-ping 4.8s ease-out infinite;
+}
+
+.pais-login__orbit-core { fill: rgb(22 58 95 / 0.16); stroke: rgb(37 99 166 / 0.38); stroke-width: 1; }
+.pais-login__orbit-core-dot { fill: #2563a6; filter: drop-shadow(0 0 8px rgb(37 99 166 / 0.7)); }
+
 .pais-login__shell {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   display: grid;
   grid-template-columns: minmax(390px, 0.92fr) minmax(510px, 1.08fr);
   width: min(100%, 1080px);
@@ -33,6 +206,7 @@
   border-radius: 14px;
   background: #ffffff;
   box-shadow: 0 24px 64px rgb(15 35 56 / 0.14), 0 2px 8px rgb(15 35 56 / 0.06);
+  animation: pais-login-shell-enter 480ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .pais-login__brand {
@@ -58,6 +232,25 @@
   box-shadow: 0 0 0 44px rgb(255 255 255 / 0.018), 0 0 0 88px rgb(255 255 255 / 0.012);
   content: '';
   pointer-events: none;
+  animation: pais-login-radar-pulse 10s ease-in-out infinite;
+  will-change: opacity, transform;
+}
+
+.pais-login__brand::after {
+  position: absolute;
+  right: -115px;
+  bottom: 62px;
+  width: 320px;
+  height: 320px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0 305deg, rgb(143 181 210 / 0.15) 334deg, transparent 360deg);
+  content: '';
+  opacity: 0.6;
+  pointer-events: none;
+  -webkit-mask-image: radial-gradient(circle, transparent 0 31%, #000 50%, transparent 71%);
+  mask-image: radial-gradient(circle, transparent 0 31%, #000 50%, transparent 71%);
+  animation: pais-login-radar-sweep 32s linear infinite;
+  will-change: transform;
 }
 
 .pais-login__brand-accent {
@@ -144,6 +337,7 @@
   border-radius: 50%;
   background: #65b891;
   box-shadow: 0 0 0 3px rgb(101 184 145 / 0.12);
+  animation: pais-login-status-pulse 4.5s ease-in-out infinite;
 }
 
 .pais-login__version b {
@@ -428,10 +622,87 @@
 
 .pais-login__form-footer span { margin: 0 5px; color: #bdc8d1; }
 
+@keyframes pais-login-grid-drift {
+  to { background-position: 64px 64px; }
+}
+
+@keyframes pais-login-glow-drift {
+  0% { transform: translate3d(-1.5%, -1%, 0) scale(1); }
+  50% { transform: translate3d(1.5%, 1.2%, 0) scale(1.025); }
+  100% { transform: translate3d(0.5%, -0.6%, 0) scale(1.01); }
+}
+
+@keyframes pais-login-frame-breathe {
+  0%, 100% { opacity: 0.42; transform: rotate(-8deg) scale(0.985); }
+  50% { opacity: 0.8; transform: rotate(-5deg) scale(1.025); }
+}
+
+@keyframes pais-login-ribbon-sweep {
+  0% { transform: translate3d(-38vw, -3%, 0) rotate(19deg); }
+  100% { transform: translate3d(38vw, 3%, 0) rotate(19deg); }
+}
+
+@keyframes pais-login-signal-flow {
+  to { stroke-dashoffset: -160; }
+}
+
+@keyframes pais-login-signal-pulse {
+  0%, 100% { opacity: 0.35; transform: scale(0.72); }
+  50% { opacity: 1; transform: scale(1.28); }
+}
+
+@keyframes pais-login-orbit-breathe {
+  0%, 100% { opacity: 0.55; transform: scale(0.97); }
+  50% { opacity: 1; transform: scale(1.035); }
+}
+
+@keyframes pais-login-orbit-dash {
+  to { stroke-dashoffset: -220; }
+}
+
+@keyframes pais-login-orbit-dash-reverse {
+  to { stroke-dashoffset: 220; }
+}
+
+@keyframes pais-login-orbit-rotate {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pais-login-orbit-rotate-reverse {
+  to { transform: rotate(-360deg); }
+}
+
+@keyframes pais-login-core-ping {
+  0% { opacity: 0.8; transform: scale(0.62); }
+  72%, 100% { opacity: 0; transform: scale(1.9); }
+}
+
+@keyframes pais-login-shell-enter {
+  from { opacity: 0; transform: translateY(10px) scale(0.992); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes pais-login-radar-pulse {
+  0%, 100% { opacity: 0.72; transform: scale(0.97); }
+  50% { opacity: 1; transform: scale(1.035); }
+}
+
+@keyframes pais-login-radar-sweep {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pais-login-status-pulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgb(101 184 145 / 0.1); }
+  50% { box-shadow: 0 0 0 6px rgb(101 184 145 / 0.02); }
+}
+
 @keyframes pais-login-spin { to { transform: rotate(360deg); } }
 
 @media (max-width: 900px) {
   .pais-login { overflow: auto; padding: 18px; }
+  .pais-login__ambient { opacity: 0.68; }
+  .pais-login__data-orbit--left { top: -270px; left: -270px; }
+  .pais-login__data-orbit--right { right: -320px; bottom: -310px; }
 
   .pais-login__shell {
     grid-template-columns: 1fr;
@@ -451,6 +722,7 @@
 
 @media (max-width: 520px) {
   .pais-login { display: block; padding: 0; background: #ffffff; }
+  .pais-login::before, .pais-login::after, .pais-login__ambient { display: none; }
 
   .pais-login__shell {
     min-height: 100svh;
@@ -487,6 +759,23 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .pais-login::before,
+  .pais-login::after,
+  .pais-login__ambient::after,
+  .pais-login__light-ribbon,
+  .pais-login__signal-route,
+  .pais-login__signal-points circle,
+  .pais-login__orbit-halo,
+  .pais-login__orbit-ring,
+  .pais-login__orbit-rotator,
+  .pais-login__orbit-core-ping,
+  .pais-login__shell,
+  .pais-login__brand::before,
+  .pais-login__brand::after,
+  .pais-login__version > span {
+    animation: none !important;
+  }
+
   .pais-login__submit:hover:not(:disabled) { transform: none; }
   .pais-login__submit .is-spinning { animation-duration: 1.4s !important; }
 }

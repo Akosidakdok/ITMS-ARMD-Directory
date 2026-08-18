@@ -1,11 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ChevronDown, ChevronRight, Database, LogOut, Menu, ShieldCheck, UserRound } from 'lucide-react';
+import { ChevronDown, ChevronRight, Database, LogOut, Menu, PanelLeftClose, PanelLeftOpen, ShieldCheck, UserRound } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { useAuthRole } from '../../context/AuthRoleContext';
 import { getRoleDescription, getRoleLabel } from '../../utils/accessControl';
 
 interface HeaderProps {
   onMenuClick?: () => void;
+  onSidebarToggle?: () => void;
+  sidebarCollapsed?: boolean;
 }
 
 const pageTitles: Record<string, string> = {
@@ -20,7 +22,7 @@ const pageTitles: Record<string, string> = {
   '/admin-accounts': 'Administrator Accounts'
 };
 
-export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
+export const Header: React.FC<HeaderProps> = ({ onMenuClick, onSidebarToggle, sidebarCollapsed = false }) => {
   const { backendConnected, backendHealth, authUser, role, logout } = useAuthRole();
   const { pathname } = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -63,6 +65,20 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
         aria-label="Open navigation menu"
       >
         <Menu aria-hidden="true" className="h-5 w-5" />
+      </button>
+
+      <button
+        type="button"
+        onClick={onSidebarToggle}
+        className="mr-3 hidden h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 lg:inline-flex"
+        aria-controls="primary-sidebar"
+        aria-expanded={!sidebarCollapsed}
+        aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+      >
+        {sidebarCollapsed
+          ? <PanelLeftOpen aria-hidden="true" className="h-5 w-5" />
+          : <PanelLeftClose aria-hidden="true" className="h-5 w-5" />}
       </button>
 
       <div className="min-w-0">

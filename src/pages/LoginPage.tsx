@@ -61,6 +61,74 @@ export const LoginPage: React.FC = () => {
 
   return (
     <main className="pais-login">
+      <div className="pais-login__ambient" aria-hidden="true">
+        <span className="pais-login__light-ribbon" />
+
+        <svg className="pais-login__signal-routes" viewBox="0 0 1920 1080" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="pais-signal-blue" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stopColor="#2563a6" stopOpacity="0" />
+              <stop offset="0.45" stopColor="#3476ac" stopOpacity="0.48" />
+              <stop offset="1" stopColor="#8fb5d2" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          <path className="pais-login__signal-route pais-login__signal-route--one" d="M-120 850C160 744 225 515 438 397C578 320 650 218 735-60" />
+          <path className="pais-login__signal-route pais-login__signal-route--two" d="M1235-80C1405 166 1518 332 1450 525C1392 696 1658 856 2040 710" />
+          <path className="pais-login__signal-route pais-login__signal-route--three" d="M-100 1005C390 812 676 1008 1002 918C1320 830 1540 824 2035 1050" />
+          <path className="pais-login__signal-route pais-login__signal-route--four" d="M-80 115C365 298 525 52 920 128C1330 207 1512 295 2000 64" />
+          <g className="pais-login__signal-points">
+            <circle cx="175" cy="725" r="5" />
+            <circle cx="374" cy="434" r="4" />
+            <circle cx="1572" cy="720" r="5" />
+            <circle cx="1744" cy="811" r="4" />
+            <circle cx="250" cy="938" r="4" />
+            <circle cx="1680" cy="930" r="5" />
+            <circle cx="310" cy="185" r="4" />
+            <circle cx="1650" cy="188" r="4" />
+          </g>
+        </svg>
+
+        <svg className="pais-login__data-orbit pais-login__data-orbit--left" viewBox="0 0 520 520">
+          <circle className="pais-login__orbit-halo" cx="260" cy="260" r="228" />
+          <path className="pais-login__orbit-axis" d="M40 260H480M260 40V480" />
+          <circle className="pais-login__orbit-ring pais-login__orbit-ring--outer" cx="260" cy="260" r="210" />
+          <circle className="pais-login__orbit-ring pais-login__orbit-ring--middle" cx="260" cy="260" r="158" />
+          <circle className="pais-login__orbit-ring pais-login__orbit-ring--inner" cx="260" cy="260" r="101" />
+          <g className="pais-login__orbit-rotator pais-login__orbit-rotator--outer">
+            <circle className="pais-login__orbit-node" cx="260" cy="50" r="7" />
+            <circle className="pais-login__orbit-node pais-login__orbit-node--small" cx="470" cy="260" r="5" />
+            <circle className="pais-login__orbit-node pais-login__orbit-node--small" cx="111" cy="409" r="4" />
+          </g>
+          <g className="pais-login__orbit-rotator pais-login__orbit-rotator--inner">
+            <circle className="pais-login__orbit-node" cx="260" cy="159" r="6" />
+            <circle className="pais-login__orbit-node pais-login__orbit-node--small" cx="361" cy="260" r="4" />
+          </g>
+          <circle className="pais-login__orbit-core-ping" cx="260" cy="260" r="38" />
+          <circle className="pais-login__orbit-core" cx="260" cy="260" r="15" />
+          <circle className="pais-login__orbit-core-dot" cx="260" cy="260" r="4" />
+        </svg>
+
+        <svg className="pais-login__data-orbit pais-login__data-orbit--right" viewBox="0 0 520 520">
+          <circle className="pais-login__orbit-halo" cx="260" cy="260" r="228" />
+          <path className="pais-login__orbit-axis" d="M40 260H480M260 40V480" />
+          <circle className="pais-login__orbit-ring pais-login__orbit-ring--outer" cx="260" cy="260" r="210" />
+          <circle className="pais-login__orbit-ring pais-login__orbit-ring--middle" cx="260" cy="260" r="158" />
+          <circle className="pais-login__orbit-ring pais-login__orbit-ring--inner" cx="260" cy="260" r="101" />
+          <g className="pais-login__orbit-rotator pais-login__orbit-rotator--outer">
+            <circle className="pais-login__orbit-node" cx="260" cy="50" r="7" />
+            <circle className="pais-login__orbit-node pais-login__orbit-node--small" cx="470" cy="260" r="5" />
+            <circle className="pais-login__orbit-node pais-login__orbit-node--small" cx="111" cy="409" r="4" />
+          </g>
+          <g className="pais-login__orbit-rotator pais-login__orbit-rotator--inner">
+            <circle className="pais-login__orbit-node" cx="260" cy="159" r="6" />
+            <circle className="pais-login__orbit-node pais-login__orbit-node--small" cx="361" cy="260" r="4" />
+          </g>
+          <circle className="pais-login__orbit-core-ping" cx="260" cy="260" r="38" />
+          <circle className="pais-login__orbit-core" cx="260" cy="260" r="15" />
+          <circle className="pais-login__orbit-core-dot" cx="260" cy="260" r="4" />
+        </svg>
+      </div>
+
       <section className="pais-login__shell" aria-labelledby="login-heading">
         <aside className="pais-login__brand" aria-label="PAIS 2.0 system information">
           <span className="pais-login__brand-accent" aria-hidden="true" />
