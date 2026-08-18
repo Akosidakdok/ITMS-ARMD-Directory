@@ -48,6 +48,11 @@ app.use((req, res, next) => {
   next();
 });
 
+// Keep-alive ping for cron-job.org (prevents Render free tier from sleeping)
+app.get('/ping', (req, res) => {
+  res.json({ status: 'awake', timestamp: new Date().toISOString() });
+});
+
 // API Health & Status Endpoint
 app.get('/api/health', async (req, res) => {
   const supabaseStatus = await checkSupabaseStatus();
