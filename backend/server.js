@@ -30,10 +30,13 @@ const allowedOrigins = new Set([
   'http://127.0.0.1:3000'
 ]);
 
+// Allow any *.vercel.app subdomain for Vercel preview deployments
+const vercelOriginPattern = /\.vercel\.app$/;
+
 // Middleware
 app.use(cors({
   origin(origin, callback) {
-    if (!origin || allowedOrigins.has(origin)) {
+    if (!origin || allowedOrigins.has(origin) || vercelOriginPattern.test(origin)) {
       return callback(null, true);
     }
     return callback(new Error('Origin is not allowed by CORS'));
@@ -48,9 +51,15 @@ app.use((req, res, next) => {
   next();
 });
 
-// Keep-alive ping for cron-job.org (prevents Render free tier from sleeping)
+// Keep-alive ping (prevents Render free tier from sleeping)
 app.get('/ping', (req, res) => {
   res.json({ status: 'awake', timestamp: new Date().toISOString() });
+});
+
+// Keep-alive endpoint called by Vercel Cron every 14 minutes
+// Must be registered BEFORE the auth middleware
+app.get('/api/cron/keep-alive', (req, res) => {
+  res.json({ status: 'awake', source: 'vercel-cron', timestamp: new Date().toISOString() });
 });
 
 // API Health & Status Endpoint
