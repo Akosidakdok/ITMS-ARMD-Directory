@@ -5,7 +5,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://pnp-itms-backend.onrender.com/api/:path*"
+      "destination": "https://itms-armd-backend.onrender.com/api/:path*"
     },
     {
       "source": "/:path*",
