@@ -6,10 +6,19 @@ const TrainingSchema = new mongoose.Schema({
   courseName: { type: String, required: true },
   category: { type: String },
   provider: { type: String },
+  location: { type: String },
   startDate: { type: String },
   completionDate: { type: String },
   hours: { type: Number },
-  certificateNo: { type: String }
+  source: { type: String },
+  certificateNo: { type: String },
+  authorityDate: { type: String },
+  issuedBy: { type: String },
+  attachment: { type: String },
+  createdBy: { type: String },
+  createdOn: { type: String },
+  modifiedBy: { type: String },
+  modifiedOn: { type: String }
 }, {
   timestamps: true
 });

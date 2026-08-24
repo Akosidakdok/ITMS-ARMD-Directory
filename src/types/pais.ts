@@ -46,11 +46,25 @@ export interface AssignmentRecord {
 export interface EducationRecord {
   id: string;
   personnelId: string;
-  degree: string;
-  institution: string;
+  /** Academic level, such as Elementary, High School, College, or Post-Graduate. */
+  academicLevel?: string;
+  /** Kept as `degree` in storage for backward compatibility; displayed as Course. */
+  degree?: string;
+  /** Kept as `institution` in storage for backward compatibility; displayed as School. */
+  institution?: string;
+  major?: string;
+  startYear?: number;
+  /** Kept as `yearGraduated` in storage for backward compatibility; displayed as End Year. */
   yearGraduated?: number;
+  /** Kept as `honors` in storage for backward compatibility; displayed as Grade. */
   honors?: string;
+  highest?: boolean;
+  ranking?: number;
   certifications?: string[];
+  createdBy?: string;
+  createdOn?: string;
+  modifiedBy?: string;
+  modifiedOn?: string;
 }
 
 export interface PromotionRecord {
@@ -125,15 +139,28 @@ export interface DocumentTemplate {
 export interface TrainingRecord {
   id: string;
   personnelId: string;
+  /** Kept as `courseName` in storage for backward compatibility; displayed as Training Title. */
   courseName: string;
+  /** Kept as `provider` in storage for backward compatibility; displayed as School. */
   provider: string;
+  location?: string;
   startDate?: string;
   endDate?: string;
   completionDate?: string;
   hours?: number;
+  /** Kept as `category` in storage for backward compatibility; displayed as Training Type. */
   category?: string;
+  source?: string;
+  /** Kept as `certificateNo` in storage for backward compatibility; displayed as Auth Number. */
   certificateRef?: string;
   certificateNo?: string;
+  authorityDate?: string;
+  issuedBy?: string;
+  attachment?: string;
+  createdBy?: string;
+  createdOn?: string;
+  modifiedBy?: string;
+  modifiedOn?: string;
 }
 
 export interface LeaveRecord {

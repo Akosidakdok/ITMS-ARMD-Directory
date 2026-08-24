@@ -1,5 +1,7 @@
 import { db } from '../store/repository.js';
 
+const auditActor = req => req.user?.displayName || req.user?.email || 'System';
+
 export const getAllTraining = async (req, res) => {
   try {
     const { personnelId } = req.query;
@@ -20,11 +22,15 @@ export const createTraining = async (req, res) => {
     if (!personnelId || !courseName || !provider) {
       return res.status(400).json({
         success: false,
-        message: 'Missing required fields: personnelId, courseName, provider are required'
+        message: 'Missing required fields: personnelId, training title, and school are required'
       });
     }
 
-    const created = await db.createTraining(req.body);
+    const created = await db.createTraining({
+      ...req.body,
+      createdBy: auditActor(req),
+      createdOn: new Date().toISOString()
+    });
     res.status(201).json({
       success: true,
       message: 'Training record registered successfully',
@@ -38,7 +44,11 @@ export const createTraining = async (req, res) => {
 export const updateTraining = async (req, res) => {
   try {
     const { id } = req.params;
-    const updated = await db.updateTraining(id, req.body);
+    const updated = await db.updateTraining(id, {
+      ...req.body,
+      modifiedBy: auditActor(req),
+      modifiedOn: new Date().toISOString()
+    });
     if (!updated) {
       return res.status(404).json({ success: false, message: 'Training record not found' });
     }

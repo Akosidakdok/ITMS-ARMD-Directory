@@ -22,6 +22,7 @@ export interface PersonnelCsvResult {
 // Import only the Personnel Information and Summary Profile fields stored by the app.
 export const PERSONNEL_IMPORTABLE_FIELDS: PersonnelImportField[] = [
   'rank',
+  'rankFullName',
   'firstName',
   'middleName',
   'lastName',
@@ -38,6 +39,7 @@ export const PERSONNEL_IMPORTABLE_FIELDS: PersonnelImportField[] = [
   'birthday',
   'dateOfEntry',
   'enterInOfficerPositionDate',
+  'lastPromotionDate',
   'status'
 ];
 
@@ -53,15 +55,22 @@ const HEADER_ALIASES: Record<string, PersonnelImportField> = {
   // Summary Profile
   rank:              'rank',
   rankabbr:          'rank',
+  rankfullname:      'rankFullName',   // "Rank Full Name" → rankfullname
+  rankname:          'rankFullName',
   badgeno:           'badgeNo',
-  badgenumber:       'badgeNo',
+  badgenumber:       'badgeNo',        // "Badge Number"   → badgenumber
   salarygrade:       'salaryGrade',
+  salarygradesgst:   'salaryGrade',    // "Salary Grade (SG-ST)" → salarygradesgst
+  salarygradesgst2:  'salaryGrade',
   sg:                'salaryGrade',
   plantilla:         'plantilla',
   plantillaitem:     'plantilla',
   division:          'division',
   unit:              'division',
+  unitdivision:      'division',       // "Unit / Division" → unitdivision
   detail:            'detail',
+  detailsubunit:     'detail',         // "Detail / Sub-unit" → detailsubunit
+  subunit:           'detail',
   designation:       'designation',
   position:          'designation',
 
@@ -115,6 +124,13 @@ const HEADER_ALIASES: Record<string, PersonnelImportField> = {
   enterinofficerpositiondate:  'enterInOfficerPositionDate',
   'enter in officer position': 'enterInOfficerPositionDate',
   officerpositiondate:         'enterInOfficerPositionDate',
+  'enter in officer position date': 'enterInOfficerPositionDate',
+
+  // Last Promotion Date
+  lastpromotiondate:       'lastPromotionDate',
+  'last promotion date':   'lastPromotionDate',
+  promotiondate:           'lastPromotionDate',
+  lastpromotion:           'lastPromotionDate',
 
   // Status
   status:            'status',

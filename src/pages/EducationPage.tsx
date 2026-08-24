@@ -57,45 +57,89 @@ const ConfirmDialog: React.FC<{
 // ─── Edit / Add Modal ────────────────────────────────────────────────────────
 
 interface EduFormData {
-  degree: string; institution: string; yearGraduated: string; honors: string; certifications: string;
+  academicLevel: string; institution: string; degree: string; major: string;
+  startYear: string; yearGraduated: string; honors: string; highest: boolean; ranking: string;
 }
 interface TrnFormData {
   courseName: string; category: string; provider: string;
-  startDate: string; completionDate: string; hours: string; certificateNo: string;
+  location: string; startDate: string; completionDate: string; hours: string;
+  source: string; certificateNo: string; authorityDate: string; issuedBy: string; attachment: string;
 }
+
+const ACADEMIC_LEVELS = ['Elementary', 'High School', 'College'] as const;
 
 const EduModal: React.FC<{
   mode: 'add-edu' | 'edit-edu';
   personnelId: string;
   personnelName: string;
   existing?: EducationRecord;
-  onSave: (data: Partial<EducationRecord>) => Promise<void>;
+  existingRecords?: EducationRecord[];
+  onSave: (records: Partial<EducationRecord>[]) => Promise<void>;
   onClose: () => void;
-}> = ({ mode, personnelId, personnelName, existing, onSave, onClose }) => {
-  const [form, setForm] = useState<EduFormData>({
-    degree: existing?.degree ?? '',
-    institution: existing?.institution ?? '',
-    yearGraduated: existing?.yearGraduated?.toString() ?? '',
-    honors: existing?.honors ?? '',
-    certifications: (existing?.certifications ?? []).join(', '),
+}> = ({ mode, personnelId, personnelName, existing, existingRecords = [], onSave, onClose }) => {
+  const toFormData = (record: EducationRecord | undefined, academicLevel: string): EduFormData => ({
+    academicLevel: record?.academicLevel ?? academicLevel,
+    degree: record?.degree ?? '',
+    institution: record?.institution ?? '',
+    major: record?.major ?? '',
+    startYear: record?.startYear?.toString() ?? '',
+    yearGraduated: record?.yearGraduated?.toString() ?? '',
+    honors: record?.honors ?? '',
+    highest: record?.highest ?? academicLevel === 'College',
+    ranking: record?.ranking?.toString() ?? '0',
+  });
+  const batchRecords = ACADEMIC_LEVELS.map(level => existingRecords.find(
+    record => String(record.academicLevel || '').trim().toLowerCase() === level.toLowerCase()
+  ));
+  const recordIds = mode === 'edit-edu' ? [existing?.id] : batchRecords.map(record => record?.id);
+  const [forms, setForms] = useState<EduFormData[]>(() => {
+    if (existing) {
+      return [toFormData(existing, existing.academicLevel ?? '')];
+    }
+
+    return ACADEMIC_LEVELS.map((level, index) => toFormData(batchRecords[index], level));
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
+  const updateForm = (index: number, patch: Partial<EduFormData>) => {
+    setForms(current => current.map((form, formIndex) => formIndex === index ? { ...form, ...patch } : form));
+  };
+
+  const updateHighest = (index: number, checked: boolean) => {
+    setForms(current => current.map((form, formIndex) => ({
+      ...form,
+      highest: checked ? formIndex === index : formIndex === index ? false : form.highest,
+    })));
+  };
+
   const handleSave = async () => {
-    if (!form.degree.trim()) { setError('Degree is required.'); return; }
-    if (!form.institution.trim()) { setError('Institution is required.'); return; }
+    for (const form of forms) {
+      if (!form.academicLevel.trim()) {
+        setError('Academic Level is required.');
+        return;
+      }
+      if (form.startYear && form.yearGraduated && Number(form.startYear) > Number(form.yearGraduated)) {
+        setError(`${form.academicLevel}: Start Year cannot be later than End Year.`);
+        return;
+      }
+    }
+
     setSaving(true);
     try {
-      await onSave({
-        id: existing?.id,
+      await onSave(forms.map((form, index) => ({
+        id: recordIds[index],
         personnelId,
-        degree: form.degree.trim(),
-        institution: form.institution.trim(),
+        academicLevel: form.academicLevel.trim(),
+        degree: form.degree.trim() || undefined,
+        institution: form.institution.trim() || undefined,
+        major: form.major.trim() || undefined,
+        startYear: form.startYear ? parseInt(form.startYear) : undefined,
         yearGraduated: form.yearGraduated ? parseInt(form.yearGraduated) : undefined,
         honors: form.honors.trim() || undefined,
-        certifications: form.certifications.split(',').map(c => c.trim()).filter(Boolean),
-      });
+        highest: form.highest,
+        ranking: form.ranking ? parseInt(form.ranking) : undefined,
+      })));
       onClose();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to save.');
@@ -106,38 +150,79 @@ const EduModal: React.FC<{
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 border border-slate-200 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl mx-4 border border-slate-200 overflow-hidden max-h-[92vh] flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-white">
           <div className="flex items-center gap-2">
             <GraduationCap className="w-5 h-5 text-blue-600" />
             <h2 className="text-sm font-extrabold text-slate-800">
-              {mode === 'add-edu' ? 'Add Education Record' : 'Edit Education Record'}
+              {mode === 'add-edu' ? 'Add Academic Attainment' : 'Edit Education Record'}
             </h2>
           </div>
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-white/60 transition-colors"><X className="w-4 h-4 text-slate-500" /></button>
         </div>
-        <div className="px-6 py-4 space-y-3">
+        <div className="px-6 py-4 space-y-3 overflow-y-auto">
           <p className="text-xs text-blue-700 font-bold bg-blue-50 rounded-lg px-3 py-1.5 border border-blue-100">Personnel: {personnelName}</p>
           {error && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
+          {mode === 'add-edu' && (
+            <p className="text-xs text-slate-500">Enter all three levels here, then save them together. Course and Major may be left blank for lower levels.</p>
+          )}
 
-          {[
-            { label: 'Degree / Course *', key: 'degree', placeholder: 'e.g. Bachelor of Science in Computer Science' },
-            { label: 'Institution *', key: 'institution', placeholder: 'e.g. Polytechnic University of the Philippines' },
-            { label: 'Year Graduated', key: 'yearGraduated', placeholder: 'e.g. 2015', type: 'number' },
-            { label: 'Honors / Latin Honors', key: 'honors', placeholder: 'e.g. Cum Laude' },
-            { label: 'Certifications (comma-separated)', key: 'certifications', placeholder: 'e.g. CISSP, CEH, CCNA' },
-          ].map(f => (
-            <div key={f.key}>
-              <label className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block mb-1">{f.label}</label>
-              <input
-                type={f.type ?? 'text'}
-                value={form[f.key as keyof EduFormData]}
-                onChange={e => setForm(prev => ({ ...prev, [f.key]: e.target.value }))}
-                placeholder={f.placeholder}
-                className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition-all"
-              />
-            </div>
-          ))}
+          <div className="space-y-4">
+            {forms.map((form, index) => (
+              <section key={`${form.academicLevel}-${index}`} className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
+                  {mode === 'edit-edu' ? (
+                    <label className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
+                      Academic Level
+                      <select
+                        value={form.academicLevel}
+                        onChange={event => updateForm(index, { academicLevel: event.target.value })}
+                        className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold normal-case tracking-normal text-slate-800 outline-none focus:border-blue-500"
+                      >
+                        <option value="">Select level</option>
+                        {ACADEMIC_LEVELS.map(level => <option key={level} value={level}>{level}</option>)}
+                      </select>
+                    </label>
+                  ) : (
+                    <h3 className="text-sm font-extrabold text-slate-800">{form.academicLevel}</h3>
+                  )}
+                  <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+                    <input
+                      type="checkbox"
+                      checked={form.highest}
+                      onChange={event => updateHighest(index, event.target.checked)}
+                      className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    Highest academic attainment
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  {[
+                    { label: 'School', key: 'institution', placeholder: 'School name', span: 'lg:col-span-2' },
+                    { label: 'Course', key: 'degree', placeholder: 'Course or program', span: '' },
+                    { label: 'Major', key: 'major', placeholder: 'Major or specialization', span: '' },
+                    { label: 'Start Year', key: 'startYear', placeholder: 'e.g. 2011', type: 'number', span: '' },
+                    { label: 'End Year', key: 'yearGraduated', placeholder: 'e.g. 2015', type: 'number', span: '' },
+                    { label: 'Grade', key: 'honors', placeholder: 'Grade or result', span: '' },
+                    { label: 'Ranking', key: 'ranking', placeholder: 'e.g. 0', type: 'number', span: '' },
+                  ].map(field => (
+                    <div key={field.key} className={field.span}>
+                      <label className="mb-1 block text-[11px] font-extrabold uppercase tracking-wider text-slate-500">{field.label}</label>
+                      <input
+                        type={field.type ?? 'text'}
+                        value={form[field.key as Exclude<keyof EduFormData, 'highest'>] as string}
+                        onChange={event => updateForm(index, { [field.key]: event.target.value })}
+                        placeholder={field.placeholder}
+                        min={field.type === 'number' ? '0' : undefined}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition-all focus:border-blue-400 focus:ring-2 focus:ring-blue-300"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
         </div>
         <div className="flex justify-end gap-2 px-6 py-4 border-t border-slate-100 bg-slate-50">
           <button onClick={onClose} className="px-4 py-2 text-sm rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 transition-colors">Cancel</button>
@@ -147,7 +232,7 @@ const EduModal: React.FC<{
             className="px-5 py-2 text-sm rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-60"
           >
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-            {saving ? 'Saving…' : 'Save'}
+            {saving ? 'Saving…' : mode === 'add-edu' ? 'Save 3 Records' : 'Save'}
           </button>
         </div>
       </div>
@@ -167,17 +252,27 @@ const TrnModal: React.FC<{
     courseName: existing?.courseName ?? '',
     category: existing?.category ?? '',
     provider: existing?.provider ?? '',
+    location: existing?.location ?? '',
     startDate: existing?.startDate ?? '',
     completionDate: existing?.completionDate ?? '',
     hours: existing?.hours?.toString() ?? '',
+    source: existing?.source ?? '',
     certificateNo: existing?.certificateNo ?? '',
+    authorityDate: existing?.authorityDate ?? '',
+    issuedBy: existing?.issuedBy ?? '',
+    attachment: existing?.attachment ?? '',
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   const handleSave = async () => {
-    if (!form.courseName.trim()) { setError('Course Name is required.'); return; }
-    if (!form.provider.trim()) { setError('Provider is required.'); return; }
+    if (!form.category.trim()) { setError('Training Type is required.'); return; }
+    if (!form.courseName.trim()) { setError('Training Title is required.'); return; }
+    if (!form.provider.trim()) { setError('School is required.'); return; }
+    if (form.startDate && form.completionDate && form.startDate > form.completionDate) {
+      setError('Inclusive Start Date cannot be later than Inclusive End Date.');
+      return;
+    }
     setSaving(true);
     try {
       await onSave({
@@ -186,10 +281,15 @@ const TrnModal: React.FC<{
         courseName: form.courseName.trim(),
         category: form.category.trim() || undefined,
         provider: form.provider.trim(),
+        location: form.location.trim() || undefined,
         startDate: form.startDate || undefined,
         completionDate: form.completionDate || undefined,
         hours: form.hours ? parseFloat(form.hours) : undefined,
+        source: form.source.trim() || undefined,
         certificateNo: form.certificateNo.trim() || undefined,
+        authorityDate: form.authorityDate || undefined,
+        issuedBy: form.issuedBy.trim() || undefined,
+        attachment: form.attachment.trim() || undefined,
       });
       onClose();
     } catch (e: unknown) {
@@ -201,7 +301,7 @@ const TrnModal: React.FC<{
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 border border-slate-200 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl mx-4 border border-slate-200 overflow-hidden max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-white">
           <div className="flex items-center gap-2">
             <BookOpen className="w-5 h-5 text-indigo-600" />
@@ -211,30 +311,39 @@ const TrnModal: React.FC<{
           </div>
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-white/60 transition-colors"><X className="w-4 h-4 text-slate-500" /></button>
         </div>
-        <div className="px-6 py-4 space-y-3">
+        <div className="px-6 py-4 space-y-3 overflow-y-auto">
           <p className="text-xs text-indigo-700 font-bold bg-indigo-50 rounded-lg px-3 py-1.5 border border-indigo-100">Personnel: {personnelName}</p>
           {error && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
 
-          {[
-            { label: 'Course Name *', key: 'courseName', placeholder: 'e.g. Ethical Hacking Fundamentals' },
-            { label: 'Category', key: 'category', placeholder: 'e.g. Cybersecurity, Networking' },
-            { label: 'Provider *', key: 'provider', placeholder: 'e.g. EC-Council, DICT' },
-            { label: 'Start Date', key: 'startDate', placeholder: 'YYYY-MM-DD', type: 'date' },
-            { label: 'Completion Date', key: 'completionDate', placeholder: 'YYYY-MM-DD', type: 'date' },
-            { label: 'Training Hours', key: 'hours', placeholder: 'e.g. 40', type: 'number' },
-            { label: 'Certificate No.', key: 'certificateNo', placeholder: 'e.g. CERT-2024-001' },
-          ].map(f => (
-            <div key={f.key}>
-              <label className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block mb-1">{f.label}</label>
-              <input
-                type={f.type ?? 'text'}
-                value={form[f.key as keyof TrnFormData]}
-                onChange={e => setForm(prev => ({ ...prev, [f.key]: e.target.value }))}
-                placeholder={f.placeholder}
-                className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition-all"
-              />
-            </div>
-          ))}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {[
+              { label: 'Training Type *', key: 'category', placeholder: 'e.g. Specialized, Mandatory, Seminars' },
+              { label: 'Training Title *', key: 'courseName', placeholder: 'e.g. Data Privacy Act Awareness Seminar' },
+              { label: 'School *', key: 'provider', placeholder: 'e.g. ITMS or PNP Training Service' },
+              { label: 'Location', key: 'location', placeholder: 'e.g. Camp Crame, Quezon City' },
+              { label: 'Inclusive Start Date', key: 'startDate', placeholder: 'YYYY-MM-DD', type: 'date' },
+              { label: 'Inclusive End Date', key: 'completionDate', placeholder: 'YYYY-MM-DD', type: 'date' },
+              { label: 'Number of Hours', key: 'hours', placeholder: 'e.g. 112', type: 'number' },
+              { label: 'Source', key: 'source', placeholder: 'e.g. GO or CE' },
+              { label: 'Auth Number', key: 'certificateNo', placeholder: 'e.g. 2024-286' },
+              { label: 'Auth Date', key: 'authorityDate', placeholder: 'YYYY-MM-DD', type: 'date' },
+              { label: 'Issued By', key: 'issuedBy', placeholder: 'e.g. PNP TS or DICTM' },
+              { label: 'Attachment', key: 'attachment', placeholder: 'Document name, reference, or URL' },
+            ].map(f => (
+              <div key={f.key}>
+                <label className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block mb-1">{f.label}</label>
+                <input
+                  type={f.type ?? 'text'}
+                  value={form[f.key as keyof TrnFormData]}
+                  onChange={e => setForm(prev => ({ ...prev, [f.key]: e.target.value }))}
+                  placeholder={f.placeholder}
+                  min={f.key === 'hours' ? '0' : undefined}
+                  step={f.key === 'hours' ? '0.5' : undefined}
+                  className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition-all"
+                />
+              </div>
+            ))}
+          </div>
         </div>
         <div className="flex justify-end gap-2 px-6 py-4 border-t border-slate-100 bg-slate-50">
           <button onClick={onClose} className="px-4 py-2 text-sm rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 transition-colors">Cancel</button>
@@ -758,21 +867,28 @@ export const EducationPage: React.FC = () => {
   const withEdu = personnelList.filter(p => educationList.some(e => e.personnelId === p.id)).length;
 
   // ── Handlers ──
-  const handleSaveEdu = async (data: Partial<EducationRecord>) => {
-    if (data.id) {
-      await updateEducation(data as EducationRecord);
-    } else {
+  const handleSaveEdu = async (records: Partial<EducationRecord>[]) => {
+    await Promise.all(records.map(async data => {
+      if (data.id) {
+        await updateEducation(data as EducationRecord);
+        return;
+      }
+
       const newRec: EducationRecord = {
         id: `edu-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         personnelId: data.personnelId!,
-        degree: data.degree!,
-        institution: data.institution!,
+        academicLevel: data.academicLevel,
+        degree: data.degree,
+        institution: data.institution,
+        major: data.major,
+        startYear: data.startYear,
         yearGraduated: data.yearGraduated,
         honors: data.honors,
-        certifications: data.certifications,
+        highest: data.highest,
+        ranking: data.ranking,
       };
       await addEducation(newRec);
-    }
+    }));
   };
 
   const handleSaveTrn = async (data: Partial<TrainingRecord>) => {
@@ -785,10 +901,15 @@ export const EducationPage: React.FC = () => {
         courseName: data.courseName!,
         category: data.category,
         provider: data.provider!,
+        location: data.location,
         startDate: data.startDate,
         completionDate: data.completionDate,
         hours: data.hours,
+        source: data.source,
         certificateNo: data.certificateNo,
+        authorityDate: data.authorityDate,
+        issuedBy: data.issuedBy,
+        attachment: data.attachment,
       };
       await addTraining(newRec);
     }
@@ -1005,19 +1126,31 @@ export const EducationPage: React.FC = () => {
                     <div key={edu.id} className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1 group relative">
                       <div className="flex items-start justify-between gap-2 text-xs">
                         <div className="min-w-0">
-                          <span className="font-bold text-slate-900 block truncate">{edu.degree}</span>
-                          <span className="text-[11px] text-blue-700 font-extrabold block">{edu.institution}</span>
-                          {edu.honors && <span className="text-[10px] text-slate-500 italic">{edu.honors}</span>}
+                          <span className="font-bold text-slate-900 block truncate">
+                            {[edu.academicLevel, edu.degree].filter(Boolean).join(' — ') || 'Academic Record'}
+                          </span>
+                          {edu.institution && <span className="text-[11px] text-blue-700 font-extrabold block">{edu.institution}</span>}
+                          {edu.major && <span className="text-[10px] text-slate-500 block">Major: {edu.major}</span>}
+                          {edu.honors && <span className="text-[10px] text-slate-500 italic">Grade: {edu.honors}</span>}
                         </div>
                         <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                          <span className="font-mono text-slate-600 font-bold text-[11px]">{edu.yearGraduated}</span>
+                          {(edu.startYear || edu.yearGraduated) && (
+                            <span className="font-mono text-slate-600 font-bold text-[11px]">
+                              {edu.startYear ?? '—'}–{edu.yearGraduated ?? '—'}
+                            </span>
+                          )}
+                          {edu.highest && <Badge variant="info" size="sm">Highest</Badge>}
                           {isAdmin && (
                             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                               <button onClick={() => openEditEdu(edu)} className="p-1 rounded-lg hover:bg-blue-100 text-blue-500 transition-colors" title="Edit">
                                 <Pencil className="w-3 h-3" />
                               </button>
                               <button
-                                onClick={() => setConfirmDelete({ type: 'edu', id: edu.id, label: `${edu.degree} from ${edu.institution}` })}
+                                onClick={() => setConfirmDelete({
+                                  type: 'edu',
+                                  id: edu.id,
+                                  label: [edu.academicLevel, edu.degree, edu.institution].filter(Boolean).join(' — ') || 'this academic record'
+                                })}
                                 className="p-1 rounded-lg hover:bg-red-100 text-red-400 transition-colors" title="Delete"
                               >
                                 <Trash2 className="w-3 h-3" />
@@ -1060,9 +1193,13 @@ export const EducationPage: React.FC = () => {
                     <div key={trn.id} className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 flex items-start justify-between text-xs gap-2 group">
                       <div className="min-w-0">
                         <span className="font-bold text-slate-900 block truncate">{trn.courseName}</span>
-                        <span className="text-[10px] text-slate-500 font-medium">{trn.provider}</span>
-                        {trn.completionDate && <span className="text-[10px] text-slate-400 block">{trn.completionDate}</span>}
-                        {trn.certificateNo && <span className="text-[10px] text-slate-400 font-mono">#{trn.certificateNo}</span>}
+                        <span className="text-[10px] text-slate-500 font-medium">
+                          {[trn.category, trn.provider, trn.location].filter(Boolean).join(' • ')}
+                        </span>
+                        {(trn.startDate || trn.completionDate) && (
+                          <span className="text-[10px] text-slate-400 block">{trn.startDate ?? '—'} to {trn.completionDate ?? '—'}</span>
+                        )}
+                        {trn.certificateNo && <span className="text-[10px] text-slate-400 font-mono">Auth #{trn.certificateNo}</span>}
                       </div>
                       <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
                         {trn.hours && <Badge variant="info" size="sm">{trn.hours} hrs</Badge>}
@@ -1125,6 +1262,7 @@ export const EducationPage: React.FC = () => {
           personnelId={activePersonnelId}
           personnelName={`${activePersonnel.rank} ${activePersonnel.fullName}`}
           existing={editingEdu}
+          existingRecords={educationList.filter(record => record.personnelId === activePersonnelId)}
           onSave={handleSaveEdu}
           onClose={() => setModalMode(null)}
         />

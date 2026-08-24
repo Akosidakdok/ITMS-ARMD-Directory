@@ -1,5 +1,7 @@
 import { db } from '../store/repository.js';
 
+const auditActor = req => req.user?.displayName || req.user?.email || 'System';
+
 export const getAllEducation = async (req, res) => {
   try {
     const { personnelId } = req.query;
@@ -16,15 +18,19 @@ export const getAllEducation = async (req, res) => {
 
 export const createEducation = async (req, res) => {
   try {
-    const { personnelId, degree, institution } = req.body;
-    if (!personnelId || !degree || !institution) {
+    const { personnelId, academicLevel, degree } = req.body;
+    if (!personnelId || (!academicLevel && !degree)) {
       return res.status(400).json({
         success: false,
-        message: 'Missing required fields: personnelId, degree, institution are required'
+        message: 'Missing required fields: personnelId and academic level are required'
       });
     }
 
-    const created = await db.createEducation(req.body);
+    const created = await db.createEducation({
+      ...req.body,
+      createdBy: auditActor(req),
+      createdOn: new Date().toISOString()
+    });
     res.status(201).json({
       success: true,
       message: 'Educational qualification added successfully',
@@ -38,7 +44,11 @@ export const createEducation = async (req, res) => {
 export const updateEducation = async (req, res) => {
   try {
     const { id } = req.params;
-    const updated = await db.updateEducation(id, req.body);
+    const updated = await db.updateEducation(id, {
+      ...req.body,
+      modifiedBy: auditActor(req),
+      modifiedOn: new Date().toISOString()
+    });
     if (!updated) {
       return res.status(404).json({ success: false, message: 'Education record not found' });
     }

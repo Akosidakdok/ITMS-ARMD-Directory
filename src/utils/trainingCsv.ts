@@ -4,7 +4,7 @@
  * Tolerant parsing rules:
  * - Unknown columns are silently DROPPED (only known training columns are absorbed)
  * - Empty rows / spacer rows are silently SKIPPED
- * - Only personnelId + courseName + provider are required fields for a valid row
+ * - personnelId + training title + school are required fields for a valid row
  */
 
 export interface TrainingImportRow {
@@ -13,10 +13,15 @@ export interface TrainingImportRow {
   courseName: string;
   category?: string;
   provider: string;
+  location?: string;
   startDate?: string;
   completionDate?: string;
   hours?: number;
+  source?: string;
   certificateNo?: string;
+  authorityDate?: string;
+  issuedBy?: string;
+  attachment?: string;
 }
 
 export interface TrainingImportIssue {
@@ -35,7 +40,10 @@ export interface TrainingParseResult {
 /** All column names that belong to the Training schema */
 const TRAINING_COLUMNS = new Set([
   'personnelid', 'fullname', 'coursename', 'category',
-  'provider', 'startdate', 'completiondate', 'hours', 'certificateno'
+  'provider', 'startdate', 'completiondate', 'hours', 'certificateno',
+  'trainingtype', 'trainingtitle', 'school', 'location', 'inclusivestartdate',
+  'inclusiveenddate', 'numberofhours', 'source', 'authnumber', 'authdate',
+  'issuedby', 'attachment'
 ]);
 
 /** Normalize a header string to the canonical lowercase-no-space form */
@@ -132,21 +140,23 @@ export function parseTrainingCsv(text: string): TrainingParseResult {
     const allEmpty = Object.values(raw).every(v => !v);
     if (allEmpty) { droppedCount++; return; }
 
-    // TYPE CHECK: must have at least courseName or provider to be a training row
-    const hasCourseName = !!raw.coursename;
-    const hasProvider = !!raw.provider;
-    if (!hasCourseName && !hasProvider) { droppedCount++; return; }
+    const trainingTitle = raw.trainingtitle || raw.coursename;
+    const trainingType = raw.trainingtype || raw.category;
+    const school = raw.school || raw.provider;
+
+    // TYPE CHECK: must contain at least one recognizable training value.
+    if (!trainingTitle && !trainingType && !school) { droppedCount++; return; }
 
     const issues: TrainingImportIssue[] = [];
 
     if (!raw.personnelid) {
       issues.push({ row: rowNum, field: 'personnelId', message: 'personnelId is required', raw });
     }
-    if (!raw.coursename) {
-      issues.push({ row: rowNum, field: 'courseName', message: 'courseName is required', raw });
+    if (!trainingTitle) {
+      issues.push({ row: rowNum, field: 'trainingTitle', message: 'trainingTitle is required', raw });
     }
-    if (!raw.provider) {
-      issues.push({ row: rowNum, field: 'provider', message: 'provider is required', raw });
+    if (!school) {
+      issues.push({ row: rowNum, field: 'school', message: 'school is required', raw });
     }
 
     if (issues.length > 0) {
@@ -154,18 +164,24 @@ export function parseTrainingCsv(text: string): TrainingParseResult {
       return;
     }
 
-    const hours = raw.hours ? parseFloat(raw.hours) : undefined;
+    const hoursValue = raw.numberofhours || raw.hours;
+    const hours = hoursValue ? parseFloat(hoursValue) : undefined;
 
     validRows.push({
       personnelId: raw.personnelid,
       fullName: raw.fullname || undefined,
-      courseName: raw.coursename,
-      category: raw.category || undefined,
-      provider: raw.provider,
-      startDate: raw.startdate || undefined,
-      completionDate: raw.completiondate || undefined,
+      courseName: trainingTitle,
+      category: trainingType,
+      provider: school,
+      location: raw.location || undefined,
+      startDate: raw.inclusivestartdate || raw.startdate || undefined,
+      completionDate: raw.inclusiveenddate || raw.completiondate || undefined,
       hours: hours && !isNaN(hours) ? hours : undefined,
-      certificateNo: raw.certificateno || undefined,
+      source: raw.source || undefined,
+      certificateNo: raw.authnumber || raw.certificateno || undefined,
+      authorityDate: raw.authdate || undefined,
+      issuedBy: raw.issuedby || undefined,
+      attachment: raw.attachment || undefined,
     });
   });
 
@@ -174,7 +190,7 @@ export function parseTrainingCsv(text: string): TrainingParseResult {
 
 /** Generate a downloadable CSV template for training bulk upload */
 export function generateTrainingCsvTemplate(): string {
-  const headers = 'personnelId,fullName,courseName,category,provider,startDate,completionDate,hours,certificateNo';
-  const example = 'pnp-001,Juan Dela Cruz,Ethical Hacking Fundamentals,Cybersecurity,EC-Council,2024-01-15,2024-01-20,40,CERT-2024-001';
+  const headers = 'personnelId,fullName,trainingType,trainingTitle,school,location,inclusiveStartDate,inclusiveEndDate,numberOfHours,source,authNumber,authDate,issuedBy,attachment';
+  const example = 'pnp-001,Juan Dela Cruz,Specialized,PNP Basic Essentials Computer Course,ITMS,Camp Crame,2024-05-27,2024-06-14,112,GO,2024-286,2024-06-14,PNP TS,';
   return `${headers}\n${example}\n`;
 }

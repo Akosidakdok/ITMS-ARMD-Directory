@@ -289,8 +289,8 @@ export const createEducationApi = async (edu: EducationRecord): Promise<Educatio
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(edu)
   });
-  if (!res.ok) throw new Error('Failed to create education record');
-  const json = await res.json();
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(json?.message || json?.error || 'Failed to create education record');
   return json.data;
 };
 
@@ -376,8 +376,8 @@ export const createTrainingApi = async (training: TrainingRecord): Promise<Train
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(training)
   });
-  if (!res.ok) throw new Error('Failed to create training');
-  const json = await res.json();
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(json?.message || json?.error || 'Failed to create training');
   return json.data;
 };
 

@@ -28,8 +28,12 @@ const withTimeout = (promise, timeoutMs, timeoutMessage) => (
   ])
 );
 
-export const supabase = (supabaseUrl && supabaseKey) 
-  ? createClient(supabaseUrl, supabaseKey) 
+// Database access stays on the server. Prefer the service-role credential so
+// table RLS can remain enabled without exposing direct anon data access.
+export const supabase = (supabaseUrl && (supabaseServiceRoleKey || supabaseKey))
+  ? createClient(supabaseUrl, supabaseServiceRoleKey || supabaseKey, {
+      auth: { persistSession: false, autoRefreshToken: false }
+    })
   : null;
 
 export const isSupabaseConfigured = () => Boolean(supabaseUrl && supabaseKey);

@@ -107,14 +107,14 @@ interface AuthRoleContextType {
   addAssignment: (assignment: AssignmentRecord) => Promise<AssignmentRecord>;
   updateAssignment: (assignment: AssignmentRecord) => Promise<AssignmentRecord>;
   deleteAssignment: (id: string) => Promise<void>;
-  addEducation: (edu: EducationRecord) => void;
+  addEducation: (edu: EducationRecord) => Promise<EducationRecord>;
   updateEducation: (edu: EducationRecord) => Promise<EducationRecord>;
   deleteEducation: (id: string) => Promise<void>;
   bulkUpsertEducation: (records: Partial<EducationRecord>[]) => Promise<BulkUpsertResult>;
   addPromotion: (promotion: PromotionRecord) => void;
   updatePromotion: (promotion: PromotionRecord) => Promise<void>;
   deletePromotion: (id: string) => Promise<void>;
-  addTraining: (training: TrainingRecord) => void;
+  addTraining: (training: TrainingRecord) => Promise<TrainingRecord>;
   updateTraining: (training: TrainingRecord) => Promise<TrainingRecord>;
   deleteTraining: (id: string) => Promise<void>;
   bulkUpsertTraining: (records: Partial<TrainingRecord>[]) => Promise<BulkUpsertResult>;
@@ -339,14 +339,13 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   // Education Mutations
   const addEducation = async (edu: EducationRecord) => {
-    setEducationList(prev => [edu, ...prev]);
     if (backendConnected) {
-      try {
-        await createEducationApi(edu);
-      } catch (e) {
-        console.error('Failed to sync education with backend:', e);
-      }
+      const created = await createEducationApi(edu);
+      setEducationList(prev => [created, ...prev]);
+      return created;
     }
+    setEducationList(prev => [edu, ...prev]);
+    return edu;
   };
 
   const updateEducation = async (edu: EducationRecord) => {
@@ -410,14 +409,13 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   // Training Mutations
   const addTraining = async (training: TrainingRecord) => {
-    setTrainingList(prev => [training, ...prev]);
     if (backendConnected) {
-      try {
-        await createTrainingApi(training);
-      } catch (e) {
-        console.error('Failed to sync training with backend:', e);
-      }
+      const created = await createTrainingApi(training);
+      setTrainingList(prev => [created, ...prev]);
+      return created;
     }
+    setTrainingList(prev => [training, ...prev]);
+    return training;
   };
 
   const deletePromotion = async (id: string) => {

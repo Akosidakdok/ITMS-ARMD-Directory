@@ -1,0 +1,106 @@
+rank,firstname,middlename,lastname,qualifier,badgeno,salarygrade,plantilla,division,detail,designation,address,gender,contactnumber,birthday,dateofentry,enterinofficerpositiondate,status
+P/BGEN,Jose,Reyes,Santos,,101001,30,P-001,Office of the Director,,Director,Quezon City,Male,09171234567,1970-03-15,1994-06-01,2020-01-15,Active
+P/COL,Maria,Dela Cruz,Reyes,,101002,29,P-002,Operations Division,,Chief Operations Officer,Makati City,Female,09182345678,1972-07-20,1996-08-15,2018-03-10,Active
+P/LCOL,Antonio,Bautista,Garcia,,101003,28,P-003,Intelligence Division,,Division Chief,Pasig City,Male,09193456789,1975-11-05,1998-02-20,2019-07-01,Active
+P/MAJ,Lourdes,Villanueva,Torres,,101004,27,P-004,Administrative Division,,Division Chief,Mandaluyong City,Female,09204567890,1978-04-12,2000-05-10,2021-09-15,Active
+P/MAJ,Roberto,Mendoza,Flores,,101005,27,P-005,Logistics Division,,Division Chief,Taguig City,Male,09215678901,1977-09-28,1999-11-01,2022-01-20,Active
+P/CAPT,Analiza,Ramos,Cruz,,101006,26,P-006,Operations Division,,Section Chief,Pasay City,Female,09226789012,1980-06-17,2002-03-15,2023-04-05,Active
+P/CAPT,Eduardo,Castillo,Morales,,101007,26,P-007,Intelligence Division,,Section Chief,Caloocan City,Male,09237890123,1981-01-30,2003-07-20,2023-08-12,Active
+P/LT,Rosario,Fernandez,Navarro,,101008,25,P-008,Administrative Division,,Section Chief,Las Piñas City,Female,09248901234,1983-08-22,2005-04-10,2024-02-28,Active
+P/LT,Ferdinand,Lopez,Rivera,,101009,25,P-009,Logistics Division,,Section Chief,Muntinlupa City,Male,09259012345,1982-12-07,2004-09-05,2024-06-15,Active
+P/LT,Corazon,Gonzalez,Santos,,101010,25,P-010,Operations Division,,Team Leader,Paranaque City,Female,09260123456,1984-03-19,2006-01-25,2024-10-01,Active
+PEMS,Ricardo,Aquino,Reyes,,101011,20,P-011,Operations Division,,Senior Investigator,Quezon City,Male,09271234568,1979-05-11,2001-06-30,,Active
+PEMS,Teresita,Pascual,Dela Cruz,,101012,20,P-012,Intelligence Division,,Senior Analyst,Marikina City,Female,09282345679,1980-10-24,2002-08-14,,Active
+PEMS,Bernardo,Aguilar,Bautista,,101013,20,P-013,Administrative Division,,Senior Admin Officer,Valenzuela City,Male,09293456780,1981-07-16,2003-03-28,,Active
+PEMS,Gloria,Soriano,Garcia,,101014,20,P-014,Logistics Division,,Senior Logistics Officer,Navotas City,Female,09204567891,1982-02-08,2004-11-10,,Active
+PEMS,Victorino,Reyes,Torres,,101015,20,P-015,Operations Division,,Senior Investigator,Malabon City,Male,09215678902,1983-09-30,2005-06-20,,Active
+PSMS,Lydia,Cruz,Flores,,101016,18,P-016,Intelligence Division,,Intelligence Officer,Quezon City,Female,09226789013,1984-04-14,2006-02-15,,Active
+PSMS,Mariano,Villanueva,Morales,,101017,18,P-017,Administrative Division,,Admin Officer,Makati City,Male,09237890124,1985-11-26,2007-08-01,,Active
+PSMS,Josephine,Santos,Navarro,,101018,18,P-018,Logistics Division,,Logistics Officer,Pasig City,Female,09248901235,1986-06-09,2008-04-20,,Active
+PSMS,Ernesto,Ramos,Rivera,,101019,18,P-019,Operations Division,,Investigator,Mandaluyong City,Male,09259012346,1987-01-21,2009-01-10,,Active
+PSMS,Felicitas,Mendoza,Santos,,101020,18,P-020,Intelligence Division,,Intelligence Officer,Taguig City,Female,09260123457,1988-08-03,2010-07-25,,Active
+PCMS,Alfredo,Fernandez,Reyes,,101021,16,P-021,Administrative Division,,Admin Aide,Pasay City,Male,09271234569,1989-03-15,2011-03-05,,Active
+PCMS,Natividad,Pascal,Dela Cruz,,101022,16,P-022,Logistics Division,,Logistics Aide,Caloocan City,Female,09282345670,1990-10-27,2012-09-18,,Active
+PCMS,Rogelio,Aguilar,Bautista,,101023,16,P-023,Operations Division,,Field Officer,Las Piñas City,Male,09293456781,1991-05-09,2013-05-30,,Active
+PCMS,Adoracion,Soriano,Garcia,,101024,16,P-024,Intelligence Division,,Desk Officer,Muntinlupa City,Female,09204567892,1992-12-21,2014-12-12,,Active
+PCMS,Domingo,Cruz,Torres,,101025,16,P-025,Administrative Division,,Records Officer,Paranaque City,Male,09215678903,1993-07-03,2015-08-04,,Active
+PMS,Cristina,Villanueva,Flores,,101026,14,P-026,Logistics Division,,Supply Officer,Quezon City,Female,09226789014,1994-02-14,2016-02-22,,Active
+PMS,Benedicto,Ramos,Morales,,101027,14,P-027,Operations Division,,Patrol Officer,Marikina City,Male,09237890125,1995-09-26,2017-09-14,,Active
+PMS,Milagros,Castillo,Navarro,,101028,14,P-028,Intelligence Division,,Research Officer,Valenzuela City,Female,09248901236,1996-04-08,2018-05-06,,Active
+PMS,Patricio,Fernandez,Rivera,,101029,14,P-029,Administrative Division,,Personnel Officer,Navotas City,Male,09259012347,1997-11-20,2019-01-28,,Active
+PMS,Clarita,Lopez,Santos,,101030,14,P-030,Logistics Division,,Property Custodian,Malabon City,Female,09260123458,1998-06-02,2020-08-10,,Active
+PCpl,Andres,Gonzalez,Reyes,,101031,12,P-031,Operations Division,,Field Officer,Quezon City,Male,09271234570,1999-01-14,2021-03-22,,Active
+PCpl,Susana,Castillo,Dela Cruz,,101032,12,P-032,Intelligence Division,,Data Encoder,Makati City,Female,09282345671,2000-08-26,2022-10-14,,Active
+PCpl,Lorenzo,Morales,Bautista,,101033,12,P-033,Administrative Division,,Clerk,Pasig City,Male,09293456782,2001-03-08,2023-05-06,,Active
+PCpl,Florencia,Navarro,Garcia,,101034,12,P-034,Logistics Division,,Supply Assistant,Mandaluyong City,Female,09204567893,2001-10-20,2023-11-28,,Active
+PCpl,Herminio,Rivera,Torres,,101035,12,P-035,Operations Division,,Patrol Officer,Taguig City,Male,09215678904,2002-05-02,2024-07-10,,Active
+PO3,Angelita,Santos,Flores,,101036,11,P-036,Intelligence Division,,Desk Officer,Pasay City,Female,09226789015,1985-12-14,2007-04-22,,Active
+PO3,Celestino,Dela Cruz,Morales,,101037,11,P-037,Administrative Division,,Clerk,Caloocan City,Male,09237890126,1986-07-26,2008-11-14,,Active
+PO3,Nilda,Bautista,Navarro,,101038,11,P-038,Logistics Division,,Supply Staff,Las Piñas City,Female,09248901237,1987-03-08,2009-07-06,,Active
+PO3,Simplicio,Garcia,Rivera,,101039,11,P-039,Operations Division,,Patrol Officer,Muntinlupa City,Male,09259012348,1988-10-20,2010-03-28,,Active
+PO3,Divina,Torres,Santos,,101040,11,P-040,Intelligence Division,,Research Staff,Paranaque City,Female,09260123459,1989-05-02,2011-10-10,,Active
+PO2,Aurelio,Flores,Reyes,,101041,10,P-041,Administrative Division,,Messenger,Quezon City,Male,09271234571,1990-12-14,2012-06-22,,Active
+PO2,Estela,Morales,Dela Cruz,,101042,10,P-042,Logistics Division,,Supply Aide,Marikina City,Female,09282345672,1991-07-26,2013-03-14,,Active
+PO2,Rodrigo,Navarro,Bautista,,101043,10,P-043,Operations Division,,Patrol Officer,Valenzuela City,Male,09293456783,1992-03-08,2014-10-06,,Active
+PO2,Imelda,Rivera,Garcia,,101044,10,P-044,Intelligence Division,,Data Aide,Navotas City,Female,09204567894,1993-10-20,2015-06-28,,Active
+PO2,Gregorio,Santos,Torres,,101045,10,P-045,Administrative Division,,Clerk,Malabon City,Male,09215678905,1994-05-02,2016-03-10,,Active
+PO1,Carmelita,Dela Cruz,Flores,,101046,9,P-046,Logistics Division,,Supply Aide,Quezon City,Female,09226789016,1995-12-14,2017-10-22,,Active
+PO1,Alejandro,Bautista,Morales,,101047,9,P-047,Operations Division,,Patrol Officer,Makati City,Male,09237890127,1996-07-26,2018-07-14,,Active
+PO1,Remedios,Garcia,Navarro,,101048,9,P-048,Intelligence Division,,Desk Aide,Pasig City,Female,09248901238,1997-03-08,2019-04-06,,Active
+PO1,Eliseo,Torres,Rivera,,101049,9,P-049,Administrative Division,,Clerk,Mandaluyong City,Male,09259012349,1998-10-20,2020-11-28,,Active
+PO1,Perla,Flores,Santos,,101050,9,P-050,Logistics Division,,Messenger,Taguig City,Female,09260123460,1999-05-02,2021-08-10,,Active
+P/BGEN,Ramon,Castillo,Aquino,,101051,30,P-051,Office of the Director,,Deputy Director,Pasay City,Male,09171234577,1968-09-25,1992-04-12,2019-05-20,Active
+P/COL,Violeta,Soriano,Pascual,,101052,29,P-052,Operations Division,,Assistant Chief,Caloocan City,Female,09182345688,1971-12-07,1995-10-25,2017-11-08,Active
+P/LCOL,Marcelo,Aguilar,Santiago,,101053,28,P-053,Intelligence Division,,Assistant Chief,Las Piñas City,Male,09193456799,1974-06-19,1997-05-30,2018-09-15,Active
+P/MAJ,Rosalinda,Cruz,Magsaysay,,101054,27,P-054,Administrative Division,,Section Chief,Muntinlupa City,Female,09204567800,1977-01-31,2000-12-10,2021-03-25,Active
+P/MAJ,Teodoro,Villanueva,Quezon,,101055,27,P-055,Logistics Division,,Section Chief,Paranaque City,Male,09215678810,1976-08-13,1999-07-20,2022-07-30,Active
+P/CAPT,Leonila,Ramos,Roxas,,101056,26,P-056,Operations Division,,Team Leader,Quezon City,Female,09226789020,1979-03-25,2001-02-05,2023-01-12,Active
+P/CAPT,Simplicio,Castillo,Osmena,,101057,26,P-057,Intelligence Division,,Team Leader,Marikina City,Male,09237890130,1980-10-07,2002-09-18,2023-05-20,Active
+P/LT,Bonifacia,Fernandez,Laurel,,101058,25,P-058,Administrative Division,,Team Leader,Valenzuela City,Female,09248901240,1982-05-19,2004-06-10,2024-01-08,Active
+P/LT,Hilarion,Lopez,Marcos,,101059,25,P-059,Logistics Division,,Section Officer,Navotas City,Male,09259012350,1981-12-01,2003-01-25,2024-05-25,Active
+P/LT,Presentacion,Gonzalez,Duterte,,101060,25,P-060,Operations Division,,Patrol Supervisor,Malabon City,Female,09260123461,1983-07-13,2005-09-15,2024-09-10,Active
+PEMS,Wenceslao,Castillo,Arroyo,,101061,20,P-061,Operations Division,,Investigator,Quezon City,Male,09271234572,1978-02-25,2000-07-30,,Active
+PEMS,Corazon,Morales,Estrada,,101062,20,P-062,Intelligence Division,,Analyst,Makati City,Female,09282345673,1979-09-07,2001-04-12,,Active
+PEMS,Gaudencio,Navarro,Ramos,,101063,20,P-063,Administrative Division,,Admin Officer,Pasig City,Male,09293456784,1980-04-19,2002-11-25,,Active
+PEMS,Teresita,Rivera,Aquino,,101064,20,P-064,Logistics Division,,Logistics Officer,Mandaluyong City,Female,09204567895,1981-11-01,2003-07-07,,Active
+PEMS,Arcadio,Santos,Marcos,,101065,20,P-065,Operations Division,,Senior Patrol Officer,Taguig City,Male,09215678906,1982-06-13,2004-03-20,,Active
+PSMS,Florentina,Dela Cruz,Quirino,,101066,18,P-066,Intelligence Division,,Senior Analyst,Pasay City,Female,09226789017,1983-01-25,2005-10-02,,Active
+PSMS,Ciriaco,Bautista,Garcia,,101067,18,P-067,Administrative Division,,Senior Admin Aide,Caloocan City,Male,09237890128,1984-08-07,2006-06-15,,Active
+PSMS,Resurreccion,Garcia,Osmena,,101068,18,P-068,Logistics Division,,Property Officer,Las Piñas City,Female,09248901239,1985-03-19,2007-03-28,,Active
+PSMS,Bartolome,Torres,Magsaysay,,101069,18,P-069,Operations Division,,Field Officer,Muntinlupa City,Male,09259012351,1986-10-01,2008-11-10,,Active
+PSMS,Pilar,Flores,Roxas,,101070,18,P-070,Intelligence Division,,Intel Officer,Paranaque City,Female,09260123462,1987-05-13,2009-07-22,,Active
+PCMS,Severino,Morales,Quezon,,101071,16,P-071,Administrative Division,,Clerk,Quezon City,Male,09271234573,1988-12-25,2010-04-04,,Active
+PCMS,Magdalena,Navarro,Laurel,,101072,16,P-072,Logistics Division,,Supply Aide,Marikina City,Female,09282345674,1989-07-07,2011-12-16,,Active
+PCMS,Filomeno,Rivera,Osias,,101073,16,P-073,Operations Division,,Patrol Aide,Valenzuela City,Male,09293456785,1990-02-19,2012-08-28,,Active
+PCMS,Bonifacia,Santos,Macapagal,,101074,16,P-074,Intelligence Division,,Data Aide,Navotas City,Female,09204567896,1991-09-01,2013-05-10,,Active
+PCMS,Ireneo,Dela Cruz,Marcos,,101075,16,P-075,Administrative Division,,Records Aide,Malabon City,Male,09215678907,1992-04-13,2014-01-22,,Active
+PMS,Adelaida,Bautista,Quirino,,101076,14,P-076,Logistics Division,,Supply Staff,Quezon City,Female,09226789018,1993-11-25,2015-10-04,,Active
+PMS,Melecio,Garcia,Garcia,,101077,14,P-077,Operations Division,,Patrol Staff,Makati City,Male,09237890129,1994-06-07,2016-06-16,,Active
+PMS,Herminia,Torres,Osmena,,101078,14,P-078,Intelligence Division,,Research Aid,Pasig City,Female,09248901242,1995-01-19,2017-02-28,,Active
+PMS,Exequiel,Flores,Magsaysay,,101079,14,P-079,Administrative Division,,Personnel Aide,Mandaluyong City,Male,09259012352,1996-08-01,2018-09-10,,Active
+PMS,Avelina,Morales,Roxas,,101080,14,P-080,Logistics Division,,Messenger,Taguig City,Female,09260123463,1997-03-13,2019-05-22,,Active
+PCpl,Timoteo,Navarro,Quezon,,101081,12,P-081,Operations Division,,Field Staff,Pasay City,Male,09271234574,1998-10-25,2020-02-04,,Active
+PCpl,Zenaida,Rivera,Laurel,,101082,12,P-082,Intelligence Division,,Desk Staff,Caloocan City,Female,09282345675,1999-05-07,2021-09-16,,Active
+PCpl,Delfin,Santos,Osias,,101083,12,P-083,Administrative Division,,Clerk,Las Piñas City,Male,09293456786,2000-12-19,2022-05-28,,Active
+PCpl,Preciosa,Dela Cruz,Macapagal,,101084,12,P-084,Logistics Division,,Supply Clerk,Muntinlupa City,Female,09204567897,2001-07-01,2023-03-10,,Active
+PCpl,Renato,Bautista,Marcos,,101085,12,P-085,Operations Division,,Patrol Staff,Paranaque City,Male,09215678908,2002-02-13,2023-10-22,,Active
+PO3,Felicidad,Garcia,Quirino,,101086,11,P-086,Intelligence Division,,Data Staff,Quezon City,Female,09226789019,1984-09-25,2006-07-04,,Active
+PO3,Hermenegildo,Torres,Garcia,,101087,11,P-087,Administrative Division,,Office Staff,Marikina City,Male,09237890131,1985-04-07,2007-03-16,,Active
+PO3,Rosalina,Flores,Osmena,,101088,11,P-088,Logistics Division,,Supply Staff,Valenzuela City,Female,09248901243,1986-11-19,2008-11-28,,Active
+PO3,Ladislao,Morales,Magsaysay,,101089,11,P-089,Operations Division,,Patrol Staff,Navotas City,Male,09259012353,1987-06-01,2009-07-10,,Active
+PO3,Felipa,Navarro,Roxas,,101090,11,P-090,Intelligence Division,,Research Staff,Malabon City,Female,09260123464,1988-01-13,2010-03-22,,Active
+PO2,Clodualdo,Rivera,Quezon,,101091,10,P-091,Administrative Division,,Office Aide,Quezon City,Male,09271234575,1989-08-25,2011-10-04,,Active
+PO2,Liberata,Santos,Laurel,,101092,10,P-092,Logistics Division,,Supply Aide,Makati City,Female,09282345676,1990-03-07,2012-06-16,,Active
+PO2,Amado,Dela Cruz,Osias,,101093,10,P-093,Operations Division,,Patrol Aide,Pasig City,Male,09293456787,1991-10-19,2013-02-28,,Active
+PO2,Pacencia,Bautista,Macapagal,,101094,10,P-094,Intelligence Division,,Data Aide,Mandaluyong City,Female,09204567898,1992-05-01,2014-09-10,,Active
+PO2,Leoncio,Garcia,Marcos,,101095,10,P-095,Administrative Division,,Clerk Aide,Taguig City,Male,09215678909,1993-12-13,2015-06-22,,Active
+PO1,Generosa,Torres,Quirino,,101096,9,P-096,Logistics Division,,Messenger,Pasay City,Female,09226789021,1994-07-25,2016-02-04,,Active
+PO1,Anastacio,Flores,Garcia,,101097,9,P-097,Operations Division,,Patrol Aide,Caloocan City,Male,09237890132,1995-02-07,2017-09-16,,Active
+PO1,Perpetua,Morales,Osmena,,101098,9,P-098,Intelligence Division,,Desk Aide,Las Piñas City,Female,09248901244,1996-09-19,2018-05-28,,Active
+PO1,Serafin,Navarro,Magsaysay,,101099,9,P-099,Administrative Division,,Records Aide,Muntinlupa City,Male,09259012354,1997-04-01,2019-01-10,,Active
+PO1,Luciana,Rivera,Roxas,,101100,9,P-100,Logistics Division,,Supply Aide,Paranaque City,Female,09260123465,1998-11-13,2020-07-22,,Active
+P/CAPT,Maximino,Santos,Zabala,,101101,26,P-101,Operations Division,,Patrol Supervisor,Quezon City,Male,09271234576,1979-06-25,2001-04-07,2023-11-01,Active
+P/LT,Natividad,Dela Cruz,Soriano,,101102,25,P-102,Intelligence Division,,Intel Supervisor,Makati City,Female,09282345677,1982-01-07,2004-08-19,2024-03-15,Active
+PEMS,Primitivo,Bautista,Pascual,,101103,20,P-103,Administrative Division,,Senior Clerk,Pasig City,Male,09293456788,1977-08-19,2000-03-01,,Active
+PSMS,Caridad,Garcia,Aguilar,,101104,18,P-104,Logistics Division,,Property Inspector,Mandaluyong City,Female,09204567899,1983-03-01,2005-11-13,,Active
+PCMS,Potenciano,Torres,Santiago,,101105,16,P-105,Operations Division,,Field Aide,Taguig City,Male,09215678910,1991-10-13,2013-07-25,,Inactive

@@ -10,10 +10,15 @@
 export interface EducationImportRow {
   personnelId: string;
   fullName?: string;
-  degree: string;
-  institution: string;
+  academicLevel?: string;
+  degree?: string;
+  institution?: string;
+  major?: string;
+  startYear?: number;
   yearGraduated?: number;
   honors?: string;
+  highest?: boolean;
+  ranking?: number;
   certifications?: string[];
 }
 
@@ -33,7 +38,9 @@ export interface EducationParseResult {
 /** All column names that belong to the Education schema */
 const EDUCATION_COLUMNS = new Set([
   'personnelid', 'fullname', 'degree', 'institution',
-  'yeargraduated', 'honors', 'certifications'
+  'yeargraduated', 'honors', 'certifications',
+  'academiclevel', 'school', 'course', 'major', 'startyear',
+  'endyear', 'grade', 'highest', 'ranking'
 ]);
 
 /** Normalize a header string to the canonical lowercase-no-space form */
@@ -130,21 +137,19 @@ export function parseEducationCsv(text: string): EducationParseResult {
     const allEmpty = Object.values(raw).every(v => !v);
     if (allEmpty) { droppedCount++; return; }
 
-    // TYPE CHECK: must have at least degree or institution to be an education row
-    const hasDegree = !!raw.degree;
-    const hasInstitution = !!raw.institution;
-    if (!hasDegree && !hasInstitution) { droppedCount++; return; }
+    const course = raw.course || raw.degree;
+    const school = raw.school || raw.institution;
+
+    // TYPE CHECK: must contain at least one recognizable academic value.
+    if (!raw.academiclevel && !course && !school) { droppedCount++; return; }
 
     const issues: EducationImportIssue[] = [];
 
     if (!raw.personnelid) {
       issues.push({ row: rowNum, field: 'personnelId', message: 'personnelId is required', raw });
     }
-    if (!raw.degree) {
-      issues.push({ row: rowNum, field: 'degree', message: 'degree is required', raw });
-    }
-    if (!raw.institution) {
-      issues.push({ row: rowNum, field: 'institution', message: 'institution is required', raw });
+    if (!raw.academiclevel && !course) {
+      issues.push({ row: rowNum, field: 'academicLevel', message: 'academicLevel or course is required', raw });
     }
 
     if (issues.length > 0) {
@@ -157,15 +162,24 @@ export function parseEducationCsv(text: string): EducationParseResult {
       ? raw.certifications.split(',').map(c => c.trim()).filter(Boolean)
       : [];
 
-    const yearGraduated = raw.yeargraduated ? parseInt(raw.yeargraduated, 10) : undefined;
+    const startYear = raw.startyear ? parseInt(raw.startyear, 10) : undefined;
+    const endYearValue = raw.endyear || raw.yeargraduated;
+    const yearGraduated = endYearValue ? parseInt(endYearValue, 10) : undefined;
+    const ranking = raw.ranking ? parseInt(raw.ranking, 10) : undefined;
+    const highest = /^(yes|true|1)$/i.test(raw.highest || '');
 
     validRows.push({
       personnelId: raw.personnelid,
       fullName: raw.fullname || undefined,
-      degree: raw.degree,
-      institution: raw.institution,
+      academicLevel: raw.academiclevel,
+      degree: course || undefined,
+      institution: school || undefined,
+      major: raw.major || undefined,
+      startYear: startYear !== undefined && !isNaN(startYear) ? startYear : undefined,
       yearGraduated: yearGraduated && !isNaN(yearGraduated) ? yearGraduated : undefined,
-      honors: raw.honors || undefined,
+      honors: raw.grade || raw.honors || undefined,
+      highest,
+      ranking: ranking !== undefined && !isNaN(ranking) ? ranking : undefined,
       certifications: certs.length > 0 ? certs : undefined,
     });
   });
@@ -175,7 +189,7 @@ export function parseEducationCsv(text: string): EducationParseResult {
 
 /** Generate a downloadable CSV template for education bulk upload */
 export function generateEducationCsvTemplate(): string {
-  const headers = 'personnelId,fullName,degree,institution,yearGraduated,honors,certifications';
-  const example = 'pnp-001,Juan Dela Cruz,Bachelor of Science in Computer Science,Polytechnic University of the Philippines,2015,Cum Laude,"CISSP,CEH"';
+  const headers = 'personnelId,fullName,academicLevel,school,course,major,startYear,endYear,grade,highest,ranking';
+  const example = 'pnp-001,Juan Dela Cruz,College,ICCT Colleges,BS Criminology,,2015,2018,,Yes,0';
   return `${headers}\n${example}\n`;
 }

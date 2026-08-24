@@ -30,7 +30,8 @@ function buildCsvRow(cells: unknown[]): string {
 
 export function exportEducationCsv(rows: ExportPersonnelData[], filename = 'education_records.csv'): void {
   const headers = ['Personnel ID', 'Rank', 'Full Name', 'Division', 'Designation',
-    'Degree', 'Institution', 'Year Graduated', 'Honors', 'Certifications'];
+    'Academic Level', 'School', 'Course', 'Major', 'Start Year', 'End Year',
+    'Grade', 'Highest', 'Ranking', 'Created By', 'Created On', 'Modified By', 'Modified On'];
 
   const lines: string[] = [buildCsvRow(headers)];
 
@@ -39,17 +40,20 @@ export function exportEducationCsv(rows: ExportPersonnelData[], filename = 'educ
       lines.push(buildCsvRow([
         personnel.id, personnel.rank, personnel.fullName,
         personnel.division, personnel.designation,
-        '', '', '', '', ''
+        '', '', '', '', '', '', '', '', '', '', '', '', ''
       ]));
     } else {
       for (const edu of education) {
         lines.push(buildCsvRow([
           personnel.id, personnel.rank, personnel.fullName,
           personnel.division, personnel.designation,
-          edu.degree, edu.institution,
+          edu.academicLevel ?? '', edu.institution, edu.degree, edu.major ?? '',
+          edu.startYear ?? '',
           edu.yearGraduated ?? '',
           edu.honors ?? '',
-          (edu.certifications ?? []).join('; ')
+          edu.highest ? 'Yes' : 'No',
+          edu.ranking ?? '',
+          edu.createdBy ?? '', edu.createdOn ?? '', edu.modifiedBy ?? '', edu.modifiedOn ?? ''
         ]));
       }
     }
@@ -60,7 +64,9 @@ export function exportEducationCsv(rows: ExportPersonnelData[], filename = 'educ
 
 export function exportTrainingCsv(rows: ExportPersonnelData[], filename = 'training_records.csv'): void {
   const headers = ['Personnel ID', 'Rank', 'Full Name', 'Division', 'Designation',
-    'Course Name', 'Category', 'Provider', 'Start Date', 'Completion Date', 'Hours', 'Certificate No.'];
+    'Training Type', 'Training Title', 'School', 'Location', 'Inclusive Start Date',
+    'Inclusive End Date', 'Number of Hours', 'Source', 'Auth Number', 'Auth Date',
+    'Issued By', 'Attachment', 'Created By', 'Created On', 'Modified By', 'Modified On'];
 
   const lines: string[] = [buildCsvRow(headers)];
 
@@ -69,18 +75,23 @@ export function exportTrainingCsv(rows: ExportPersonnelData[], filename = 'train
       lines.push(buildCsvRow([
         personnel.id, personnel.rank, personnel.fullName,
         personnel.division, personnel.designation,
-        '', '', '', '', '', '', ''
+        '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''
       ]));
     } else {
       for (const trn of training) {
         lines.push(buildCsvRow([
           personnel.id, personnel.rank, personnel.fullName,
           personnel.division, personnel.designation,
-          trn.courseName, trn.category ?? '',
-          trn.provider, trn.startDate ?? '',
+          trn.category ?? '', trn.courseName, trn.provider, trn.location ?? '',
+          trn.startDate ?? '',
           trn.completionDate ?? '',
           trn.hours ?? '',
-          trn.certificateNo ?? ''
+          trn.source ?? '',
+          trn.certificateNo ?? '',
+          trn.authorityDate ?? '',
+          trn.issuedBy ?? '',
+          trn.attachment ?? '',
+          trn.createdBy ?? '', trn.createdOn ?? '', trn.modifiedBy ?? '', trn.modifiedOn ?? ''
         ]));
       }
     }
@@ -92,9 +103,12 @@ export function exportTrainingCsv(rows: ExportPersonnelData[], filename = 'train
 export function exportCombinedCsv(rows: ExportPersonnelData[], filename = 'education_training_records.csv'): void {
   // Section 1: Education
   const eduHeaders = ['Section', 'Personnel ID', 'Rank', 'Full Name', 'Division',
-    'Degree', 'Institution', 'Year Graduated', 'Honors', 'Certifications'];
+    'Academic Level', 'School', 'Course', 'Major', 'Start Year', 'End Year',
+    'Grade', 'Highest', 'Ranking', 'Created By', 'Created On', 'Modified By', 'Modified On'];
   const trnHeaders = ['Section', 'Personnel ID', 'Rank', 'Full Name', 'Division',
-    'Course Name', 'Category', 'Provider', 'Start Date', 'Completion Date', 'Hours', 'Certificate No.'];
+    'Training Type', 'Training Title', 'School', 'Location', 'Inclusive Start Date',
+    'Inclusive End Date', 'Number of Hours', 'Source', 'Auth Number', 'Auth Date',
+    'Issued By', 'Attachment', 'Created By', 'Created On', 'Modified By', 'Modified On'];
 
   const lines: string[] = [];
   lines.push(buildCsvRow(['=== EDUCATION RECORDS ===']));
@@ -102,13 +116,15 @@ export function exportCombinedCsv(rows: ExportPersonnelData[], filename = 'educa
 
   for (const { personnel, education } of rows) {
     if (education.length === 0) {
-      lines.push(buildCsvRow(['EDU', personnel.id, personnel.rank, personnel.fullName, personnel.division, '', '', '', '', '']));
+      lines.push(buildCsvRow(['EDU', personnel.id, personnel.rank, personnel.fullName, personnel.division, '', '', '', '', '', '', '', '', '', '', '', '', '']));
     } else {
       for (const edu of education) {
         lines.push(buildCsvRow([
           'EDU', personnel.id, personnel.rank, personnel.fullName, personnel.division,
-          edu.degree, edu.institution, edu.yearGraduated ?? '', edu.honors ?? '',
-          (edu.certifications ?? []).join('; ')
+          edu.academicLevel ?? '', edu.institution, edu.degree, edu.major ?? '',
+          edu.startYear ?? '', edu.yearGraduated ?? '', edu.honors ?? '',
+          edu.highest ? 'Yes' : 'No', edu.ranking ?? '',
+          edu.createdBy ?? '', edu.createdOn ?? '', edu.modifiedBy ?? '', edu.modifiedOn ?? ''
         ]));
       }
     }
@@ -120,13 +136,15 @@ export function exportCombinedCsv(rows: ExportPersonnelData[], filename = 'educa
 
   for (const { personnel, training } of rows) {
     if (training.length === 0) {
-      lines.push(buildCsvRow(['TRN', personnel.id, personnel.rank, personnel.fullName, personnel.division, '', '', '', '', '', '', '']));
+      lines.push(buildCsvRow(['TRN', personnel.id, personnel.rank, personnel.fullName, personnel.division, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']));
     } else {
       for (const trn of training) {
         lines.push(buildCsvRow([
           'TRN', personnel.id, personnel.rank, personnel.fullName, personnel.division,
-          trn.courseName, trn.category ?? '', trn.provider,
-          trn.startDate ?? '', trn.completionDate ?? '', trn.hours ?? '', trn.certificateNo ?? ''
+          trn.category ?? '', trn.courseName, trn.provider, trn.location ?? '',
+          trn.startDate ?? '', trn.completionDate ?? '', trn.hours ?? '', trn.source ?? '',
+          trn.certificateNo ?? '', trn.authorityDate ?? '', trn.issuedBy ?? '', trn.attachment ?? '',
+          trn.createdBy ?? '', trn.createdOn ?? '', trn.modifiedBy ?? '', trn.modifiedOn ?? ''
         ]));
       }
     }
@@ -164,8 +182,8 @@ export async function exportEducationPdf(
           i === 0 ? `${personnel.rank} ${personnel.fullName}` : '',
           i === 0 ? personnel.division : '',
           i === 0 ? personnel.designation : '',
-          edu.degree,
-          edu.institution,
+          edu.degree ?? '—',
+          edu.institution ?? '—',
           edu.yearGraduated ?? '—',
           edu.honors ?? '—',
           (edu.certifications ?? []).join(', ') || '—'
@@ -280,7 +298,7 @@ export async function exportCombinedPdf(
         eduData.push([
           i === 0 ? `${personnel.rank} ${personnel.fullName}` : '',
           i === 0 ? personnel.division : '',
-          edu.degree, edu.institution,
+          edu.degree ?? '—', edu.institution ?? '—',
           edu.yearGraduated ?? '—',
           edu.honors ?? '—',
           (edu.certifications ?? []).join(', ') || '—'

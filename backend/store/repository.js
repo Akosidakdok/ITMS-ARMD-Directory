@@ -366,10 +366,9 @@ class PAISRepository {
     };
 
     if (this.isSupabaseConnected()) {
-      try {
-        const { data: inserted, error } = await supabase.from('education').insert([newRecord]).select().single();
-        if (!error && inserted) return inserted;
-      } catch (e) {}
+      const { data: inserted, error } = await supabase.from('education').insert([newRecord]).select().single();
+      if (error) throw new Error(`Education insert failed: ${error.message}`);
+      if (inserted) return inserted;
     }
 
     this.inMemoryEducation.unshift(newRecord);
@@ -380,15 +379,14 @@ class PAISRepository {
     const updateData = { ...data, updatedAt: new Date().toISOString() };
 
     if (this.isSupabaseConnected()) {
-      try {
-        const { data: updated, error } = await supabase
-          .from('education')
-          .update(updateData)
-          .eq('id', id)
-          .select()
-          .single();
-        if (!error && updated) return updated;
-      } catch (e) {}
+      const { data: updated, error } = await supabase
+        .from('education')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw new Error(`Education update failed: ${error.message}`);
+      if (updated) return updated;
     }
 
     const index = this.inMemoryEducation.findIndex(e => e.id === id);
@@ -413,21 +411,24 @@ class PAISRepository {
 
   /**
    * Bulk upsert education records.
-   * Match key: personnelId + degree (case-insensitive trim).
+   * Match key: personnelId + academicLevel + degree (case-insensitive trim).
    * If match found → update; else → insert.
    */
   async bulkUpsertEducation(records) {
     const results = { added: [], replaced: [], skipped: [] };
 
     for (const raw of records) {
-      if (!raw.personnelId || !raw.degree) {
-        results.skipped.push({ ...raw, reason: 'Missing personnelId or degree' });
+      if (!raw.personnelId || (!raw.academicLevel && !raw.degree)) {
+        results.skipped.push({ ...raw, reason: 'Missing personnelId or academic level' });
         continue;
       }
 
       const existingAll = await this.getEducation(raw.personnelId);
+      const normalizedLevel = String(raw.academicLevel || '').trim().toLowerCase();
+      const normalizedDegree = String(raw.degree || '').trim().toLowerCase();
       const match = existingAll.find(
-        e => e.degree.trim().toLowerCase() === raw.degree.trim().toLowerCase()
+        e => String(e.academicLevel || '').trim().toLowerCase() === normalizedLevel
+          && String(e.degree || '').trim().toLowerCase() === normalizedDegree
       );
 
       if (match) {
@@ -543,10 +544,9 @@ class PAISRepository {
     };
 
     if (this.isSupabaseConnected()) {
-      try {
-        const { data: inserted, error } = await supabase.from('training').insert([newRecord]).select().single();
-        if (!error && inserted) return inserted;
-      } catch (e) {}
+      const { data: inserted, error } = await supabase.from('training').insert([newRecord]).select().single();
+      if (error) throw new Error(`Training insert failed: ${error.message}`);
+      if (inserted) return inserted;
     }
 
     this.inMemoryTraining.unshift(newRecord);
@@ -557,15 +557,14 @@ class PAISRepository {
     const updateData = { ...data, updatedAt: new Date().toISOString() };
 
     if (this.isSupabaseConnected()) {
-      try {
-        const { data: updated, error } = await supabase
-          .from('training')
-          .update(updateData)
-          .eq('id', id)
-          .select()
-          .single();
-        if (!error && updated) return updated;
-      } catch (e) {}
+      const { data: updated, error } = await supabase
+        .from('training')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw new Error(`Training update failed: ${error.message}`);
+      if (updated) return updated;
     }
 
     const index = this.inMemoryTraining.findIndex(t => t.id === id);
