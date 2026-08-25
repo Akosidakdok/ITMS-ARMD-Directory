@@ -1,4 +1,5 @@
 import { db } from '../store/repository.js';
+import { isAllowedLeaveType } from '../constants/leaveTypes.js';
 
 export const getAllLeave = async (req, res) => {
   try {
@@ -17,16 +18,6 @@ export const getAllLeave = async (req, res) => {
 export const createLeave = async (req, res) => {
   try {
     const cleanText = value => typeof value === 'string' ? value.trim() : '';
-    const allowedTypes = [
-      'Vacation',
-      'Sick',
-      'Maternity',
-      'Paternity',
-      'Special',
-      'Service Leave',
-      'Mandatory Leave',
-      'Special Privilege Leave'
-    ];
     const personnelId = cleanText(req.body.personnelId);
     const leaveType = cleanText(req.body.leaveType);
     const startDate = cleanText(req.body.startDate);
@@ -38,7 +29,7 @@ export const createLeave = async (req, res) => {
         message: 'Missing required fields: personnelId, leaveType, startDate, endDate are required'
       });
     }
-    if (!allowedTypes.includes(leaveType)) {
+    if (!isAllowedLeaveType(leaveType)) {
       return res.status(400).json({ success: false, message: 'Invalid Type of Leave' });
     }
     if (Number.isNaN(Date.parse(startDate)) || Number.isNaN(Date.parse(endDate))) {
@@ -99,7 +90,6 @@ export const updateLeave = async (req, res) => {
     const leaveType = typeof req.body.leaveType === 'string' ? req.body.leaveType.trim() : '';
     const startDate = typeof req.body.startDate === 'string' ? req.body.startDate.trim() : '';
     const endDate = typeof req.body.endDate === 'string' ? req.body.endDate.trim() : '';
-    const allowedTypes = ['Service Leave', 'Mandatory Leave', 'Special Privilege Leave'];
 
     if (!personnelId || !leaveType || !startDate || !endDate) {
       return res.status(400).json({
@@ -107,7 +97,7 @@ export const updateLeave = async (req, res) => {
         message: 'Name of Personnel, Type of Leave, Start Date, and End Date are required'
       });
     }
-    if (!allowedTypes.includes(leaveType)) {
+    if (!isAllowedLeaveType(leaveType)) {
       return res.status(400).json({ success: false, message: 'Invalid Type of Leave' });
     }
     if (Number.isNaN(Date.parse(startDate)) || Number.isNaN(Date.parse(endDate))) {

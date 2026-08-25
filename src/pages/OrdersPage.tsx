@@ -17,7 +17,7 @@ import {
 import { AwardForm } from '../components/orders/AwardForm';
 import { DocumentTemplatePanel } from '../components/orders/DocumentTemplatePanel';
 import { LeaveCalendar } from '../components/orders/LeaveCalendar';
-import { LeaveCalendarForm, CALENDAR_LEAVE_TYPES } from '../components/orders/LeaveCalendarForm';
+import { LeaveCalendarForm } from '../components/orders/LeaveCalendarForm';
 import { OrderTypeSelectorModal } from '../components/orders/OrderTypeSelectorModal';
 import { NotificationToast } from '../components/common/NotificationToast';
 import { SearchableSelect } from '../components/common/SearchableSelect';
@@ -137,10 +137,7 @@ export const OrdersPage = () => {
     [personnelList],
   );
 
-  const calendarLeaves = useMemo(
-    () => leaveList.filter((leave) => CALENDAR_LEAVE_TYPES.includes(leave.leaveType as (typeof CALENDAR_LEAVE_TYPES)[number])),
-    [leaveList],
-  );
+  const calendarLeaves = leaveList;
 
   const resetOrderForm = () => {
     setEditingOrder(null);

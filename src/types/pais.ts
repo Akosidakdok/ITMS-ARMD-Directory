@@ -166,7 +166,15 @@ export interface TrainingRecord {
 export interface LeaveRecord {
   id: string;
   personnelId: string;
-  leaveType: 'Vacation' | 'Sick' | 'Maternity' | 'Paternity' | 'Special' | string;
+  leaveType:
+    | 'Vacation Leave'
+    | 'Sick Leave'
+    | 'Maternity Leave'
+    | 'Paternity Leave'
+    | 'Calamity Leave'
+    | 'Special Leave for Women (Magna Carta of Women)'
+    | 'Compensatory Time Off (CTO)'
+    | string;
   startDate: string;
   endDate: string;
   daysCount?: number;

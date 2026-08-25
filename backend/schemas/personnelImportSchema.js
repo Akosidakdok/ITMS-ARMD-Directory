@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 // Only schema-backed Personnel Information and Summary Profile fields are accepted.
 export const PERSONNEL_IMPORTABLE_FIELDS = Object.freeze([
   'rank',
+  'rankFullName',
   'firstName',
   'middleName',
   'lastName',
@@ -19,6 +20,7 @@ export const PERSONNEL_IMPORTABLE_FIELDS = Object.freeze([
   'birthday',
   'dateOfEntry',
   'enterInOfficerPositionDate',
+  'lastPromotionDate',
   'status'
 ]);
 

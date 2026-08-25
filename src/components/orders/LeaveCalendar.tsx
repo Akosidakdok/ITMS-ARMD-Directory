@@ -1,8 +1,11 @@
 import React, { useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Filter } from 'lucide-react';
 import type { LeaveRecord, Personnel } from '../../types/pais';
+import {
+  getLeaveTypePresentation,
+  LEAVE_TYPE_DEFINITIONS,
+} from '../../data/leaveTypes';
 import { SearchableSelect } from '../common/SearchableSelect';
-import { CALENDAR_LEAVE_TYPES } from './LeaveCalendarForm';
 
 interface LeaveCalendarProps {
   leaves: LeaveRecord[];
@@ -29,12 +32,6 @@ const formatDateKey = (date: Date) => [
   String(date.getDate()).padStart(2, '0')
 ].join('-');
 
-const eventColor = (leaveType: string) => {
-  if (leaveType === 'Mandatory Leave') return 'bg-amber-100 border-amber-300 text-amber-900';
-  if (leaveType === 'Special Privilege Leave') return 'bg-violet-100 border-violet-300 text-violet-900';
-  return 'bg-blue-100 border-blue-300 text-blue-900';
-};
-
 const compactDateRange = (leave: LeaveRecord) => {
   const start = leave.startDate;
   const end = leave.endDate || start;
@@ -59,13 +56,29 @@ export const LeaveCalendar: React.FC<LeaveCalendarProps> = ({
   );
 
   const visibleLeaves = useMemo(() => leaves.filter(leave => {
-    const isCalendarType = CALENDAR_LEAVE_TYPES.includes(
-      leave.leaveType as typeof CALENDAR_LEAVE_TYPES[number]
-    );
-    return isCalendarType &&
-      (!personnelFilter || leave.personnelId === personnelFilter) &&
-      (!leaveTypeFilter || leave.leaveType === leaveTypeFilter);
+    return (!personnelFilter || leave.personnelId === personnelFilter) &&
+      (!leaveTypeFilter || getLeaveTypePresentation(leave.leaveType).value === leaveTypeFilter);
   }), [leaves, personnelFilter, leaveTypeFilter]);
+
+  const leaveTypePresentations = useMemo(() => {
+    const presentations = new Map<
+      string,
+      ReturnType<typeof getLeaveTypePresentation>
+    >();
+
+    for (const type of LEAVE_TYPE_DEFINITIONS) {
+      presentations.set(type.value, type);
+    }
+
+    for (const leave of leaves) {
+      const presentation = getLeaveTypePresentation(leave.leaveType);
+      if (!presentations.has(presentation.value)) {
+        presentations.set(presentation.value, presentation);
+      }
+    }
+
+    return Array.from(presentations.values());
+  }, [leaves]);
 
   const cells = useMemo(() => {
     const firstDay = new Date(year, month, 1);
@@ -90,7 +103,10 @@ export const LeaveCalendar: React.FC<LeaveCalendarProps> = ({
     label: `${person.rank} ${person.fullName}`,
     description: `${person.badgeNo} · ${person.division}`
   }));
-  const leaveTypeOptions = CALENDAR_LEAVE_TYPES.map(type => ({ value: type, label: type }));
+  const leaveTypeOptions = leaveTypePresentations.map(type => ({
+    value: type.value,
+    label: type.value,
+  }));
 
   const moveMonth = (offset: number) => {
     const target = new Date(year, month + offset, 1);
@@ -193,18 +209,19 @@ export const LeaveCalendar: React.FC<LeaveCalendarProps> = ({
                   <div className="mt-1 space-y-1">
                     {cell.events.slice(0, 3).map(leave => {
                       const person = personnelById.get(leave.personnelId);
+                      const leaveType = getLeaveTypePresentation(leave.leaveType);
                       return (
                         <button
                           type="button"
                           key={`${cell.key}-${leave.id}`}
                           onClick={() => onSelectLeave(leave)}
-                          className={`w-full p-1.5 rounded-md border text-left leading-tight ${eventColor(leave.leaveType)}`}
+                          className={`w-full p-1.5 rounded-md border text-left leading-tight ${leaveType.colorClassName}`}
                         >
                           <span className="block text-[9px] font-extrabold truncate">
                             {person ? `${person.rank} ${person.fullName}` : 'Unknown personnel'}
                           </span>
                           <span className="block text-[8px] font-semibold truncate mt-0.5">
-                            {leave.leaveType}
+                            {leaveType.value}
                           </span>
                           <span className="block text-[8px] opacity-75 truncate mt-0.5">
                             {compactDateRange(leave)}
@@ -225,9 +242,9 @@ export const LeaveCalendar: React.FC<LeaveCalendarProps> = ({
         </div>
 
         <div className="px-4 py-3 border-t border-slate-200 flex flex-wrap gap-3 bg-slate-50">
-          {CALENDAR_LEAVE_TYPES.map(type => (
-            <span key={type} className={`px-2 py-1 rounded-md border text-[9px] font-bold ${eventColor(type)}`}>
-              {type}
+          {leaveTypePresentations.map(type => (
+            <span key={type.value} className={`px-2 py-1 rounded-md border text-[9px] font-bold ${type.colorClassName}`}>
+              {type.value}
             </span>
           ))}
         </div>

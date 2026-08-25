@@ -1,4 +1,8 @@
-node_modules
+node_modules/
+dist/
+
+# Temporary files created while Office documents are open.
+~$*
 
 # Local environment files may contain database credentials.
 .env

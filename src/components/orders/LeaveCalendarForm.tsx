@@ -1,13 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { LoaderCircle, Save } from 'lucide-react';
 import type { LeaveRecord, Personnel } from '../../types/pais';
+import {
+  getLeaveTypePresentation,
+  LEAVE_TYPE_DEFINITIONS,
+  LEAVE_TYPES,
+  normalizeLeaveType,
+} from '../../data/leaveTypes';
 import { SearchableSelect } from '../common/SearchableSelect';
 
-export const CALENDAR_LEAVE_TYPES = [
-  'Service Leave',
-  'Mandatory Leave',
-  'Special Privilege Leave'
-] as const;
+export const CALENDAR_LEAVE_TYPES = LEAVE_TYPES;
 
 interface LeaveCalendarFormProps {
   personnel: Personnel[];
@@ -30,7 +32,9 @@ export const LeaveCalendarForm: React.FC<LeaveCalendarFormProps> = ({
   const [personnelId, setPersonnelId] = useState(initialRecord?.personnelId || '');
   const [startDate, setStartDate] = useState(initialRecord?.startDate || '');
   const [endDate, setEndDate] = useState(initialRecord?.endDate || '');
-  const [leaveType, setLeaveType] = useState(initialRecord?.leaveType || '');
+  const [leaveType, setLeaveType] = useState<string>(
+    normalizeLeaveType(initialRecord?.leaveType || '')
+  );
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSaving, setIsSaving] = useState(false);
 
@@ -38,7 +42,7 @@ export const LeaveCalendarForm: React.FC<LeaveCalendarFormProps> = ({
     setPersonnelId(initialRecord?.personnelId || '');
     setStartDate(initialRecord?.startDate || '');
     setEndDate(initialRecord?.endDate || '');
-    setLeaveType(initialRecord?.leaveType || '');
+    setLeaveType(normalizeLeaveType(initialRecord?.leaveType || ''));
     setErrors({});
   }, [initialRecord]);
 
@@ -48,10 +52,12 @@ export const LeaveCalendarForm: React.FC<LeaveCalendarFormProps> = ({
     description: `${person.badgeNo} · ${person.division} · ${person.designation}`
   })), [personnel]);
 
-  const leaveTypeOptions = CALENDAR_LEAVE_TYPES.map(type => ({
-    value: type,
-    label: type
+  const leaveTypeOptions = LEAVE_TYPE_DEFINITIONS.map(type => ({
+    value: type.value,
+    label: type.value
   }));
+
+  const selectedLeaveType = leaveType ? getLeaveTypePresentation(leaveType) : null;
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -159,6 +165,13 @@ export const LeaveCalendarForm: React.FC<LeaveCalendarFormProps> = ({
         required
         error={errors.leaveType}
       />
+
+      {selectedLeaveType && (
+        <div className="flex items-center gap-2 text-[11px] text-slate-600">
+          <span className={`h-3 w-3 rounded-full ${selectedLeaveType.dotClassName}`} aria-hidden="true" />
+          Calendar color: <strong className="text-slate-800">{selectedLeaveType.value}</strong>
+        </div>
+      )}
 
       <div className="pt-4 border-t border-slate-200 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
         <button
