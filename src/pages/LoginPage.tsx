@@ -184,7 +184,7 @@ export const LoginPage: React.FC = () => {
             </div>
           )}
 
-          <div className="pais-login__development">
+          {import.meta.env.DEV && <div className="pais-login__development">
             <button type="button" onClick={() => setDemoOpen(open => !open)} aria-expanded={demoOpen} className="pais-login__development-toggle">
               <span>
                 <LockKeyhole aria-hidden="true" />
@@ -220,7 +220,7 @@ export const LoginPage: React.FC = () => {
                 })}
               </div>
             )}
-          </div>
+          </div>}
 
           <div className="pais-login__fields">
             <div className="pais-login__field">

@@ -18,7 +18,7 @@ export const NotificationToast: React.FC<NotificationToastProps> = ({
   }, [onClose]);
 
   return (
-    <div className={`fixed z-[70] right-4 top-4 w-[calc(100%-2rem)] max-w-sm rounded-xl border p-4 shadow-xl flex items-start gap-3 ${
+    <div role={type === 'error' ? 'alert' : 'status'} aria-live={type === 'error' ? 'assertive' : 'polite'} className={`fixed right-4 top-4 z-[70] flex w-[calc(100%-2rem)] max-w-sm items-start gap-3 rounded-md border p-4 shadow-xl ${
       type === 'success'
         ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
         : 'bg-rose-50 border-rose-200 text-rose-900'

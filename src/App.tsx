@@ -83,7 +83,12 @@ const AuthenticatedApplication: React.FC = () => {
 
   return (
     <>
-      <AppLoadingScreen active={!applicationReady} targetProgress={targetProgress} status={loadingStatus} />
+      <AppLoadingScreen
+        active={!applicationReady}
+        targetProgress={targetProgress}
+        status={loadingStatus}
+        variant={authUser ? 'session' : 'prelogin'}
+      />
       {authReady && (
         authUser ? (
           <BrowserRouter>

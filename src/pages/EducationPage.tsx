@@ -7,6 +7,7 @@ import {
   Square, FileSpreadsheet
 } from 'lucide-react';
 import { Badge } from '../components/common/Badge';
+import { OperationalSummary, PageHeader } from '../components/common/SystemUI';
 import type { EducationRecord, TrainingRecord } from '../types/pais';
 import { parseEducationCsv, generateEducationCsvTemplate } from '../utils/educationCsv';
 import { parseTrainingCsv, generateTrainingCsvTemplate } from '../utils/trainingCsv';
@@ -939,19 +940,13 @@ export const EducationPage: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* ── Header Banner ── */}
-      <div className="app-page-header app-surface p-4 sm:p-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="px-2.5 py-0.5 rounded text-xs font-extrabold bg-blue-50 text-blue-700 border border-blue-200">Education &amp; Skill Matrix</span>
-              <span className="text-xs text-slate-500 font-mono">ITMS Technical Qualifications</span>
-            </div>
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Academic Degrees &amp; Cyber Certifications</h1>
-            <p className="text-xs text-slate-500 mt-0.5">Manage academic degrees, professional IT certifications, and technical courses</p>
-          </div>
-          {isAdmin && (
-            <div className="flex gap-2 flex-shrink-0">
+      <PageHeader
+        eyebrow="Education & training records"
+        title="Academic & Technical Qualifications"
+        description="Review academic attainment, professional certifications, and completed technical training by personnel record."
+        reference="EDU-TRN-MASTER"
+        actions={isAdmin ? (
+            <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => { setSelectMode(v => !v); if (selectMode) clearSelection(); }}
                 className={`flex items-center gap-2 px-3.5 py-2.5 rounded-lg border text-xs font-semibold transition-colors whitespace-nowrap ${
@@ -977,24 +972,16 @@ export const EducationPage: React.FC = () => {
                 <Upload className="w-4 h-4" /> Bulk Upload
               </button>
             </div>
-          )}
-        </div>
+          ) : undefined}
+      />
 
-        {/* Stats row */}
-        <div className="flex flex-wrap gap-3 mt-5 pt-5 border-t border-slate-100">
-          {[
-            { label: 'Total Personnel', value: personnelList.length, color: 'text-slate-700' },
-            { label: 'Have Education Record', value: withEdu, color: 'text-blue-700' },
-            { label: 'Education Records', value: totalEdu, color: 'text-blue-700' },
-            { label: 'Training Records', value: totalTrn, color: 'text-blue-700' },
-          ].map(s => (
-            <div key={s.label} className="flex flex-col items-center px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg min-w-[90px]">
-              <span className={`text-xl font-bold ${s.color}`}>{s.value}</span>
-              <span className="text-[11px] text-slate-500 text-center leading-tight">{s.label}</span>
-            </div>
-          ))}
-        </div>
-      </div>
+      <OperationalSummary label="Education and training summary" items={[
+        { label: 'Personnel files', value: personnelList.length, detail: 'in directory', icon: GraduationCap },
+        { label: 'With education', value: withEdu, detail: 'recorded', icon: GraduationCap, tone: 'success' },
+        { label: 'Education entries', value: totalEdu, detail: 'academic', icon: BookOpen },
+        { label: 'Training entries', value: totalTrn, detail: 'technical', icon: BookOpen },
+        { label: 'Without education', value: Math.max(0, personnelList.length - withEdu), detail: 'for review', icon: AlertTriangle, tone: personnelList.length - withEdu > 0 ? 'warning' : 'success' }
+      ]} />
 
       {/* ── Toolbar: Search + Sort ── */}
       <div className="flex flex-col sm:flex-row gap-3">
@@ -1061,7 +1048,7 @@ export const EducationPage: React.FC = () => {
       </div>
 
       {/* ── Personnel Cards Grid ── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-3">
         {filteredPersonnel.map((person) => {
           const pEdus = educationList.filter(e => e.personnelId === person.id);
           const pTrns = trainingList.filter(t => t.personnelId === person.id);
@@ -1070,12 +1057,12 @@ export const EducationPage: React.FC = () => {
             <div
               key={person.id}
               onClick={() => selectMode && toggleSelect(person.id)}
-              className={`p-5 rounded-2xl border-2 bg-white space-y-4 shadow-2xs hover:shadow-md transition-all ${
+              className={`record-section space-y-4 p-4 ${
                 selectMode ? 'cursor-pointer' : ''
               } ${
                 selectedIds.has(person.id)
-                  ? 'border-violet-400 shadow-violet-100 bg-violet-50/30'
-                  : 'border-slate-200 hover:border-slate-300'
+                  ? 'border-blue-500 bg-blue-50/40 shadow-[inset_3px_0_#163f61]'
+                  : 'hover:border-slate-400'
               }`}
             >
               {/* Card Header */}
@@ -1236,7 +1223,7 @@ export const EducationPage: React.FC = () => {
 
       {/* ── Floating Selection Toolbar ── */}
       {selectMode && selectedIds.size > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-5 py-3 bg-slate-900 text-white rounded-2xl shadow-2xl border border-slate-700 animate-fade-in">
+        <div className="selection-toolbar fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 flex-wrap items-center gap-3 rounded-md border border-slate-700 bg-slate-900 px-5 py-3 text-white shadow-2xl animate-fade-in">
           <CheckSquare className="w-4 h-4 text-violet-400" />
           <span className="text-sm font-bold">{selectedIds.size} personnel selected</span>
           <div className="w-px h-5 bg-slate-700" />

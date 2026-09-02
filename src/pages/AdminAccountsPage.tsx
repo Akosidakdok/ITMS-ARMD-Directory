@@ -89,6 +89,7 @@ export const AdminAccountsPage = () => {
         title="Administrator Accounts"
         description="Manage authorized administrator profiles linked to Supabase Auth. Access to this module is restricted to Superadmins."
         meta={<Badge variant="primary" size="sm"><ShieldCheck aria-hidden="true" className="h-3 w-3" /> Superadmin only</Badge>}
+        reference="SYS-ACCESS-REGISTER"
         actions={
           <>
             <Button variant="secondary" icon={RefreshCw} onClick={sync} disabled={syncing}>
@@ -116,7 +117,7 @@ export const AdminAccountsPage = () => {
           <TableLoadingState columns={6} rows={5} />
         ) : accounts.length ? (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-left text-xs">
+            <table className="record-table min-w-[900px] text-xs">
               <thead className="bg-slate-50 uppercase">
                 <tr className="border-b border-slate-200">
                   <th className="px-4 py-3">Administrator</th>

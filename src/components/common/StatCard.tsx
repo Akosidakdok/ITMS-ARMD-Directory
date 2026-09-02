@@ -51,15 +51,17 @@ export const StatCard: React.FC<StatCardProps> = ({
   };
 
   const scheme = colorMap[color];
+  const Component = onClick ? 'button' : 'div';
 
   return (
-    <div
+    <Component
+      type={onClick ? 'button' : undefined}
       onClick={onClick}
-      className={`bg-white p-4 rounded-lg border ${scheme.border} transition-colors shadow-2xs ${onClick ? 'cursor-pointer hover:bg-slate-50/50' : ''}`}
+      className={`w-full border bg-white p-3.5 text-left ${scheme.border} ${onClick ? 'hover:bg-blue-50/50' : ''}`}
     >
       <div className="flex items-center justify-between">
         <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-500">{title}</span>
-        <div className={`p-2 rounded-lg ${scheme.iconBg}`}>
+        <div className="border-l-2 border-blue-700 pl-2 text-blue-700">
           <Icon className="w-4 h-4" />
         </div>
       </div>
@@ -78,7 +80,7 @@ export const StatCard: React.FC<StatCardProps> = ({
           {subtitle}
         </p>
       )}
-    </div>
+    </Component>
   );
 };
 

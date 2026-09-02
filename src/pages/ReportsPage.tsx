@@ -232,11 +232,12 @@ export const ReportsPage: React.FC = () => {
         title="Administrative Reports"
         description="Review filtered personnel, leave, education, training, orders, awards, and time-in-grade records in a print-ready format."
         meta={<span className="text-[11px] text-slate-500">PNP–ITMS administrative records</span>}
+        reference="RPT-GENERATION-DESK"
         actions={<Button variant="primary" icon={Printer} onClick={() => setIsExportOpen(true)}>Export / print report</Button>}
       />
 
       {/* Report Selection Tabs Bar */}
-      <div className="app-surface flex gap-1 overflow-x-auto p-1" role="tablist" aria-label="Report type">
+      <div className="record-section flex gap-0 overflow-x-auto p-1" role="tablist" aria-label="Report type">
         {reportTabs.map(tab => {
           const Icon = tab.icon;
           const active = activeReportTab === tab.key;
@@ -247,7 +248,7 @@ export const ReportsPage: React.FC = () => {
               role="tab"
               aria-selected={active}
               onClick={() => setActiveReportTab(tab.key)}
-              className={`flex min-w-32 flex-1 items-center gap-2 rounded-md border px-3 py-2.5 text-left ${active ? 'border-blue-200 bg-blue-50 text-blue-800' : 'border-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
+              className={`flex min-w-32 flex-1 items-center gap-2 rounded border-b-2 px-3 py-2.5 text-left ${active ? 'border-blue-700 bg-blue-50 text-blue-800' : 'border-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
             >
               <Icon className={`h-4 w-4 shrink-0 ${active ? 'text-blue-700' : 'text-slate-400'}`} />
               <span>
@@ -260,7 +261,7 @@ export const ReportsPage: React.FC = () => {
       </div>
 
       {/* Dynamic Filter Controls per Report */}
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white p-3 shadow-2xs">
+      <div className="record-toolbar flex flex-wrap items-center justify-between gap-4 p-3">
         <div className="flex items-center gap-2 text-xs font-semibold text-slate-700">
           <Filter className="w-4 h-4 text-blue-700" /> Report filters
         </div>
@@ -320,7 +321,7 @@ export const ReportsPage: React.FC = () => {
       </div>
 
       {/* Report Data Table Display */}
-      <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-2xs">
+      <div className="record-section">
         <div className="flex items-center justify-between border-b border-slate-200 bg-white p-4">
           <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
             <FileText className="h-4 w-4 text-blue-700" />
@@ -330,7 +331,7 @@ export const ReportsPage: React.FC = () => {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
+          <table className="record-table text-xs">
             <thead>
               <tr className="bg-slate-50 text-slate-700 font-extrabold border-b border-slate-200 uppercase text-[11px]">
                 <th className="py-3.5 px-4">#</th>

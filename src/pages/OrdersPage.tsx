@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useId, useMemo, useState } from 'react';
 import {
   Award,
   CalendarDays,
@@ -21,6 +21,7 @@ import { LeaveCalendarForm } from '../components/orders/LeaveCalendarForm';
 import { OrderTypeSelectorModal } from '../components/orders/OrderTypeSelectorModal';
 import { NotificationToast } from '../components/common/NotificationToast';
 import { SearchableSelect } from '../components/common/SearchableSelect';
+import { OperationalSummary, PageHeader } from '../components/common/SystemUI';
 import { useAuthRole } from '../context/AuthRoleContext';
 import { hasManagementAccess } from '../utils/accessControl';
 import type { AwardRecord, LeaveRecord, OrderRecord } from '../types/pais';
@@ -56,13 +57,15 @@ const ModalShell = ({
   onClose: () => void;
   children: React.ReactNode;
   maxWidth?: string;
-}) => (
-  <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/50 p-2 sm:p-4 backdrop-blur-sm">
-    <div className={`my-2 sm:my-4 max-h-[calc(100vh-1rem)] sm:max-h-[92vh] w-full ${maxWidth} overflow-y-auto rounded-2xl bg-white shadow-2xl`}>
+}) => {
+  const titleId = useId();
+  return (
+  <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/60 p-2 sm:p-4" role="presentation">
+    <div role="dialog" aria-modal="true" aria-labelledby={titleId} className={`my-2 sm:my-4 max-h-[calc(100vh-1rem)] sm:max-h-[92vh] w-full ${maxWidth} overflow-y-auto rounded-md border border-slate-300 bg-white shadow-2xl`}>
       <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-slate-200 bg-white px-4 py-4 sm:px-6">
         <div>
-          {eyebrow && <p className="text-xs font-semibold uppercase tracking-[0.16em] text-teal-700">{eyebrow}</p>}
-          <h2 className="mt-1 text-xl font-bold text-slate-900">{title}</h2>
+          {eyebrow && <p className="record-kicker">{eyebrow}</p>}
+          <h2 id={titleId} className="mt-1 text-xl font-bold text-slate-900">{title}</h2>
         </div>
         <button type="button" onClick={onClose} className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900" aria-label="Close">
           <X size={20} />
@@ -71,7 +74,8 @@ const ModalShell = ({
       {children}
     </div>
   </div>
-);
+  );
+};
 
 export const OrdersPage = () => {
   const {
@@ -352,25 +356,16 @@ export const OrdersPage = () => {
 
   return (
     <div className="mx-auto w-full max-w-[1600px] space-y-4 sm:space-y-6">
-      <div className="app-page-header app-surface flex flex-col gap-4 p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <div className="mb-1 flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.06em] text-slate-500">
-            <span>Records Management</span><ChevronRight size={14} /><span className="font-medium text-slate-800">All Orders</span>
-            {activeView === 'calendar' && <><ChevronRight size={14} /><span className="font-medium text-slate-800">Leave Calendar</span></>}
-            {activeView === 'templates' && <><ChevronRight size={14} /><span className="font-medium text-slate-800">Document Templates</span></>}
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-950">
-            {activeView === 'list' ? 'All Orders' : activeView === 'calendar' ? 'Leave Calendar' : 'Document Templates'}
-          </h1>
-          <p className="mt-1 text-sm text-slate-600">
-            {activeView === 'list'
+      <PageHeader
+        eyebrow="Orders, awards & leave"
+        title={activeView === 'list' ? 'Administrative Records Register' : activeView === 'calendar' ? 'Leave Calendar' : 'Document Templates'}
+        description={activeView === 'list'
               ? 'Search and review administrative orders, awards, and scheduled leaves in one place.'
               : activeView === 'calendar'
                 ? 'A visual overview of approved leave schedules. Leave dates are encoded through the separate form.'
                 : 'Open fixed-format templates, edit allowed fields, and autofill personnel details from system records.'}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
+        reference="ORD-AWD-LVE"
+        actions={<div className="flex flex-wrap gap-2">
           {activeView === 'calendar' ? (
             <>
               <button type="button" onClick={() => setActiveView('list')} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
@@ -406,8 +401,8 @@ export const OrdersPage = () => {
               )}
             </>
           )}
-        </div>
-      </div>
+        </div>}
+      />
 
       {activeView === 'templates' ? (
         <DocumentTemplatePanel personnel={personnelList} />
@@ -426,18 +421,11 @@ export const OrdersPage = () => {
         />
       ) : (
         <>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {stats.map(({ label, value, icon: Icon }) => (
-              <div key={label} className="flex items-center justify-between rounded-lg border border-slate-200 bg-white p-4 shadow-2xs">
-                <div><p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-500">{label}</p><p className="mt-1 text-2xl font-bold text-slate-900">{value}</p></div>
-                <span className="rounded-lg border border-blue-200 bg-blue-50 p-2 text-blue-700"><Icon size={18} /></span>
-              </div>
-            ))}
-          </div>
+          <OperationalSummary label="Administrative record summary" items={stats.map(({ label, value, icon }) => ({ label, value, icon, detail: 'records' }))} />
 
-          <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <section className="record-section">
             <div className="flex items-center gap-2 border-b border-slate-200 px-5 py-4">
-              <Filter size={18} className="text-teal-700" />
+              <Filter size={18} className="text-blue-800" />
               <h2 className="font-bold text-slate-900">Search and filters</h2>
             </div>
             <div className="grid gap-4 p-5 md:grid-cols-2 xl:grid-cols-6">
@@ -468,7 +456,7 @@ export const OrdersPage = () => {
             </div>
           </section>
 
-          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <section className="record-section">
             <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
               <div>
                 <h2 className="font-bold text-slate-900">Order records</h2>
@@ -476,7 +464,7 @@ export const OrdersPage = () => {
               </div>
             </div>
             <div className="overflow-x-auto">
-              <table className="min-w-[760px] lg:min-w-[980px] w-full text-left">
+              <table className="record-table min-w-[760px] lg:min-w-[980px]">
                 <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
                   <tr>
                     <th className="px-5 py-3">Reference</th>
@@ -491,7 +479,7 @@ export const OrdersPage = () => {
                 <tbody className="divide-y divide-slate-100">
                   {filteredRows.map((row) => (
                     <tr key={`${row.kind}-${row.id}`} className="transition hover:bg-slate-50/80">
-                      <td className="px-5 py-4 font-semibold text-teal-700">{row.reference}</td>
+                      <td className="font-mono font-semibold text-blue-800">{row.reference}</td>
                       <td className="px-5 py-4">
                         <p className="font-medium text-slate-900">{row.recordType}</p>
                         <p className="text-xs text-slate-500">{row.subtype}</p>
@@ -499,9 +487,9 @@ export const OrdersPage = () => {
                       <td className="max-w-xs px-5 py-4 text-sm text-slate-700">{row.title}</td>
                       <td className="px-5 py-4 text-sm text-slate-700">{row.personnel}</td>
                       <td className="px-5 py-4 text-sm text-slate-700">{row.kind === 'leave' ? formatDateRange(row.source.startDate, row.source.endDate) : formatDate(row.date)}</td>
-                      <td className="px-5 py-4"><span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">{row.status}</span></td>
+                      <td><span className="status-marker text-slate-700">{row.status}</span></td>
                       <td className="px-5 py-4 text-right">
-                        <button type="button" onClick={() => openRecord(row)} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:border-teal-600 hover:text-teal-700">
+                        <button type="button" onClick={() => openRecord(row)} className="inline-flex items-center gap-1.5 rounded border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:border-blue-600 hover:text-blue-800">
                           <Eye size={15} /> View
                         </button>
                       </td>

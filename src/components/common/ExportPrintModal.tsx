@@ -44,7 +44,11 @@ export const ExportPrintModal: React.FC<ExportPrintModalProps> = ({
   };
 
   const handlePrint = () => {
+    document.body.classList.add('pais-printing-report');
+    const clearPrintMode = () => document.body.classList.remove('pais-printing-report');
+    window.addEventListener('afterprint', clearPrintMode, { once: true });
     window.print();
+    window.setTimeout(clearPrintMode, 1000);
   };
 
   const handleExportPdf = async () => {
@@ -62,7 +66,7 @@ export const ExportPrintModal: React.FC<ExportPrintModalProps> = ({
         head: [columns.map(column => column.label)],
         body: data.map(row => columns.map(column => String(row[column.key] ?? '—'))),
         styles: { fontSize: 7, cellPadding: 2, overflow: 'linebreak' },
-        headStyles: { fillColor: [29, 78, 216], textColor: 255 }
+        headStyles: { fillColor: [10, 36, 58], textColor: 255 }
       });
       document.save(`${reportTitle.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')}.pdf`);
     } finally {
@@ -80,7 +84,7 @@ export const ExportPrintModal: React.FC<ExportPrintModalProps> = ({
     >
       <div className="space-y-6">
         {/* Action bar */}
-        <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-xl bg-white border border-slate-200 shadow-2xs">
+        <div className="no-print flex flex-wrap items-center justify-between gap-4 rounded-md border border-slate-300 bg-white p-4">
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-1 text-xs font-extrabold rounded bg-blue-50 text-blue-700 border border-blue-200">
               Official ITMS Format
@@ -88,7 +92,7 @@ export const ExportPrintModal: React.FC<ExportPrintModalProps> = ({
             <span className="text-xs text-slate-600 font-bold">Total Rows: <strong className="text-slate-900 font-mono">{data.length}</strong></span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             <button onClick={handleExportPdf} disabled={exportingPdf} className="flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl bg-slate-800 hover:bg-slate-900 text-white transition-colors disabled:opacity-60">
               <FileDown className="w-4 h-4" /> {exportingPdf ? 'Creating PDF…' : 'Export PDF'}
             </button>
@@ -117,7 +121,7 @@ export const ExportPrintModal: React.FC<ExportPrintModalProps> = ({
         </div>
 
         {/* Printable/Preview container */}
-        <div className="border border-slate-200 rounded-xl overflow-hidden bg-white p-6 space-y-4 shadow-2xs">
+        <div className="print-report space-y-4 overflow-hidden rounded-md border border-slate-300 bg-white p-6">
           <div className="text-center border-b border-slate-200 pb-4">
             <h2 className="text-[11px] uppercase tracking-widest text-slate-500 font-extrabold">Republic of the Philippines</h2>
             <h3 className="text-sm font-extrabold text-blue-700 tracking-wider uppercase mt-0.5">PHILIPPINE NATIONAL POLICE</h3>
@@ -127,8 +131,8 @@ export const ExportPrintModal: React.FC<ExportPrintModalProps> = ({
             <p className="text-xs text-slate-500 font-mono font-semibold">Date Generated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
           </div>
 
-          <div className="overflow-x-auto max-h-96">
-            <table className="w-full text-left text-xs border-collapse">
+          <div className="overflow-x-auto max-h-96 print:overflow-visible print:max-h-none">
+            <table className="record-table text-xs">
               <thead>
                 <tr className="bg-slate-50 text-slate-700 font-extrabold border-b border-slate-200 uppercase text-[11px]">
                   <th className="py-2.5 px-3">#</th>

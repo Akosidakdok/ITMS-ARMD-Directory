@@ -81,17 +81,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobile = false, onNavigate, co
       id={mobile ? 'mobile-navigation' : 'primary-sidebar'}
       aria-label="Primary navigation"
       className={mobile
-        ? 'flex h-full w-[min(17rem,86vw)] flex-col border-r border-white/10 bg-blue-800 text-white'
-        : `fixed inset-y-0 left-0 z-30 hidden h-dvh flex-col border-r border-blue-900 bg-blue-800 text-white transition-[width] duration-200 ease-out lg:flex ${isCollapsed ? 'w-[4.5rem]' : 'w-60'}`}
+        ? 'flex h-full w-[min(17rem,86vw)] flex-col border-r border-white/10 bg-blue-900 text-white'
+        : `fixed inset-y-0 left-0 z-30 hidden h-dvh flex-col border-r border-blue-950 bg-blue-900 text-white transition-[width] duration-200 ease-out lg:flex ${isCollapsed ? 'w-[4.5rem]' : 'w-60'}`}
     >
       <div className={`flex h-[4.5rem] shrink-0 items-center border-b border-white/10 ${isCollapsed ? 'justify-center px-2' : 'gap-3 px-4'}`}>
-        <div className="flex h-11 w-10 shrink-0 items-center justify-center rounded-lg border border-white/15 bg-white/8">
+        <div className="flex h-11 w-10 shrink-0 items-center justify-center border-r border-white/15 pr-2">
           <img src={pnpLogo} alt="" aria-hidden="true" className="h-9 w-7 object-contain" />
         </div>
         <div className={isCollapsed ? 'sr-only' : undefined}>
           <p className="text-[10px] font-semibold uppercase tracking-[0.11em] text-blue-200">PNP–ITMS</p>
           <p className="text-sm font-bold tracking-[0.01em] text-white">PAIS 2.0</p>
-          <p className="text-[9px] font-medium text-blue-200/70">Personnel administration</p>
+          <p className="text-[9px] font-medium uppercase tracking-[0.06em] text-blue-200/70">Personnel records desk</p>
         </div>
       </div>
 
@@ -116,9 +116,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobile = false, onNavigate, co
                         end={item.path === '/'}
                         onClick={onNavigate}
                         title={isCollapsed ? item.label : undefined}
-                        className={({ isActive }) => `group relative flex min-h-9 items-center rounded-lg py-2 text-xs transition-colors ${isCollapsed ? 'justify-center px-2' : 'gap-3 px-3'} ${
-                          isActive
-                            ? 'bg-white/12 font-semibold text-white shadow-sm before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:bg-amber-300'
+                      className={({ isActive }) => `group relative flex min-h-9 items-center rounded py-2 text-xs transition-colors ${isCollapsed ? 'justify-center px-2' : 'gap-3 px-3'} ${
+                        isActive
+                            ? 'bg-white/11 font-semibold text-white before:absolute before:inset-y-1.5 before:left-0 before:w-0.5 before:bg-amber-300'
                             : 'font-medium text-blue-100/75 hover:bg-white/6 hover:text-white'
                         }`}
                       >
@@ -139,8 +139,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobile = false, onNavigate, co
       </nav>
 
       <div className="border-t border-white/10 p-3">
-        <div className={`mb-2 flex items-center rounded-lg border border-white/8 bg-white/5 py-2.5 ${isCollapsed ? 'justify-center px-1' : 'gap-2.5 px-2.5'}`} title={isCollapsed ? `${authUser?.displayName || authUser?.username} · ${roleLabel}` : undefined}>
-          <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[10px] font-bold text-white ${role === 'superadmin' ? 'bg-blue-950 ring-1 ring-amber-300/70' : 'bg-blue-600'}`}>{initials}</span>
+        <div className={`mb-2 flex items-center border border-white/8 bg-white/5 py-2.5 ${isCollapsed ? 'justify-center px-1' : 'gap-2.5 px-2.5'}`} title={isCollapsed ? `${authUser?.displayName || authUser?.username} · ${roleLabel}` : undefined}>
+          <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded text-[10px] font-bold text-white ${role === 'superadmin' ? 'bg-blue-950 ring-1 ring-amber-300/70' : 'bg-blue-700'}`}>{initials}</span>
           <span className={isCollapsed ? 'sr-only' : 'min-w-0 flex-1'}>
             <span className="block truncate text-xs font-semibold text-white">{authUser?.displayName || authUser?.username}</span>
             <span className="mt-0.5 block truncate text-[10px] font-semibold text-blue-100">{roleLabel}</span>

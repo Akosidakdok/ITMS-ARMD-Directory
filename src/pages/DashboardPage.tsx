@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowRight, Award, Briefcase, CalendarDays, FileText, Users } from 'lucide-react';
 import { useAuthRole } from '../context/AuthRoleContext';
 import { Badge } from '../components/common/Badge';
-import { StatCard } from '../components/common/StatCard';
-import { EmptyState, PageHeader } from '../components/common/SystemUI';
+import { EmptyState, OperationalSummary, PageHeader, SectionHeader } from '../components/common/SystemUI';
 import { calculateTimeInGrade } from '../utils/timeInGrade';
 
 const formatDate = (value?: string) => {
@@ -85,33 +84,30 @@ export const DashboardPage: React.FC = () => {
   return (
     <div className="mx-auto max-w-[1680px] space-y-5">
       <PageHeader
-        eyebrow="Operations overview"
-        title="Personnel & Assignment Dashboard"
+        eyebrow="Daily administrative briefing"
+        title="Personnel Operations Desk"
         description="Current personnel strength, duty status, administrative records, and upcoming service events across PNP–ITMS."
         meta={<span className="text-[11px] text-slate-500">Camp BGen Rafael T Crame</span>}
+        reference={`OPS-${today.replace(/-/g, '')}`}
       />
 
-      <section aria-label="Personnel summary" className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <StatCard title="Total Personnel" value={totalPersonnel} subtitle="Registered personnel records" icon={Users} onClick={() => navigate('/personnel')} />
-        <StatCard title="Active Personnel" value={activePersonnel} subtitle="Currently on active status" icon={Users} onClick={() => navigate('/personnel')} />
-        <StatCard title="Current Assignments" value={activeAssignments} subtitle="Active duty postings" icon={Briefcase} onClick={() => navigate('/assignment')} />
-        <StatCard title="On Leave Today" value={onLeaveToday} subtitle="Approved leave in effect" icon={CalendarDays} color="emerald" onClick={() => navigate('/reports')} />
-        <StatCard title="Promotion Review" value={eligibleForPromotion} subtitle="Meets time-in-grade threshold" icon={Award} onClick={() => navigate('/promotion')} />
-      </section>
+      <OperationalSummary items={[
+        { label: 'Recorded strength', value: totalPersonnel, detail: 'personnel files', icon: Users, onClick: () => navigate('/personnel') },
+        { label: 'Active status', value: activePersonnel, detail: 'on duty', icon: Users, tone: 'success', onClick: () => navigate('/personnel') },
+        { label: 'Current postings', value: activeAssignments, detail: 'assignments', icon: Briefcase, onClick: () => navigate('/assignment') },
+        { label: 'Leave today', value: onLeaveToday, detail: 'approved', icon: CalendarDays, tone: onLeaveToday ? 'warning' : 'success', onClick: () => navigate('/reports') },
+        { label: 'For review', value: eligibleForPromotion, detail: 'promotion cases', icon: Award, tone: eligibleForPromotion ? 'warning' : 'neutral', onClick: () => navigate('/promotion') }
+      ]} />
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
-        <section className="app-surface overflow-hidden xl:col-span-8" aria-labelledby="recent-personnel-heading">
-          <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3.5">
-            <div>
-              <h2 id="recent-personnel-heading" className="app-section-title">Personnel directory</h2>
-              <p className="mt-0.5 text-xs text-slate-500">Quick access to current 201 profile records</p>
-            </div>
+        <section className="record-section xl:col-span-8" aria-labelledby="recent-personnel-heading">
+          <SectionHeader id="recent-personnel-heading" title="Personnel directory" description="Quick access to current 201 profile records" actions={
             <button onClick={() => navigate('/personnel')} className="inline-flex items-center gap-1 text-xs font-semibold text-blue-700 hover:text-blue-800">
               View all <ArrowRight aria-hidden="true" className="h-3.5 w-3.5" />
             </button>
-          </div>
+          } />
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] border-collapse text-left text-xs">
+            <table className="record-table min-w-[720px] text-xs">
               <thead className="bg-slate-50">
                 <tr className="border-b border-slate-200 uppercase">
                   <th className="px-4 py-3">Rank & name</th>
@@ -144,11 +140,8 @@ export const DashboardPage: React.FC = () => {
           </div>
         </section>
 
-        <section className="app-surface xl:col-span-4" aria-labelledby="division-strength-heading">
-          <div className="border-b border-slate-200 px-4 py-3.5">
-            <h2 id="division-strength-heading" className="app-section-title">Personnel by division</h2>
-            <p className="mt-0.5 text-xs text-slate-500">Recorded organizational distribution</p>
-          </div>
+        <section className="record-section xl:col-span-4" aria-labelledby="division-strength-heading">
+          <SectionHeader id="division-strength-heading" title="Personnel by division" description="Recorded organizational distribution" />
           <div className="space-y-3.5 p-4">
             {divisionStrength.slice(0, 7).map(item => {
               const percentage = totalPersonnel ? Math.round((item.count / totalPersonnel) * 100) : 0;
@@ -170,14 +163,8 @@ export const DashboardPage: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
-        <section className="app-surface overflow-hidden xl:col-span-8" aria-labelledby="activity-heading">
-          <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3.5">
-            <div>
-              <h2 id="activity-heading" className="app-section-title">Recent administrative updates</h2>
-              <p className="mt-0.5 text-xs text-slate-500">Latest orders, leave records, and training entries</p>
-            </div>
-            <FileText aria-hidden="true" className="h-4 w-4 text-slate-400" />
-          </div>
+        <section className="record-section xl:col-span-8" aria-labelledby="activity-heading">
+          <SectionHeader id="activity-heading" title="Recent administrative updates" description="Latest orders, leave records, and training entries" actions={<FileText aria-hidden="true" className="h-4 w-4 text-slate-400" />} />
           <div className="divide-y divide-slate-100">
             {recentActivities.map((activity, index) => (
               <article key={`${activity.type}-${activity.date}-${index}`} className="grid gap-1 px-4 py-3 sm:grid-cols-[6rem_1fr_auto] sm:items-center sm:gap-3">
@@ -193,14 +180,8 @@ export const DashboardPage: React.FC = () => {
           </div>
         </section>
 
-        <section className="app-surface overflow-hidden xl:col-span-4" aria-labelledby="leave-heading">
-          <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3.5">
-            <div>
-              <h2 id="leave-heading" className="app-section-title">Upcoming leave</h2>
-              <p className="mt-0.5 text-xs text-slate-500">Approved and pending leave schedules</p>
-            </div>
-            <button onClick={() => navigate('/reports')} className="text-[11px] font-semibold text-blue-700 hover:text-blue-800">Open report</button>
-          </div>
+        <section className="record-section xl:col-span-4" aria-labelledby="leave-heading">
+          <SectionHeader id="leave-heading" title="Upcoming leave" description="Approved and pending leave schedules" actions={<button onClick={() => navigate('/reports')} className="text-[11px] font-semibold text-blue-700 hover:text-blue-800">Open report</button>} />
           <div className="divide-y divide-slate-100">
             {upcomingLeave.map(leave => {
               const person = personnelById.get(leave.personnelId);

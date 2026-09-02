@@ -79,13 +79,13 @@ export const Layout: React.FC = () => {
           onSidebarToggle={() => setSidebarCollapsed(collapsed => !collapsed)}
           sidebarCollapsed={sidebarCollapsed}
         />
-        <main className="authenticated-main w-full min-w-0 flex-1 p-3 sm:p-4 lg:p-5 xl:p-6">
+        <main className="authenticated-main w-full min-w-0 flex-1 p-3 sm:p-4 lg:p-5">
           <div className="mx-auto w-full max-w-[1680px]">
             <Outlet />
           </div>
         </main>
-        <footer className="no-print flex min-h-11 items-center justify-between gap-3 border-t border-slate-200 bg-white px-4 text-[10px] text-slate-500 sm:px-6">
-          <span>PAIS 2.0 · Personnel &amp; Assignment Information System</span>
+        <footer className="no-print flex min-h-10 items-center justify-between gap-3 border-t border-slate-300 bg-[#fcfbf7] px-4 text-[10px] text-slate-500 sm:px-6">
+          <span className="font-mono">PAIS 2.0 · PERSONNEL RECORDS DESK</span>
           <span className="hidden sm:inline">PNP Information Technology Management Service</span>
         </footer>
       </div>

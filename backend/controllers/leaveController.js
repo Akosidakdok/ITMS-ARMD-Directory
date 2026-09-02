@@ -1,5 +1,5 @@
 import { db } from '../store/repository.js';
-import { isAllowedLeaveType } from '../constants/leaveTypes.js';
+import { isAllowedLeaveType, normalizeLeaveType } from '../constants/leaveTypes.js';
 
 export const getAllLeave = async (req, res) => {
   try {
@@ -32,6 +32,7 @@ export const createLeave = async (req, res) => {
     if (!isAllowedLeaveType(leaveType)) {
       return res.status(400).json({ success: false, message: 'Invalid Type of Leave' });
     }
+    const normalizedLeaveType = normalizeLeaveType(leaveType);
     if (Number.isNaN(Date.parse(startDate)) || Number.isNaN(Date.parse(endDate))) {
       return res.status(400).json({ success: false, message: 'Leave dates are invalid' });
     }
@@ -45,7 +46,7 @@ export const createLeave = async (req, res) => {
     const created = await db.createLeave({
       id: cleanText(req.body.id),
       personnelId,
-      leaveType,
+      leaveType: normalizedLeaveType,
       startDate,
       endDate,
       days: Math.floor((Date.parse(endDate) - Date.parse(startDate)) / 86400000) + 1,
@@ -100,6 +101,7 @@ export const updateLeave = async (req, res) => {
     if (!isAllowedLeaveType(leaveType)) {
       return res.status(400).json({ success: false, message: 'Invalid Type of Leave' });
     }
+    const normalizedLeaveType = normalizeLeaveType(leaveType);
     if (Number.isNaN(Date.parse(startDate)) || Number.isNaN(Date.parse(endDate))) {
       return res.status(400).json({ success: false, message: 'Leave dates are invalid' });
     }
@@ -112,7 +114,7 @@ export const updateLeave = async (req, res) => {
 
     const updated = await db.updateLeave(req.params.id, {
       personnelId,
-      leaveType,
+      leaveType: normalizedLeaveType,
       startDate,
       endDate,
       days: Math.floor((Date.parse(endDate) - Date.parse(startDate)) / 86400000) + 1,

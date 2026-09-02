@@ -25,7 +25,8 @@ export const PromotionPage: React.FC = () => {
         title="Time-in-Grade & Rank Progression"
         description="Review calculated service time in the current rank against promotion board eligibility benchmarks."
         meta={<span className="text-[11px] text-slate-500">DPRM & NAPOLCOM benchmarks</span>}
-        actions={<div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"><Clock className="h-4 w-4 text-blue-700" /><span className="text-xs font-semibold text-slate-700">Automatic calculation active</span></div>}
+        reference="TIG-ELIGIBILITY-ROSTER"
+        actions={<div className="flex items-center gap-2"><Clock className="h-4 w-4 text-blue-700" /><span className="status-marker text-xs text-emerald-700">Automatic calculation active</span></div>}
       />
 
       <section className="app-surface overflow-hidden" aria-labelledby="tig-roster-heading">
@@ -35,7 +36,7 @@ export const PromotionPage: React.FC = () => {
         </div>
         {tigRoster.length ? (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[860px] text-left text-xs">
+            <table className="record-table min-w-[860px] text-xs">
               <thead className="bg-slate-50 uppercase">
                 <tr className="border-b border-slate-200">
                   <th className="px-4 py-3">Personnel</th>

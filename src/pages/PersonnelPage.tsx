@@ -389,12 +389,15 @@ export const PersonnelPage: React.FC = () => {
         title="Personnel Information"
         description="Search, review, and maintain official PNP–ITMS personnel profiles and service information."
         meta={<span className="text-[11px] text-slate-500">{personnelList.length} total records</span>}
+        reference="201-MASTER-INDEX"
       />
 
       {/* SEARCH PANEL CONTAINER (Full Width, No Outer Overflow) */}
-      <div className="w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-2xs">
-        <div className="p-4 space-y-4">
-          <h2 className="text-xs font-bold text-slate-600 tracking-wide">Search</h2>
+      <section className="record-toolbar w-full overflow-hidden" aria-labelledby="personnel-search-heading">
+        <div className="record-section-header">
+          <div><h2 id="personnel-search-heading" className="app-section-title">Directory search & filters</h2><p className="mt-0.5 text-[11px] text-slate-500">Locate personnel by identity, organization, rank, or duty status.</p></div>
+        </div>
+        <div className="space-y-4 p-4">
 
           {/* Row 1: Last Name, First Name, Middle Name, Badge Number */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
@@ -522,7 +525,7 @@ export const PersonnelPage: React.FC = () => {
                 className="flex-1 min-w-[75px] px-3 py-1.5 bg-blue-700 hover:bg-blue-800 text-white font-semibold text-xs rounded-lg flex items-center justify-center gap-1 transition-colors"
               >
                 <Search className="w-3.5 h-3.5" />
-                <span>SEARCH</span>
+                <span>Apply filters</span>
               </button>
 
               <button
@@ -530,7 +533,7 @@ export const PersonnelPage: React.FC = () => {
                 className="px-2.5 py-1.5 border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs rounded flex items-center gap-1 transition-colors"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
-                <span>RESET</span>
+                <span>Reset</span>
               </button>
 
               {canManage && (
@@ -541,7 +544,7 @@ export const PersonnelPage: React.FC = () => {
                     title="Import Bulk CSV/Excel Data"
                   >
                     <Upload className="w-3.5 h-3.5" />
-                    <span>IMPORT MASSIVE DATA</span>
+                    <span>Import records</span>
                   </button>
 
                   <button
@@ -550,23 +553,23 @@ export const PersonnelPage: React.FC = () => {
                     title="Add New Personnel Record"
                   >
                     <UserPlus className="w-3.5 h-3.5" />
-                    <span>ADD PERSONNEL</span>
+                    <span>Add personnel</span>
                   </button>
                 </>
               )}
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* PERSONNEL TABLE CONTAINER */}
-      <div className="w-full bg-white rounded-md border border-slate-200 shadow-xs overflow-hidden">
-        <div className="border-b border-slate-200 bg-white px-4 py-2.5 flex items-center justify-between gap-2">
+      <section className="record-section w-full">
+        <div className="record-section-header flex-wrap">
           <div className="flex items-center gap-2 font-bold text-xs">
             <Users className="w-4 h-4 text-blue-700" />
             <span className="text-slate-900">Personnel directory</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="text-2xs text-slate-500">Showing {filteredPersonnel.length} matched (total {personnelList.length})</span>
             {selectedIds.size > 0 && (
               <span className="text-2xs font-bold text-blue-700">• {selectedIds.size} selected</span>
@@ -593,30 +596,26 @@ export const PersonnelPage: React.FC = () => {
         </div>
 
         {/* Table Body - Full-Width Layout with Taller Rows */}
-        <div className="w-full overflow-x-auto min-h-[350px]">
-          <table className="w-full text-left text-[11px] border-collapse table-auto">
+        <div className="w-full min-h-[350px] overflow-x-auto">
+          <table className="record-table min-w-[960px] text-[11px]">
             <thead>
               <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 uppercase tracking-wider text-3xs">
                 {selectMode && <th className="p-3 w-8 border-r border-slate-200">
-                  <button onClick={selectAllFiltered} title="Select all filtered">
+                  <button onClick={selectAllFiltered} title="Select all filtered" aria-label="Select all filtered personnel">
                     {selectedIds.size === filteredPersonnel.length && filteredPersonnel.length > 0
                       ? <CheckSquare className="w-3.5 h-3.5 text-violet-600" />
                       : <Square className="w-3.5 h-3.5 text-slate-400" />
                     }
                   </button>
                 </th>}
-                <th className="p-3 border-r border-slate-200">FIRST NAME</th>
-                <th className="p-3 border-r border-slate-200">MIDDLE NAME</th>
-                <th className="p-3 border-r border-slate-200">LAST NAME</th>
-                <th className="p-3 border-r border-slate-200 text-center">QUALIFIER</th>
-                <th className="p-3 border-r border-slate-200">ADDRESS</th>
-                <th className="p-3 border-r border-slate-200 text-center">GENDER</th>
-                <th className="p-3 border-r border-slate-200">CONTACT NUMBER</th>
-                <th className="p-3 border-r border-slate-200 text-center">BIRTHDAY</th>
-                <th className="p-3 border-r border-slate-200 text-center">DATE OF ENTRY</th>
-                <th className="p-3 border-r border-slate-200 text-center">ENTER IN OFFICER POSITION</th>
-                <th className="p-3 border-r border-slate-200 text-center">STATUS</th>
-                <th className="p-3 text-center">ACTIONS</th>
+                <th scope="col">Rank &amp; name</th>
+                <th scope="col">Badge no.</th>
+                <th scope="col">Division / detail</th>
+                <th scope="col">Designation</th>
+                <th scope="col">Plantilla</th>
+                <th scope="col">Date of entry</th>
+                <th scope="col">Status</th>
+                <th scope="col" className="text-right">Record action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 text-slate-800">
@@ -624,15 +623,23 @@ export const PersonnelPage: React.FC = () => {
                 paginatedPersonnel.map((person) => (
                   <tr
                     key={person.id}
-                    className={`hover:bg-cyan-50/60 transition-colors cursor-pointer ${
-                      selectedIds.has(person.id) ? 'bg-violet-50 border-l-2 border-violet-400' : ''
+                    className={`cursor-pointer ${
+                      selectedIds.has(person.id) ? 'bg-blue-50' : ''
                     }`}
+                    tabIndex={0}
+                    aria-selected={selectedIds.has(person.id)}
                     onClick={() => selectMode ? toggleSelect(person.id) : handleInspectRow(person.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        selectMode ? toggleSelect(person.id) : handleInspectRow(person.id);
+                      }
+                    }}
                   >
                     {/* Selection checkbox cell */}
                     {selectMode && (
                       <td className="p-3 border-r border-slate-200 text-center align-middle" onClick={e => e.stopPropagation()}>
-                        <button onClick={() => toggleSelect(person.id)}>
+                        <button onClick={() => toggleSelect(person.id)} aria-label={`${selectedIds.has(person.id) ? 'Deselect' : 'Select'} ${person.rank} ${person.fullName}`}>
                           {selectedIds.has(person.id)
                             ? <CheckSquare className="w-3.5 h-3.5 text-violet-600" />
                             : <Square className="w-3.5 h-3.5 text-slate-400" />
@@ -640,76 +647,37 @@ export const PersonnelPage: React.FC = () => {
                         </button>
                       </td>
                     )}
-                    {/* First Name */}
-                    <td className="p-3 border-r border-slate-200 font-bold uppercase align-middle text-xs">
-                      {person.firstName}
+                    <td>
+                      <p className="text-xs font-bold uppercase text-slate-900">{person.rank} {person.lastName}, {person.firstName} {person.middleName ? `${person.middleName.charAt(0)}.` : ''} {person.qualifier}</p>
+                      <p className="mt-0.5 text-[10px] text-slate-500">{person.rankFullName || 'Rank full name not recorded'}</p>
                     </td>
-
-                    {/* Middle Name */}
-                    <td className="p-3 border-r border-slate-200 uppercase text-slate-600 align-middle text-xs">
-                      {person.middleName || '-'}
-                    </td>
-
-                    {/* Last Name */}
-                    <td className="p-3 border-r border-slate-200 font-bold uppercase align-middle text-xs">
-                      {person.lastName}
-                    </td>
-
-                    {/* Qualifier */}
-                    <td className="p-3 border-r border-slate-200 text-center font-bold text-slate-700 align-middle text-xs">
-                      {person.qualifier || '-'}
-                    </td>
-
-                    {/* Address */}
-                    <td className="p-3 border-r border-slate-200 text-slate-700 align-middle max-w-[150px] truncate text-xs" title={person.address}>
-                      {person.address || '-'}
-                    </td>
-
-                    {/* Gender */}
-                    <td className="p-3 border-r border-slate-200 text-center text-slate-700 align-middle text-xs">
-                      {person.gender || '-'}
-                    </td>
-
-                    {/* Contact Number */}
-                    <td className="p-3 border-r border-slate-200 font-mono text-emerald-700 font-bold align-middle whitespace-nowrap text-xs">
-                      {person.contactNumber || '-'}
-                    </td>
-
-                    {/* Birthday */}
-                    <td className="p-3 border-r border-slate-200 text-center text-slate-700 align-middle font-mono text-xs whitespace-nowrap">
-                      {person.birthday || '-'}
-                    </td>
-
-                    {/* Date of Entry */}
-                    <td className="p-3 border-r border-slate-200 text-center text-slate-700 align-middle font-mono text-xs whitespace-nowrap">
-                      {person.dateOfEntry || '-'}
-                    </td>
-
-                    {/* Enter in Officer Position */}
-                    <td className="p-3 border-r border-slate-200 text-center text-slate-700 align-middle font-mono text-xs whitespace-nowrap">
-                      {person.enterInOfficerPositionDate || '-'}
-                    </td>
+                    <td className="font-mono font-semibold text-slate-700">{person.badgeNo || '—'}</td>
+                    <td><p className="font-bold text-blue-800">{person.division || '—'}</p><p className="mt-0.5 text-[10px] text-slate-500">{person.detail || 'No sub-unit recorded'}</p></td>
+                    <td className="max-w-[180px]"><p className="truncate text-xs font-semibold" title={person.designation}>{person.designation || 'Not assigned'}</p></td>
+                    <td className="font-mono text-[10px]">{person.plantilla || '—'}</td>
+                    <td className="whitespace-nowrap font-mono text-[10px]">{person.dateOfEntry || '—'}</td>
 
                     {/* Status */}
-                    <td className="p-3 border-r border-slate-200 text-center align-middle whitespace-nowrap">
-                      <span className={`px-2.5 py-1 rounded text-3xs font-bold uppercase tracking-wider inline-block ${
+                    <td className="whitespace-nowrap">
+                      <span className={`status-marker ${
                         person.status === 'Active'
-                          ? 'bg-blue-700 text-white'
-                          : 'bg-amber-100 text-amber-900 border border-amber-300'
+                          ? 'text-emerald-700'
+                          : 'text-amber-800'
                       }`}>
-                        {person.status === 'Active' ? 'ON DUTY/ACTIVE' : person.status}
+                        {person.status === 'Active' ? 'On duty / active' : person.status}
                       </span>
                     </td>
 
                     {/* ACTIONS DROPDOWN BUTTON */}
-                    <td className="p-3 text-center align-middle relative whitespace-nowrap" onClick={e => e.stopPropagation()}>
+                    <td className="relative whitespace-nowrap text-right" onClick={e => e.stopPropagation()}>
                       <div className="relative inline-block">
                         <button
                           onClick={() => setActiveActionMenuId(activeActionMenuId === person.id ? null : person.id)}
-                          className="px-3 py-1.5 bg-blue-700 hover:bg-blue-800 text-white font-semibold text-xs rounded-lg flex items-center justify-center gap-1 transition-colors"
+                          aria-label={`Open actions for ${person.rank} ${person.fullName}`}
+                          className="inline-flex items-center justify-center gap-1 rounded border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-blue-400 hover:bg-blue-50"
                         >
-                          <span>ACTIONS</span>
-                          <ChevronDown className="w-3.5 h-3.5 text-white" />
+                          <span>Actions</span>
+                          <ChevronDown className="w-3.5 h-3.5" />
                         </button>
 
                         {/* Dropdown Menu Popup */}
@@ -752,7 +720,7 @@ export const PersonnelPage: React.FC = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={selectMode ? 13 : 12} className="p-8 text-center text-slate-500 font-bold italic">
+                  <td colSpan={selectMode ? 9 : 8} className="p-8 text-center text-slate-500 font-semibold">
                     No record found.
                   </td>
                 </tr>
@@ -782,6 +750,7 @@ export const PersonnelPage: React.FC = () => {
             <button
               onClick={() => setCurrentPage(1)}
               disabled={currentPage === 1}
+              aria-label="First page"
               className="p-1 border border-slate-300 rounded bg-white hover:bg-slate-100 disabled:opacity-40"
             >
               <ChevronsLeft className="w-3 h-3" />
@@ -789,18 +758,20 @@ export const PersonnelPage: React.FC = () => {
             <button
               onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
               disabled={currentPage === 1}
+              aria-label="Previous page"
               className="p-1 border border-slate-300 rounded bg-white hover:bg-slate-100 disabled:opacity-40"
             >
               <ChevronLeft className="w-3 h-3" />
             </button>
             
-            <span className="px-2 py-0.5 bg-cyan-600 text-white font-bold rounded">
+            <span className="rounded bg-blue-800 px-2 py-0.5 font-bold text-white" aria-current="page">
               {currentPage}
             </span>
 
             <button
               onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
               disabled={currentPage === totalPages}
+              aria-label="Next page"
               className="p-1 border border-slate-300 rounded bg-white hover:bg-slate-100 disabled:opacity-40"
             >
               <ChevronRight className="w-3 h-3" />
@@ -808,13 +779,14 @@ export const PersonnelPage: React.FC = () => {
             <button
               onClick={() => setCurrentPage(totalPages)}
               disabled={currentPage === totalPages}
+              aria-label="Last page"
               className="p-1 border border-slate-300 rounded bg-white hover:bg-slate-100 disabled:opacity-40"
             >
               <ChevronsRight className="w-3 h-3" />
             </button>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* BULK IMPORT MASSIVE DATA MODAL */}
       <BulkImportModal
@@ -834,7 +806,7 @@ export const PersonnelPage: React.FC = () => {
 
       {/* FLOATING SELECTION TOOLBAR */}
       {selectMode && selectedIds.size > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-5 py-3 bg-slate-900 text-white rounded-2xl shadow-2xl border border-slate-700">
+        <div className="selection-toolbar fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 flex-wrap items-center gap-3 rounded-md border border-slate-700 bg-slate-900 px-5 py-3 text-white shadow-2xl">
           <CheckSquare className="w-4 h-4 text-yellow-400" />
           <span className="text-sm font-bold">{selectedIds.size} personnel selected</span>
           <div className="w-px h-5 bg-slate-700" />
@@ -858,16 +830,20 @@ export const PersonnelPage: React.FC = () => {
         <div
           className="fixed inset-0 z-50 flex items-start justify-center bg-slate-900/60 backdrop-blur-sm p-2 sm:p-4 overflow-y-auto"
           onClick={() => setInspectModalOpen(false)}
+          role="presentation"
         >
           <div
             className="my-2 sm:my-4 bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-md animate-scale-in"
             onClick={e => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="personnel-summary-title"
           >
             {/* Modal Header */}
             <div className="bg-white text-slate-900 px-5 py-3 flex items-center justify-between border-b border-slate-200 rounded-t-xl">
               <div className="flex items-center gap-2">
                 <Eye className="w-4 h-4 text-blue-700" />
-                <span className="text-sm font-bold">Summary Profile</span>
+                <span id="personnel-summary-title" className="text-sm font-bold">Summary Profile</span>
               </div>
               <button
                 onClick={() => setInspectModalOpen(false)}
@@ -887,13 +863,13 @@ export const PersonnelPage: React.FC = () => {
 
       {/* ADD NEW PERSONNEL MODAL */}
       {addModalOpen && canManage && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-900/60 backdrop-blur-xs p-2 sm:p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-3xl overflow-hidden animate-scale-in my-2 sm:my-6">
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-900/60 backdrop-blur-xs p-2 sm:p-4 overflow-y-auto" role="presentation">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-3xl overflow-hidden animate-scale-in my-2 sm:my-6" role="dialog" aria-modal="true" aria-labelledby="add-personnel-title">
             {/* Header */}
             <div className="bg-white text-slate-900 px-6 py-4 flex items-center justify-between border-b border-slate-200">
               <div className="flex items-center gap-2 font-bold text-sm">
                 <UserPlus className="w-5 h-5" />
-                <span>Register New Personnel Record</span>
+                <span id="add-personnel-title">Register New Personnel Record</span>
               </div>
               <button onClick={() => setAddModalOpen(false)} className="text-slate-400 hover:text-slate-900" aria-label="Close add personnel dialog">
                 <X className="w-5 h-5" />

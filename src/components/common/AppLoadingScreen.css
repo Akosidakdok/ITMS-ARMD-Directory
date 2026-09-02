@@ -27,10 +27,7 @@
   mask-image: linear-gradient(to bottom, transparent, #000 25%, #000 75%, transparent);
 }
 
-.pais-splash--exiting {
-  pointer-events: none;
-  opacity: 0;
-}
+.pais-splash--exiting { pointer-events: none; opacity: 0; }
 
 .pais-splash__composition {
   display: grid;
@@ -144,10 +141,7 @@
   letter-spacing: -0.045em;
 }
 
-.pais-splash__wordmark h1 span {
-  color: #e4c453;
-  font-weight: 700;
-}
+.pais-splash__wordmark h1 span { color: #e4c453; font-weight: 700; }
 
 .pais-splash__subtitle {
   max-width: 330px;
@@ -187,11 +181,7 @@
   will-change: transform;
 }
 
-.pais-splash__progress-copy {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
+.pais-splash__progress-copy { display: flex; flex-direction: column; align-items: center; }
 
 .pais-splash__progress output {
   min-width: 48px;
@@ -239,34 +229,14 @@
 
 @media (max-width: 700px) {
   .pais-splash { padding: 22px; }
-
-  .pais-splash__composition {
-    grid-template-columns: 1fr;
-    gap: 24px;
-    width: 100%;
-  }
-
+  .pais-splash__composition { grid-template-columns: 1fr; gap: 24px; width: 100%; }
   .pais-splash__balance { display: none; }
-
   .pais-splash__logo-stage { width: clamp(132px, 38vw, 172px); }
   .pais-splash__wordmark { margin-top: 30px; }
-
-  .pais-splash__progress {
-    flex-direction: row;
-    justify-content: center;
-    gap: 16px;
-  }
-
+  .pais-splash__progress { flex-direction: row; justify-content: center; gap: 16px; }
   .pais-splash__progress-track { height: 70px; }
-
-  .pais-splash__progress-copy {
-    align-items: flex-start;
-  }
-
-  .pais-splash__progress-copy span {
-    width: 124px;
-    text-align: left;
-  }
+  .pais-splash__progress-copy { align-items: flex-start; }
+  .pais-splash__progress-copy span { width: 124px; text-align: left; }
 }
 
 @media (max-height: 650px) {
@@ -276,22 +246,140 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .pais-splash__logo-stage {
-    animation: pais-splash-emblem-enter 500ms ease-out both !important;
-  }
-
-  .pais-splash__logo-rotator {
-    animation: pais-splash-emblem-reduced 700ms ease-out both !important;
-  }
-
+  .pais-splash__logo-stage { animation: pais-splash-emblem-enter 500ms ease-out both !important; }
+  .pais-splash__logo-rotator { animation: pais-splash-emblem-reduced 700ms ease-out both !important; }
   .pais-splash__logo-shadow,
   .pais-splash__wordmark,
-  .pais-splash__progress {
-    animation-iteration-count: 1 !important;
-  }
+  .pais-splash__progress { animation-iteration-count: 1 !important; }
 }
 
 @keyframes pais-splash-emblem-reduced {
   from { opacity: 0.7; transform: perspective(1100px) rotateY(-7deg); }
   to { opacity: 1; transform: perspective(1100px) rotateY(0deg); }
+}
+
+/* Post-login session loader: retains the new compact records-desk treatment. */
+.pais-splash.pais-splash--session {
+  padding: 24px;
+  background: #071c2e;
+  transition-duration: 180ms;
+}
+
+.pais-splash.pais-splash--session::before {
+  z-index: auto;
+  border-top: 4px solid #b58a2c;
+  background:
+    linear-gradient(90deg, rgb(255 255 255 / 0.025) 1px, transparent 1px),
+    linear-gradient(rgb(255 255 255 / 0.02) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: none;
+  pointer-events: none;
+}
+
+.pais-splash--session .pais-splash__composition {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+  width: min(100%, 560px);
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 0.16);
+  border-radius: 6px;
+  background: #0b2942;
+  box-shadow: 0 18px 48px rgb(0 0 0 / 0.24);
+}
+
+.pais-splash--session .pais-splash__identity {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  flex-direction: initial;
+  align-items: center;
+  gap: 18px;
+  padding: 28px;
+  text-align: left;
+}
+
+.pais-splash--session .pais-splash__logo-stage {
+  display: grid;
+  width: 72px;
+  height: 84px;
+  aspect-ratio: auto;
+  place-items: center;
+  border-right: 1px solid rgb(255 255 255 / 0.12);
+  padding-right: 18px;
+  perspective: none;
+  animation: none;
+}
+
+.pais-splash--session .pais-splash__logo {
+  position: static;
+  width: 48px;
+  height: 68px;
+  filter: none;
+  transform: none;
+}
+
+.pais-splash--session .pais-splash__wordmark { margin-top: 0; animation: none; }
+.pais-splash--session .pais-splash__eyebrow { color: #b8cad8; font-size: 0.625rem; letter-spacing: 0.14em; }
+.pais-splash--session .pais-splash__wordmark h1 { margin-top: 5px; font-size: 1.75rem; }
+.pais-splash--session .pais-splash__wordmark h1 span { color: #d8b84b; }
+.pais-splash--session .pais-splash__subtitle { margin-top: 7px; color: #afc2d0; font-size: 0.72rem; line-height: 1.45; }
+
+.pais-splash--session .pais-splash__progress {
+  display: block;
+  border-top: 1px solid rgb(255 255 255 / 0.11);
+  padding: 15px 28px 18px;
+  background: rgb(2 14 24 / 0.2);
+  animation: none;
+}
+
+.pais-splash--session .pais-splash__progress-track {
+  width: 100%;
+  height: 4px;
+  border: 0;
+  border-radius: 0;
+  background: rgb(255 255 255 / 0.12);
+  box-shadow: none;
+}
+
+.pais-splash--session .pais-splash__progress-fill {
+  border-radius: 0;
+  background: #d2ae38;
+  box-shadow: none;
+  transform-origin: left;
+  transition: transform 100ms linear;
+}
+
+.pais-splash--session .pais-splash__progress-copy {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 9px;
+}
+
+.pais-splash--session .pais-splash__progress output { min-width: 0; font-size: 0.72rem; }
+.pais-splash--session .pais-splash__progress-copy span { width: auto; margin-top: 0; color: #a9bdcb; font-size: 0.625rem; text-align: right; }
+
+@media (max-width: 520px) {
+  .pais-splash.pais-splash--session { padding: 16px; }
+  .pais-splash--session .pais-splash__composition { width: 100%; gap: 0; }
+  .pais-splash--session .pais-splash__identity { grid-template-columns: 58px minmax(0, 1fr); gap: 14px; padding: 22px 20px; }
+  .pais-splash--session .pais-splash__logo-stage { width: 58px; height: 70px; padding-right: 14px; }
+  .pais-splash--session .pais-splash__logo { width: 38px; height: 55px; }
+  .pais-splash--session .pais-splash__wordmark { margin-top: 0; }
+  .pais-splash--session .pais-splash__wordmark h1 { font-size: 1.5rem; }
+  .pais-splash--session .pais-splash__subtitle { font-size: 0.66rem; }
+  .pais-splash--session .pais-splash__progress { display: block; padding-inline: 20px; }
+  .pais-splash--session .pais-splash__progress-track { width: 100%; height: 4px; }
+  .pais-splash--session .pais-splash__progress-copy { align-items: center; }
+  .pais-splash--session .pais-splash__progress-copy span { width: auto; text-align: right; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pais-splash--session .pais-splash__logo-stage,
+  .pais-splash--session .pais-splash__wordmark,
+  .pais-splash--session .pais-splash__progress { animation: none !important; }
+  .pais-splash--session .pais-splash__progress-fill { transition: none !important; }
 }

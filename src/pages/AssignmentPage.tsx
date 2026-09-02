@@ -128,6 +128,7 @@ export const AssignmentPage: React.FC = () => {
         title="Duty Postings & Assignments"
         description="Manage unit assignments, position designations, duty periods, and regional details."
         meta={<span className="text-[11px] text-slate-500">PNP–ITMS personnel postings</span>}
+        reference="ASN-CURRENT-ROSTER"
         actions={canManage ? <Button variant="primary" icon={Plus} onClick={openCreateModal}>Add assignment</Button> : undefined}
       />
 
@@ -165,7 +166,7 @@ export const AssignmentPage: React.FC = () => {
       {/* Assignments Table */}
       <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-2xs">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
+          <table className="record-table text-xs">
             <thead>
               <tr className="bg-slate-50 text-slate-700 font-extrabold border-b border-slate-200 uppercase text-[11px]">
                 <th className="py-3 px-4">Personnel</th>
