@@ -19,7 +19,7 @@ const rankNames: Record<string, string> = {
 const createEmptyPersonnel = (): Personnel => ({
   id: `pnp-${Date.now()}`, rank: 'PLT', rankFullName: rankNames.PLT,
   firstName: '', middleName: '', lastName: '', fullName: '', badgeNo: '', salaryGrade: 22,
-  plantilla: '', division: 'ITSD', detail: 'ITMS Headquarters - Camp Crame', designation: '',
+  plantilla: '', sub_unit: '', details: '', station: '', division: '', detail: '', designation: '',
   address: '', gender: 'Male', contactNumber: '', birthday: '', dateOfEntry: '',
   enterInOfficerPositionDate: '', lastPromotionDate: '', status: 'Active'
 });
@@ -50,11 +50,12 @@ const PersonnelFormFields: React.FC<FormFieldsProps> = ({ draft, setDraft }) => 
         <label className="text-xs font-semibold text-slate-700">Badge / serial no.{required}<input required value={draft.badgeNo} onChange={event => set('badgeNo', event.target.value)} className={fieldClass} /></label>
         <label className="text-xs font-semibold text-slate-700">Salary grade{required}<input required min="1" type="number" value={draft.salaryGrade || ''} onChange={event => set('salaryGrade', Number(event.target.value))} className={fieldClass} /></label>
         <label className="text-xs font-semibold text-slate-700">Plantilla item no.{required}<input required value={draft.plantilla || ''} onChange={event => set('plantilla', event.target.value)} className={fieldClass} /></label>
-        <label className="text-xs font-semibold text-slate-700">Division<select value={draft.division} onChange={event => set('division', event.target.value)} className={fieldClass}><option value="ITSD">ITSD</option><option value="PTD">PTD</option><option value="SMD">SMD</option><option value="DMD">DMD</option><option value="ARMD">ARMD</option><option value="ISSD">ISSD</option><option value="ITMS">ITMS</option><option value="CSD">CSD</option></select></label>
+        <label className="text-xs font-semibold text-slate-700">Sub-Unit<input value={draft.sub_unit ?? draft.division ?? ''} onChange={event => { set('sub_unit', event.target.value); set('division', event.target.value); }} className={fieldClass} placeholder="e.g. Network Operations Section" /></label>
+        <label className="text-xs font-semibold text-slate-700">Details<input value={draft.details ?? draft.detail ?? ''} onChange={event => { set('details', event.target.value); set('detail', event.target.value); }} className={fieldClass} placeholder="e.g. Network Monitoring" /></label>
+        <label className="text-xs font-semibold text-slate-700">Station<input value={draft.station || ''} onChange={event => set('station', event.target.value)} className={fieldClass} placeholder="e.g. Camp Crame" /></label>
         <label className="text-xs font-semibold text-slate-700">Status<select value={draft.status} onChange={event => set('status', event.target.value)} className={fieldClass}><option>Active</option><option>On Leave</option><option>Detailed Out</option><option>Suspended</option></select></label>
         <label className="text-xs font-semibold text-slate-700 sm:col-span-2">Designation{required}<input required value={draft.designation} onChange={event => set('designation', event.target.value)} className={fieldClass} /></label>
         <label className="text-xs font-semibold text-slate-700">Date of entry<input type="date" value={draft.dateOfEntry || ''} onChange={event => set('dateOfEntry', event.target.value)} className={fieldClass} /></label>
-        <label className="text-xs font-semibold text-slate-700 sm:col-span-2 lg:col-span-3">Office / detail<input value={draft.detail || ''} onChange={event => set('detail', event.target.value)} className={fieldClass} /></label>
       </div>
     </FormSection>
     <FormSection title="Contact information">
@@ -79,7 +80,7 @@ export const ManagementPage: React.FC = () => {
 
   const filteredPersonnel = personnelList.filter(person => {
     const query = searchQuery.trim().toLowerCase();
-    return !query || [person.fullName, person.firstName, person.lastName, person.badgeNo, person.division, person.designation].some(value => String(value || '').toLowerCase().includes(query));
+    return !query || [person.fullName, person.firstName, person.lastName, person.badgeNo, person.sub_unit, person.details, person.station, person.division, person.designation].some(value => String(value || '').toLowerCase().includes(query));
   });
 
   const openCreate = () => { setDraft(createEmptyPersonnel()); setEditorMode('create'); setNotice(null); };
@@ -91,7 +92,24 @@ export const ManagementPage: React.FC = () => {
     const firstName = draft.firstName.trim().toUpperCase();
     const middleName = String(draft.middleName || '').trim().toUpperCase();
     const lastName = draft.lastName.trim().toUpperCase();
-    const savedDraft: Personnel = { ...draft, firstName, middleName, lastName, fullName: [draft.rank, firstName, middleName, lastName].filter(Boolean).join(' '), badgeNo: draft.badgeNo.trim(), plantilla: String(draft.plantilla || '').trim(), designation: draft.designation.trim() };
+    const sub_unit = String(draft.sub_unit || draft.division || '').trim();
+    const details = String(draft.details || draft.detail || '').trim();
+    const station = String(draft.station || '').trim();
+    const savedDraft: Personnel = {
+      ...draft,
+      firstName,
+      middleName,
+      lastName,
+      fullName: [draft.rank, firstName, middleName, lastName].filter(Boolean).join(' '),
+      badgeNo: draft.badgeNo.trim(),
+      plantilla: String(draft.plantilla || '').trim(),
+      sub_unit,
+      details,
+      station,
+      division: sub_unit,
+      detail: details,
+      designation: draft.designation.trim()
+    };
     setIsSaving(true); setNotice(null);
     try {
       if (editorMode === 'create') await addPersonnel(savedDraft); else await updatePersonnel(savedDraft);
@@ -128,9 +146,9 @@ export const ManagementPage: React.FC = () => {
     {notice && <div className={`flex items-center gap-2 rounded-xl border p-3 text-sm font-semibold ${notice.type === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-rose-200 bg-rose-50 text-rose-800'}`}>{notice.type === 'success' ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}{notice.text}</div>}
     <div className="space-y-4 overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs sm:p-6">
       <div className="flex flex-col items-center justify-between gap-3 border-b border-slate-200 pb-4 sm:flex-row"><div className="relative w-full sm:w-80"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input aria-label="Search personnel records" value={searchQuery} onChange={event => setSearchQuery(event.target.value)} placeholder="Search personnel records…" className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-xs font-medium text-slate-900 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100" /></div>{canManage ? <button onClick={openCreate} disabled={!backendConnected} className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-700 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"><UserPlus className="h-4 w-4" />Add personnel</button> : <span className="flex items-center gap-1 text-xs font-semibold text-slate-500"><Lock className="h-3.5 w-3.5" /> Editing restricted in view-only mode</span>}</div>
-      <div className="overflow-x-auto"><table className="record-table text-xs"><thead><tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-semibold uppercase text-slate-700"><th className="px-4 py-3">Rank & Full Name</th><th className="px-4 py-3">Badge No</th><th className="px-4 py-3">Plantilla Item</th><th className="px-4 py-3">Division</th><th className="px-4 py-3">Designation</th><th className="px-4 py-3 text-center">Status</th><th className="px-4 py-3 text-right">Actions</th></tr></thead><tbody className="divide-y divide-slate-100 font-medium text-slate-900">
-        {filteredPersonnel.map(person => <tr key={person.id} className="hover:bg-slate-50"><td className="px-4 py-3"><div className="font-extrabold">{person.rank} {person.lastName}, {person.firstName}</div><div className="text-[10px] font-medium text-slate-500">{person.rankFullName}</div></td><td className="px-4 py-3 font-mono text-slate-700">{person.badgeNo}</td><td className="px-4 py-3 font-mono text-[11px] font-extrabold text-sky-700">{person.plantilla}</td><td className="px-4 py-3 text-blue-700">{person.division}</td><td className="px-4 py-3 font-medium text-slate-700">{person.designation}</td><td className="px-4 py-3 text-center"><Badge variant={person.status === 'Active' ? 'success' : 'warning'} size="sm">{person.status}</Badge></td><td className="px-4 py-3 text-right">{canManage ? <div className="flex items-center justify-end gap-2"><button onClick={() => openEdit(person)} title="Edit Personnel Record" className="rounded-lg p-1.5 text-blue-600 transition hover:bg-blue-50"><Edit className="h-4 w-4" /></button><button onClick={() => setDeleteTarget(person)} title="Delete Record" className="rounded-lg p-1.5 text-rose-600 transition hover:bg-rose-50"><Trash2 className="h-4 w-4" /></button></div> : <span className="text-[11px] italic text-slate-400">View Only</span>}</td></tr>)}
-        {filteredPersonnel.length === 0 && <tr><td colSpan={7} className="px-4 py-12 text-center font-medium text-slate-500">No personnel records match your search.</td></tr>}
+      <div className="overflow-x-auto"><table className="record-table text-xs"><thead><tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-semibold uppercase text-slate-700"><th className="px-4 py-3">Rank & Full Name</th><th className="px-4 py-3">Badge No</th><th className="px-4 py-3">Plantilla Item</th><th className="px-4 py-3">Sub-Unit</th><th className="px-4 py-3">Details</th><th className="px-4 py-3">Station</th><th className="px-4 py-3">Designation</th><th className="px-4 py-3 text-center">Status</th><th className="px-4 py-3 text-right">Actions</th></tr></thead><tbody className="divide-y divide-slate-100 font-medium text-slate-900">
+        {filteredPersonnel.map(person => <tr key={person.id} className="hover:bg-slate-50"><td className="px-4 py-3"><div className="font-extrabold">{person.rank} {person.lastName}, {person.firstName}</div><div className="text-[10px] font-medium text-slate-500">{person.rankFullName}</div></td><td className="px-4 py-3 font-mono text-slate-700">{person.badgeNo}</td><td className="px-4 py-3 font-mono text-[11px] font-extrabold text-sky-700">{person.plantilla}</td><td className="px-4 py-3 text-blue-700">{person.sub_unit || person.division || '—'}</td><td className="px-4 py-3 text-slate-600">{person.details || person.detail || '—'}</td><td className="px-4 py-3 text-slate-600">{person.station || '—'}</td><td className="px-4 py-3 font-medium text-slate-700">{person.designation}</td><td className="px-4 py-3 text-center"><Badge variant={person.status === 'Active' ? 'success' : 'warning'} size="sm">{person.status}</Badge></td><td className="px-4 py-3 text-right">{canManage ? <div className="flex items-center justify-end gap-2"><button onClick={() => openEdit(person)} title="Edit Personnel Record" className="rounded-lg p-1.5 text-blue-600 transition hover:bg-blue-50"><Edit className="h-4 w-4" /></button><button onClick={() => setDeleteTarget(person)} title="Delete Record" className="rounded-lg p-1.5 text-rose-600 transition hover:bg-rose-50"><Trash2 className="h-4 w-4" /></button></div> : <span className="text-[11px] italic text-slate-400">View Only</span>}</td></tr>)}
+        {filteredPersonnel.length === 0 && <tr><td colSpan={9} className="px-4 py-12 text-center font-medium text-slate-500">No personnel records match your search.</td></tr>}
       </tbody></table></div>
     </div>
     <Modal isOpen={editorMode !== null} onClose={() => !isSaving && setEditorMode(null)} title={editorMode === 'edit' ? 'Edit personnel information' : 'Add personnel record'} subtitle="Required fields are marked with an asterisk. Changes are saved directly to Supabase." maxWidth="4xl"><form onSubmit={savePersonnel} className="space-y-5"><PersonnelFormFields draft={draft} setDraft={setDraft} /><div className="sticky bottom-0 flex justify-end gap-2 border-t border-slate-200 bg-white pt-4"><button type="button" disabled={isSaving} onClick={() => setEditorMode(null)} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Cancel</button><button type="submit" disabled={isSaving || !backendConnected} className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-800 disabled:opacity-50">{isSaving && <LoaderCircle className="h-4 w-4 animate-spin" />}{editorMode === 'edit' ? 'Save changes' : 'Create personnel'}</button></div></form></Modal>

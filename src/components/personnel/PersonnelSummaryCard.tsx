@@ -52,8 +52,9 @@ export const PersonnelSummaryCard: React.FC<PersonnelSummaryCardProps> = ({ pers
         {[
           ['Rank', personnel.rankFullName || personnel.rank],
           ['Salary grade', `SG ${personnel.salaryGrade}`],
-          ['Division', personnel.division || 'Not recorded'],
-          ['Detail / sub-unit', personnel.detail || 'Not recorded'],
+          ['Sub-Unit', personnel.sub_unit || personnel.division || 'Not recorded'],
+          ['Details', personnel.details || personnel.detail || 'Not recorded'],
+          ['Station', personnel.station || 'Not recorded'],
           ['Designation', personnel.designation || 'Not assigned'],
           ['Duty status', personnel.status]
         ].map(([label, value], index) => (

@@ -24,7 +24,7 @@ export function exportPersonnelCsv(records: Personnel[], filename = 'personnel_r
   const headers = [
     'Personnel ID', 'Rank', 'Rank Full Name', 'First Name', 'Middle Name', 'Last Name',
     'Qualifier', 'Full Name', 'Badge No.', 'Salary Grade', 'Plantilla',
-    'Division', 'Detail', 'Designation', 'Address', 'Gender',
+    'Sub-Unit', 'Details', 'Station', 'Designation', 'Address', 'Gender',
     'Contact Number', 'Birthday', 'Date of Entry', 'Officer Position Date',
     'Last Promotion Date', 'Status'
   ];
@@ -37,7 +37,10 @@ export function exportPersonnelCsv(records: Personnel[], filename = 'personnel_r
       p.firstName, p.middleName ?? '', p.lastName,
       p.qualifier ?? '', p.fullName, p.badgeNo,
       p.salaryGrade ?? '', p.plantilla ?? '',
-      p.division, p.detail ?? '', p.designation,
+      p.sub_unit ?? p.division ?? '',
+      p.details ?? p.detail ?? '',
+      p.station ?? '',
+      p.designation,
       p.address ?? '', p.gender ?? '',
       p.contactNumber ?? '', p.birthday ?? '',
       p.dateOfEntry ?? '', p.enterInOfficerPositionDate ?? '',
@@ -64,9 +67,10 @@ export async function exportPersonnelPdf(
   const tableData = records.map(p => [
     `${p.rank} ${p.fullName}`,
     p.badgeNo,
-    p.division,
+    p.sub_unit ?? p.division ?? '—',
     p.designation,
-    p.detail ?? '—',
+    p.details ?? p.detail ?? '—',
+    p.station ?? '—',
     p.gender ?? '—',
     p.contactNumber ?? '—',
     p.birthday ?? '—',
@@ -77,7 +81,7 @@ export async function exportPersonnelPdf(
   autoTable(doc, {
     startY: 38,
     head: [[
-      'Name', 'Badge No.', 'Division', 'Designation', 'Detail',
+      'Name', 'Badge No.', 'Sub-Unit', 'Designation', 'Details', 'Station',
       'Gender', 'Contact', 'Birthday', 'Date of Entry', 'Status'
     ]],
     body: tableData,

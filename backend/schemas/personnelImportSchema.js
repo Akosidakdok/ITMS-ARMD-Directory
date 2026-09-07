@@ -11,8 +11,9 @@ export const PERSONNEL_IMPORTABLE_FIELDS = Object.freeze([
   'badgeNo',
   'salaryGrade',
   'plantilla',
-  'division',
-  'detail',
+  'sub_unit',
+  'details',
+  'station',
   'designation',
   'address',
   'gender',
@@ -28,7 +29,7 @@ export const PERSONNEL_REQUIRED_IMPORT_FIELDS = Object.freeze([
   'rank',
   'firstName',
   'lastName',
-  'division'
+  'sub_unit'
 ]);
 
 const STRING_FIELDS = new Set(
@@ -57,14 +58,29 @@ export const sanitizePersonnelImportRow = input => {
   const personnel = {};
   const errors = [];
 
+  const hasField = field => {
+    if (Object.prototype.hasOwnProperty.call(source, field)) return true;
+    if (field === 'sub_unit' && Object.prototype.hasOwnProperty.call(source, 'division')) return true;
+    if (field === 'details' && Object.prototype.hasOwnProperty.call(source, 'detail')) return true;
+    return false;
+  };
+
+  const getFieldValue = field => {
+    if (Object.prototype.hasOwnProperty.call(source, field)) return source[field];
+    if (field === 'sub_unit' && Object.prototype.hasOwnProperty.call(source, 'division')) return source.division;
+    if (field === 'details' && Object.prototype.hasOwnProperty.call(source, 'detail')) return source.detail;
+    return undefined;
+  };
+
   for (const field of PERSONNEL_IMPORTABLE_FIELDS) {
-    if (!Object.prototype.hasOwnProperty.call(source, field)) continue;
+    if (!hasField(field)) continue;
 
     if (field === 'salaryGrade') {
-      if (source.salaryGrade === '' || source.salaryGrade === null || source.salaryGrade === undefined) {
+      const rawSalary = getFieldValue('salaryGrade');
+      if (rawSalary === '' || rawSalary === null || rawSalary === undefined) {
         continue;
       }
-      const salaryGrade = Number(source.salaryGrade);
+      const salaryGrade = Number(rawSalary);
       if (!Number.isFinite(salaryGrade)) {
         errors.push('salaryGrade must be a number');
       } else {
@@ -74,7 +90,7 @@ export const sanitizePersonnelImportRow = input => {
     }
 
     if (STRING_FIELDS.has(field)) {
-      const value = normalizeString(source[field]);
+      const value = normalizeString(getFieldValue(field));
       if (value) personnel[field] = value;
     }
   }

@@ -30,8 +30,9 @@ export const PERSONNEL_IMPORTABLE_FIELDS: PersonnelImportField[] = [
   'badgeNo',
   'salaryGrade',
   'plantilla',
-  'division',
-  'detail',
+  'sub_unit',
+  'details',
+  'station',
   'designation',
   'address',
   'gender',
@@ -47,7 +48,7 @@ export const PERSONNEL_REQUIRED_IMPORT_FIELDS: PersonnelImportField[] = [
   'rank',
   'firstName',
   'lastName',
-  'division'
+  'sub_unit'
 ];
 
 // Header aliases — only Personnel Information columns accepted
@@ -65,12 +66,20 @@ const HEADER_ALIASES: Record<string, PersonnelImportField> = {
   sg:                'salaryGrade',
   plantilla:         'plantilla',
   plantillaitem:     'plantilla',
-  division:          'division',
-  unit:              'division',
-  unitdivision:      'division',       // "Unit / Division" → unitdivision
-  detail:            'detail',
-  detailsubunit:     'detail',         // "Detail / Sub-unit" → detailsubunit
-  subunit:           'detail',
+
+  // Organizational assignment: SUB-UNIT, DETAILS, STATION
+  subunit:           'sub_unit',
+  sub_unit:          'sub_unit',
+  division:          'sub_unit',       // Legacy "DIVISION" column maps to sub_unit
+  unit:              'sub_unit',
+  unitdivision:      'sub_unit',
+  details:           'details',
+  detail:            'details',
+  detailsubunit:     'details',
+  station:           'station',
+  dutystation:       'station',
+  assignedstation:   'station',
+
   designation:       'designation',
   position:          'designation',
 

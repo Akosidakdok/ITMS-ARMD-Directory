@@ -1,3 +1,3 @@
-rank,firstName,middleName,lastName,badgeNo,division,address,privateNotes
-PCPL,Ana,M,Santos,CODEX-TEST-001,CSD,"Camp Crame, Quezon City",this column must be ignored
-PCPL,Ben,,Reyes,,CSD,Manila,this invalid row must not be imported
+rank,firstName,middleName,lastName,badgeNo,sub_unit,details,station,address,privateNotes
+PCPL,Ana,M,Santos,CODEX-TEST-001,CSD,Network Monitoring,Camp Crame,"Camp Crame, Quezon City",this column must be ignored
+PCPL,Ben,,Reyes,,CSD,IT Support,Camp Crame,Manila,this invalid row must not be imported

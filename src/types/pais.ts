@@ -17,7 +17,12 @@ export interface Personnel {
   badgeNo: string;
   salaryGrade?: number;
   plantilla?: string;
-  division: string;
+  sub_unit?: string;
+  details?: string;
+  station?: string;
+  /** Legacy fallback for previously stored records */
+  division?: string;
+  /** Legacy fallback for previously stored records */
   detail?: string;
   designation: string;
   address?: string;

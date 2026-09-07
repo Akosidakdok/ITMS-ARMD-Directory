@@ -38,13 +38,13 @@ export const DashboardPage: React.FC = () => {
   const activeAssignments = assignmentsList.filter(assignment => assignment.status === 'Current').length;
   const personnelById = new Map(personnelList.map(person => [person.id, person]));
 
-  const divisionCounts = personnelList.reduce<Record<string, number>>((counts, person) => {
-    const division = person.division || 'Unassigned';
-    counts[division] = (counts[division] || 0) + 1;
+  const subUnitCounts = personnelList.reduce<Record<string, number>>((counts, person) => {
+    const subUnit = person.sub_unit || person.division || 'Unassigned';
+    counts[subUnit] = (counts[subUnit] || 0) + 1;
     return counts;
   }, {});
-  const divisionStrength = Object.entries(divisionCounts)
-    .map(([division, count]) => ({ division, count }))
+  const subUnitStrength = Object.entries(subUnitCounts)
+    .map(([subUnit, count]) => ({ subUnit, count }))
     .sort((a, b) => b.count - a.count);
 
   const recentActivities = [
@@ -112,7 +112,7 @@ export const DashboardPage: React.FC = () => {
                 <tr className="border-b border-slate-200 uppercase">
                   <th className="px-4 py-3">Rank & name</th>
                   <th className="px-4 py-3">Badge no.</th>
-                  <th className="px-4 py-3">Division</th>
+                  <th className="px-4 py-3">Sub-Unit</th>
                   <th className="px-4 py-3">Designation</th>
                   <th className="px-4 py-3 text-right">Profile</th>
                 </tr>
@@ -125,7 +125,7 @@ export const DashboardPage: React.FC = () => {
                       <p className="mt-0.5 text-[10px] text-slate-500">{person.rankFullName}</p>
                     </td>
                     <td className="px-4 py-3 font-mono text-[11px]">{person.badgeNo || '—'}</td>
-                    <td className="px-4 py-3 font-semibold text-blue-700">{person.division || '—'}</td>
+                    <td className="px-4 py-3 font-semibold text-blue-700">{person.sub_unit || person.division || '—'}</td>
                     <td className="px-4 py-3">{person.designation || 'Not assigned'}</td>
                     <td className="px-4 py-3 text-right">
                       <button onClick={() => handleSelectPersonnel(person.id)} className="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-700 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700">
@@ -141,23 +141,23 @@ export const DashboardPage: React.FC = () => {
         </section>
 
         <section className="record-section xl:col-span-4" aria-labelledby="division-strength-heading">
-          <SectionHeader id="division-strength-heading" title="Personnel by division" description="Recorded organizational distribution" />
+          <SectionHeader id="division-strength-heading" title="Personnel by sub-unit" description="Recorded organizational distribution" />
           <div className="space-y-3.5 p-4">
-            {divisionStrength.slice(0, 7).map(item => {
+            {subUnitStrength.slice(0, 7).map(item => {
               const percentage = totalPersonnel ? Math.round((item.count / totalPersonnel) * 100) : 0;
               return (
-                <div key={item.division}>
+                <div key={item.subUnit}>
                   <div className="mb-1.5 flex items-center justify-between text-xs">
-                    <span className="font-semibold text-slate-700">{item.division}</span>
+                    <span className="font-semibold text-slate-700">{item.subUnit}</span>
                     <span className="font-mono text-[11px] text-slate-500">{item.count} ({percentage}%)</span>
                   </div>
-                  <div className="h-1.5 overflow-hidden rounded-full bg-slate-100" aria-label={`${item.division}: ${item.count} personnel`}>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-slate-100" aria-label={`${item.subUnit}: ${item.count} personnel`}>
                     <div className="h-full rounded-full bg-blue-600" style={{ width: `${percentage}%` }} />
                   </div>
                 </div>
               );
             })}
-            {!divisionStrength.length && <EmptyState title="No division data available" icon={Briefcase} />}
+            {!subUnitStrength.length && <EmptyState title="No sub-unit data available" icon={Briefcase} />}
           </div>
         </section>
       </div>

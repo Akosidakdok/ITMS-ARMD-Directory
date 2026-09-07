@@ -263,7 +263,9 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
                           <th className="p-2">Rank</th>
                           <th className="p-2">Full name</th>
                           <th className="p-2">Badge No.</th>
-                          <th className="p-2">Division</th>
+                          <th className="p-2">Sub-Unit</th>
+                          <th className="p-2">Details</th>
+                          <th className="p-2">Station</th>
                           <th className="p-2">Status</th>
                         </tr>
                       </thead>
@@ -274,7 +276,9 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
                             <td className="p-2 font-bold text-blue-700">{row.data.rank}</td>
                             <td className="p-2 font-bold">{row.data.fullName}</td>
                             <td className="p-2 font-mono">{row.data.badgeNo}</td>
-                            <td className="p-2">{row.data.division}</td>
+                            <td className="p-2 font-medium">{row.data.sub_unit || row.data.division || '—'}</td>
+                            <td className="p-2 text-slate-600">{row.data.details || row.data.detail || '—'}</td>
+                            <td className="p-2 text-slate-600">{row.data.station || '—'}</td>
                             <td className="p-2">{row.data.status}</td>
                           </tr>
                         ))}

@@ -19,7 +19,7 @@ test('frontend and backend personnel schema allowlists stay aligned', () => {
 
 test('projects CSV rows onto known personnel fields only', () => {
   const csv = [
-    'rank,firstName,lastName,badgeNo,division,unnecessaryColumn,privateNotes',
+    'rank,firstName,lastName,badgeNo,sub_unit,unnecessaryColumn,privateNotes',
     'PCPL,Ana,Santos,B-100,CSD,ignore me,do not import'
   ].join('\n');
 
@@ -29,19 +29,32 @@ test('projects CSV rows onto known personnel fields only', () => {
   assert.equal(result.rows.length, 1);
   assert.deepEqual(Object.keys(result.rows[0].data).sort(), [
     'badgeNo',
-    'division',
     'firstName',
     'fullName',
     'lastName',
     'rank',
-    'status'
+    'status',
+    'sub_unit'
   ]);
   assert.equal(result.rows[0].data.fullName, 'Ana Santos');
+  assert.equal(result.rows[0].data.sub_unit, 'CSD');
+});
+
+test('maps legacy division header to sub_unit in CSV import', () => {
+  const csv = [
+    'rank,firstName,lastName,badgeNo,division',
+    'PCPL,Ana,Santos,B-100,CSD'
+  ].join('\n');
+
+  const result = parsePersonnelCsv(csv);
+
+  assert.equal(result.rows.length, 1);
+  assert.equal(result.rows[0].data.sub_unit, 'CSD');
 });
 
 test('handles quoted commas, embedded newlines, and escaped quotes', () => {
   const csv = [
-    'rank,firstName,lastName,badgeNo,division,address',
+    'rank,firstName,lastName,badgeNo,sub_unit,address',
     'PCOL,"Juan, Jr.",Dela Cruz,B-101,ITMS,"Camp ""Crame"",',
     'Quezon City"'
   ].join('\n');
@@ -55,7 +68,7 @@ test('handles quoted commas, embedded newlines, and escaped quotes', () => {
 
 test('accepts missing badge numbers and rejects duplicate badges', () => {
   const csv = [
-    'rank,firstName,lastName,badgeNo,division',
+    'rank,firstName,lastName,badgeNo,sub_unit',
     'PCPL,Ana,Santos,B-200,CSD',
     'PCPL,Ben,Reyes,B-200,CSD',
     'PCPL,Cara,Cruz,,CSD'
@@ -72,7 +85,7 @@ test('accepts missing badge numbers and rejects duplicate badges', () => {
 
 test('projects Excel worksheet rows with the same schema-only rules', () => {
   const result = parsePersonnelExcelRows([
-    ['rank', 'firstName', 'lastName', 'badgeNo', 'division', 'privateNotes'],
+    ['rank', 'firstName', 'lastName', 'badgeNo', 'sub_unit', 'privateNotes'],
     ['PCPL', 'Ana', 'Santos', 'B-400', 'CSD', 'must not be imported'],
     ['PCPL', 'Ben', 'Reyes', '', 'CSD', 'must not be validated']
   ]);

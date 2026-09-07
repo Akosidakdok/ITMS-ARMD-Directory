@@ -9,8 +9,8 @@ const MAX_BULK_BATCH_SIZE = 500;
 
 export const getAllPersonnel = async (req, res) => {
   try {
-    const { division, search, status } = req.query;
-    const personnel = await db.getPersonnel({ division, search, status });
+    const { sub_unit, division, search, status } = req.query;
+    const personnel = await db.getPersonnel({ sub_unit, division, search, status });
     res.json({
       success: true,
       count: personnel.length,

@@ -35,36 +35,69 @@ class PAISRepository {
   }
 
   // ================= PERSONNEL CRUD =================
+  normalizePersonnelRecord(p) {
+    if (!p) return p;
+    const sub_unit = p.sub_unit || p.division || '';
+    const details = p.details || p.detail || '';
+    const station = p.station || '';
+    return {
+      ...p,
+      sub_unit,
+      details,
+      station,
+      division: sub_unit,
+      detail: details
+    };
+  }
+
+  sanitizePersonnelPayload(data) {
+    if (!data) return data;
+    const sub_unit = data.sub_unit !== undefined ? data.sub_unit : (data.division || '');
+    const details = data.details !== undefined ? data.details : (data.detail || '');
+    const station = data.station !== undefined ? data.station : '';
+    return {
+      ...data,
+      sub_unit,
+      details,
+      station,
+      division: sub_unit,
+      detail: details
+    };
+  }
+
   async getPersonnel(query = {}) {
+    const filterSubUnit = query.sub_unit || query.division;
     if (this.isSupabaseConnected()) {
       try {
         let req = supabase.from('personnel').select('*');
-        if (query.division && query.division !== 'ALL') {
-          req = req.eq('division', query.division);
+        if (filterSubUnit && filterSubUnit !== 'ALL') {
+          req = req.or(`sub_unit.eq.${filterSubUnit},division.eq.${filterSubUnit}`);
         }
         if (query.status) {
           req = req.eq('status', query.status);
         }
         if (query.search) {
-          req = req.or(`fullName.ilike.%${query.search}%,badgeNo.ilike.%${query.search}%,division.ilike.%${query.search}%,designation.ilike.%${query.search}%`);
+          req = req.or(`fullName.ilike.%${query.search}%,badgeNo.ilike.%${query.search}%,sub_unit.ilike.%${query.search}%,details.ilike.%${query.search}%,station.ilike.%${query.search}%,division.ilike.%${query.search}%,designation.ilike.%${query.search}%`);
         }
         const { data, error } = await req;
         console.log('--- SUPABASE QUERY RESULT ---', { dataCount: data?.length, error: error?.message });
-        if (!error && Array.isArray(data)) return data;
+        if (!error && Array.isArray(data)) return data.map(p => this.normalizePersonnelRecord(p));
       } catch (e) {}
     }
 
-    let result = [...this.inMemoryPersonnel];
-    if (query.division && query.division !== 'ALL') {
-      result = result.filter(p => p.division === query.division);
+    let result = this.inMemoryPersonnel.map(p => this.normalizePersonnelRecord(p));
+    if (filterSubUnit && filterSubUnit !== 'ALL') {
+      result = result.filter(p => p.sub_unit === filterSubUnit || p.division === filterSubUnit);
     }
     if (query.search) {
       const q = query.search.toLowerCase();
       result = result.filter(p => 
         p.fullName.toLowerCase().includes(q) ||
         p.badgeNo.toLowerCase().includes(q) ||
-        p.division.toLowerCase().includes(q) ||
-        p.designation.toLowerCase().includes(q)
+        (p.sub_unit && p.sub_unit.toLowerCase().includes(q)) ||
+        (p.details && p.details.toLowerCase().includes(q)) ||
+        (p.station && p.station.toLowerCase().includes(q)) ||
+        (p.designation && p.designation.toLowerCase().includes(q))
       );
     }
     if (query.status) {
@@ -77,50 +110,54 @@ class PAISRepository {
     if (this.isSupabaseConnected()) {
       try {
         const { data, error } = await supabase.from('personnel').select('*').eq('id', id).single();
-        if (!error && data) return data;
+        if (!error && data) return this.normalizePersonnelRecord(data);
       } catch (e) {}
     }
-    return this.inMemoryPersonnel.find(p => p.id === id) || null;
+    const found = this.inMemoryPersonnel.find(p => p.id === id);
+    return found ? this.normalizePersonnelRecord(found) : null;
   }
 
   async createPersonnel(data) {
+    const payload = this.sanitizePersonnelPayload(data);
     const newRecord = {
-      id: data.id || `pnp-${Date.now()}`,
-      ...data
+      id: payload.id || `pnp-${Date.now()}`,
+      ...payload
     };
 
     if (this.isSupabaseConnected()) {
       const { data: inserted, error } = await supabase.from('personnel').insert([newRecord]).select().single();
       if (error) throw new Error(`Personnel insert failed: ${error.message}`);
-      return inserted;
+      return this.normalizePersonnelRecord(inserted);
     }
     throw new Error('Supabase is unavailable. Personnel records were not changed.');
   }
 
   async createPersonnelBulk(records) {
     if (!Array.isArray(records) || records.length === 0) return [];
+    const payloads = records.map(r => this.sanitizePersonnelPayload(r));
 
     if (this.isSupabaseConnected()) {
       const { data: inserted, error } = await supabase
         .from('personnel')
-        .insert(records)
+        .insert(payloads)
         .select();
 
       if (error) {
         throw new Error(`Bulk personnel insert failed: ${error.message}`);
       }
-      return inserted || [];
+      return (inserted || []).map(p => this.normalizePersonnelRecord(p));
     }
 
-    this.inMemoryPersonnel.unshift(...records);
-    return records;
+    this.inMemoryPersonnel.unshift(...payloads);
+    return payloads.map(p => this.normalizePersonnelRecord(p));
   }
 
   async updatePersonnel(id, data) {
+    const payload = this.sanitizePersonnelPayload(data);
     if (this.isSupabaseConnected()) {
-      const { data: updated, error } = await supabase.from('personnel').update(data).eq('id', id).select().single();
+      const { data: updated, error } = await supabase.from('personnel').update(payload).eq('id', id).select().single();
       if (error) throw new Error(`Personnel update failed: ${error.message}`);
-      return updated;
+      return this.normalizePersonnelRecord(updated);
     }
     throw new Error('Supabase is unavailable. Personnel records were not changed.');
   }

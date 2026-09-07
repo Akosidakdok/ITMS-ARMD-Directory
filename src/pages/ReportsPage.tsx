@@ -41,7 +41,7 @@ export const ReportsPage: React.FC = () => {
 
   // 1. Alpha List Data (Current Active Assignments)
   const alphaListData = personnelList
-    .filter(p => divisionFilter === 'ALL' || p.division === divisionFilter)
+    .filter(p => divisionFilter === 'ALL' || (p.sub_unit || p.division) === divisionFilter)
     .map(p => {
       const activeAsg = assignmentsList.find(a => a.personnelId === p.id && a.status === 'Current');
       return {
@@ -50,9 +50,11 @@ export const ReportsPage: React.FC = () => {
         fullName: p.fullName,
         badgeNo: p.badgeNo,
         plantilla: p.plantilla,
-        division: p.division,
+        sub_unit: p.sub_unit || p.division || '—',
+        details: p.details || p.detail || '—',
+        station: p.station || '—',
         position: activeAsg ? activeAsg.position : p.designation,
-        unit: activeAsg ? activeAsg.unit : p.detail,
+        unit: activeAsg ? activeAsg.unit : (p.details || p.detail),
         status: p.status
       };
     });
@@ -70,7 +72,7 @@ export const ReportsPage: React.FC = () => {
         rank: person?.rank || 'PNP',
         fullName: person?.fullName || 'Personnel',
         badgeNo: person?.badgeNo || 'N/A',
-        division: person?.division || 'HQ',
+        sub_unit: person?.sub_unit || person?.division || 'HQ',
         leaveType: l.leaveType,
         startDate: l.startDate,
         endDate: l.endDate,
@@ -107,7 +109,7 @@ export const ReportsPage: React.FC = () => {
         rank: p.rank,
         fullName: p.fullName,
         badgeNo: p.badgeNo,
-        division: p.division,
+        sub_unit: p.sub_unit || p.division || '—',
         degree: highestDegree,
         certifications: certsList,
         recentTraining: recentTrn
@@ -122,7 +124,7 @@ export const ReportsPage: React.FC = () => {
       rank: p.rank,
       fullName: p.fullName,
       badgeNo: p.badgeNo,
-      division: p.division,
+      sub_unit: p.sub_unit || p.division || '—',
       lastPromotionDate: p.lastPromotionDate,
       timeInGrade: tig.formatted,
       totalDays: tig.totalDays,
@@ -155,7 +157,9 @@ export const ReportsPage: React.FC = () => {
             { key: 'rank', label: 'Rank' },
             { key: 'fullName', label: 'Full Name' },
             { key: 'badgeNo', label: 'Badge No.' },
-            { key: 'division', label: 'Division' },
+            { key: 'sub_unit', label: 'Sub-Unit' },
+            { key: 'details', label: 'Details' },
+            { key: 'station', label: 'Station' },
             { key: 'position', label: 'Assigned Position' },
             { key: 'plantilla', label: 'Plantilla Item' }
           ]
@@ -168,7 +172,7 @@ export const ReportsPage: React.FC = () => {
             { key: 'rank', label: 'Rank' },
             { key: 'fullName', label: 'Full Name' },
             { key: 'badgeNo', label: 'Badge No.' },
-            { key: 'division', label: 'Division' },
+            { key: 'sub_unit', label: 'Sub-Unit' },
             { key: 'leaveType', label: 'Leave Type' },
             { key: 'startDate', label: 'Start Date' },
             { key: 'endDate', label: 'End Date' },
@@ -183,7 +187,7 @@ export const ReportsPage: React.FC = () => {
             { key: 'rank', label: 'Rank' },
             { key: 'fullName', label: 'Full Name' },
             { key: 'badgeNo', label: 'Badge No.' },
-            { key: 'division', label: 'Division' },
+            { key: 'sub_unit', label: 'Sub-Unit' },
             { key: 'degree', label: 'Degree' },
             { key: 'certifications', label: 'Certifications' }
           ]
@@ -196,7 +200,7 @@ export const ReportsPage: React.FC = () => {
             { key: 'rank', label: 'Rank' },
             { key: 'fullName', label: 'Full Name' },
             { key: 'badgeNo', label: 'Badge No.' },
-            { key: 'division', label: 'Division' },
+            { key: 'sub_unit', label: 'Sub-Unit' },
             { key: 'lastPromotionDate', label: 'Last Promoted' },
             { key: 'timeInGrade', label: 'Computed TIG' },
             { key: 'eligible', label: 'Board Status' }
@@ -268,13 +272,13 @@ export const ReportsPage: React.FC = () => {
 
         {activeReportTab === 'alpha_list' && (
           <div className="flex items-center gap-3">
-            <span className="text-xs text-slate-600 font-bold">Filter by Division:</span>
+            <span className="text-xs text-slate-600 font-bold">Filter by Sub-Unit:</span>
             <select
               value={divisionFilter}
               onChange={(e) => setDivisionFilter(e.target.value)}
               className="px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-extrabold focus:outline-none focus:border-blue-500"
             >
-              <option value="ALL">All Divisions & Offices</option>
+              <option value="ALL">All Sub-Units & Offices</option>
               <option value="ITSD">ITSD – Information Technology Support Division</option>
               <option value="PTD">PTD – Plans and Training Division</option>
               <option value="SMD">SMD – Systems Management Division</option>

@@ -11,7 +11,7 @@ test('backend allowlist never reads or copies unknown properties', () => {
     firstName: 'Ana',
     lastName: 'Santos',
     badgeNo: 'B-300',
-    division: 'CSD'
+    sub_unit: 'CSD'
   };
   Object.defineProperty(input, 'unnecessaryColumn', {
     enumerable: true,
@@ -24,11 +24,27 @@ test('backend allowlist never reads or copies unknown properties', () => {
 
   assert.deepEqual(errors, []);
   assert.equal(personnel.fullName, 'Ana Santos');
+  assert.equal(personnel.sub_unit, 'CSD');
   assert.equal('unnecessaryColumn' in personnel, false);
   assert.deepEqual(
     Object.keys(personnel).filter(key => !PERSONNEL_IMPORTABLE_FIELDS.includes(key) && !['id', 'fullName'].includes(key)),
     []
   );
+});
+
+test('backend supports legacy division column alias mapping to sub_unit', () => {
+  const input = {
+    rank: 'PCPL',
+    firstName: 'Ana',
+    lastName: 'Santos',
+    badgeNo: 'B-300',
+    division: 'CSD'
+  };
+
+  const { personnel, errors } = sanitizePersonnelImportRow(input);
+
+  assert.deepEqual(errors, []);
+  assert.equal(personnel.sub_unit, 'CSD');
 });
 
 test('backend rejects invalid required data and salary grade', () => {
@@ -40,5 +56,5 @@ test('backend rejects invalid required data and salary grade', () => {
 
   assert.ok(errors.includes('salaryGrade must be a number'));
   assert.ok(errors.includes('lastName is required'));
-  assert.ok(errors.includes('division is required'));
+  assert.ok(errors.includes('sub_unit is required'));
 });
