@@ -26,10 +26,17 @@ export const Modal: React.FC<ModalProps> = ({
   const descriptionId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
 
   useEffect(() => {
+    onCloseRef.current = onClose;
+  });
+
+  useEffect(() => {
+    if (!isOpen) return;
+
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') onCloseRef.current();
       if (e.key === 'Tab' && dialogRef.current) {
         const focusable = Array.from(dialogRef.current.querySelectorAll<HTMLElement>(
           'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
@@ -46,23 +53,25 @@ export const Modal: React.FC<ModalProps> = ({
         }
       }
     };
-    if (isOpen) {
-      returnFocusRef.current = document.activeElement as HTMLElement | null;
-      const previousOverflow = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
-      window.addEventListener('keydown', handleKeyDown);
-      window.requestAnimationFrame(() => {
+
+    returnFocusRef.current = document.activeElement as HTMLElement | null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+
+    window.requestAnimationFrame(() => {
+      if (!dialogRef.current?.contains(document.activeElement)) {
         const initialFocus = dialogRef.current?.querySelector<HTMLElement>('[data-autofocus], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled])');
         (initialFocus || dialogRef.current)?.focus();
-      });
-      return () => {
-        document.body.style.overflow = previousOverflow;
-        window.removeEventListener('keydown', handleKeyDown);
-        returnFocusRef.current?.focus();
-      };
-    }
-    return undefined;
-  }, [isOpen, onClose]);
+      }
+    });
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+      returnFocusRef.current?.focus();
+    };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
