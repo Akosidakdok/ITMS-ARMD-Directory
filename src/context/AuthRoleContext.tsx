@@ -20,6 +20,7 @@ import {
   INITIAL_LEAVE,
   INITIAL_AWARDS
 } from '../data/mockData';
+import { getRankFullName } from '../constants/ranks';
 import {
   fetchBackendHealth,
   fetchPersonnel,
@@ -386,14 +387,21 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   // Promotion Mutations
   const addPromotion = async (promotion: PromotionRecord) => {
+    const prevPromotions = [...promotionsList];
+    const prevPersonnel = [...personnelList];
+
     setPromotionsList(prev => [promotion, ...prev]);
     setPersonnelList(prev => prev.map(p => {
       if (p.id === promotion.personnelId) {
-        return {
-          ...p,
-          rank: promotion.rankTo,
-          lastPromotionDate: promotion.promotionDate
-        };
+        const isLatest = !p.lastPromotionDate || new Date(promotion.promotionDate).getTime() >= new Date(p.lastPromotionDate).getTime();
+        if (isLatest) {
+          return {
+            ...p,
+            rank: promotion.rankTo,
+            rankFullName: getRankFullName(promotion.rankTo),
+            lastPromotionDate: promotion.promotionDate
+          };
+        }
       }
       return p;
     }));
@@ -403,6 +411,9 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         await createPromotionApi(promotion);
       } catch (e) {
         console.error('Failed to sync promotion with backend:', e);
+        setPromotionsList(prevPromotions);
+        setPersonnelList(prevPersonnel);
+        throw e;
       }
     }
   };
@@ -419,14 +430,80 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const deletePromotion = async (id: string) => {
-    if (backendConnected) await deletePromotionApi(id);
-    setPromotionsList(prev => prev.filter(item => item.id !== id));
+    const prevPromotions = [...promotionsList];
+    const prevPersonnel = [...personnelList];
+
+    const target = promotionsList.find(item => item.id === id);
+    if (!target) return;
+
+    if (backendConnected) {
+      try {
+        await deletePromotionApi(id);
+      } catch (e) {
+        console.error('Failed to delete promotion on backend:', e);
+        setPromotionsList(prevPromotions);
+        setPersonnelList(prevPersonnel);
+        throw e;
+      }
+    }
+
+    const nextPromotions = promotionsList.filter(item => item.id !== id);
+    setPromotionsList(nextPromotions);
+
+    // Roll back or sync personnel rank
+    const remaining = nextPromotions.filter(item => item.personnelId === target.personnelId);
+    remaining.sort((a, b) => new Date(b.promotionDate).getTime() - new Date(a.promotionDate).getTime());
+
+    setPersonnelList(prev => prev.map(p => {
+      if (p.id === target.personnelId) {
+        if (remaining.length > 0) {
+          return {
+            ...p,
+            rank: remaining[0].rankTo,
+            rankFullName: getRankFullName(remaining[0].rankTo),
+            lastPromotionDate: remaining[0].promotionDate
+          };
+        } else {
+          // If no promotions remain, roll back to original baseline (target.rankFrom)
+          return {
+            ...p,
+            rank: target.rankFrom,
+            rankFullName: getRankFullName(target.rankFrom),
+            lastPromotionDate: undefined
+          };
+        }
+      }
+      return p;
+    }));
   };
 
   const updatePromotion = async (promotion: PromotionRecord) => {
-    const updated = backendConnected ? await updatePromotionApi(promotion) : promotion;
-    setPromotionsList(prev => prev.map(item => item.id === updated.id ? updated : item));
-    setPersonnelList(prev => prev.map(person => person.id === updated.personnelId ? { ...person, rank: updated.rankTo, lastPromotionDate: updated.promotionDate } : person));
+    const prevPromotions = [...promotionsList];
+    const prevPersonnel = [...personnelList];
+
+    try {
+      const updated = backendConnected ? await updatePromotionApi(promotion) : promotion;
+      const nextPromotions = promotionsList.map(item => item.id === updated.id ? updated : item);
+      setPromotionsList(nextPromotions);
+
+      const pPromotions = nextPromotions.filter(p => p.personnelId === updated.personnelId);
+      pPromotions.sort((a, b) => new Date(b.promotionDate).getTime() - new Date(a.promotionDate).getTime());
+
+      if (pPromotions.length > 0) {
+        const latest = pPromotions[0];
+        setPersonnelList(prev => prev.map(person => person.id === updated.personnelId ? {
+          ...person,
+          rank: latest.rankTo,
+          rankFullName: getRankFullName(latest.rankTo),
+          lastPromotionDate: latest.promotionDate
+        } : person));
+      }
+    } catch (e) {
+      console.error('Failed to update promotion:', e);
+      setPromotionsList(prevPromotions);
+      setPersonnelList(prevPersonnel);
+      throw e;
+    }
   };
 
   const updateTraining = async (training: TrainingRecord) => {

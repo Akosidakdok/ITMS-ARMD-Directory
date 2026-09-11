@@ -481,10 +481,45 @@ class PAISRepository {
   }
 
   // ================= PROMOTIONS CRUD =================
+  async syncPersonnelRank(personnelId, baselineRank = null) {
+    if (!personnelId) return;
+
+    const promotions = await this.getPromotions(personnelId);
+    promotions.sort((a, b) => new Date(b.promotionDate).getTime() - new Date(a.promotionDate).getTime());
+
+    let targetRank = null;
+    let targetDate = null;
+
+    if (promotions.length > 0) {
+      targetRank = promotions[0].rankTo;
+      targetDate = promotions[0].promotionDate;
+    } else if (baselineRank) {
+      targetRank = baselineRank;
+      targetDate = null;
+    }
+
+    if (this.isSupabaseConnected()) {
+      try {
+        const updateObj = {};
+        if (targetRank) updateObj.rank = targetRank;
+        updateObj.lastPromotionDate = targetDate;
+        await supabase.from('personnel').update(updateObj).eq('id', personnelId);
+      } catch (e) {
+        console.error('Failed to sync personnel rank in Supabase:', e.message);
+      }
+    }
+
+    const pIndex = this.inMemoryPersonnel.findIndex(p => p.id === personnelId);
+    if (pIndex !== -1) {
+      if (targetRank) this.inMemoryPersonnel[pIndex].rank = targetRank;
+      this.inMemoryPersonnel[pIndex].lastPromotionDate = targetDate;
+    }
+  }
+
   async getPromotions(personnelId = null) {
     if (this.isSupabaseConnected()) {
       try {
-        let req = supabase.from('promotions').select('*');
+        let req = supabase.from('promotions').select('*').order('promotionDate', { ascending: false });
         if (personnelId) req = req.eq('personnelId', personnelId);
         const { data, error } = await req;
         if (!error && Array.isArray(data)) return data;
@@ -492,9 +527,11 @@ class PAISRepository {
     }
 
     if (personnelId) {
-      return this.inMemoryPromotions.filter(p => p.personnelId === personnelId);
+      return this.inMemoryPromotions
+        .filter(p => p.personnelId === personnelId)
+        .sort((a, b) => new Date(b.promotionDate).getTime() - new Date(a.promotionDate).getTime());
     }
-    return [...this.inMemoryPromotions];
+    return [...this.inMemoryPromotions].sort((a, b) => new Date(b.promotionDate).getTime() - new Date(a.promotionDate).getTime());
   }
 
   async createPromotion(data) {
@@ -504,41 +541,37 @@ class PAISRepository {
     };
 
     if (this.isSupabaseConnected()) {
-      try {
-        const { data: inserted, error } = await supabase.from('promotions').insert([newRecord]).select().single();
-        if (!error && inserted) {
-          if (data.rankTo) {
-            const updateObj = { rank: data.rankTo };
-            if (data.promotionDate) updateObj.lastPromotionDate = data.promotionDate;
-            await supabase.from('personnel').update(updateObj).eq('id', data.personnelId);
-          }
-          return inserted;
-        }
-      } catch (e) {}
+      const { data: inserted, error } = await supabase.from('promotions').insert([newRecord]).select().single();
+      if (error) throw error;
+      await this.syncPersonnelRank(data.personnelId);
+      return inserted;
     }
 
     this.inMemoryPromotions.unshift(newRecord);
-    const pIndex = this.inMemoryPersonnel.findIndex(p => p.id === data.personnelId);
-    if (pIndex !== -1 && data.rankTo) {
-      this.inMemoryPersonnel[pIndex].rank = data.rankTo;
-      if (data.promotionDate) {
-        this.inMemoryPersonnel[pIndex].lastPromotionDate = data.promotionDate;
-      }
-    }
+    await this.syncPersonnelRank(data.personnelId);
     return newRecord;
   }
 
   async deletePromotion(id) {
+    let targetRecord = this.inMemoryPromotions.find(p => p.id === id);
+
     if (this.isSupabaseConnected()) {
-      try {
-        const { error } = await supabase.from('promotions').delete().eq('id', id);
-        if (!error) return true;
-      } catch (e) {}
+      if (!targetRecord) {
+        const { data } = await supabase.from('promotions').select('*').eq('id', id).single();
+        targetRecord = data;
+      }
+      const { error } = await supabase.from('promotions').delete().eq('id', id);
+      if (error) throw error;
+      if (targetRecord) {
+        await this.syncPersonnelRank(targetRecord.personnelId, targetRecord.rankFrom);
+      }
+      return true;
     }
 
     const index = this.inMemoryPromotions.findIndex(p => p.id === id);
     if (index === -1) return false;
-    this.inMemoryPromotions.splice(index, 1);
+    const deleted = this.inMemoryPromotions.splice(index, 1)[0];
+    await this.syncPersonnelRank(deleted.personnelId, deleted.rankFrom);
     return true;
   }
 
@@ -546,14 +579,15 @@ class PAISRepository {
     if (this.isSupabaseConnected()) {
       const { data: updated, error } = await supabase.from('promotions').update(data).eq('id', id).select().single();
       if (error) throw error;
-      if (data.rankTo || data.promotionDate) {
-        await supabase.from('personnel').update({ rank: data.rankTo, lastPromotionDate: data.promotionDate }).eq('id', updated.personnelId);
-      }
+      const personnelId = updated?.personnelId || data.personnelId;
+      await this.syncPersonnelRank(personnelId);
       return updated;
     }
     const index = this.inMemoryPromotions.findIndex(item => item.id === id);
     if (index === -1) return null;
     this.inMemoryPromotions[index] = { ...this.inMemoryPromotions[index], ...data, id };
+    const personnelId = this.inMemoryPromotions[index].personnelId;
+    await this.syncPersonnelRank(personnelId);
     return this.inMemoryPromotions[index];
   }
 
