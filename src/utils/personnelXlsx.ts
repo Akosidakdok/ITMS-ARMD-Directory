@@ -1,5 +1,5 @@
 import { strFromU8, unzipSync } from 'fflate';
-import { getPersonnelImportField } from './personnelCsv';
+import { findPersonnelHeaderRowIndex, getPersonnelImportField } from './personnelCsv';
 
 const XLSX_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const MAX_XLSX_FILE_BYTES = 50 * 1024 * 1024;
@@ -217,20 +217,62 @@ export const readPersonnelXlsx = async (file: File): Promise<unknown[][]> => {
   const uses1904Epoch = elementsByLocalName(workbook, 'workbookPr')[0]
     ?.getAttribute('date1904') === '1';
 
-  const header: unknown[] = [];
-  const selectedColumns = new Set<number>();
-  for (const cell of elementsByLocalName(rows[0], 'c')) {
-    const columnIndex = cellColumnIndex(cell);
-    if (columnIndex < 0) continue;
-    const value = readCellValue(cell, sharedString, isDateStyle, uses1904Epoch);
-    header[columnIndex] = value;
-    if (getPersonnelImportField(value)) selectedColumns.add(columnIndex);
+  const getRowNumber = (rowEl: Element, fallbackIndex: number): number => {
+    const r = Number(rowEl.getAttribute('r'));
+    return Number.isFinite(r) && r >= 1 ? r : fallbackIndex + 1;
+  };
+
+  const maxCandidateScan = Math.min(rows.length, 30);
+  const candidateRows: unknown[][] = [];
+
+  for (let i = 0; i < maxCandidateScan; i += 1) {
+    const rowEl = rows[i];
+    const rowCells: unknown[] = [];
+    for (const cell of elementsByLocalName(rowEl, 'c')) {
+      const colIdx = cellColumnIndex(cell);
+      if (colIdx < 0) continue;
+      rowCells[colIdx] = readCellValue(
+        cell,
+        sharedString,
+        isDateStyle,
+        uses1904Epoch
+      );
+    }
+    candidateRows.push(rowCells);
   }
 
-  const projectedRows: unknown[][] = [header];
-  for (let rowIndex = 1; rowIndex < rows.length; rowIndex += 1) {
+  const headerCandidateIndex = findPersonnelHeaderRowIndex(candidateRows);
+  if (headerCandidateIndex < 0) {
+    throw new Error('Unable to detect the personnel table header. Please check the Excel file.');
+  }
+
+  const headerRowElement = rows[headerCandidateIndex];
+  const headerExcelRowNum = getRowNumber(headerRowElement, headerCandidateIndex);
+  const headerRowIndex = headerExcelRowNum - 1;
+  const headerCells = candidateRows[headerCandidateIndex];
+
+  const selectedColumns = new Set<number>();
+  for (let colIdx = 0; colIdx < headerCells.length; colIdx += 1) {
+    const value = headerCells[colIdx];
+    if (value !== null && value !== undefined && String(value).trim()) {
+      if (getPersonnelImportField(String(value))) {
+        selectedColumns.add(colIdx);
+      }
+    }
+  }
+
+  const projectedRows: unknown[][] = [];
+  for (let i = 0; i < headerRowIndex; i += 1) {
+    projectedRows[i] = [];
+  }
+  projectedRows[headerRowIndex] = headerCells;
+
+  for (let rowIndex = headerCandidateIndex + 1; rowIndex < rows.length; rowIndex += 1) {
+    const rowEl = rows[rowIndex];
+    const excelRowNum = getRowNumber(rowEl, rowIndex);
+    const targetIdx = excelRowNum - 1;
     const projectedRow: unknown[] = [];
-    for (const cell of elementsByLocalName(rows[rowIndex], 'c')) {
+    for (const cell of elementsByLocalName(rowEl, 'c')) {
       const columnIndex = cellColumnIndex(cell);
       if (!selectedColumns.has(columnIndex)) continue;
       projectedRow[columnIndex] = readCellValue(
@@ -240,7 +282,7 @@ export const readPersonnelXlsx = async (file: File): Promise<unknown[][]> => {
         uses1904Epoch
       );
     }
-    projectedRows.push(projectedRow);
+    projectedRows[targetIdx] = projectedRow;
   }
 
   return projectedRows;

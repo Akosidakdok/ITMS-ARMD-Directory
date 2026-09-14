@@ -85,14 +85,21 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
       }
       if (fileName.endsWith('.xlsx')) {
         const rows = await readPersonnelXlsx(uploadedFile);
-        setParsed(parsePersonnelExcelRows(rows));
+        const parsedResult = parsePersonnelExcelRows(rows);
+        setParsed(parsedResult);
+        const headerError = parsedResult.errors.find(e =>
+          e.messages.includes('Unable to detect the personnel table header. Please check the Excel file.')
+        );
+        if (headerError) {
+          setFatalError('Unable to detect the personnel table header. Please check the Excel file.');
+        }
       } else {
         const csv = await uploadedFile.text();
         await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
         setParsed(parsePersonnelCsv(csv));
       }
     } catch (error) {
-      setFatalError(error instanceof Error ? error.message : 'The CSV file could not be read.');
+      setFatalError(error instanceof Error ? error.message : 'The file could not be read.');
     } finally {
       setIsProcessing(false);
     }

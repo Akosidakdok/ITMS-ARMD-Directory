@@ -57,6 +57,7 @@ const HEADER_ALIASES: Record<string, PersonnelImportField> = {
   rankabbr:          'rank',
   rankfullname:      'rankFullName',   // "Rank Full Name" → rankfullname
   rankname:          'rankFullName',
+  badge:             'badgeNo',
   badgeno:           'badgeNo',
   badgenumber:       'badgeNo',        // "Badge Number"   → badgenumber
   salarygrade:       'salaryGrade',
@@ -71,6 +72,8 @@ const HEADER_ALIASES: Record<string, PersonnelImportField> = {
   subunit:           'sub_unit',
   sub_unit:          'sub_unit',
   division:          'sub_unit',       // Legacy "DIVISION" column maps to sub_unit
+  officedivision:    'sub_unit',
+  office:            'sub_unit',
   unit:              'sub_unit',
   unitdivision:      'sub_unit',
   details:           'details',
@@ -82,6 +85,8 @@ const HEADER_ALIASES: Record<string, PersonnelImportField> = {
 
   designation:       'designation',
   position:          'designation',
+  desup:             'designation',
+  des:               'designation',
 
   // First Name
   firstname:         'firstName',
@@ -156,6 +161,109 @@ const normalizeHeader = (header: string) => (
 export const getPersonnelImportField = (
   header: string
 ): PersonnelImportField | undefined => HEADER_ALIASES[normalizeHeader(header)];
+
+export const EXPECTED_PERSONNEL_HEADERS = new Set([
+  'no',
+  'itemno',
+  'item',
+  'rank',
+  'status',
+  'badge',
+  'badgeno',
+  'badgenumber',
+  'lastname',
+  'firstname',
+  'middlename',
+  'qual',
+  'qualifier',
+  'agetodate',
+  'age',
+  'birthdate',
+  'birthday',
+  'ageofservicetodate',
+  'lengthofservice',
+  'los',
+  'desup',
+  'des',
+  'pnco',
+  'nup',
+  'pco',
+  'officedivision',
+  'office',
+  'division',
+  'sub_unit',
+  'subunit',
+  'designation',
+  'position',
+  'salarygrade',
+  'sg',
+  'sgst',
+  'plantilla',
+  'details',
+  'station',
+  'address',
+  'gender',
+  'sex',
+  'contactnumber',
+  'contact',
+  'dateofentry',
+  'lastpromotiondate',
+  'civilstatus',
+  'tin',
+  'remarks',
+  'remark'
+]);
+
+export const isExpectedPersonnelHeader = (header: unknown): boolean => {
+  if (header === null || header === undefined) return false;
+  const normalized = normalizeHeader(String(header));
+  if (!normalized) return false;
+  return Boolean(HEADER_ALIASES[normalized] || EXPECTED_PERSONNEL_HEADERS.has(normalized));
+};
+
+export const countMatchingHeaders = (row: ReadonlyArray<unknown>): number => {
+  if (!row || !Array.isArray(row)) return 0;
+  let count = 0;
+  const seen = new Set<string>();
+  for (const cell of row) {
+    if (cell === null || cell === undefined) continue;
+    const str = String(cell).trim();
+    if (!str) continue;
+    const normalized = normalizeHeader(str);
+    if (!normalized || seen.has(normalized)) continue;
+    if (isExpectedPersonnelHeader(str)) {
+      seen.add(normalized);
+      count += 1;
+    }
+  }
+  return count;
+};
+
+export const findPersonnelHeaderRowIndex = (
+  rows: ReadonlyArray<ReadonlyArray<unknown>>,
+  maxScanRows = 30,
+  minMatches = 2
+): number => {
+  const scanLimit = Math.min(rows.length, maxScanRows);
+  let bestIndex = -1;
+  let maxCount = 0;
+
+  for (let index = 0; index < scanLimit; index += 1) {
+    const row = rows[index];
+    if (!row || !Array.isArray(row)) continue;
+    const matchCount = countMatchingHeaders(row);
+    if (matchCount > maxCount) {
+      maxCount = matchCount;
+      bestIndex = index;
+    }
+  }
+
+  if (maxCount < minMatches) {
+    return -1;
+  }
+
+  return bestIndex;
+};
 
 interface ParsedRow {
   nextIndex: number;
@@ -312,10 +420,20 @@ export const parsePersonnelExcelRows = (
     rows: [],
     errors: []
   };
-  if (spreadsheetRows.length === 0) return result;
+  if (!spreadsheetRows || spreadsheetRows.length === 0) return result;
 
+  const headerRowIndex = findPersonnelHeaderRowIndex(spreadsheetRows);
+  if (headerRowIndex < 0) {
+    result.errors.push({
+      rowNumber: 1,
+      messages: ['Unable to detect the personnel table header. Please check the Excel file.']
+    });
+    return result;
+  }
+
+  const headerRow = spreadsheetRows[headerRowIndex] || [];
   const projections = createColumnProjections(
-    spreadsheetRows[0].map((value, index) => ({
+    headerRow.map((value, index) => ({
       index,
       value: formatSpreadsheetCell(value)
     })),
@@ -324,15 +442,16 @@ export const parsePersonnelExcelRows = (
 
   if (projections.length === 0) {
     result.errors.push({
-      rowNumber: 1,
-      messages: ['The first worksheet has no columns that match the personnel database schema']
+      rowNumber: headerRowIndex + 1,
+      messages: ['The worksheet header has no columns that match the personnel database schema']
     });
     return result;
   }
 
   const seenBadges = new Set<string>();
-  for (let index = 1; index < spreadsheetRows.length; index += 1) {
+  for (let index = headerRowIndex + 1; index < spreadsheetRows.length; index += 1) {
     const spreadsheetRow = spreadsheetRows[index];
+    if (!spreadsheetRow || !Array.isArray(spreadsheetRow)) continue;
     const projected = projectPersonnelRow(
       projections,
       columnIndex => formatSpreadsheetCell(spreadsheetRow[columnIndex]),
