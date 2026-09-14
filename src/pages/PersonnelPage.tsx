@@ -243,7 +243,7 @@ export const PersonnelPage: React.FC = () => {
         ...prev,
         rank: 'NUP',
         rankFullName: 'Non-Uniformed Personnel',
-        salaryGrade: prev.salaryGrade || 14
+        salaryGrade: prev.salaryGrade || '14'
       }));
     }
   };
@@ -412,7 +412,7 @@ export const PersonnelPage: React.FC = () => {
       qualifier: qStr,
       fullName: full,
       badgeNo: newPersonnelForm.badgeNo || '',
-      salaryGrade: isUniformed ? undefined : (Number(newPersonnelForm.salaryGrade) || undefined),
+      salaryGrade: isUniformed ? undefined : (String(newPersonnelForm.salaryGrade || '').trim() || undefined),
       plantilla: isUniformed ? '' : (newPersonnelForm.plantilla || '').trim(),
       sub_unit: subUnitStr,
       details: detailsStr,
@@ -1315,11 +1315,10 @@ export const PersonnelPage: React.FC = () => {
                       <div>
                         <label className="block text-2xs font-bold text-slate-700 mb-1">Salary Grade (SG-ST)</label>
                         <input
-                          type="number"
-                          min={1}
-                          max={33}
+                          type="text"
                           value={newPersonnelForm.salaryGrade ?? ''}
-                          onChange={e => setNewPersonnelForm({...newPersonnelForm, salaryGrade: Number(e.target.value)})}
+                          onChange={e => setNewPersonnelForm({...newPersonnelForm, salaryGrade: e.target.value})}
+                          placeholder="e.g. 14, SG-14, or 14-1"
                           className="w-full p-2 border border-slate-300 rounded font-bold bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500"
                         />
                       </div>

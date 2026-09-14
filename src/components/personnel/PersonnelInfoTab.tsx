@@ -78,7 +78,7 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
         ...prev,
         rank: 'NUP',
         rankFullName: 'Non-Uniformed Personnel',
-        salaryGrade: prev.salaryGrade || 14
+        salaryGrade: prev.salaryGrade || '14'
       }));
     }
   };
@@ -144,7 +144,7 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
       qualifier: qStr,
       fullName: fullName || formData.fullName,
       badgeNo: (formData.badgeNo || '').trim(),
-      salaryGrade: isUniformed ? undefined : (Number(formData.salaryGrade) || undefined),
+      salaryGrade: isUniformed ? undefined : (String(formData.salaryGrade || '').trim() || undefined),
       plantilla: isUniformed ? '' : (formData.plantilla || '').trim(),
       sub_unit: subUnitStr,
       details: detailsStr,
@@ -470,12 +470,12 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-2xs font-bold text-slate-700 mb-1">Salary Grade</label>
+                  <label className="block text-2xs font-bold text-slate-700 mb-1">Salary Grade (SG-ST)</label>
                   <input
-                    type="number"
+                    type="text"
                     value={formData.salaryGrade ?? ''}
                     onChange={e => handleChange('salaryGrade', e.target.value)}
-                    placeholder="e.g. 14"
+                    placeholder="e.g. 14, SG-14, or 14-1"
                     className="w-full p-2 border border-slate-300 rounded text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-mono font-medium"
                   />
                 </div>
@@ -661,7 +661,7 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
                   <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
                     <span className="text-[10px] uppercase font-bold text-slate-500 block">Salary Grade / Status</span>
                     <div className="flex items-center gap-2 mt-0.5">
-                      <span className="font-mono text-slate-800 text-xs font-semibold">SG {personnel.salaryGrade || '—'}</span>
+                      <span className="font-mono text-slate-800 text-xs font-semibold">{!personnel.salaryGrade ? '—' : (/^sg\b/i.test(String(personnel.salaryGrade).trim()) ? String(personnel.salaryGrade).trim() : `SG ${personnel.salaryGrade}`)}</span>
                       <Badge variant={personnel.status === 'Active' ? 'success' : 'neutral'} size="sm">{personnel.status}</Badge>
                     </div>
                   </div>

@@ -28,13 +28,10 @@ export const PERSONNEL_IMPORTABLE_FIELDS = Object.freeze([
 export const PERSONNEL_REQUIRED_IMPORT_FIELDS = Object.freeze([
   'rank',
   'firstName',
-  'lastName',
-  'sub_unit'
+  'lastName'
 ]);
 
-const STRING_FIELDS = new Set(
-  PERSONNEL_IMPORTABLE_FIELDS.filter(field => field !== 'salaryGrade')
-);
+const STRING_FIELDS = new Set(PERSONNEL_IMPORTABLE_FIELDS);
 
 const normalizeString = value => (
   typeof value === 'string' || typeof value === 'number'
@@ -74,20 +71,6 @@ export const sanitizePersonnelImportRow = input => {
 
   for (const field of PERSONNEL_IMPORTABLE_FIELDS) {
     if (!hasField(field)) continue;
-
-    if (field === 'salaryGrade') {
-      const rawSalary = getFieldValue('salaryGrade');
-      if (rawSalary === '' || rawSalary === null || rawSalary === undefined) {
-        continue;
-      }
-      const salaryGrade = Number(rawSalary);
-      if (!Number.isFinite(salaryGrade)) {
-        errors.push('salaryGrade must be a number');
-      } else {
-        personnel.salaryGrade = salaryGrade;
-      }
-      continue;
-    }
 
     if (STRING_FIELDS.has(field)) {
       const value = normalizeString(getFieldValue(field));

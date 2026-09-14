@@ -32,9 +32,16 @@ export const PersonnelSummaryCard: React.FC<PersonnelSummaryCardProps> = ({ pers
   const personnelLeaves = leaveList.filter(record => record.personnelId === personnel.id);
   const personnelAwards = awardsList.filter(record => record.personnelId === personnel.id);
 
+  const formatSalaryGrade = (sg?: string | number) => {
+    if (!sg) return '—';
+    const str = String(sg).trim();
+    if (!str) return '—';
+    return /^sg\b/i.test(str) ? str : `SG ${str}`;
+  };
+
   const summaryItems: [string, string][] = [
     ['Rank', isUniformed ? personnel.rank : (personnel.rankFullName || personnel.rank)],
-    ...(!isUniformed ? [['Salary grade', `SG ${personnel.salaryGrade || '—'}`] as [string, string]] : []),
+    ...(!isUniformed ? [['Salary grade', formatSalaryGrade(personnel.salaryGrade)] as [string, string]] : []),
     ['Sub-Unit', personnel.sub_unit || personnel.division || 'Not recorded'],
     ['Details', personnel.details || personnel.detail || 'Not recorded'],
     ['Station', personnel.station || 'Not recorded'],

@@ -47,8 +47,7 @@ export const PERSONNEL_IMPORTABLE_FIELDS: PersonnelImportField[] = [
 export const PERSONNEL_REQUIRED_IMPORT_FIELDS: PersonnelImportField[] = [
   'rank',
   'firstName',
-  'lastName',
-  'sub_unit'
+  'lastName'
 ];
 
 // Header aliases — only Personnel Information columns accepted
@@ -64,6 +63,7 @@ const HEADER_ALIASES: Record<string, PersonnelImportField> = {
   salarygradesgst:   'salaryGrade',    // "Salary Grade (SG-ST)" → salarygradesgst
   salarygradesgst2:  'salaryGrade',
   sg:                'salaryGrade',
+  sgst:              'salaryGrade',
   plantilla:         'plantilla',
   plantillaitem:     'plantilla',
 
@@ -268,16 +268,7 @@ const projectPersonnelRow = (
     if (!rawValue) continue;
     hasSchemaValue = true;
 
-    if (projection.field === 'salaryGrade') {
-      const salaryGrade = Number(rawValue);
-      if (!Number.isFinite(salaryGrade)) {
-        messages.push('salaryGrade must be a number');
-      } else {
-        data.salaryGrade = salaryGrade;
-      }
-    } else {
-      (data as Record<string, unknown>)[projection.field] = rawValue;
-    }
+    (data as Record<string, unknown>)[projection.field] = rawValue;
   }
 
   // Data that exists exclusively in ignored columns must not create an import row.

@@ -15,7 +15,7 @@ export interface Personnel {
   qualifier?: string;
   fullName: string;
   badgeNo: string;
-  salaryGrade?: number;
+  salaryGrade?: string | number;
   plantilla?: string;
   sub_unit?: string;
   details?: string;

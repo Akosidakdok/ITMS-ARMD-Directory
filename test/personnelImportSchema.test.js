@@ -47,14 +47,54 @@ test('backend supports legacy division column alias mapping to sub_unit', () => 
   assert.equal(personnel.sub_unit, 'CSD');
 });
 
-test('backend rejects invalid required data and salary grade', () => {
+test('backend rejects missing required fields', () => {
   const { errors } = sanitizePersonnelImportRow({
     rank: 'PCPL',
-    firstName: 'Ana',
-    salaryGrade: 'not-a-number'
+    firstName: 'Ana'
   });
 
-  assert.ok(errors.includes('salaryGrade must be a number'));
   assert.ok(errors.includes('lastName is required'));
-  assert.ok(errors.includes('sub_unit is required'));
 });
+
+test('backend accepts salaryGrade containing numbers, dashes, and letters (e.g. SG-14, 14-1, 14)', () => {
+  const cases = [
+    { input: 'SG-14', expected: 'SG-14' },
+    { input: '14-1', expected: '14-1' },
+    { input: 'SG 14/1', expected: 'SG 14/1' },
+    { input: '14', expected: '14' },
+    { input: 14, expected: '14' },
+    { input: 'SG-18 Step 1', expected: 'SG-18 Step 1' }
+  ];
+
+  for (const { input, expected } of cases) {
+    const { personnel, errors } = sanitizePersonnelImportRow({
+      rank: 'NUP',
+      firstName: 'Maria',
+      lastName: 'Clara',
+      salaryGrade: input
+    });
+    assert.deepEqual(errors, []);
+    assert.equal(personnel.salaryGrade, expected);
+  }
+});
+
+test('backend accepts personnel records without sub_unit, details, or station across all optional combinations', () => {
+  const cases = [
+    { label: 'No Sub-unit', data: { rank: 'PCPL', firstName: 'Ana', lastName: 'Santos', details: 'Network', station: 'HQ' } },
+    { label: 'No Details', data: { rank: 'PCPL', firstName: 'Ana', lastName: 'Santos', sub_unit: 'CSD', station: 'HQ' } },
+    { label: 'No Station', data: { rank: 'PCPL', firstName: 'Ana', lastName: 'Santos', sub_unit: 'CSD', details: 'Network' } },
+    { label: 'No Sub-unit + No Details', data: { rank: 'PCPL', firstName: 'Ana', lastName: 'Santos', station: 'HQ' } },
+    { label: 'No Sub-unit + No Station', data: { rank: 'PCPL', firstName: 'Ana', lastName: 'Santos', details: 'Network' } },
+    { label: 'No Details + No Station', data: { rank: 'PCPL', firstName: 'Ana', lastName: 'Santos', sub_unit: 'CSD' } },
+    { label: 'All three fields are empty', data: { rank: 'PCPL', firstName: 'Ana', lastName: 'Santos', sub_unit: '', details: '', station: '' } },
+    { label: 'All three fields omitted', data: { rank: 'PCPL', firstName: 'Ana', lastName: 'Santos' } }
+  ];
+
+  for (const c of cases) {
+    const { personnel, errors } = sanitizePersonnelImportRow(c.data);
+    assert.deepEqual(errors, [], `Failed for case: ${c.label}`);
+    assert.equal(personnel.fullName, 'Ana Santos');
+    assert.equal(personnel.rank, 'PCPL');
+  }
+});
+

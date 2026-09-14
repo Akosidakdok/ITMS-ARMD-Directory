@@ -10,7 +10,7 @@ const PersonnelSchema = new mongoose.Schema({
   qualifier: { type: String, default: '' },
   fullName: { type: String, default: '' },
   badgeNo: { type: String, default: '' },
-  salaryGrade: { type: Number },
+  salaryGrade: { type: String, default: '' },
   plantilla: { type: String },
   sub_unit: { type: String, default: '' },
   details: { type: String, default: '' },

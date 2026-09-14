@@ -117,6 +117,15 @@ class PAISRepository {
     return found ? this.normalizePersonnelRecord(found) : null;
   }
 
+  coerceSalaryGradeForLegacyInt(payload) {
+    if (!payload || payload.salaryGrade === undefined || payload.salaryGrade === null || payload.salaryGrade === '') {
+      return { ...payload, salaryGrade: null };
+    }
+    const match = String(payload.salaryGrade).match(/\d+/);
+    const num = match ? parseInt(match[0], 10) : null;
+    return { ...payload, salaryGrade: num };
+  }
+
   async createPersonnel(data) {
     const payload = this.sanitizePersonnelPayload(data);
     const newRecord = {
@@ -125,7 +134,15 @@ class PAISRepository {
     };
 
     if (this.isSupabaseConnected()) {
-      const { data: inserted, error } = await supabase.from('personnel').insert([newRecord]).select().single();
+      let { data: inserted, error } = await supabase.from('personnel').insert([newRecord]).select().single();
+      if (error && error.code === '22P02' && typeof newRecord.salaryGrade === 'string') {
+        const fallbackRecord = this.coerceSalaryGradeForLegacyInt(newRecord);
+        const retry = await supabase.from('personnel').insert([fallbackRecord]).select().single();
+        if (!retry.error) {
+          inserted = retry.data;
+          error = null;
+        }
+      }
       if (error) throw new Error(`Personnel insert failed: ${error.message}`);
       return this.normalizePersonnelRecord(inserted);
     }
@@ -137,10 +154,23 @@ class PAISRepository {
     const payloads = records.map(r => this.sanitizePersonnelPayload(r));
 
     if (this.isSupabaseConnected()) {
-      const { data: inserted, error } = await supabase
+      let { data: inserted, error } = await supabase
         .from('personnel')
         .insert(payloads)
         .select();
+
+      if (error && error.code === '22P02') {
+        // Graceful fallback if Supabase table "salaryGrade" column is still integer
+        const fallbackPayloads = payloads.map(p => this.coerceSalaryGradeForLegacyInt(p));
+        const retry = await supabase
+          .from('personnel')
+          .insert(fallbackPayloads)
+          .select();
+        if (!retry.error) {
+          inserted = retry.data;
+          error = null;
+        }
+      }
 
       if (error) {
         throw new Error(`Bulk personnel insert failed: ${error.message}`);
@@ -155,7 +185,15 @@ class PAISRepository {
   async updatePersonnel(id, data) {
     const payload = this.sanitizePersonnelPayload(data);
     if (this.isSupabaseConnected()) {
-      const { data: updated, error } = await supabase.from('personnel').update(payload).eq('id', id).select().single();
+      let { data: updated, error } = await supabase.from('personnel').update(payload).eq('id', id).select().single();
+      if (error && error.code === '22P02' && typeof payload.salaryGrade === 'string') {
+        const fallbackPayload = this.coerceSalaryGradeForLegacyInt(payload);
+        const retry = await supabase.from('personnel').update(fallbackPayload).eq('id', id).select().single();
+        if (!retry.error) {
+          updated = retry.data;
+          error = null;
+        }
+      }
       if (error) throw new Error(`Personnel update failed: ${error.message}`);
       return this.normalizePersonnelRecord(updated);
     }

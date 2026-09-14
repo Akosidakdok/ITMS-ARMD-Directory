@@ -56,7 +56,7 @@ const PersonnelFormFields: React.FC<FormFieldsProps> = ({ draft, setDraft }) => 
         ...current,
         rank: 'NUP',
         rankFullName: 'Non-Uniformed Personnel',
-        salaryGrade: current.salaryGrade || 14
+        salaryGrade: current.salaryGrade || '14'
       }));
     }
   };
@@ -115,7 +115,7 @@ const PersonnelFormFields: React.FC<FormFieldsProps> = ({ draft, setDraft }) => 
         <label className="text-xs font-semibold text-slate-700">Designation{required}<input required value={draft.designation} onChange={event => set('designation', event.target.value)} className={fieldClass} /></label>
         {!isUniformed && (
           <>
-            <label className="text-xs font-semibold text-slate-700">Salary grade{required}<input required min="1" type="number" value={draft.salaryGrade || ''} onChange={event => set('salaryGrade', Number(event.target.value))} className={fieldClass} /></label>
+            <label className="text-xs font-semibold text-slate-700">Salary grade{required}<input required type="text" value={draft.salaryGrade || ''} onChange={event => set('salaryGrade', event.target.value)} placeholder="e.g. 14, SG-14, or 14-1" className={fieldClass} /></label>
             <label className="text-xs font-semibold text-slate-700">Plantilla item no.{required}<input required value={draft.plantilla || ''} onChange={event => set('plantilla', event.target.value)} className={fieldClass} /></label>
           </>
         )}
