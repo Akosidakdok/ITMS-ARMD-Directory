@@ -24,9 +24,16 @@ export const PNP_RANKS: RankInfo[] = [
   { code: 'PMSg', name: 'Police Master Sergeant', category: 'PNCO', level: 4, minTigYears: 2 },
   { code: 'PSSg', name: 'Police Staff Sergeant', category: 'PNCO', level: 3, minTigYears: 2 },
   { code: 'PCpl', name: 'Police Corporal', category: 'PNCO', level: 2, minTigYears: 2 },
-  { code: 'Pat', name: 'Patrolman/Patrolwoman', category: 'PNCO', level: 1, minTigYears: 2 },
+  { code: 'Pat', name: 'Patrolman', category: 'PNCO', level: 1, minTigYears: 2 },
   { code: 'NUP', name: 'Non-Uniformed Personnel', category: 'NUP', level: 0, minTigYears: 3 }
 ];
+
+export const UNIFORMED_RANKS: RankAbbr[] = PNP_RANKS.filter(r => r.category !== 'NUP').map(r => r.code);
+
+export function isUniformedRank(rank?: string): boolean {
+  if (!rank) return true;
+  return rank !== 'NUP';
+}
 
 export const PNP_RANK_NAMES: Record<string, string> = PNP_RANKS.reduce((acc, r) => {
   acc[r.code] = r.name;

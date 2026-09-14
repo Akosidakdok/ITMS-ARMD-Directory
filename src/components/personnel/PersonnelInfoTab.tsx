@@ -19,25 +19,11 @@ import {
 } from 'lucide-react';
 import { Badge } from '../common/Badge';
 import { hasManagementAccess } from '../../utils/accessControl';
+import { getRankFullName, isUniformedRank } from '../../constants/ranks';
 
-const PNP_RANKS = [
-  'PGEN',
-  'PLTGEN',
-  'PMGEN',
-  'PBGEN',
-  'PCOL',
-  'PLTCOL',
-  'PMAJ',
-  'PCPT',
-  'PLT',
-  'PEMS',
-  'PCMS',
-  'PSMS',
-  'PMSg',
-  'PSSg',
-  'PCpl',
-  'Pat',
-  'NUP'
+const UNIFORMED_RANKS_ORDER = [
+  'Pat', 'PCpl', 'PSSg', 'PMSg', 'PSMS', 'PCMS', 'PEMS',
+  'PLT', 'PCPT', 'PMAJ', 'PLTCOL', 'PCOL', 'PBGEN', 'PMGEN', 'PLTGEN', 'PGEN'
 ];
 
 interface PersonnelInfoTabProps {
@@ -57,6 +43,9 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
   const canManage = hasManagementAccess(role);
 
   const [internalEditing, setInternalEditing] = useState(isEditing);
+  const [personnelType, setPersonnelType] = useState<'Uniformed Personnel' | 'Non-Uniformed Personnel'>(
+    personnel.rank === 'NUP' ? 'Non-Uniformed Personnel' : 'Uniformed Personnel'
+  );
   const [formData, setFormData] = useState<Personnel>(personnel);
   const [isSaving, setIsSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -68,9 +57,31 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
 
   useEffect(() => {
     setFormData(personnel);
+    setPersonnelType(personnel.rank === 'NUP' ? 'Non-Uniformed Personnel' : 'Uniformed Personnel');
     setErrorMessage(null);
     setSavedSuccess(false);
   }, [personnel]);
+
+  const handlePersonnelTypeChange = (type: 'Uniformed Personnel' | 'Non-Uniformed Personnel') => {
+    setPersonnelType(type);
+    if (type === 'Uniformed Personnel') {
+      const nextRank = formData.rank === 'NUP' || !formData.rank ? 'Pat' : formData.rank;
+      setFormData(prev => ({
+        ...prev,
+        rank: nextRank,
+        rankFullName: getRankFullName(nextRank),
+        plantilla: '',
+        salaryGrade: undefined
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        rank: 'NUP',
+        rankFullName: 'Non-Uniformed Personnel',
+        salaryGrade: prev.salaryGrade || 14
+      }));
+    }
+  };
 
   const handleChange = (field: keyof Personnel, value: any) => {
     setFormData(prev => {
@@ -86,6 +97,7 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
 
   const handleReset = () => {
     setFormData(personnel);
+    setPersonnelType(personnel.rank === 'NUP' ? 'Non-Uniformed Personnel' : 'Uniformed Personnel');
     setErrorMessage(null);
     setSavedSuccess(false);
   };
@@ -95,6 +107,7 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
     onToggleEdit?.(editing);
     if (!editing) {
       setFormData(personnel);
+      setPersonnelType(personnel.rank === 'NUP' ? 'Non-Uniformed Personnel' : 'Uniformed Personnel');
       setErrorMessage(null);
     }
   };
@@ -106,6 +119,7 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
       return;
     }
 
+    const isUniformed = personnelType === 'Uniformed Personnel';
     const subUnitStr = (formData.sub_unit || formData.division || '').trim();
     const detailsStr = (formData.details || formData.detail || '').trim();
     const stationStr = (formData.station || '').trim();
@@ -113,7 +127,8 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
     const mnStr = (formData.middleName || '').trim();
     const lnStr = (formData.lastName || '').trim();
     const qStr  = (formData.qualifier || '').trim();
-    const rankStr = formData.rank || 'PCpl';
+    const rankStr = isUniformed ? (formData.rank && formData.rank !== 'NUP' ? formData.rank : 'Pat') : 'NUP';
+    const rankFull = isUniformed ? getRankFullName(rankStr) : 'Non-Uniformed Personnel';
 
     const middleInitial = mnStr ? ` ${mnStr.charAt(0).toUpperCase()}.` : '';
     const qualifierPart = qStr ? ` ${qStr}` : '';
@@ -122,15 +137,15 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
     const payload: Personnel = {
       ...formData,
       rank: rankStr,
-      rankFullName: (formData.rankFullName || '').trim(),
+      rankFullName: rankFull,
       firstName: fnStr,
       middleName: mnStr,
       lastName: lnStr,
       qualifier: qStr,
       fullName: fullName || formData.fullName,
       badgeNo: (formData.badgeNo || '').trim(),
-      salaryGrade: Number(formData.salaryGrade) || 0,
-      plantilla: (formData.plantilla || '').trim(),
+      salaryGrade: isUniformed ? undefined : (Number(formData.salaryGrade) || undefined),
+      plantilla: isUniformed ? '' : (formData.plantilla || '').trim(),
       sub_unit: subUnitStr,
       details: detailsStr,
       station: stationStr,
@@ -230,26 +245,48 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
               <div>
-                <label className="block text-2xs font-bold text-slate-700 mb-1">Rank *</label>
+                <label className="block text-2xs font-bold text-slate-700 mb-1">Personnel Type *</label>
                 <select
-                  value={formData.rank}
-                  onChange={e => handleChange('rank', e.target.value)}
+                  value={personnelType}
+                  onChange={e => handlePersonnelTypeChange(e.target.value as 'Uniformed Personnel' | 'Non-Uniformed Personnel')}
                   className="w-full p-2 border border-slate-300 rounded font-bold text-blue-700 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500"
                 >
-                  {PNP_RANKS.map(r => (
-                    <option key={r} value={r}>{r}</option>
-                  ))}
+                  <option value="Uniformed Personnel">Uniformed Personnel</option>
+                  <option value="Non-Uniformed Personnel">Non-Uniformed Personnel</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-2xs font-bold text-slate-700 mb-1">Rank Full Name</label>
+                <label className="block text-2xs font-bold text-slate-700 mb-1">Rank *</label>
+                <select
+                  value={formData.rank}
+                  onChange={e => {
+                    const r = e.target.value;
+                    setFormData(prev => ({
+                      ...prev,
+                      rank: r,
+                      rankFullName: getRankFullName(r)
+                    }));
+                  }}
+                  className="w-full p-2 border border-slate-300 rounded font-bold text-blue-700 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500"
+                >
+                  {personnelType === 'Uniformed Personnel' ? (
+                    UNIFORMED_RANKS_ORDER.map(r => (
+                      <option key={r} value={r}>{r}</option>
+                    ))
+                  ) : (
+                    <option value="NUP">NUP</option>
+                  )}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-2xs font-bold text-slate-700 mb-1">Designation Date</label>
                 <input
-                  type="text"
-                  value={formData.rankFullName || ''}
-                  onChange={e => handleChange('rankFullName', e.target.value)}
-                  placeholder="e.g. Police Corporal"
-                  className="w-full p-2 border border-slate-300 rounded text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-medium"
+                  type="date"
+                  value={formData.enterInOfficerPositionDate || ''}
+                  onChange={e => handleChange('enterInOfficerPositionDate', e.target.value)}
+                  className="w-full p-2 border border-slate-300 rounded text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-mono font-medium"
                 />
               </div>
 
@@ -261,17 +298,6 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
                   onChange={e => handleChange('badgeNo', e.target.value)}
                   placeholder="e.g. 101001"
                   className="w-full p-2 border border-slate-300 rounded text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-mono font-semibold"
-                />
-              </div>
-
-              <div>
-                <label className="block text-2xs font-bold text-slate-700 mb-1">Qualifier</label>
-                <input
-                  type="text"
-                  value={formData.qualifier || ''}
-                  onChange={e => handleChange('qualifier', e.target.value)}
-                  placeholder="Jr., Sr., III"
-                  className="w-full p-2 border border-slate-300 rounded text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-medium"
                 />
               </div>
 
@@ -296,7 +322,7 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
                 />
               </div>
 
-              <div className="sm:col-span-2">
+              <div>
                 <label className="block text-2xs font-bold text-slate-700 mb-1">Last Name *</label>
                 <input
                   type="text"
@@ -304,6 +330,17 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
                   value={formData.lastName || ''}
                   onChange={e => handleChange('lastName', e.target.value)}
                   className="w-full p-2 border border-slate-300 rounded text-slate-900 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-2xs font-bold text-slate-700 mb-1">Qualifier</label>
+                <input
+                  type="text"
+                  value={formData.qualifier || ''}
+                  onChange={e => handleChange('qualifier', e.target.value)}
+                  placeholder="Jr., Sr., III"
+                  className="w-full p-2 border border-slate-300 rounded text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-medium"
                 />
               </div>
             </div>
@@ -314,91 +351,154 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
             <h4 className="text-2xs font-extrabold uppercase tracking-widest text-blue-800 flex items-center gap-1.5 border-b border-slate-100 pb-2">
               <Building2 className="w-3.5 h-3.5 text-blue-600" /> Organizational Placement &amp; Assignment
             </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
-              <div>
-                <label className="block text-2xs font-bold text-slate-700 mb-1">Sub-Unit</label>
-                <input
-                  type="text"
-                  value={formData.sub_unit || formData.division || ''}
-                  onChange={e => handleChange('sub_unit', e.target.value)}
-                  placeholder="e.g. Network Operations Section"
-                  className="w-full p-2 border border-slate-300 rounded text-slate-900 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-bold"
-                />
-              </div>
+            {personnelType === 'Uniformed Personnel' ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
+                <div>
+                  <label className="block text-2xs font-bold text-slate-700 mb-1">Sub-Unit</label>
+                  <input
+                    type="text"
+                    value={formData.sub_unit || formData.division || ''}
+                    onChange={e => handleChange('sub_unit', e.target.value)}
+                    placeholder="e.g. Network Operations Section"
+                    className="w-full p-2 border border-slate-300 rounded text-slate-900 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-bold"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-2xs font-bold text-slate-700 mb-1">Details</label>
-                <input
-                  type="text"
-                  value={formData.details || formData.detail || ''}
-                  onChange={e => handleChange('details', e.target.value)}
-                  placeholder="e.g. Network Monitoring"
-                  className="w-full p-2 border border-slate-300 rounded text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-medium"
-                />
-              </div>
+                <div>
+                  <label className="block text-2xs font-bold text-slate-700 mb-1">Details</label>
+                  <input
+                    type="text"
+                    value={formData.details || formData.detail || ''}
+                    onChange={e => handleChange('details', e.target.value)}
+                    placeholder="e.g. Network Monitoring"
+                    className="w-full p-2 border border-slate-300 rounded text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-medium"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-2xs font-bold text-slate-700 mb-1">Station</label>
-                <input
-                  type="text"
-                  value={formData.station || ''}
-                  onChange={e => handleChange('station', e.target.value)}
-                  placeholder="e.g. Camp Crame"
-                  className="w-full p-2 border border-slate-300 rounded text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-medium"
-                />
-              </div>
+                <div>
+                  <label className="block text-2xs font-bold text-slate-700 mb-1">Station</label>
+                  <input
+                    type="text"
+                    value={formData.station || ''}
+                    onChange={e => handleChange('station', e.target.value)}
+                    placeholder="e.g. Camp Crame"
+                    className="w-full p-2 border border-slate-300 rounded text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-medium"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-2xs font-bold text-slate-700 mb-1">Designation</label>
-                <input
-                  type="text"
-                  value={formData.designation || ''}
-                  onChange={e => handleChange('designation', e.target.value)}
-                  placeholder="e.g. Section Chief"
-                  className="w-full p-2 border border-slate-300 rounded text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-semibold"
-                />
-              </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-2xs font-bold text-slate-700 mb-1">Designation</label>
+                  <input
+                    type="text"
+                    value={formData.designation || ''}
+                    onChange={e => handleChange('designation', e.target.value)}
+                    placeholder="e.g. Section Chief"
+                    className="w-full p-2 border border-slate-300 rounded text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-semibold"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-2xs font-bold text-slate-700 mb-1">Plantilla Item</label>
-                <input
-                  type="text"
-                  value={formData.plantilla || ''}
-                  onChange={e => handleChange('plantilla', e.target.value)}
-                  placeholder="e.g. P-001"
-                  className="w-full p-2 border border-slate-300 rounded text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-mono font-medium"
-                />
+                <div>
+                  <label className="block text-2xs font-bold text-slate-700 mb-1">Duty Status</label>
+                  <select
+                    value={formData.status || 'Active'}
+                    onChange={e => handleChange('status', e.target.value)}
+                    className="w-full p-2 border border-slate-300 rounded text-slate-900 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-bold"
+                  >
+                    <option value="Active">Active / On Duty</option>
+                    <option value="On Leave">On Leave</option>
+                    <option value="Detailed Out">Detailed Out</option>
+                    <option value="Suspended">Suspended</option>
+                    <option value="Inactive">Inactive</option>
+                  </select>
+                </div>
               </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
+                <div>
+                  <label className="block text-2xs font-bold text-slate-700 mb-1">Sub-Unit</label>
+                  <input
+                    type="text"
+                    value={formData.sub_unit || formData.division || ''}
+                    onChange={e => handleChange('sub_unit', e.target.value)}
+                    placeholder="e.g. Network Operations Section"
+                    className="w-full p-2 border border-slate-300 rounded text-slate-900 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-bold"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-2xs font-bold text-slate-700 mb-1">Salary Grade</label>
-                <input
-                  type="number"
-                  value={formData.salaryGrade ?? ''}
-                  onChange={e => handleChange('salaryGrade', e.target.value)}
-                  placeholder="e.g. 14"
-                  className="w-full p-2 border border-slate-300 rounded text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-mono font-medium"
-                />
-              </div>
+                <div>
+                  <label className="block text-2xs font-bold text-slate-700 mb-1">Details</label>
+                  <input
+                    type="text"
+                    value={formData.details || formData.detail || ''}
+                    onChange={e => handleChange('details', e.target.value)}
+                    placeholder="e.g. Network Monitoring"
+                    className="w-full p-2 border border-slate-300 rounded text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-medium"
+                  />
+                </div>
 
-              <div className="sm:col-span-2 lg:col-span-3">
-                <label className="block text-2xs font-bold text-slate-700 mb-1">Duty Status</label>
-                <select
-                  value={formData.status || 'Active'}
-                  onChange={e => handleChange('status', e.target.value)}
-                  className="w-full sm:w-64 p-2 border border-slate-300 rounded text-slate-900 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-bold"
-                >
-                  <option value="Active">Active / On Duty</option>
-                  <option value="On Leave">On Leave</option>
-                  <option value="Detailed Out">Detailed Out</option>
-                  <option value="Suspended">Suspended</option>
-                  <option value="Inactive">Inactive</option>
-                </select>
+                <div>
+                  <label className="block text-2xs font-bold text-slate-700 mb-1">Station</label>
+                  <input
+                    type="text"
+                    value={formData.station || ''}
+                    onChange={e => handleChange('station', e.target.value)}
+                    placeholder="e.g. Camp Crame"
+                    className="w-full p-2 border border-slate-300 rounded text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-medium"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-2xs font-bold text-slate-700 mb-1">Designation</label>
+                  <input
+                    type="text"
+                    value={formData.designation || ''}
+                    onChange={e => handleChange('designation', e.target.value)}
+                    placeholder="e.g. Section Chief"
+                    className="w-full p-2 border border-slate-300 rounded text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-semibold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-2xs font-bold text-slate-700 mb-1">Plantilla Item</label>
+                  <input
+                    type="text"
+                    value={formData.plantilla || ''}
+                    onChange={e => handleChange('plantilla', e.target.value)}
+                    placeholder="e.g. P-001"
+                    className="w-full p-2 border border-slate-300 rounded text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-mono font-medium"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-2xs font-bold text-slate-700 mb-1">Salary Grade</label>
+                  <input
+                    type="number"
+                    value={formData.salaryGrade ?? ''}
+                    onChange={e => handleChange('salaryGrade', e.target.value)}
+                    placeholder="e.g. 14"
+                    className="w-full p-2 border border-slate-300 rounded text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-mono font-medium"
+                  />
+                </div>
+
+                <div className="sm:col-span-2 lg:col-span-3">
+                  <label className="block text-2xs font-bold text-slate-700 mb-1">Duty Status</label>
+                  <select
+                    value={formData.status || 'Active'}
+                    onChange={e => handleChange('status', e.target.value)}
+                    className="w-full sm:w-64 p-2 border border-slate-300 rounded text-slate-900 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-bold"
+                  >
+                    <option value="Active">Active / On Duty</option>
+                    <option value="On Leave">On Leave</option>
+                    <option value="Detailed Out">Detailed Out</option>
+                    <option value="Suspended">Suspended</option>
+                    <option value="Inactive">Inactive</option>
+                  </select>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
-          {/* Section 3: Personal & Contact Information */}
+          {/* Section 3: Personal & Contact Details */}
           <div className="rounded-xl bg-white border border-slate-200 p-4 sm:p-5 shadow-2xs space-y-3">
             <h4 className="text-2xs font-extrabold uppercase tracking-widest text-blue-800 flex items-center gap-1.5 border-b border-slate-100 pb-2">
               <Phone className="w-3.5 h-3.5 text-blue-600" /> Personal &amp; Contact Details
@@ -455,23 +555,13 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
             <h4 className="text-2xs font-extrabold uppercase tracking-widest text-blue-800 flex items-center gap-1.5 border-b border-slate-100 pb-2">
               <Calendar className="w-3.5 h-3.5 text-blue-600" /> Service Timeline &amp; Dates
             </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
               <div>
                 <label className="block text-2xs font-bold text-slate-700 mb-1">Date of Entry into Police Service</label>
                 <input
                   type="date"
                   value={formData.dateOfEntry || ''}
                   onChange={e => handleChange('dateOfEntry', e.target.value)}
-                  className="w-full p-2 border border-slate-300 rounded text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-mono font-medium"
-                />
-              </div>
-
-              <div>
-                <label className="block text-2xs font-bold text-slate-700 mb-1">Enter in Officer Position Date</label>
-                <input
-                  type="date"
-                  value={formData.enterInOfficerPositionDate || ''}
-                  onChange={e => handleChange('enterInOfficerPositionDate', e.target.value)}
                   className="w-full p-2 border border-slate-300 rounded text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-mono font-medium"
                 />
               </div>
@@ -521,15 +611,19 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
               <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Rank</span>
                 <span className="font-extrabold text-blue-800 text-xs">{personnel.rank}</span>
-                {personnel.rankFullName && (
+                {!isUniformedRank(personnel.rank) && personnel.rankFullName && (
                   <span className="text-[10px] text-slate-500 block">{personnel.rankFullName}</span>
                 )}
+              </div>
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Designation Date</span>
+                <span className="font-mono font-bold text-slate-800 text-xs">{personnel.enterInOfficerPositionDate || '—'}</span>
               </div>
               <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Badge No.</span>
                 <span className="font-mono font-bold text-slate-800 text-xs">{personnel.badgeNo || '—'}</span>
               </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 sm:col-span-2">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Official Full Name</span>
                 <span className="font-bold text-slate-900 text-xs">{personnel.rank} {personnel.fullName}</span>
               </div>
@@ -554,21 +648,33 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Station</span>
                 <span className="font-medium text-slate-800 text-xs">{personnel.station || 'No Station recorded'}</span>
               </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+              <div className={`p-3 rounded-lg bg-slate-50 border border-slate-200 ${isUniformedRank(personnel.rank) ? 'sm:col-span-2' : ''}`}>
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Designation</span>
                 <span className="font-semibold text-slate-800 text-xs">{personnel.designation || 'Not assigned'}</span>
               </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
-                <span className="text-[10px] uppercase font-bold text-slate-500 block">Plantilla Item</span>
-                <span className="font-mono text-slate-800 text-xs">{personnel.plantilla || '—'}</span>
-              </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
-                <span className="text-[10px] uppercase font-bold text-slate-500 block">Salary Grade / Status</span>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span className="font-mono text-slate-800 text-xs font-semibold">SG {personnel.salaryGrade || '—'}</span>
-                  <Badge variant={personnel.status === 'Active' ? 'success' : 'neutral'} size="sm">{personnel.status}</Badge>
+              {!isUniformedRank(personnel.rank) && (
+                <>
+                  <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                    <span className="text-[10px] uppercase font-bold text-slate-500 block">Plantilla Item</span>
+                    <span className="font-mono text-slate-800 text-xs">{personnel.plantilla || '—'}</span>
+                  </div>
+                  <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                    <span className="text-[10px] uppercase font-bold text-slate-500 block">Salary Grade / Status</span>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="font-mono text-slate-800 text-xs font-semibold">SG {personnel.salaryGrade || '—'}</span>
+                      <Badge variant={personnel.status === 'Active' ? 'success' : 'neutral'} size="sm">{personnel.status}</Badge>
+                    </div>
+                  </div>
+                </>
+              )}
+              {isUniformedRank(personnel.rank) && (
+                <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                  <span className="text-[10px] uppercase font-bold text-slate-500 block">Duty Status</span>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <Badge variant={personnel.status === 'Active' ? 'success' : 'neutral'} size="sm">{personnel.status}</Badge>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
 
@@ -590,13 +696,9 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Gender / Birthday</span>
                 <span className="font-medium text-slate-800 text-xs">{personnel.gender} · {personnel.birthday || '—'}</span>
               </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 sm:col-span-2">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Date of Entry</span>
                 <span className="font-mono text-slate-800 text-xs">{personnel.dateOfEntry || '—'}</span>
-              </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
-                <span className="text-[10px] uppercase font-bold text-slate-500 block">Officer Position Date</span>
-                <span className="font-mono text-slate-800 text-xs">{personnel.enterInOfficerPositionDate || '—'}</span>
               </div>
               <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 sm:col-span-2">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Last Promotion Date</span>

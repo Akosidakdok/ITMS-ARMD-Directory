@@ -25,7 +25,7 @@ export function exportPersonnelCsv(records: Personnel[], filename = 'personnel_r
     'Personnel ID', 'Rank', 'Rank Full Name', 'First Name', 'Middle Name', 'Last Name',
     'Qualifier', 'Full Name', 'Badge No.', 'Salary Grade', 'Plantilla',
     'Sub-Unit', 'Details', 'Station', 'Designation', 'Address', 'Gender',
-    'Contact Number', 'Birthday', 'Date of Entry', 'Officer Position Date',
+    'Contact Number', 'Birthday', 'Date of Entry', 'Designation Date',
     'Last Promotion Date', 'Status'
   ];
 

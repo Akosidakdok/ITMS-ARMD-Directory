@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useAuthRole } from '../../context/AuthRoleContext';
 import { hasManagementAccess } from '../../utils/accessControl';
+import { isUniformedRank } from '../../constants/ranks';
 
 interface PersonnelSummaryCardProps {
   personnel: Personnel;
@@ -21,6 +22,7 @@ interface PersonnelSummaryCardProps {
 export const PersonnelSummaryCard: React.FC<PersonnelSummaryCardProps> = ({ personnel, onEdit }) => {
   const { role, assignmentsList, ordersList, leaveList, awardsList } = useAuthRole();
   const canManage = hasManagementAccess(role);
+  const isUniformed = isUniformedRank(personnel.rank);
   const personnelAssignments = assignmentsList.filter(record => record.personnelId === personnel.id);
   const personnelOrders = ordersList.filter(record =>
     record.personnelIds?.includes(personnel.id) ||
@@ -30,6 +32,16 @@ export const PersonnelSummaryCard: React.FC<PersonnelSummaryCardProps> = ({ pers
   const personnelLeaves = leaveList.filter(record => record.personnelId === personnel.id);
   const personnelAwards = awardsList.filter(record => record.personnelId === personnel.id);
 
+  const summaryItems: [string, string][] = [
+    ['Rank', isUniformed ? personnel.rank : (personnel.rankFullName || personnel.rank)],
+    ...(!isUniformed ? [['Salary grade', `SG ${personnel.salaryGrade || '—'}`] as [string, string]] : []),
+    ['Sub-Unit', personnel.sub_unit || personnel.division || 'Not recorded'],
+    ['Details', personnel.details || personnel.detail || 'Not recorded'],
+    ['Station', personnel.station || 'Not recorded'],
+    ['Designation', personnel.designation || 'Not assigned'],
+    ['Duty status', personnel.status]
+  ];
+
   return (
     <article className="overflow-hidden rounded-md border border-slate-300 bg-white">
       <header className="border-b border-slate-300 bg-[#fcfbf7] p-4">
@@ -37,7 +49,9 @@ export const PersonnelSummaryCard: React.FC<PersonnelSummaryCardProps> = ({ pers
           <div className="min-w-0">
             <p className="record-kicker">Official personnel summary</p>
             <h2 className="mt-1 text-base font-bold uppercase leading-tight text-slate-900">{personnel.rank} {personnel.fullName}</h2>
-            <p className="mt-1 font-mono text-[10px] text-slate-500">BADGE {personnel.badgeNo || 'NOT RECORDED'} · PLANTILLA {personnel.plantilla || 'NOT RECORDED'}</p>
+            <p className="mt-1 font-mono text-[10px] text-slate-500">
+              BADGE {personnel.badgeNo || 'NOT RECORDED'}{!isUniformed ? ` · PLANTILLA ${personnel.plantilla || 'NOT RECORDED'}` : ''}
+            </p>
           </div>
           <Badge variant={personnel.status === 'Active' ? 'success' : personnel.status === 'On Leave' ? 'warning' : 'neutral'} size="sm">{personnel.status}</Badge>
         </div>
@@ -49,15 +63,7 @@ export const PersonnelSummaryCard: React.FC<PersonnelSummaryCardProps> = ({ pers
       </header>
 
       <dl className="grid grid-cols-2 border-b border-slate-300 text-xs">
-        {[
-          ['Rank', personnel.rankFullName || personnel.rank],
-          ['Salary grade', `SG ${personnel.salaryGrade}`],
-          ['Sub-Unit', personnel.sub_unit || personnel.division || 'Not recorded'],
-          ['Details', personnel.details || personnel.detail || 'Not recorded'],
-          ['Station', personnel.station || 'Not recorded'],
-          ['Designation', personnel.designation || 'Not assigned'],
-          ['Duty status', personnel.status]
-        ].map(([label, value], index) => (
+        {summaryItems.map(([label, value], index) => (
           <div key={label} className={`border-b border-slate-200 p-3 ${index % 2 === 0 ? 'border-r' : ''}`}>
             <dt className="record-kicker text-slate-500">{label}</dt>
             <dd className="mt-1 font-semibold text-slate-900">{value}</dd>

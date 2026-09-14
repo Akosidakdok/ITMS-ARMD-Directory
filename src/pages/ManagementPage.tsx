@@ -13,12 +13,17 @@ const rankNames: Record<string, string> = {
   PMAJ: 'Police Major', PCPT: 'Police Captain', PLT: 'Police Lieutenant',
   PEMS: 'Police Executive Master Sergeant', PCMS: 'Police Chief Master Sergeant',
   PSMS: 'Police Senior Master Sergeant', PMSg: 'Police Master Sergeant', PSSg: 'Police Staff Sergeant',
-  PCpl: 'Police Corporal', Pat: 'Patrolman/Patrolwoman', NUP: 'Non-Uniformed Personnel'
+  PCpl: 'Police Corporal', Pat: 'Patrolman', NUP: 'Non-Uniformed Personnel'
 };
 
+const UNIFORMED_RANKS_ORDER = [
+  'Pat', 'PCpl', 'PSSg', 'PMSg', 'PSMS', 'PCMS', 'PEMS',
+  'PLT', 'PCPT', 'PMAJ', 'PLTCOL', 'PCOL', 'PBGEN', 'PMGEN', 'PLTGEN', 'PGEN'
+];
+
 const createEmptyPersonnel = (): Personnel => ({
-  id: `pnp-${Date.now()}`, rank: 'PLT', rankFullName: rankNames.PLT,
-  firstName: '', middleName: '', lastName: '', fullName: '', badgeNo: '', salaryGrade: 22,
+  id: `pnp-${Date.now()}`, rank: 'Pat', rankFullName: rankNames.Pat,
+  firstName: '', middleName: '', lastName: '', fullName: '', badgeNo: '', salaryGrade: undefined,
   plantilla: '', sub_unit: '', details: '', station: '', division: '', detail: '', designation: '',
   address: '', gender: 'Male', contactNumber: '', birthday: '', dateOfEntry: '',
   enterInOfficerPositionDate: '', lastPromotionDate: '', status: 'Active'
@@ -34,9 +39,67 @@ interface FormFieldsProps {
 const PersonnelFormFields: React.FC<FormFieldsProps> = ({ draft, setDraft }) => {
   const set = <K extends keyof Personnel>(key: K, value: Personnel[K]) => setDraft(current => ({ ...current, [key]: value }));
   const required = <span className="text-rose-600"> *</span>;
+  const isUniformed = draft.rank !== 'NUP';
+
+  const handlePersonnelTypeChange = (type: 'Uniformed Personnel' | 'Non-Uniformed Personnel') => {
+    if (type === 'Uniformed Personnel') {
+      const nextRank = draft.rank === 'NUP' ? 'Pat' : draft.rank;
+      setDraft(current => ({
+        ...current,
+        rank: nextRank,
+        rankFullName: rankNames[nextRank] || nextRank,
+        plantilla: '',
+        salaryGrade: undefined
+      }));
+    } else {
+      setDraft(current => ({
+        ...current,
+        rank: 'NUP',
+        rankFullName: 'Non-Uniformed Personnel',
+        salaryGrade: current.salaryGrade || 14
+      }));
+    }
+  };
+
   return <div className="space-y-6">
-    <FormSection title="Personal information">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <FormSection title="Identity & Personal Information">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <label className="text-xs font-semibold text-slate-700">
+          Personnel type{required}
+          <select
+            value={isUniformed ? 'Uniformed Personnel' : 'Non-Uniformed Personnel'}
+            onChange={e => handlePersonnelTypeChange(e.target.value as 'Uniformed Personnel' | 'Non-Uniformed Personnel')}
+            className={fieldClass}
+          >
+            <option value="Uniformed Personnel">Uniformed Personnel</option>
+            <option value="Non-Uniformed Personnel">Non-Uniformed Personnel</option>
+          </select>
+        </label>
+        <label className="text-xs font-semibold text-slate-700">
+          Rank{required}
+          <select
+            value={draft.rank}
+            onChange={event => {
+              const rank = event.target.value as RankAbbr;
+              setDraft(current => ({ ...current, rank, rankFullName: rankNames[rank] || current.rankFullName }));
+            }}
+            className={fieldClass}
+          >
+            {isUniformed ? (
+              UNIFORMED_RANKS_ORDER.map(rank => <option key={rank} value={rank}>{rank}</option>)
+            ) : (
+              <option value="NUP">NUP</option>
+            )}
+          </select>
+        </label>
+        <label className="text-xs font-semibold text-slate-700">
+          Designation Date
+          <input type="date" value={draft.enterInOfficerPositionDate || ''} onChange={event => set('enterInOfficerPositionDate', event.target.value)} className={fieldClass} />
+        </label>
+        <label className="text-xs font-semibold text-slate-700">
+          Badge / serial no.{required}
+          <input required value={draft.badgeNo} onChange={event => set('badgeNo', event.target.value)} className={fieldClass} />
+        </label>
         <label className="text-xs font-semibold text-slate-700">First name{required}<input required value={draft.firstName} onChange={event => set('firstName', event.target.value)} className={fieldClass} /></label>
         <label className="text-xs font-semibold text-slate-700">Middle name<input value={draft.middleName || ''} onChange={event => set('middleName', event.target.value)} className={fieldClass} /></label>
         <label className="text-xs font-semibold text-slate-700">Last name{required}<input required value={draft.lastName} onChange={event => set('lastName', event.target.value)} className={fieldClass} /></label>
@@ -44,22 +107,25 @@ const PersonnelFormFields: React.FC<FormFieldsProps> = ({ draft, setDraft }) => 
         <label className="text-xs font-semibold text-slate-700">Birthday<input type="date" value={draft.birthday || ''} onChange={event => set('birthday', event.target.value)} className={fieldClass} /></label>
       </div>
     </FormSection>
-    <FormSection title="Service information">
+    <FormSection title="Organizational Assignment">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <label className="text-xs font-semibold text-slate-700">Rank<select value={draft.rank} onChange={event => { const rank = event.target.value as RankAbbr; setDraft(current => ({ ...current, rank, rankFullName: rankNames[rank] || current.rankFullName })); }} className={fieldClass}>{Object.keys(rankNames).map(rank => <option key={rank} value={rank}>{rank}</option>)}</select></label>
-        <label className="text-xs font-semibold text-slate-700">Badge / serial no.{required}<input required value={draft.badgeNo} onChange={event => set('badgeNo', event.target.value)} className={fieldClass} /></label>
-        <label className="text-xs font-semibold text-slate-700">Salary grade{required}<input required min="1" type="number" value={draft.salaryGrade || ''} onChange={event => set('salaryGrade', Number(event.target.value))} className={fieldClass} /></label>
-        <label className="text-xs font-semibold text-slate-700">Plantilla item no.{required}<input required value={draft.plantilla || ''} onChange={event => set('plantilla', event.target.value)} className={fieldClass} /></label>
         <label className="text-xs font-semibold text-slate-700">Sub-Unit<input value={draft.sub_unit ?? draft.division ?? ''} onChange={event => { set('sub_unit', event.target.value); set('division', event.target.value); }} className={fieldClass} placeholder="e.g. Network Operations Section" /></label>
         <label className="text-xs font-semibold text-slate-700">Details<input value={draft.details ?? draft.detail ?? ''} onChange={event => { set('details', event.target.value); set('detail', event.target.value); }} className={fieldClass} placeholder="e.g. Network Monitoring" /></label>
         <label className="text-xs font-semibold text-slate-700">Station<input value={draft.station || ''} onChange={event => set('station', event.target.value)} className={fieldClass} placeholder="e.g. Camp Crame" /></label>
+        <label className="text-xs font-semibold text-slate-700">Designation{required}<input required value={draft.designation} onChange={event => set('designation', event.target.value)} className={fieldClass} /></label>
+        {!isUniformed && (
+          <>
+            <label className="text-xs font-semibold text-slate-700">Salary grade{required}<input required min="1" type="number" value={draft.salaryGrade || ''} onChange={event => set('salaryGrade', Number(event.target.value))} className={fieldClass} /></label>
+            <label className="text-xs font-semibold text-slate-700">Plantilla item no.{required}<input required value={draft.plantilla || ''} onChange={event => set('plantilla', event.target.value)} className={fieldClass} /></label>
+          </>
+        )}
         <label className="text-xs font-semibold text-slate-700">Status<select value={draft.status} onChange={event => set('status', event.target.value)} className={fieldClass}><option>Active</option><option>On Leave</option><option>Detailed Out</option><option>Suspended</option></select></label>
-        <label className="text-xs font-semibold text-slate-700 sm:col-span-2">Designation{required}<input required value={draft.designation} onChange={event => set('designation', event.target.value)} className={fieldClass} /></label>
-        <label className="text-xs font-semibold text-slate-700">Date of entry<input type="date" value={draft.dateOfEntry || ''} onChange={event => set('dateOfEntry', event.target.value)} className={fieldClass} /></label>
       </div>
     </FormSection>
-    <FormSection title="Contact information">
+    <FormSection title="Service Timeline & Contact">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <label className="text-xs font-semibold text-slate-700">Date of entry<input type="date" value={draft.dateOfEntry || ''} onChange={event => set('dateOfEntry', event.target.value)} className={fieldClass} /></label>
+        <label className="text-xs font-semibold text-slate-700">Last promotion date<input type="date" value={draft.lastPromotionDate || ''} onChange={event => set('lastPromotionDate', event.target.value)} className={fieldClass} /></label>
         <label className="text-xs font-semibold text-slate-700">Contact number<input value={draft.contactNumber || ''} onChange={event => set('contactNumber', event.target.value)} className={fieldClass} /></label>
         <label className="text-xs font-semibold text-slate-700 sm:col-span-2">Address<input value={draft.address || ''} onChange={event => set('address', event.target.value)} className={fieldClass} /></label>
       </div>
