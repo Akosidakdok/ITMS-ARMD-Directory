@@ -32,11 +32,12 @@ const allowedOrigins = new Set([
 
 // Allow any *.vercel.app subdomain for Vercel preview deployments
 const vercelOriginPattern = /\.vercel\.app$/;
+const localhostPattern = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/;
 
 // Middleware
 app.use(cors({
   origin(origin, callback) {
-    if (!origin || allowedOrigins.has(origin) || vercelOriginPattern.test(origin)) {
+    if (!origin || allowedOrigins.has(origin) || vercelOriginPattern.test(origin) || localhostPattern.test(origin)) {
       return callback(null, true);
     }
     return callback(new Error('Origin is not allowed by CORS'));
