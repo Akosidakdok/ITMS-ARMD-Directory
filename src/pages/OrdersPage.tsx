@@ -539,8 +539,16 @@ export const OrdersPage = () => {
               <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Order number *</span><input value={orderNumber} onChange={(e) => setOrderNumber(e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
               <SearchableSelect label="Order type *" value={orderType} onChange={setOrderType} options={ORDER_TYPES.map((value) => ({ value, label: value }))} />
               <label className="md:col-span-2"><span className="mb-1.5 block text-sm font-medium text-slate-700">Subject *</span><textarea value={subject} onChange={(e) => setSubject(e.target.value)} rows={3} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
-              <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Issued date *</span><input type="date" value={issuedDate} onChange={(e) => setIssuedDate(e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
-              <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Effective date *</span><input type="date" value={effectiveDate} onChange={(e) => setEffectiveDate(e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
+              <label>
+                <span className="mb-1 block text-sm font-medium text-slate-700">Designation Date / Date Order Issued *</span>
+                <span className="mb-1.5 block text-xs text-slate-500">Displayed in upper-right header of Order</span>
+                <input type="date" value={issuedDate} onChange={(e) => setIssuedDate(e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" />
+              </label>
+              <label>
+                <span className="mb-1 block text-sm font-medium text-slate-700">Effective Date of Designation *</span>
+                <span className="mb-1.5 block text-xs text-slate-500">Displayed in body of Order (effectivity start)</span>
+                <input type="date" value={effectiveDate} onChange={(e) => setEffectiveDate(e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" />
+              </label>
               <SearchableSelect label="Status *" value={status} onChange={setStatus} options={ORDER_STATUSES.map((value) => ({ value, label: value }))} />
               <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Affected personnel count *</span><input type="number" min={1} value={affectedPersonnelCount} onChange={(e) => setAffectedPersonnelCount(Math.max(1, Number(e.target.value)))} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
               <div className="md:col-span-2">
@@ -581,8 +589,8 @@ export const OrdersPage = () => {
           <div className="grid gap-4 p-6 sm:grid-cols-2">
             <Detail label="Order type" value={selectedOrder.orderType || selectedOrder.type || 'Administrative Order'} />
             <Detail label="Status" value={selectedOrder.status || 'Active'} />
-            <Detail label="Issued date" value={formatDate(selectedOrder.issuedDate)} />
-            <Detail label="Effective date" value={formatDate(selectedOrder.effectiveDate)} />
+            <Detail label="Designation Date / Issued Date (Upper-Right Header)" value={formatDate(selectedOrder.issuedDate)} />
+            <Detail label="Effective Date of Designation (Order Body)" value={formatDate(selectedOrder.effectiveDate)} />
             <div className="sm:col-span-2"><Detail label="Subject" value={selectedOrder.subject} /></div>
             <Detail label="Affected personnel" value={selectedOrder.personnelIds?.length ? selectedOrder.personnelIds.map(id => personnelNames.get(id) || 'Unknown personnel').join('\n') : String(selectedOrder.affectedPersonnelCount || 1)} />
             <Detail label="Signatory" value={[selectedOrder.signatory, selectedOrder.signatoryTitle].filter(Boolean).join(' - ')} />

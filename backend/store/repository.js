@@ -18,6 +18,31 @@ import {
   INITIAL_AWARDS
 } from './initialData.js';
 
+const PCO_RANKS_BACKEND = new Set([
+  'PBGEN', 'PCOL', 'PLTCOL', 'PMAJ', 'PCPT', 'PLT',
+  'PMGEN', 'PLTGEN', 'PGEN',
+  'P/BGEN', 'P/COL', 'P/LCOL', 'P/LTCOL', 'P/MAJ', 'P/CAPT', 'P/CPT', 'P/LT',
+  'P/MGEN', 'P/LTGEN', 'P/GEN',
+  'POLICE BRIGADIER GENERAL', 'POLICE COLONEL', 'POLICE LIEUTENANT COLONEL',
+  'POLICE MAJOR', 'POLICE CAPTAIN', 'POLICE LIEUTENANT',
+  'POLICE MAJOR GENERAL', 'POLICE LIEUTENANT GENERAL', 'POLICE GENERAL'
+]);
+
+function getRankCategoryBackend(rank) {
+  if (!rank) return 'PNCO';
+  const clean = String(rank).trim().toUpperCase();
+  if (clean === 'NUP' || clean.includes('NON-UNIFORMED')) return 'NUP';
+  if (PCO_RANKS_BACKEND.has(clean)) return 'PCO';
+  const noSlash = clean.replace(/[\s/]/g, '');
+  if (['PBGEN', 'PCOL', 'PLTCOL', 'PLCOL', 'PMAJ', 'PCPT', 'PCAPT', 'PLT', 'PMGEN', 'PLTGEN', 'PGEN'].includes(noSlash)) {
+    return 'PCO';
+  }
+  if (clean.startsWith('POLICE BRIGADIER') || clean.startsWith('POLICE COLONEL') || clean.startsWith('POLICE LIEUTENANT COLONEL') || clean.startsWith('POLICE MAJOR') || clean.startsWith('POLICE CAPTAIN') || clean.startsWith('POLICE LIEUTENANT') || clean.startsWith('POLICE GENERAL')) {
+    return 'PCO';
+  }
+  return 'PNCO';
+}
+
 class PAISRepository {
   constructor() {
     this.inMemoryPersonnel = [...INITIAL_PERSONNEL];
@@ -40,8 +65,19 @@ class PAISRepository {
     const sub_unit = p.sub_unit || p.division || '';
     const details = p.details || p.detail || '';
     const station = p.station || '';
+    const detectedCategory = getRankCategoryBackend(p.rank);
+    const rankCategory = (detectedCategory === 'PCO' || detectedCategory === 'NUP')
+      ? detectedCategory
+      : (p.rankCategory || detectedCategory);
+    const positionCategory = p.positionCategory || 'Main';
+    const unitCategory = p.unitCategory || 'ITMS HQ';
+    const subUnitCategory = p.subUnitCategory || 'Division';
     return {
       ...p,
+      rankCategory,
+      positionCategory,
+      unitCategory,
+      subUnitCategory,
       sub_unit,
       details,
       station,
@@ -55,8 +91,19 @@ class PAISRepository {
     const sub_unit = data.sub_unit !== undefined ? data.sub_unit : (data.division || '');
     const details = data.details !== undefined ? data.details : (data.detail || '');
     const station = data.station !== undefined ? data.station : '';
+    const detectedCategory = getRankCategoryBackend(data.rank);
+    const rankCategory = (detectedCategory === 'PCO' || detectedCategory === 'NUP')
+      ? detectedCategory
+      : (data.rankCategory || detectedCategory);
+    const positionCategory = data.positionCategory || 'Main';
+    const unitCategory = data.unitCategory || 'ITMS HQ';
+    const subUnitCategory = data.subUnitCategory || 'Division';
     return {
       ...data,
+      rankCategory,
+      positionCategory,
+      unitCategory,
+      subUnitCategory,
       sub_unit,
       details,
       station,
@@ -126,6 +173,20 @@ class PAISRepository {
     return { ...payload, salaryGrade: num };
   }
 
+  stripUnpersistedPersonnelColumns(payload) {
+    if (!payload || typeof payload !== 'object') return payload;
+    const {
+      rankCategory,
+      positionCategory,
+      unitCategory,
+      subUnitCategory,
+      designationDate,
+      effectiveDate,
+      ...rest
+    } = payload;
+    return rest;
+  }
+
   async createPersonnel(data) {
     const payload = this.sanitizePersonnelPayload(data);
     const newRecord = {
@@ -143,8 +204,20 @@ class PAISRepository {
           error = null;
         }
       }
+      if (error && (error.code === '42703' || (error.message && /column.*does not exist|schema cache/i.test(error.message)))) {
+        // Table hasn't run the PAIS 2.0 column migration yet; insert core columns and restore in-memory
+        let safeRecord = this.stripUnpersistedPersonnelColumns(newRecord);
+        if (typeof safeRecord.salaryGrade === 'string') {
+          safeRecord = this.coerceSalaryGradeForLegacyInt(safeRecord);
+        }
+        const retry = await supabase.from('personnel').insert([safeRecord]).select().single();
+        if (!retry.error) {
+          inserted = { ...retry.data, ...newRecord };
+          error = null;
+        }
+      }
       if (error) throw new Error(`Personnel insert failed: ${error.message}`);
-      return this.normalizePersonnelRecord(inserted);
+      return this.normalizePersonnelRecord({ ...newRecord, ...inserted });
     }
     throw new Error('Supabase is unavailable. Personnel records were not changed.');
   }
@@ -172,6 +245,19 @@ class PAISRepository {
         }
       }
 
+      if (error && (error.code === '42703' || (error.message && /column.*does not exist|schema cache/i.test(error.message)))) {
+        const safePayloads = payloads.map(p => {
+          let s = this.stripUnpersistedPersonnelColumns(p);
+          if (typeof s.salaryGrade === 'string') s = this.coerceSalaryGradeForLegacyInt(s);
+          return s;
+        });
+        const retry = await supabase.from('personnel').insert(safePayloads).select();
+        if (!retry.error) {
+          inserted = (retry.data || []).map((row, idx) => ({ ...row, ...payloads[idx] }));
+          error = null;
+        }
+      }
+
       if (error) {
         throw new Error(`Bulk personnel insert failed: ${error.message}`);
       }
@@ -194,8 +280,19 @@ class PAISRepository {
           error = null;
         }
       }
+      if (error && (error.code === '42703' || (error.message && /column.*does not exist|schema cache/i.test(error.message)))) {
+        let safePayload = this.stripUnpersistedPersonnelColumns(payload);
+        if (typeof safePayload.salaryGrade === 'string') {
+          safePayload = this.coerceSalaryGradeForLegacyInt(safePayload);
+        }
+        const retry = await supabase.from('personnel').update(safePayload).eq('id', id).select().single();
+        if (!retry.error) {
+          updated = { ...retry.data, ...payload };
+          error = null;
+        }
+      }
       if (error) throw new Error(`Personnel update failed: ${error.message}`);
-      return this.normalizePersonnelRecord(updated);
+      return this.normalizePersonnelRecord({ ...payload, ...updated });
     }
     throw new Error('Supabase is unavailable. Personnel records were not changed.');
   }

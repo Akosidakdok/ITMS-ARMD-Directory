@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 export const PERSONNEL_IMPORTABLE_FIELDS = Object.freeze([
   'rank',
   'rankFullName',
+  'rankCategory',
   'firstName',
   'middleName',
   'lastName',
@@ -11,6 +12,9 @@ export const PERSONNEL_IMPORTABLE_FIELDS = Object.freeze([
   'badgeNo',
   'salaryGrade',
   'plantilla',
+  'positionCategory',
+  'unitCategory',
+  'subUnitCategory',
   'sub_unit',
   'details',
   'station',
@@ -21,6 +25,8 @@ export const PERSONNEL_IMPORTABLE_FIELDS = Object.freeze([
   'birthday',
   'dateOfEntry',
   'enterInOfficerPositionDate',
+  'designationDate',
+  'effectiveDate',
   'lastPromotionDate',
   'status'
 ]);

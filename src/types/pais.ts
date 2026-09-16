@@ -1,5 +1,29 @@
 export type UserRole = 'admin' | 'user' | 'command' | string;
 
+export type RankCategory = 'PCO' | 'PNCO' | 'NUP';
+
+export type PositionCategory = 'Main' | 'In Addition/Concurrent';
+
+export type UnitCategory = 
+  | 'ITMS HQ' 
+  | 'Command Group' 
+  | 'P-Staff' 
+  | 'DIPO/APC' 
+  | 'D-Staff' 
+  | 'NOSU' 
+  | 'NASU' 
+  | 'PRO' 
+  | string;
+
+export type SubUnitCategory =
+  | 'Division'
+  | 'Center'
+  | 'Office'
+  | 'Section'
+  | 'Operating Unit'
+  | 'Desk'
+  | string;
+
 export type RankAbbr = 
   | 'PGEN' | 'PLTGEN' | 'PMGEN' | 'PBGEN' | 'PCOL' | 'PLTCOL' 
   | 'PMAJ' | 'PCPT' | 'PLT' | 'PEMS' | 'PCMS' | 'PSMS' | 'PMSg' 
@@ -7,6 +31,7 @@ export type RankAbbr =
 
 export interface Personnel {
   id: string;
+  rankCategory?: RankCategory;
   rank: RankAbbr;
   rankFullName?: string;
   firstName: string;
@@ -17,6 +42,9 @@ export interface Personnel {
   badgeNo: string;
   salaryGrade?: string | number;
   plantilla?: string;
+  positionCategory?: PositionCategory;
+  unitCategory?: UnitCategory;
+  subUnitCategory?: SubUnitCategory;
   sub_unit?: string;
   details?: string;
   station?: string;
@@ -31,6 +59,8 @@ export interface Personnel {
   birthday?: string;
   dateOfEntry?: string;
   enterInOfficerPositionDate?: string;
+  designationDate?: string;
+  effectiveDate?: string;
   lastPromotionDate?: string;
   status: 'Active' | 'On Leave' | 'Detailed Out' | 'Suspended' | string;
   avatarUrl?: string;
@@ -39,9 +69,17 @@ export interface Personnel {
 export interface AssignmentRecord {
   id: string;
   personnelId: string;
+  positionCategory?: PositionCategory;
+  unitCategory?: UnitCategory;
+  subUnitCategory?: SubUnitCategory;
+  sub_unit?: string;
+  details?: string;
+  station?: string;
   unit: string;
   position: string;
   orderRef: string;
+  designationDate?: string;
+  effectiveDate?: string;
   startDate: string;
   endDate?: string;
   status: 'Current' | 'Completed' | 'Terminated' | string;

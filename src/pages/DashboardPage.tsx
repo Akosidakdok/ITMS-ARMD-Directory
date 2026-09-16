@@ -5,6 +5,7 @@ import { useAuthRole } from '../context/AuthRoleContext';
 import { Badge } from '../components/common/Badge';
 import { EmptyState, OperationalSummary, PageHeader, SectionHeader } from '../components/common/SystemUI';
 import { calculateTimeInGrade } from '../utils/timeInGrade';
+import { AutomatedPersonnelCounter } from '../components/dashboard/AutomatedPersonnelCounter';
 
 const formatDate = (value?: string) => {
   if (!value) return 'Date not recorded';
@@ -98,6 +99,12 @@ export const DashboardPage: React.FC = () => {
         { label: 'Leave today', value: onLeaveToday, detail: 'approved', icon: CalendarDays, tone: onLeaveToday ? 'warning' : 'success', onClick: () => navigate('/reports') },
         { label: 'For review', value: eligibleForPromotion, detail: 'promotion cases', icon: Award, tone: eligibleForPromotion ? 'warning' : 'neutral', onClick: () => navigate('/promotion') }
       ]} />
+
+      {/* Automated Personnel Counting & Strength Analytics (PAIS 2.0) */}
+      <AutomatedPersonnelCounter
+        personnelList={personnelList}
+        onSelectPersonnel={handleSelectPersonnel}
+      />
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
         <section className="record-section xl:col-span-8" aria-labelledby="recent-personnel-heading">

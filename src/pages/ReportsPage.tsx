@@ -6,19 +6,23 @@ import {
   GraduationCap, 
   Award, 
   Users, 
-  Filter,
-  FileText,
-  Medal
+  Filter, 
+  FileText, 
+  Medal,
+  BarChart3
 } from 'lucide-react';
 import { Badge } from '../components/common/Badge';
 import { calculateTimeInGrade } from '../utils/timeInGrade';
 import { ExportPrintModal } from '../components/common/ExportPrintModal';
 import { Button, PageHeader } from '../components/common/SystemUI';
+import { resolvePersonnelRankCategory } from '../utils/personnelCounting';
+import { AutomatedPersonnelCounter } from '../components/dashboard/AutomatedPersonnelCounter';
 
-type ReportTab = 'alpha_list' | 'leave' | 'education' | 'training' | 'promotion' | 'orders' | 'awards';
+type ReportTab = 'alpha_list' | 'strength_counting' | 'leave' | 'education' | 'training' | 'promotion' | 'orders' | 'awards';
 
 const reportTabs: Array<{ key: ReportTab; label: string; description: string; icon: React.ComponentType<{ className?: string }> }> = [
   { key: 'alpha_list', label: 'Alpha List', description: 'Active postings', icon: Users },
+  { key: 'strength_counting', label: 'Personnel Strength', description: 'Headcount & deployment audit', icon: BarChart3 },
   { key: 'training', label: 'Training', description: 'Completed courses', icon: GraduationCap },
   { key: 'orders', label: 'Orders', description: 'Administrative orders', icon: FileText },
   { key: 'awards', label: 'Awards', description: 'Recognition records', icon: Medal },
@@ -147,6 +151,58 @@ export const ReportsPage: React.FC = () => {
   }));
   const awardsReportData = awardsList.map(award => ({ ...award, personnelName: personnelNames.get(award.personnelId) || award.personnelName }));
 
+  // 5. Personnel Strength & Counting Report Data (Aggregated by Sub-Unit & Station)
+  const strengthReportData = React.useMemo(() => {
+    const groups: Record<string, {
+      unitCategory: string;
+      subUnitCategory: string;
+      sub_unit: string;
+      station: string;
+      pcoCount: number;
+      pncoCount: number;
+      nupCount: number;
+      maleCount: number;
+      femaleCount: number;
+      total: number;
+    }> = {};
+
+    for (const p of personnelList) {
+      const uc = p.unitCategory || 'ITMS HQ';
+      const suc = p.subUnitCategory || 'Division';
+      const su = p.sub_unit || p.division || 'Unassigned';
+      const st = p.station || 'HQ Base';
+      const key = `${uc}__${suc}__${su}__${st}`;
+
+      if (!groups[key]) {
+        groups[key] = {
+          unitCategory: uc,
+          subUnitCategory: suc,
+          sub_unit: su,
+          station: st,
+          pcoCount: 0,
+          pncoCount: 0,
+          nupCount: 0,
+          maleCount: 0,
+          femaleCount: 0,
+          total: 0
+        };
+      }
+
+      const rc = resolvePersonnelRankCategory(p);
+      if (rc === 'PCO') groups[key].pcoCount++;
+      else if (rc === 'PNCO') groups[key].pncoCount++;
+      else if (rc === 'NUP') groups[key].nupCount++;
+
+      const g = (p.gender || '').toLowerCase();
+      if (g === 'male') groups[key].maleCount++;
+      else if (g === 'female') groups[key].femaleCount++;
+
+      groups[key].total++;
+    }
+
+    return Object.values(groups).sort((a, b) => a.sub_unit.localeCompare(b.sub_unit));
+  }, [personnelList]);
+
   const getExportConfig = () => {
     switch (activeReportTab) {
       case 'alpha_list':
@@ -162,6 +218,23 @@ export const ReportsPage: React.FC = () => {
             { key: 'station', label: 'Station' },
             { key: 'position', label: 'Assigned Position' },
             { key: 'plantilla', label: 'Plantilla Item' }
+          ]
+        };
+      case 'strength_counting':
+        return {
+          title: 'PNP ITMS Automated Personnel Strength & Deployment Audit',
+          data: strengthReportData,
+          columns: [
+            { key: 'unitCategory', label: 'Unit Category' },
+            { key: 'subUnitCategory', label: 'Sub-unit Category' },
+            { key: 'sub_unit', label: 'Sub-Unit' },
+            { key: 'station', label: 'Station' },
+            { key: 'pcoCount', label: 'PCO' },
+            { key: 'pncoCount', label: 'PNCO' },
+            { key: 'nupCount', label: 'NUP' },
+            { key: 'maleCount', label: 'Male' },
+            { key: 'femaleCount', label: 'Female' },
+            { key: 'total', label: 'Total Strength' }
           ]
         };
       case 'leave':
@@ -317,12 +390,22 @@ export const ReportsPage: React.FC = () => {
           </div>
         )}
 
+        {activeReportTab === 'strength_counting' && (
+          <div className="flex items-center gap-2 text-xs text-slate-600 font-medium">
+            <span>Aggregated by Unit Category, Sub-Unit Category, Sub-Unit, and Station across PCO, PNCO, NUP, and Gender.</span>
+          </div>
+        )}
+
         {activeReportTab === 'promotion' && (
           <div className="flex items-center gap-2 text-xs text-slate-600 font-medium">
             <span>Auto-Calculated Benchmark: <strong className="text-blue-700 font-mono font-bold">≥ 3.0 Years (1,095 Days)</strong> for Promotion Board</span>
           </div>
         )}
       </div>
+
+      {activeReportTab === 'strength_counting' && (
+        <AutomatedPersonnelCounter personnelList={personnelList} />
+      )}
 
       {/* Report Data Table Display */}
       <div className="record-section">
@@ -369,6 +452,8 @@ export const ReportsPage: React.FC = () => {
                           <span className="font-mono text-slate-600 font-semibold">{row[col.key]}</span>
                         ) : col.key === 'timeInGrade' ? (
                           <span className="font-mono font-extrabold text-sky-700">{row[col.key]}</span>
+                        ) : col.key === 'total' ? (
+                          <span className="font-mono font-extrabold text-blue-800 text-sm">{row[col.key]}</span>
                         ) : (
                           <span className="text-slate-800">{String(row[col.key] ?? '—')}</span>
                         )}

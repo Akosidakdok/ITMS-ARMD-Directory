@@ -4,8 +4,9 @@ import { ChevronDown, Edit3, Eye, Plus, Search, Trash2, X } from 'lucide-react';
 import { Badge } from '../components/common/Badge';
 import { Modal } from '../components/common/Modal';
 import { Button, PageHeader } from '../components/common/SystemUI';
-import type { AssignmentRecord } from '../types/pais';
+import type { AssignmentRecord, PositionCategory, UnitCategory, SubUnitCategory } from '../types/pais';
 import { hasManagementAccess } from '../utils/accessControl';
+import { POSITION_CATEGORIES, UNIT_CATEGORIES, SUB_UNIT_CATEGORIES } from '../constants/ranks';
 
 export const AssignmentPage: React.FC = () => {
   const { role, personnelList, assignmentsList, addAssignment, updateAssignment, deleteAssignment } = useAuthRole();
@@ -16,11 +17,19 @@ export const AssignmentPage: React.FC = () => {
   const [selectedAssignment, setSelectedAssignment] = useState<AssignmentRecord | null>(null);
   const [editingAssignment, setEditingAssignment] = useState<AssignmentRecord | null>(null);
 
-  // Form state for new assignment
+  // Form state for new assignment (PAIS 2.0 structure)
   const [personnelId, setPersonnelId] = useState(personnelList[0]?.id || '');
+  const [positionCategory, setPositionCategory] = useState<PositionCategory>('Main');
+  const [unitCategory, setUnitCategory] = useState<UnitCategory>('ITMS HQ');
+  const [subUnitCategory, setSubUnitCategory] = useState<SubUnitCategory>('Division');
+  const [sub_unit, setSubUnit] = useState('');
+  const [details, setDetails] = useState('');
+  const [station, setStation] = useState('');
   const [unit, setUnit] = useState('');
   const [position, setPosition] = useState('');
   const [orderRef, setOrderRef] = useState('');
+  const [designationDate, setDesignationDate] = useState('');
+  const [effectiveDate, setEffectiveDate] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [status, setStatus] = useState('Current');
@@ -71,9 +80,17 @@ export const AssignmentPage: React.FC = () => {
     setPersonnelId(personnelList[0]?.id || '');
     setPersonnelSearch('');
     setIsPersonnelDropdownOpen(false);
+    setPositionCategory('Main');
+    setUnitCategory('ITMS HQ');
+    setSubUnitCategory('Division');
+    setSubUnit('');
+    setDetails('');
+    setStation('');
     setUnit('');
     setPosition('');
     setOrderRef('');
+    setDesignationDate('');
+    setEffectiveDate('');
     setStartDate('');
     setEndDate('');
     setStatus('Current');
@@ -89,9 +106,17 @@ export const AssignmentPage: React.FC = () => {
   const openEditModal = (assignment: AssignmentRecord) => {
     setEditingAssignment(assignment);
     setPersonnelId(assignment.personnelId);
+    setPositionCategory(assignment.positionCategory || 'Main');
+    setUnitCategory(assignment.unitCategory || 'ITMS HQ');
+    setSubUnitCategory(assignment.subUnitCategory || 'Division');
+    setSubUnit(assignment.sub_unit || '');
+    setDetails(assignment.details || '');
+    setStation(assignment.station || '');
     setUnit(assignment.unit);
     setPosition(assignment.position);
     setOrderRef(assignment.orderRef);
+    setDesignationDate(assignment.designationDate || '');
+    setEffectiveDate(assignment.effectiveDate || '');
     setStartDate(assignment.startDate);
     setEndDate(assignment.endDate || '');
     setStatus(assignment.status || 'Current');
@@ -104,13 +129,21 @@ export const AssignmentPage: React.FC = () => {
     const payload: AssignmentRecord = {
       id: editingAssignment?.id || `asg-${Date.now()}`,
       personnelId,
-      unit,
-      position,
-      orderRef,
+      positionCategory,
+      unitCategory,
+      subUnitCategory,
+      sub_unit: sub_unit.trim() || undefined,
+      details: details.trim() || undefined,
+      station: station.trim() || undefined,
+      unit: unit.trim() || sub_unit.trim() || 'ITMS HQ',
+      position: position.trim(),
+      orderRef: orderRef.trim(),
+      designationDate: designationDate || undefined,
+      effectiveDate: effectiveDate || undefined,
       startDate,
       endDate: endDate || undefined,
       status,
-      remarks
+      remarks: remarks.trim() || undefined
     };
     if (editingAssignment) {
       await updateAssignment(payload);
@@ -325,44 +358,158 @@ export const AssignmentPage: React.FC = () => {
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-bold text-slate-600 mb-1">Unit / Division Name</label>
-            <input
-              type="text"
-              value={unit}
-              onChange={e => setUnit(e.target.value)}
-              placeholder="e.g. Systems Development Division (SDD)"
-              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-600 mb-1">Position Title</label>
-            <input
-              type="text"
-              value={position}
-              onChange={e => setPosition(e.target.value)}
-              placeholder="e.g. Lead Software Engineer"
-              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
-              required
-            />
-          </div>
-
+          {/* Position Category & Position Title */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-slate-600 mb-1">Order Reference</label>
+              <label className="block text-xs font-bold text-slate-600 mb-1">Position Category *</label>
+              <select
+                value={positionCategory}
+                onChange={e => setPositionCategory(e.target.value as any)}
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-bold focus:outline-none focus:border-blue-500 cursor-pointer"
+              >
+                {POSITION_CATEGORIES.map(pc => (
+                  <option key={pc} value={pc}>{pc}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1">Position / Designation *</label>
               <input
                 type="text"
-                value={orderRef}
-                onChange={e => setOrderRef(e.target.value)}
-                placeholder="e.g. SO-ITMS-2026-099"
+                value={position}
+                onChange={e => setPosition(e.target.value)}
+                placeholder="e.g. Lead Software Engineer"
                 className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
                 required
               />
             </div>
+          </div>
+
+          {/* Unit Category & Sub-unit Category */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-slate-600 mb-1">Start Date</label>
+              <label className="block text-xs font-bold text-slate-600 mb-1">Unit Category *</label>
+              <select
+                value={unitCategory}
+                onChange={e => setUnitCategory(e.target.value as any)}
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500 cursor-pointer"
+              >
+                {UNIT_CATEGORIES.map(uc => (
+                  <option key={uc} value={uc}>{uc}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1">Sub-Unit Category *</label>
+              <select
+                value={subUnitCategory}
+                onChange={e => setSubUnitCategory(e.target.value as any)}
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500 cursor-pointer"
+              >
+                {SUB_UNIT_CATEGORIES.map(sc => (
+                  <option key={sc} value={sc}>{sc}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Sub-Unit Name & Details */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1">Sub-Unit Name</label>
+              <input
+                type="text"
+                value={sub_unit}
+                onChange={e => {
+                  setSubUnit(e.target.value);
+                  if (!unit) setUnit(e.target.value);
+                }}
+                placeholder="e.g. Network Operations Section"
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1">Details</label>
+              <input
+                type="text"
+                value={details}
+                onChange={e => setDetails(e.target.value)}
+                placeholder="e.g. Network Monitoring Desk"
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
+              />
+            </div>
+          </div>
+
+          {/* Station (Optional) & Unit Posting Name */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-slate-600">Station</label>
+                <span className="text-[10px] text-slate-400 font-semibold">(Optional)</span>
+              </div>
+              <input
+                type="text"
+                value={station}
+                onChange={e => setStation(e.target.value)}
+                placeholder="e.g. Camp Crame (Optional)"
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1">Unit / Division Name *</label>
+              <input
+                type="text"
+                value={unit}
+                onChange={e => setUnit(e.target.value)}
+                placeholder="e.g. Systems Development Division (SDD)"
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
+                required
+              />
+            </div>
+          </div>
+
+          {/* Orders Section: Order Ref, Designation Date, Effective Date */}
+          <div className="p-3 bg-cyan-50/50 border border-cyan-200 rounded-xl space-y-3">
+            <p className="text-[10px] font-extrabold uppercase tracking-wider text-cyan-800">Administrative Order Context</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Order Reference *</label>
+                <input
+                  type="text"
+                  value={orderRef}
+                  onChange={e => setOrderRef(e.target.value)}
+                  placeholder="e.g. SO-ITMS-2026-099"
+                  className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Designation Date</label>
+                <input
+                  type="date"
+                  value={designationDate}
+                  onChange={e => setDesignationDate(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
+                  title="Date Order Issued (Upper-right header)"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Effective Date of Designation</label>
+                <input
+                  type="date"
+                  value={effectiveDate}
+                  onChange={e => setEffectiveDate(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
+                  title="Effective Date (Order body)"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Timeline: Start Date, End Date, Status */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1">Start Date *</label>
               <input
                 type="date"
                 value={startDate}
@@ -371,9 +518,6 @@ export const AssignmentPage: React.FC = () => {
                 required
               />
             </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-600 mb-1">End Date</label>
               <input
@@ -388,7 +532,7 @@ export const AssignmentPage: React.FC = () => {
               <select
                 value={status}
                 onChange={e => setStatus(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-bold focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-bold focus:outline-none focus:border-blue-500 cursor-pointer"
               >
                 <option value="Current">Current</option>
                 <option value="Completed">Completed</option>
@@ -411,13 +555,13 @@ export const AssignmentPage: React.FC = () => {
             <button
               type="button"
               onClick={() => { setIsModalOpen(false); resetForm(); }}
-              className="px-4 py-2 text-xs font-semibold rounded-lg text-slate-500 hover:text-slate-900"
+              className="px-4 py-2 text-xs font-semibold rounded-lg text-slate-500 hover:text-slate-900 cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 text-xs font-bold rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
+              className="px-4 py-2 text-xs font-bold rounded-lg bg-blue-600 hover:bg-blue-700 text-white cursor-pointer shadow-xs"
             >
               {editingAssignment ? 'Save Changes' : 'Confirm Posting'}
             </button>
@@ -435,9 +579,17 @@ export const AssignmentPage: React.FC = () => {
           <div className="space-y-3 text-xs">
             {[
               ['Personnel', personnelList.find(p => p.id === selectedAssignment.personnelId)?.fullName || 'Unknown personnel'],
-              ['Position', selectedAssignment.position],
+              ['Position Category', selectedAssignment.positionCategory || 'Main'],
+              ['Position / Designation', selectedAssignment.position],
+              ['Unit Category', selectedAssignment.unitCategory || 'ITMS HQ'],
+              ['Sub-Unit Category', selectedAssignment.subUnitCategory || 'Division'],
+              ['Sub-Unit Name', selectedAssignment.sub_unit || 'Not recorded'],
+              ['Details', selectedAssignment.details || 'Not recorded'],
+              ['Station', selectedAssignment.station || 'Not recorded (Optional)'],
               ['Unit / Division', selectedAssignment.unit],
               ['Order Reference', selectedAssignment.orderRef],
+              ['Designation Date (Date Order Issued)', selectedAssignment.designationDate || 'Not recorded'],
+              ['Effective Date of Designation', selectedAssignment.effectiveDate || selectedAssignment.startDate],
               ['Start Date', selectedAssignment.startDate],
               ['End Date', selectedAssignment.endDate || 'Present'],
               ['Status', selectedAssignment.status],

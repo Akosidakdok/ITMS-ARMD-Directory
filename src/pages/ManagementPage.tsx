@@ -7,26 +7,21 @@ import { useAuthRole } from '../context/AuthRoleContext';
 import { Personnel, RankAbbr } from '../types/pais';
 import { hasManagementAccess } from '../utils/accessControl';
 
-const rankNames: Record<string, string> = {
-  PGEN: 'Police General', PLTGEN: 'Police Lieutenant General', PMGEN: 'Police Major General',
-  PBGEN: 'Police Brigadier General', PCOL: 'Police Colonel', PLTCOL: 'Police Lieutenant Colonel',
-  PMAJ: 'Police Major', PCPT: 'Police Captain', PLT: 'Police Lieutenant',
-  PEMS: 'Police Executive Master Sergeant', PCMS: 'Police Chief Master Sergeant',
-  PSMS: 'Police Senior Master Sergeant', PMSg: 'Police Master Sergeant', PSSg: 'Police Staff Sergeant',
-  PCpl: 'Police Corporal', Pat: 'Patrolman', NUP: 'Non-Uniformed Personnel'
-};
-
-const UNIFORMED_RANKS_ORDER = [
-  'Pat', 'PCpl', 'PSSg', 'PMSg', 'PSMS', 'PCMS', 'PEMS',
-  'PLT', 'PCPT', 'PMAJ', 'PLTCOL', 'PCOL', 'PBGEN', 'PMGEN', 'PLTGEN', 'PGEN'
-];
+import { 
+  PCO_DISPLAY_RANKS, 
+  PNCO_DISPLAY_RANKS, 
+  NUP_DISPLAY_RANKS, 
+  isRankInCategory, 
+  getRankFullName, 
+  getRankCategory 
+} from '../constants/ranks';
 
 const createEmptyPersonnel = (): Personnel => ({
-  id: `pnp-${Date.now()}`, rank: 'Pat', rankFullName: rankNames.Pat,
+  id: `pnp-${Date.now()}`, rankCategory: undefined, rank: '' as any, rankFullName: '',
   firstName: '', middleName: '', lastName: '', fullName: '', badgeNo: '', salaryGrade: undefined,
   plantilla: '', sub_unit: '', details: '', station: '', division: '', detail: '', designation: '',
   address: '', gender: 'Male', contactNumber: '', birthday: '', dateOfEntry: '',
-  enterInOfficerPositionDate: '', lastPromotionDate: '', status: 'Active'
+  enterInOfficerPositionDate: '', designationDate: '', effectiveDate: '', lastPromotionDate: '', status: 'Active'
 });
 
 const fieldClass = 'mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
@@ -39,21 +34,46 @@ interface FormFieldsProps {
 const PersonnelFormFields: React.FC<FormFieldsProps> = ({ draft, setDraft }) => {
   const set = <K extends keyof Personnel>(key: K, value: Personnel[K]) => setDraft(current => ({ ...current, [key]: value }));
   const required = <span className="text-rose-600"> *</span>;
-  const isUniformed = draft.rank !== 'NUP';
+  const isUniformed = draft.rankCategory !== 'NUP';
 
-  const handlePersonnelTypeChange = (type: 'Uniformed Personnel' | 'Non-Uniformed Personnel') => {
-    if (type === 'Uniformed Personnel') {
-      const nextRank = draft.rank === 'NUP' ? 'Pat' : draft.rank;
+  const handleRankCategoryChange = (category: 'PCO' | 'PNCO' | 'NUP' | '') => {
+    if (!category) {
       setDraft(current => ({
         ...current,
-        rank: nextRank,
-        rankFullName: rankNames[nextRank] || nextRank,
+        rankCategory: undefined,
+        rank: '' as any,
+        rankFullName: ''
+      }));
+      return;
+    }
+
+    const currentRank = draft.rank;
+    const isCompatible = Boolean(currentRank && isRankInCategory(currentRank, category));
+
+    if (category === 'PCO') {
+      const nextRank = isCompatible ? currentRank : '';
+      setDraft(current => ({
+        ...current,
+        rankCategory: 'PCO',
+        rank: nextRank as any,
+        rankFullName: nextRank ? getRankFullName(nextRank) : '',
+        plantilla: '',
+        salaryGrade: undefined
+      }));
+    } else if (category === 'PNCO') {
+      const nextRank = isCompatible ? currentRank : '';
+      setDraft(current => ({
+        ...current,
+        rankCategory: 'PNCO',
+        rank: nextRank as any,
+        rankFullName: nextRank ? getRankFullName(nextRank) : '',
         plantilla: '',
         salaryGrade: undefined
       }));
     } else {
       setDraft(current => ({
         ...current,
+        rankCategory: 'NUP',
         rank: 'NUP',
         rankFullName: 'Non-Uniformed Personnel',
         salaryGrade: current.salaryGrade || '14'
@@ -61,41 +81,80 @@ const PersonnelFormFields: React.FC<FormFieldsProps> = ({ draft, setDraft }) => 
     }
   };
 
+  const handleRankChange = (selectedRank: string) => {
+    if (!selectedRank) {
+      setDraft(current => ({
+        ...current,
+        rank: '' as any,
+        rankFullName: ''
+      }));
+      return;
+    }
+    setDraft(current => ({
+      ...current,
+      rank: selectedRank as any,
+      rankFullName: getRankFullName(selectedRank)
+    }));
+  };
+
   return <div className="space-y-6">
     <FormSection title="Identity & Personal Information">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <label className="text-xs font-semibold text-slate-700">
-          Personnel type{required}
+          Rank Category{required}
           <select
-            value={isUniformed ? 'Uniformed Personnel' : 'Non-Uniformed Personnel'}
-            onChange={e => handlePersonnelTypeChange(e.target.value as 'Uniformed Personnel' | 'Non-Uniformed Personnel')}
+            value={draft.rankCategory || ''}
+            onChange={e => handleRankCategoryChange(e.target.value as any)}
             className={fieldClass}
+            required
           >
-            <option value="Uniformed Personnel">Uniformed Personnel</option>
-            <option value="Non-Uniformed Personnel">Non-Uniformed Personnel</option>
+            <option value="">-- Select Rank Category --</option>
+            <option value="PCO">PCO (Police Commissioned Officers)</option>
+            <option value="PNCO">PNCO (Police Non-Commissioned Officers)</option>
+            <option value="NUP">NUP (Non-Uniformed Personnel)</option>
           </select>
         </label>
         <label className="text-xs font-semibold text-slate-700">
           Rank{required}
           <select
-            value={draft.rank}
-            onChange={event => {
-              const rank = event.target.value as RankAbbr;
-              setDraft(current => ({ ...current, rank, rankFullName: rankNames[rank] || current.rankFullName }));
-            }}
+            value={draft.rank || ''}
+            onChange={event => handleRankChange(event.target.value)}
+            disabled={!draft.rankCategory || draft.rankCategory === 'NUP'}
             className={fieldClass}
+            required
           >
-            {isUniformed ? (
-              UNIFORMED_RANKS_ORDER.map(rank => <option key={rank} value={rank}>{rank}</option>)
+            {!draft.rankCategory ? (
+              <option value="">-- Select Rank Category first --</option>
+            ) : draft.rankCategory === 'PCO' ? (
+              <>
+                <option value="">-- Select PCO Rank --</option>
+                {PCO_DISPLAY_RANKS.map(r => (
+                  <option key={r.code} value={r.code}>{r.label}</option>
+                ))}
+              </>
+            ) : draft.rankCategory === 'PNCO' ? (
+              <>
+                <option value="">-- Select PNCO Rank --</option>
+                {PNCO_DISPLAY_RANKS.map(r => (
+                  <option key={r.code} value={r.code}>{r.label}</option>
+                ))}
+              </>
             ) : (
-              <option value="NUP">NUP</option>
+              <option value="NUP">NUP (Non-Uniformed Personnel)</option>
             )}
           </select>
         </label>
-        <label className="text-xs font-semibold text-slate-700">
-          Designation Date
-          <input type="date" value={draft.enterInOfficerPositionDate || ''} onChange={event => set('enterInOfficerPositionDate', event.target.value)} className={fieldClass} />
-        </label>
+        {draft.rankCategory === 'NUP' && (
+          <div className="col-span-1 sm:col-span-2 lg:col-span-4 p-3 rounded-xl bg-blue-50 border border-blue-200 text-blue-950 text-xs flex items-start gap-2.5">
+            <ShieldAlert className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+            <div className="space-y-0.5">
+              <p className="font-bold text-blue-950">Non-Uniformed Personnel (NUP)</p>
+              <p className="text-blue-800">
+                Strictly isolated from uniformed police ranks. Rank is automatically set to <strong>NUP (Non-Uniformed Personnel)</strong>. Please record the employee's <strong>Plantilla Item</strong>, <strong>Salary Grade (SG)</strong>, and <strong>Position/Designation</strong> under the <strong>Organizational Assignment</strong> section below.
+              </p>
+            </div>
+          </div>
+        )}
         <label className="text-xs font-semibold text-slate-700">
           Badge / serial no.{required}
           <input required value={draft.badgeNo} onChange={event => set('badgeNo', event.target.value)} className={fieldClass} />
@@ -150,11 +209,30 @@ export const ManagementPage: React.FC = () => {
   });
 
   const openCreate = () => { setDraft(createEmptyPersonnel()); setEditorMode('create'); setNotice(null); };
-  const openEdit = (person: Personnel) => { setDraft({ ...person }); setEditorMode('edit'); setNotice(null); };
+  const openEdit = (person: Personnel) => { 
+    const cat = person.rankCategory || (person.rank ? getRankCategory(person.rank) : undefined);
+    setDraft({ ...person, rankCategory: cat }); 
+    setEditorMode('edit'); 
+    setNotice(null); 
+  };
 
   const savePersonnel = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!editorMode || isSaving) return;
+
+    if (!draft.rankCategory) {
+      setNotice({ type: 'error', text: 'Please select a Rank Category (PCO, PNCO, or NUP) first.' });
+      return;
+    }
+    if (!draft.rank) {
+      setNotice({ type: 'error', text: `Please select a valid Rank for the ${draft.rankCategory} category.` });
+      return;
+    }
+    if (!isRankInCategory(draft.rank, draft.rankCategory)) {
+      setNotice({ type: 'error', text: `The selected rank "${draft.rank}" does not match the chosen Rank Category "${draft.rankCategory}".` });
+      return;
+    }
+
     const firstName = draft.firstName.trim().toUpperCase();
     const middleName = String(draft.middleName || '').trim().toUpperCase();
     const lastName = draft.lastName.trim().toUpperCase();

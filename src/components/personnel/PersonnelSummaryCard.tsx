@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { useAuthRole } from '../../context/AuthRoleContext';
 import { hasManagementAccess } from '../../utils/accessControl';
-import { isUniformedRank } from '../../constants/ranks';
+import { isUniformedRank, getRankCategory } from '../../constants/ranks';
 
 interface PersonnelSummaryCardProps {
   personnel: Personnel;
@@ -40,13 +40,19 @@ export const PersonnelSummaryCard: React.FC<PersonnelSummaryCardProps> = ({ pers
   };
 
   const summaryItems: [string, string][] = [
+    ['Rank Category', personnel.rankCategory || getRankCategory(personnel.rank)],
     ['Rank', isUniformed ? personnel.rank : (personnel.rankFullName || personnel.rank)],
-    ...(!isUniformed ? [['Salary grade', formatSalaryGrade(personnel.salaryGrade)] as [string, string]] : []),
+    ['Unit Category', personnel.unitCategory || 'ITMS HQ'],
+    ['Sub-Unit Category', personnel.subUnitCategory || 'Division'],
     ['Sub-Unit', personnel.sub_unit || personnel.division || 'Not recorded'],
     ['Details', personnel.details || personnel.detail || 'Not recorded'],
-    ['Station', personnel.station || 'Not recorded'],
+    ['Station', personnel.station || 'Not recorded (Optional)'],
+    ['Position Category', personnel.positionCategory || 'Main'],
     ['Designation', personnel.designation || 'Not assigned'],
-    ['Duty status', personnel.status]
+    ['Duty status', personnel.status],
+    ...(!isUniformed ? [['Salary grade', formatSalaryGrade(personnel.salaryGrade)] as [string, string]] : []),
+    ['Designation date', personnel.designationDate || personnel.enterInOfficerPositionDate || 'Not recorded'],
+    ['Effective date', personnel.effectiveDate || 'Not recorded']
   ];
 
   return (

@@ -23,6 +23,7 @@ export interface PersonnelCsvResult {
 export const PERSONNEL_IMPORTABLE_FIELDS: PersonnelImportField[] = [
   'rank',
   'rankFullName',
+  'rankCategory',
   'firstName',
   'middleName',
   'lastName',
@@ -30,6 +31,9 @@ export const PERSONNEL_IMPORTABLE_FIELDS: PersonnelImportField[] = [
   'badgeNo',
   'salaryGrade',
   'plantilla',
+  'positionCategory',
+  'unitCategory',
+  'subUnitCategory',
   'sub_unit',
   'details',
   'station',
@@ -40,6 +44,8 @@ export const PERSONNEL_IMPORTABLE_FIELDS: PersonnelImportField[] = [
   'birthday',
   'dateOfEntry',
   'enterInOfficerPositionDate',
+  'designationDate',
+  'effectiveDate',
   'lastPromotionDate',
   'status'
 ];
@@ -57,6 +63,10 @@ const HEADER_ALIASES: Record<string, PersonnelImportField> = {
   rankabbr:          'rank',
   rankfullname:      'rankFullName',   // "Rank Full Name" → rankfullname
   rankname:          'rankFullName',
+  rankcategory:      'rankCategory',
+  'rank category':   'rankCategory',
+  categoryofrank:    'rankCategory',
+  'category of rank':'rankCategory',
   badge:             'badgeNo',
   badgeno:           'badgeNo',
   badgenumber:       'badgeNo',        // "Badge Number"   → badgenumber
@@ -67,6 +77,20 @@ const HEADER_ALIASES: Record<string, PersonnelImportField> = {
   sgst:              'salaryGrade',
   plantilla:         'plantilla',
   plantillaitem:     'plantilla',
+
+  // Assignment Categories: Position Category, Unit Category, Sub-Unit Category
+  positioncategory:        'positionCategory',
+  'position category':     'positionCategory',
+  categoryofposition:      'positionCategory',
+  'category of position':  'positionCategory',
+  unitcategory:            'unitCategory',
+  'unit category':         'unitCategory',
+  categoryofunit:          'unitCategory',
+  'category of unit':      'unitCategory',
+  subunitcategory:         'subUnitCategory',
+  'sub-unit category':     'subUnitCategory',
+  'sub unit category':     'subUnitCategory',
+  categoryofsubunit:       'subUnitCategory',
 
   // Organizational assignment: SUB-UNIT, DETAILS, STATION
   subunit:           'sub_unit',
@@ -87,6 +111,10 @@ const HEADER_ALIASES: Record<string, PersonnelImportField> = {
   position:          'designation',
   desup:             'designation',
   des:               'designation',
+  designationdate:   'designationDate',
+  'designation date':'designationDate',
+  effectivedate:     'effectiveDate',
+  'effective date':  'effectiveDate',
 
   // First Name
   firstname:         'firstName',
