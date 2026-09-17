@@ -39,14 +39,14 @@ export function exportEducationCsv(rows: ExportPersonnelData[], filename = 'educ
     if (education.length === 0) {
       lines.push(buildCsvRow([
         personnel.id, personnel.rank, personnel.fullName,
-        personnel.division, personnel.designation,
+        personnel.division ?? '—', personnel.designation,
         '', '', '', '', '', '', '', '', '', '', '', '', ''
       ]));
     } else {
       for (const edu of education) {
         lines.push(buildCsvRow([
           personnel.id, personnel.rank, personnel.fullName,
-          personnel.division, personnel.designation,
+          personnel.division ?? '—', personnel.designation,
           edu.academicLevel ?? '', edu.institution, edu.degree, edu.major ?? '',
           edu.startYear ?? '',
           edu.yearGraduated ?? '',
@@ -172,7 +172,7 @@ export async function exportEducationPdf(
     if (education.length === 0) {
       tableData.push([
         `${personnel.rank} ${personnel.fullName}`,
-        personnel.division,
+        personnel.division ?? '—',
         personnel.designation,
         '—', '—', '—', '—', '—'
       ]);
@@ -180,7 +180,7 @@ export async function exportEducationPdf(
       education.forEach((edu, i) => {
         tableData.push([
           i === 0 ? `${personnel.rank} ${personnel.fullName}` : '',
-          i === 0 ? personnel.division : '',
+          i === 0 ? (personnel.division ?? '—') : '',
           i === 0 ? personnel.designation : '',
           edu.degree ?? '—',
           edu.institution ?? '—',
@@ -232,14 +232,14 @@ export async function exportTrainingPdf(
     if (training.length === 0) {
       tableData.push([
         `${personnel.rank} ${personnel.fullName}`,
-        personnel.division,
+        personnel.division ?? '—',
         '—', '—', '—', '—', '—', '—', '—'
       ]);
     } else {
       training.forEach((trn, i) => {
         tableData.push([
           i === 0 ? `${personnel.rank} ${personnel.fullName}` : '',
-          i === 0 ? personnel.division : '',
+          i === 0 ? (personnel.division ?? '—') : '',
           trn.courseName,
           trn.category ?? '—',
           trn.provider,
@@ -292,12 +292,12 @@ export async function exportCombinedPdf(
   const eduData: (string | number)[][] = [];
   for (const { personnel, education } of rows) {
     if (education.length === 0) {
-      eduData.push([`${personnel.rank} ${personnel.fullName}`, personnel.division, '—', '—', '—', '—', '—']);
+      eduData.push([`${personnel.rank} ${personnel.fullName}`, personnel.division ?? '—', '—', '—', '—', '—', '—']);
     } else {
       education.forEach((edu, i) => {
         eduData.push([
           i === 0 ? `${personnel.rank} ${personnel.fullName}` : '',
-          i === 0 ? personnel.division : '',
+          i === 0 ? (personnel.division ?? '—') : '',
           edu.degree ?? '—', edu.institution ?? '—',
           edu.yearGraduated ?? '—',
           edu.honors ?? '—',
@@ -329,12 +329,12 @@ export async function exportCombinedPdf(
   const trnData: (string | number)[][] = [];
   for (const { personnel, training } of rows) {
     if (training.length === 0) {
-      trnData.push([`${personnel.rank} ${personnel.fullName}`, personnel.division, '—', '—', '—', '—', '—', '—', '—']);
+      trnData.push([`${personnel.rank} ${personnel.fullName}`, personnel.division ?? '—', '—', '—', '—', '—', '—', '—', '—']);
     } else {
       training.forEach((trn, i) => {
         trnData.push([
           i === 0 ? `${personnel.rank} ${personnel.fullName}` : '',
-          i === 0 ? personnel.division : '',
+          i === 0 ? (personnel.division ?? '—') : '',
           trn.courseName, trn.category ?? '—', trn.provider,
           trn.startDate ?? '—', trn.completionDate ?? '—',
           trn.hours !== undefined ? `${trn.hours} hrs` : '—',

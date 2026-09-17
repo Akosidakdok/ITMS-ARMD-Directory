@@ -4,6 +4,10 @@ dist/
 # Temporary files created while Office documents are open.
 ~$*
 
+# Reference workbooks may contain confidential personnel and promotion data.
+/src/assets/*.xlsx
+/src/assets/*.xls
+
 # Local environment files may contain database credentials.
 .env
 .env.*

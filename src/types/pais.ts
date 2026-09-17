@@ -75,6 +75,7 @@ export interface AssignmentRecord {
   sub_unit?: string;
   details?: string;
   station?: string;
+  region?: 'Luzon' | 'Visayas' | 'Mindanao' | string;
   unit: string;
   position: string;
   orderRef: string;
@@ -155,6 +156,39 @@ export interface AwardRecord {
   personnelId: string;
   personnelName: string;
   status: 'Active' | 'Archived' | string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export type PromotionEvaluationStatus = 'Draft' | 'For Review' | 'Approved' | 'Rejected';
+
+export interface PromotionEvaluationFactor {
+  key: string;
+  label: string;
+  value: unknown;
+  points: number | null;
+  maxPoints?: number;
+  source: string;
+  status?: string;
+  remarks?: string;
+  enteredBy?: string | null;
+  enteredAt?: string | null;
+}
+
+export interface PromotionEvaluation {
+  id: string;
+  personnelId: string;
+  evaluationDate: string;
+  status: PromotionEvaluationStatus;
+  evaluator?: string;
+  remarks?: string;
+  calculation: {
+    evaluationDate: string;
+    factors: PromotionEvaluationFactor[];
+    totalPoints: number;
+    warnings: Array<{ code: string; message: string; assignmentId?: string; region?: string }>;
+    scoringConfiguration?: { status?: string; version?: string };
+  };
   createdAt?: string;
   updatedAt?: string;
 }

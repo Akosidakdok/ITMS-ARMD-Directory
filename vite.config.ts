@@ -10,7 +10,10 @@ export default defineConfig({
     open: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
+        // Use an explicit IPv4 loopback address. On Windows, resolving
+        // "localhost" can alternate between IPv6 and IPv4 while the backend
+        // is restarting, producing intermittent proxy ETIMEDOUT/ECONNREFUSED.
+        target: 'http://127.0.0.1:5000',
         changeOrigin: true
       }
     }

@@ -8,6 +8,7 @@ import {
   LeaveRecord,
   AwardRecord
 } from '../types/pais';
+import type { PromotionEvaluation } from '../types/pais';
 import type {
   PersonnelImportIssue,
   PersonnelImportRow
@@ -360,6 +361,119 @@ export const updatePromotionApi = async (promotion: PromotionRecord): Promise<Pr
 export const deletePromotionApi = async (id: string): Promise<void> => {
   const res = await apiFetch(`${API_BASE_URL}/promotions/${id}`, { method: 'DELETE' });
   if (!res.ok) throw new Error('Failed to delete promotion');
+};
+
+export interface ExcelImportPreview {
+  previewId: string;
+  templateId: string;
+  templateVersion: string;
+  detectedSheet: string;
+  rowCount: number;
+  validCount: number;
+  invalidCount: number;
+  canCommit: boolean;
+  snapshotAvailable?: boolean;
+  staleExport?: boolean;
+  duplicateWarnings?: Array<{ rowNumber: number; message: string }>;
+  changes?: Array<{ rowNumber: number; type: 'added' | 'changed' | 'unchanged' | 'no-baseline'; fields?: string[]; message?: string; details?: Array<{ field: string; before: unknown; after: unknown }> }>;
+  errors: Array<{ rowNumber: number; field: string; message: string }>;
+  expiresInSeconds: number;
+}
+
+export const previewExcelImportApi = async (templateId: 'training-import' | 'education-import', file: File): Promise<ExcelImportPreview> => {
+  const body = new FormData();
+  body.append('templateId', templateId);
+  body.append('file', file);
+  const res = await apiFetch(`${API_BASE_URL}/excel/import/preview`, { method: 'POST', body });
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(json?.message || 'Unable to preview Excel import.');
+  return json.data;
+};
+
+export const commitExcelImportApi = async (previewId: string): Promise<{ templateId: string; addedCount: number; replacedCount: number; skippedCount: number }> => {
+  const res = await apiFetch(`${API_BASE_URL}/excel/import/commit`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ previewId }) });
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(json?.message || 'Unable to commit Excel import.');
+  return json.data;
+};
+
+export interface ExcelImportAudit { id: string; templateId: string; templateVersion: string; exportId?: string | null; uploadedFilename?: string | null; uploadedBy: string; approvedBy?: string | null; status: string; rowCount: number; validCount: number; invalidCount: number; addedCount: number; replacedCount: number; skippedCount: number; fileHash?: string | null; createdAt: string; approvedAt?: string | null; }
+export const fetchExcelImportHistoryApi = async (): Promise<ExcelImportAudit[]> => {
+  const res = await apiFetch(`${API_BASE_URL}/excel/import/history`); const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(json?.message || 'Unable to load Excel import history.'); return json.data;
+};
+
+export interface ExcelTemplateSummary { id: string; version: string; name: string; referenceFile: string; purpose: string; promotionTrack?: string | null; permissions?: { read: string[]; manage: string[] }; }
+export interface ExcelTemplateDefinition extends ExcelTemplateSummary { sheets: Array<{ name: string; headerRow: number; dataStartRow: number; mode: string; source: string; factor?: string }>; fieldMappings: Array<{ target: string; headerAliases: string[]; required: boolean; kind: string; editable: boolean; calculated: boolean; description: string }>; validation: string[]; }
+
+export const fetchExcelTemplatesApi = async (): Promise<ExcelTemplateSummary[]> => {
+  const res = await apiFetch(`${API_BASE_URL}/excel/templates`); const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(json?.message || 'Unable to load Excel templates.'); return json.data;
+};
+
+export const fetchExcelTemplateApi = async (templateId: string): Promise<ExcelTemplateDefinition> => {
+  const res = await apiFetch(`${API_BASE_URL}/excel/templates/${encodeURIComponent(templateId)}`); const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(json?.message || 'Unable to load Excel template.'); return json.data;
+};
+
+export const downloadExcelTemplateApi = async (templateId: string, asOfDate: string, status = 'Active'): Promise<void> => {
+  const res = await apiFetch(`${API_BASE_URL}/excel/templates/${encodeURIComponent(templateId)}/export?asOfDate=${encodeURIComponent(asOfDate)}&status=${encodeURIComponent(status)}`);
+  if (!res.ok) { const json = await res.json().catch(() => null); throw new Error(json?.message || 'Unable to export Excel workbook.'); }
+  const url = URL.createObjectURL(await res.blob()); const anchor = document.createElement('a'); anchor.href = url; anchor.download = `${templateId}-${asOfDate}.xlsx`; anchor.click(); URL.revokeObjectURL(url);
+};
+
+export interface ExcelWorkbookPreview { exportId: string; template: ExcelTemplateSummary; sheets: Array<{ name: string; rowCount: number; columnCount: number; rows: Array<Array<string | number | boolean>> }>; }
+export const previewExcelTemplateApi = async (templateId: string, asOfDate: string, status = 'Active'): Promise<ExcelWorkbookPreview> => {
+  const res = await apiFetch(`${API_BASE_URL}/excel/templates/${encodeURIComponent(templateId)}/preview?asOfDate=${encodeURIComponent(asOfDate)}&status=${encodeURIComponent(status)}`);
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(json?.message || 'Unable to preview Excel workbook.');
+  return json.data;
+};
+
+// ================= DISPOSITION & PROMOTION EVALUATIONS API =================
+export interface DispositionStats {
+  basis: string;
+  status: string;
+  total: number;
+  byUnit: Record<string, number>;
+  byRank: Record<string, number>;
+  byUnitAndRank: Record<string, Record<string, number>>;
+}
+
+export const fetchDispositionStats = async (status = 'Active'): Promise<DispositionStats> => {
+  const res = await apiFetch(`${API_BASE_URL}/disposition/stats?status=${encodeURIComponent(status)}`);
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(json?.message || 'Failed to fetch disposition statistics');
+  return json.data;
+};
+
+export const fetchPromotionEvaluationPreview = async (personnelId: string, evaluationDate: string): Promise<PromotionEvaluation> => {
+  const res = await apiFetch(`${API_BASE_URL}/promotion-evaluations/preview/${encodeURIComponent(personnelId)}?evaluationDate=${encodeURIComponent(evaluationDate)}`);
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(json?.message || 'Failed to calculate promotion evaluation');
+  return { id: '', personnelId, status: 'Draft', evaluationDate, calculation: json.data } as PromotionEvaluation;
+};
+
+export const createPromotionEvaluationApi = async (payload: Partial<PromotionEvaluation> & { externalFactors?: Record<string, unknown> }): Promise<PromotionEvaluation> => {
+  const res = await apiFetch(`${API_BASE_URL}/promotion-evaluations`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(json?.message || 'Failed to save promotion evaluation');
+  return json.data;
+};
+
+export const fetchPromotionEvaluations = async (personnelId?: string): Promise<PromotionEvaluation[]> => {
+  const query = personnelId ? `?personnelId=${encodeURIComponent(personnelId)}` : '';
+  const res = await apiFetch(`${API_BASE_URL}/promotion-evaluations${query}`);
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(json?.message || 'Failed to load promotion evaluations');
+  return json.data;
+};
+
+export const updatePromotionEvaluationApi = async (id: string, payload: Partial<PromotionEvaluation>): Promise<PromotionEvaluation> => {
+  const res = await apiFetch(`${API_BASE_URL}/promotion-evaluations/${encodeURIComponent(id)}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(json?.message || 'Failed to update promotion evaluation');
+  return json.data;
 };
 
 // ================= TRAINING API =================
