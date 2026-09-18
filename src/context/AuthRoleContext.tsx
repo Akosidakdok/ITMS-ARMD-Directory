@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { 
   UserRole, 
   Personnel, 
@@ -130,6 +130,9 @@ interface AuthRoleContextType {
 
 const AuthRoleContext = createContext<AuthRoleContextType | undefined>(undefined);
 
+const DATA_REFRESH_INTERVAL_MS = 30_000;
+const MAX_REFRESH_BACKOFF_MS = 5 * 60_000;
+
 export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [role, setRole] = useState<UserRole>('admin');
   const [authReady, setAuthReady] = useState(false);
@@ -139,6 +142,8 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [selectedPersonnelId, setSelectedPersonnelId] = useState('pnp-001');
   const [backendConnected, setBackendConnected] = useState(false);
   const [backendHealth, setBackendHealth] = useState<BackendHealthStatus | null>(null);
+  const backendConnectedRef = useRef(false);
+  const refreshInFlightRef = useRef(false);
 
   const [personnelList, setPersonnelList] = useState<Personnel[]>([]);
   const [assignmentsList, setAssignmentsList] = useState<AssignmentRecord[]>([]);
@@ -149,12 +154,19 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [leaveList, setLeaveList] = useState<LeaveRecord[]>([]);
   const [awardsList, setAwardsList] = useState<AwardRecord[]>([]);
 
-  // Initialize and load backend data if server is online
-  const loadDataFromBackend = async () => {
-    const health = await fetchBackendHealth();
-    const isOnline = health?.status === 'online';
-    setBackendHealth(health);
-    setBackendConnected(isOnline);
+  // Initialize and load backend data if server is online. Health checks are
+  // intentionally optional so normal refreshes do not trigger an extra
+  // Supabase query before loading the actual data.
+  const loadDataFromBackend = async (checkHealth = true): Promise<boolean> => {
+    let isOnline = backendConnectedRef.current;
+
+    if (checkHealth || !isOnline) {
+      const health = await fetchBackendHealth();
+      isOnline = health?.status === 'online';
+      setBackendHealth(health);
+      backendConnectedRef.current = isOnline;
+      setBackendConnected(isOnline);
+    }
 
     if (isOnline) {
       try {
@@ -176,8 +188,14 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setTrainingList(tData);
         setLeaveList(lData);
         setAwardsList(awData);
+        backendConnectedRef.current = true;
+        setBackendConnected(true);
+        return true;
       } catch (err) {
         console.warn('Backend reachable but error fetching data:', err);
+        backendConnectedRef.current = false;
+        setBackendConnected(false);
+        return false;
       }
     } else {
       // Offline fallback only when backend server is not running at all
@@ -189,6 +207,7 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setTrainingList(INITIAL_TRAINING);
       setLeaveList(INITIAL_LEAVE);
       setAwardsList(INITIAL_AWARDS);
+      return false;
     }
   };
 
@@ -210,16 +229,62 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   useEffect(() => {
     if (!authUser) return;
     let cancelled = false;
+    let refreshTimer: number | undefined;
+    let failureCount = 0;
+
+    const runRefresh = async (checkHealth = false) => {
+      if (cancelled || refreshInFlightRef.current) return false;
+      refreshInFlightRef.current = true;
+      try {
+        return await loadDataFromBackend(checkHealth);
+      } finally {
+        refreshInFlightRef.current = false;
+      }
+    };
+
+    const scheduleRefresh = (delay: number) => {
+      if (cancelled || document.visibilityState === 'hidden') return;
+      refreshTimer = window.setTimeout(async () => {
+        if (cancelled || document.visibilityState === 'hidden') return;
+        const succeeded = await runRefresh(!backendConnectedRef.current);
+        failureCount = succeeded ? 0 : failureCount + 1;
+        const nextDelay = succeeded
+          ? DATA_REFRESH_INTERVAL_MS
+          : Math.min(DATA_REFRESH_INTERVAL_MS * (2 ** failureCount), MAX_REFRESH_BACKOFF_MS);
+        scheduleRefresh(nextDelay);
+      }, delay);
+    };
+
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'hidden') {
+        if (refreshTimer !== undefined) window.clearTimeout(refreshTimer);
+        refreshTimer = undefined;
+        return;
+      }
+
+      if (!cancelled) {
+        const succeeded = await runRefresh(!backendConnectedRef.current);
+        failureCount = succeeded ? 0 : failureCount + 1;
+        scheduleRefresh(succeeded
+          ? DATA_REFRESH_INTERVAL_MS
+          : Math.min(DATA_REFRESH_INTERVAL_MS * (2 ** failureCount), MAX_REFRESH_BACKOFF_MS));
+      }
+    };
+
     setInitialDataReady(false);
-    loadDataFromBackend().finally(() => {
+    runRefresh(true).then(succeeded => {
       if (!cancelled) setInitialDataReady(true);
+      failureCount = succeeded ? 0 : 1;
+      scheduleRefresh(succeeded
+        ? DATA_REFRESH_INTERVAL_MS
+        : Math.min(DATA_REFRESH_INTERVAL_MS * 2, MAX_REFRESH_BACKOFF_MS));
     });
-    const refreshInterval = window.setInterval(() => {
-      loadDataFromBackend();
-    }, 10000);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
       cancelled = true;
-      window.clearInterval(refreshInterval);
+      if (refreshTimer !== undefined) window.clearTimeout(refreshTimer);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [authUser]);
 
@@ -233,6 +298,7 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const logout = () => {
     clearAuthSession();
     setAuthUser(null);
+    backendConnectedRef.current = false;
     setInitialDataReady(true);
     setPersonnelList([]);
     setAssignmentsList([]);
@@ -242,6 +308,16 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setTrainingList([]);
     setLeaveList([]);
     setAwardsList([]);
+  };
+
+  const refreshData = async () => {
+    if (refreshInFlightRef.current) return;
+    refreshInFlightRef.current = true;
+    try {
+      await loadDataFromBackend(true);
+    } finally {
+      refreshInFlightRef.current = false;
+    }
   };
 
   // Personnel Mutations
@@ -616,7 +692,7 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setSelectedPersonnelId,
         backendConnected,
         backendHealth,
-        refreshData: loadDataFromBackend,
+        refreshData,
         personnelList,
         assignmentsList,
         educationList,

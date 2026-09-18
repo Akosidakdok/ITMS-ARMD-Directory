@@ -167,8 +167,6 @@ const HEADER_ALIASES: Record<string, PersonnelImportField> = {
   'enter in officer position': 'enterInOfficerPositionDate',
   officerpositiondate:         'enterInOfficerPositionDate',
   'enter in officer position date': 'enterInOfficerPositionDate',
-  designationdate:             'enterInOfficerPositionDate',
-  'designation date':          'enterInOfficerPositionDate',
 
   // Last Promotion Date
   lastpromotiondate:       'lastPromotionDate',

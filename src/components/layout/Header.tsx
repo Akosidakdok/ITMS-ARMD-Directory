@@ -18,8 +18,10 @@ const pageTitles: Record<string, string> = {
   '/orders': 'Orders',
   '/education': 'Education & Training',
   '/promotion': 'Promotion & Time-in-Grade',
+  '/promotion-evaluation': 'Promotion Evaluation',
   '/reports': 'Reports',
-  '/admin-accounts': 'Administrator Accounts'
+  '/admin-accounts': 'Administrator Accounts',
+  '/excel-integration': 'Excel Integration Workspace'
 };
 
 export const Header: React.FC<HeaderProps> = ({ onMenuClick, onSidebarToggle, sidebarCollapsed = false }) => {

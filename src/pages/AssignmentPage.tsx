@@ -25,6 +25,7 @@ export const AssignmentPage: React.FC = () => {
   const [sub_unit, setSubUnit] = useState('');
   const [details, setDetails] = useState('');
   const [station, setStation] = useState('');
+  const [region, setRegion] = useState('');
   const [unit, setUnit] = useState('');
   const [position, setPosition] = useState('');
   const [orderRef, setOrderRef] = useState('');
@@ -86,6 +87,7 @@ export const AssignmentPage: React.FC = () => {
     setSubUnit('');
     setDetails('');
     setStation('');
+    setRegion('');
     setUnit('');
     setPosition('');
     setOrderRef('');
@@ -112,6 +114,7 @@ export const AssignmentPage: React.FC = () => {
     setSubUnit(assignment.sub_unit || '');
     setDetails(assignment.details || '');
     setStation(assignment.station || '');
+    setRegion(assignment.region || '');
     setUnit(assignment.unit);
     setPosition(assignment.position);
     setOrderRef(assignment.orderRef);
@@ -135,6 +138,7 @@ export const AssignmentPage: React.FC = () => {
       sub_unit: sub_unit.trim() || undefined,
       details: details.trim() || undefined,
       station: station.trim() || undefined,
+      region: region || undefined,
       unit: unit.trim() || sub_unit.trim() || 'ITMS HQ',
       position: position.trim(),
       orderRef: orderRef.trim(),
@@ -504,6 +508,16 @@ export const AssignmentPage: React.FC = () => {
                 />
               </div>
             </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-600 mb-1">Geographic Region</label>
+            <select value={region} onChange={e => setRegion(e.target.value)} className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500">
+              <option value="">Not recorded / review required</option>
+              <option value="Luzon">Luzon</option>
+              <option value="Visayas">Visayas</option>
+              <option value="Mindanao">Mindanao</option>
+            </select>
           </div>
 
           {/* Timeline: Start Date, End Date, Status */}
