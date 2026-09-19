@@ -43,3 +43,35 @@ CREATE TABLE IF NOT EXISTS worksheet_audit_logs (
 
 CREATE INDEX IF NOT EXISTS idx_worksheet_audit_logs_time ON worksheet_audit_logs(timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_worksheet_cell_overrides_sheet ON worksheet_cell_overrides(worksheet_id, cell_address);
+
+-- ============================================================
+-- ROW LEVEL SECURITY (RLS) & POLICIES
+-- ============================================================
+ALTER TABLE worksheet_definitions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE worksheet_cell_overrides ENABLE ROW LEVEL SECURITY;
+ALTER TABLE worksheet_audit_logs ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  -- Service role full access
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'worksheet_definitions' AND policyname = 'Service role manages worksheet_definitions') THEN
+    CREATE POLICY "Service role manages worksheet_definitions" ON worksheet_definitions FOR ALL TO service_role USING (true) WITH CHECK (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'worksheet_cell_overrides' AND policyname = 'Service role manages worksheet_cell_overrides') THEN
+    CREATE POLICY "Service role manages worksheet_cell_overrides" ON worksheet_cell_overrides FOR ALL TO service_role USING (true) WITH CHECK (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'worksheet_audit_logs' AND policyname = 'Service role manages worksheet_audit_logs') THEN
+    CREATE POLICY "Service role manages worksheet_audit_logs" ON worksheet_audit_logs FOR ALL TO service_role USING (true) WITH CHECK (true);
+  END IF;
+
+  -- Backend API (anon / authenticated) access
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'worksheet_definitions' AND policyname = 'API read access to worksheet_definitions') THEN
+    CREATE POLICY "API read access to worksheet_definitions" ON worksheet_definitions FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'worksheet_cell_overrides' AND policyname = 'API access to worksheet_cell_overrides') THEN
+    CREATE POLICY "API access to worksheet_cell_overrides" ON worksheet_cell_overrides FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'worksheet_audit_logs' AND policyname = 'API access to worksheet_audit_logs') THEN
+    CREATE POLICY "API access to worksheet_audit_logs" ON worksheet_audit_logs FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+END $$;
