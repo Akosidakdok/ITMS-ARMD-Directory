@@ -577,13 +577,13 @@ export const ExcelWorksheetModule: React.FC = () => {
       tabIndex={0}
     >
       {/* 1. TOP COMPACT TOOLBAR */}
-      <div className="flex flex-wrap items-center justify-between border-b border-slate-300 bg-white px-3 py-1.5 gap-2 text-xs">
+      <div className="flex flex-wrap items-center justify-between border-b border-slate-300 bg-white px-3 py-1.5 gap-2 text-xs dark:bg-[#131f2e] dark:border-slate-800">
         {/* Left Section: Edit & Clipboard actions */}
         <div className="flex items-center gap-1">
           <button
             onClick={handleUndo}
             disabled={undoStack.length === 0}
-            className="flex items-center gap-1 rounded px-2 py-1 text-slate-700 hover:bg-slate-100 disabled:opacity-30"
+            className="flex items-center gap-1 rounded px-2 py-1 text-slate-700 hover:bg-slate-100 disabled:opacity-30 dark:text-slate-200 dark:hover:bg-slate-800"
             title="Undo (Ctrl+Z)"
           >
             <Undo2 className="h-3.5 w-3.5" />
@@ -592,18 +592,18 @@ export const ExcelWorksheetModule: React.FC = () => {
           <button
             onClick={handleRedo}
             disabled={redoStack.length === 0}
-            className="flex items-center gap-1 rounded px-2 py-1 text-slate-700 hover:bg-slate-100 disabled:opacity-30"
+            className="flex items-center gap-1 rounded px-2 py-1 text-slate-700 hover:bg-slate-100 disabled:opacity-30 dark:text-slate-200 dark:hover:bg-slate-800"
             title="Redo (Ctrl+Y)"
           >
             <Redo2 className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Redo</span>
           </button>
 
-          <div className="h-4 w-[1px] bg-slate-300 mx-1" />
+          <div className="h-4 w-[1px] bg-slate-300 mx-1 dark:bg-slate-700" />
 
           <button
             onClick={handleCopy}
-            className="flex items-center gap-1 rounded px-2 py-1 text-slate-700 hover:bg-slate-100"
+            className="flex items-center gap-1 rounded px-2 py-1 text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
             title="Copy (Ctrl+C)"
           >
             <Copy className="h-3.5 w-3.5" />
@@ -612,18 +612,18 @@ export const ExcelWorksheetModule: React.FC = () => {
           <button
             onClick={handlePaste}
             disabled={!canEdit}
-            className="flex items-center gap-1 rounded px-2 py-1 text-slate-700 hover:bg-slate-100 disabled:opacity-40"
+            className="flex items-center gap-1 rounded px-2 py-1 text-slate-700 hover:bg-slate-100 disabled:opacity-40 dark:text-slate-200 dark:hover:bg-slate-800"
             title="Paste (Ctrl+V)"
           >
             <ClipboardPaste className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Paste</span>
           </button>
 
-          <div className="h-4 w-[1px] bg-slate-300 mx-1" />
+          <div className="h-4 w-[1px] bg-slate-300 mx-1 dark:bg-slate-700" />
 
           <button
             onClick={() => setSearchOpen(!searchOpen)}
-            className={`flex items-center gap-1 rounded px-2 py-1 ${searchOpen ? 'bg-blue-100 text-blue-800 font-semibold' : 'text-slate-700 hover:bg-slate-100'}`}
+            className={`flex items-center gap-1 rounded px-2 py-1 ${searchOpen ? 'bg-blue-100 text-blue-800 font-semibold dark:bg-blue-900/50 dark:text-blue-300' : 'text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800'}`}
             title="Find in sheet"
           >
             <Search className="h-3.5 w-3.5" />
@@ -632,7 +632,7 @@ export const ExcelWorksheetModule: React.FC = () => {
 
           <button
             onClick={() => setFreezePanes(!freezePanes)}
-            className={`flex items-center gap-1 rounded px-2 py-1 ${freezePanes ? 'bg-slate-200 font-semibold text-slate-800' : 'text-slate-700 hover:bg-slate-100'}`}
+            className={`flex items-center gap-1 rounded px-2 py-1 ${freezePanes ? 'bg-slate-200 font-semibold text-slate-800 dark:bg-slate-800 dark:text-slate-100' : 'text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800'}`}
             title="Toggle Freeze Panes"
           >
             <Pin className="h-3.5 w-3.5" />
@@ -643,7 +643,7 @@ export const ExcelWorksheetModule: React.FC = () => {
         {/* Right Section: Import / Export, Audit, and Save Changes */}
         <div className="flex items-center gap-2">
           {unsavedChanges.size > 0 && (
-            <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-300 rounded-lg px-2.5 py-1 text-[11px] font-semibold text-amber-800 animate-pulse">
+            <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-300 rounded-lg px-2.5 py-1 text-[11px] font-semibold text-amber-800 animate-pulse dark:bg-amber-950/40 dark:border-amber-800/60 dark:text-amber-300">
               <span>Unsaved Changes: <b>{unsavedChanges.size}</b></span>
               <button
                 onClick={handleSaveChanges}
@@ -655,7 +655,7 @@ export const ExcelWorksheetModule: React.FC = () => {
               </button>
               <button
                 onClick={handleDiscardChanges}
-                className="text-slate-500 hover:text-slate-800 px-1"
+                className="text-slate-500 hover:text-slate-800 px-1 dark:text-slate-400 dark:hover:text-slate-200"
                 title="Discard changes"
               >
                 <RotateCcw className="h-3 w-3" />
@@ -665,49 +665,49 @@ export const ExcelWorksheetModule: React.FC = () => {
 
           <button
             onClick={() => setIsImportModalOpen(true)}
-            className="flex items-center gap-1 rounded border border-slate-300 bg-white px-2.5 py-1 text-slate-700 hover:bg-slate-50 transition"
+            className="flex items-center gap-1 rounded border border-slate-300 bg-white px-2.5 py-1 text-slate-700 hover:bg-slate-50 transition dark:bg-[#162537] dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
             title="Import from Excel file"
           >
-            <Upload className="h-3.5 w-3.5 text-blue-600" />
+            <Upload className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
             <span>Import</span>
           </button>
 
           <button
             onClick={() => handleExport(false)}
-            className="flex items-center gap-1 rounded border border-slate-300 bg-white px-2.5 py-1 text-slate-700 hover:bg-slate-50 transition"
+            className="flex items-center gap-1 rounded border border-slate-300 bg-white px-2.5 py-1 text-slate-700 hover:bg-slate-50 transition dark:bg-[#162537] dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
             title="Export all 13 sheets to Excel (.xlsx)"
           >
-            <Download className="h-3.5 w-3.5 text-emerald-600" />
+            <Download className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
             <span>Export</span>
           </button>
 
           <button
             onClick={() => setIsAuditDrawerOpen(true)}
-            className="flex items-center gap-1 rounded border border-slate-300 bg-white px-2.5 py-1 text-slate-700 hover:bg-slate-50 transition"
+            className="flex items-center gap-1 rounded border border-slate-300 bg-white px-2.5 py-1 text-slate-700 hover:bg-slate-50 transition dark:bg-[#162537] dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
             title="Worksheet Audit Log"
           >
-            <History className="h-3.5 w-3.5 text-indigo-600" />
+            <History className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
             <span className="hidden lg:inline">Audit Trail</span>
           </button>
         </div>
       </div>
 
       {/* 2. FORMULA BAR & SEARCH DRAWER */}
-      <div className="flex items-center border-b border-slate-300 bg-slate-50 px-3 py-1.5 gap-2 text-xs">
+      <div className="flex items-center border-b border-slate-300 bg-slate-50 px-3 py-1.5 gap-2 text-xs dark:bg-[#0f1926] dark:border-slate-800">
         {/* Cell Address Box */}
-        <div className="flex items-center justify-center font-mono font-bold bg-white border border-slate-300 rounded px-3 py-1 min-w-[4rem] text-slate-800 shadow-xs">
+        <div className="flex items-center justify-center font-mono font-bold bg-white border border-slate-300 rounded px-3 py-1 min-w-[4rem] text-slate-800 shadow-xs dark:bg-[#162537] dark:border-slate-700 dark:text-sky-300">
           {activeCell.address}
         </div>
 
         {/* Cell Type Indicator */}
-        <div className="hidden sm:flex items-center gap-1 text-[11px] text-slate-500 px-2 py-0.5 rounded bg-slate-200/70 border border-slate-300/60 font-medium">
+        <div className="hidden sm:flex items-center gap-1 text-[11px] text-slate-500 px-2 py-0.5 rounded bg-slate-200/70 border border-slate-300/60 font-medium dark:bg-slate-800/80 dark:border-slate-700/60 dark:text-slate-300">
           {currentCellObj?.isCalculated ? (
-            <span className="text-amber-800 font-bold flex items-center gap-1">
-              <ShieldAlert className="h-3 w-3 text-amber-600" /> Formula / Locked
+            <span className="text-amber-800 font-bold flex items-center gap-1 dark:text-amber-400">
+              <ShieldAlert className="h-3 w-3 text-amber-600 dark:text-amber-400" /> Formula / Locked
             </span>
           ) : currentCellObj?.personnelId ? (
-            <span className="text-blue-700 font-semibold flex items-center gap-1">
-              <Sparkles className="h-3 w-3 text-blue-600" /> PAIS Database Field
+            <span className="text-blue-700 font-semibold flex items-center gap-1 dark:text-blue-400">
+              <Sparkles className="h-3 w-3 text-blue-600 dark:text-blue-400" /> PAIS Database Field
             </span>
           ) : (
             <span>{activeFieldType}</span>
@@ -715,8 +715,8 @@ export const ExcelWorksheetModule: React.FC = () => {
         </div>
 
         {/* Formula Input / Display */}
-        <div className="flex-1 flex items-center bg-white border border-slate-300 rounded px-2.5 py-1 shadow-xs">
-          <span className="font-mono text-slate-400 font-bold mr-2 text-[11px] select-none">fx</span>
+        <div className="flex-1 flex items-center bg-white border border-slate-300 rounded px-2.5 py-1 shadow-xs dark:bg-[#162537] dark:border-slate-700">
+          <span className="font-mono text-slate-400 font-bold mr-2 text-[11px] select-none dark:text-slate-500">fx</span>
           {isEditing ? (
             <input
               ref={cellInputRef}
@@ -724,10 +724,10 @@ export const ExcelWorksheetModule: React.FC = () => {
               value={editValue}
               onChange={e => setEditValue(e.target.value)}
               onBlur={commitCellEdit}
-              className="w-full bg-transparent font-mono text-xs focus:outline-none text-slate-900"
+              className="w-full bg-transparent font-mono text-xs focus:outline-none text-slate-900 dark:text-slate-100"
             />
           ) : (
-            <div className="w-full font-mono text-xs text-slate-700 truncate">
+            <div className="w-full font-mono text-xs text-slate-700 truncate dark:text-slate-200">
               {currentCellObj?.f ? `=${currentCellObj.f}` : currentCellObj?.v !== undefined ? String(currentCellObj.v) : ''}
             </div>
           )}
@@ -735,23 +735,23 @@ export const ExcelWorksheetModule: React.FC = () => {
 
         {/* Optional Search Controls */}
         {searchOpen && (
-          <div className="flex items-center gap-1 bg-white border border-slate-300 rounded px-2 py-0.5 shadow-xs">
+          <div className="flex items-center gap-1 bg-white border border-slate-300 rounded px-2 py-0.5 shadow-xs dark:bg-[#162537] dark:border-slate-700">
             <input
               type="text"
               placeholder="Find..."
               value={searchQuery}
               onChange={e => handleSearch(e.target.value)}
-              className="w-24 sm:w-36 text-xs focus:outline-none"
+              className="w-24 sm:w-36 text-xs focus:outline-none bg-transparent dark:text-slate-100"
             />
             {searchMatches.length > 0 && (
-              <span className="text-[10px] text-slate-400 font-mono">
+              <span className="text-[10px] text-slate-400 font-mono dark:text-slate-400">
                 {currentMatchIndex + 1}/{searchMatches.length}
               </span>
             )}
-            <button onClick={prevMatch} className="p-0.5 hover:bg-slate-100 rounded text-slate-600">
+            <button onClick={prevMatch} className="p-0.5 hover:bg-slate-100 rounded text-slate-600 dark:hover:bg-slate-800 dark:text-slate-300">
               <ChevronLeft className="h-3 w-3" />
             </button>
-            <button onClick={nextMatch} className="p-0.5 hover:bg-slate-100 rounded text-slate-600">
+            <button onClick={nextMatch} className="p-0.5 hover:bg-slate-100 rounded text-slate-600 dark:hover:bg-slate-800 dark:text-slate-300">
               <ChevronRight className="h-3 w-3" />
             </button>
           </div>
@@ -801,10 +801,10 @@ export const ExcelWorksheetModule: React.FC = () => {
             </colgroup>
 
             {/* Column Header Row (A, B, C...) */}
-            <thead className={freezePanes ? 'sticky top-0 z-20 bg-[#f1f3f4]' : 'bg-[#f1f3f4]'}>
-              <tr className="border-b border-slate-300">
+            <thead className={freezePanes ? 'sticky top-0 z-20 bg-[#f1f3f4] dark:bg-[#142232]' : 'bg-[#f1f3f4] dark:bg-[#142232]'}>
+              <tr className="border-b border-slate-300 dark:border-slate-800">
                 {/* Top-left corner cell */}
-                <th className={`border-r border-slate-300 bg-[#e1e3e5] p-0 text-center font-bold text-[10px] text-slate-600 ${freezePanes ? 'sticky left-0 z-30' : ''}`}>
+                <th className={`border-r border-slate-300 bg-[#e1e3e5] p-0 text-center font-bold text-[10px] text-slate-600 dark:bg-[#192a3e] dark:border-slate-800 dark:text-slate-400 ${freezePanes ? 'sticky left-0 z-30' : ''}`}>
                   ◢
                 </th>
                 {Array.from({ length: sheetData.colCount }).map((_, cIdx) => {
@@ -817,7 +817,7 @@ export const ExcelWorksheetModule: React.FC = () => {
                   return (
                     <th
                       key={colNum}
-                      className="border-r border-slate-300 bg-[#f1f3f4] px-1 py-1 text-center font-semibold text-xs text-slate-600 hover:bg-[#e4e7eb] transition relative group"
+                      className="border-r border-slate-300 bg-[#f1f3f4] px-1 py-1 text-center font-semibold text-xs text-slate-600 hover:bg-[#e4e7eb] transition relative group dark:bg-[#142232] dark:border-slate-800 dark:text-slate-400 dark:hover:bg-[#1b2d42]"
                     >
                       <div className="flex items-center justify-center gap-1">
                         <span>{letter}</span>
@@ -836,11 +836,11 @@ export const ExcelWorksheetModule: React.FC = () => {
                 const rowPxHeight = rowConf?.height ? Math.max(22, Math.round(rowConf.height * 1.33)) : 24;
 
                 return (
-                  <tr key={rNum} style={{ height: `${rowPxHeight}px` }} className="border-b border-slate-200">
+                  <tr key={rNum} style={{ height: `${rowPxHeight}px` }} className="border-b border-slate-200 dark:border-slate-800">
                     {/* Row Header Number (1, 2, 3...) */}
                     <td
-                      className={`border-r border-slate-300 bg-[#f1f3f4] text-center font-medium text-[11px] text-slate-500 select-none ${
-                        freezePanes ? 'sticky left-0 z-10 bg-[#f1f3f4]' : ''
+                      className={`border-r border-slate-300 bg-[#f1f3f4] text-center font-medium text-[11px] text-slate-500 select-none dark:bg-[#142232] dark:border-slate-800 dark:text-slate-400 ${
+                        freezePanes ? 'sticky left-0 z-10 bg-[#f1f3f4] dark:bg-[#142232]' : ''
                       }`}
                     >
                       {rNum}
@@ -894,10 +894,10 @@ export const ExcelWorksheetModule: React.FC = () => {
                           style={style}
                           onClick={() => handleCellClick(rNum, colNum, addr)}
                           onDoubleClick={() => handleCellDoubleClick(rNum, colNum, addr)}
-                          className={`border-r border-b border-slate-200 px-1.5 py-0.5 overflow-hidden text-ellipsis cursor-cell transition-colors relative ${
+                          className={`border-r border-b border-slate-200 px-1.5 py-0.5 overflow-hidden text-ellipsis cursor-cell relative dark:border-slate-800 ${
                             isSelected
-                              ? 'outline-2 outline-blue-600 outline-offset-[-2px] z-10 bg-blue-50/20'
-                              : 'hover:bg-slate-50/50'
+                              ? 'outline-2 outline-blue-600 outline-offset-[-2px] z-10 bg-blue-50/20 dark:outline-sky-400'
+                              : 'hover:bg-slate-50/50 dark:hover:bg-slate-800/50'
                           }`}
                         >
                           {isSelected && isEditing ? (
@@ -956,18 +956,18 @@ export const ExcelWorksheetModule: React.FC = () => {
       </div>
 
       {/* 5. BOTTOM EXCEL-STYLE WORKSHEET TAB BAR */}
-      <div className="flex items-center border-t border-slate-300 bg-[#e1e3e5] px-2 py-1 gap-1 text-xs">
+      <div className="flex items-center border-t border-slate-300 bg-[#e1e3e5] px-2 py-1 gap-1 text-xs dark:bg-[#0b131e] dark:border-slate-800">
         {/* Left/Right Tab Scroll Buttons */}
         <button
           onClick={() => tabScrollRef.current?.scrollBy({ left: -140, behavior: 'smooth' })}
-          className="rounded p-1 hover:bg-slate-300 text-slate-700 transition"
+          className="rounded p-1 hover:bg-slate-300 text-slate-700 transition dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
           title="Scroll tabs left"
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
         <button
           onClick={() => tabScrollRef.current?.scrollBy({ left: 140, behavior: 'smooth' })}
-          className="rounded p-1 hover:bg-slate-300 text-slate-700 transition"
+          className="rounded p-1 hover:bg-slate-300 text-slate-700 transition dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
           title="Scroll tabs right"
         >
           <ChevronRight className="h-4 w-4" />
@@ -997,8 +997,8 @@ export const ExcelWorksheetModule: React.FC = () => {
                 }}
                 className={`whitespace-nowrap px-3.5 py-1.5 rounded-t-lg font-semibold text-xs transition border-t-2 ${
                   isActive
-                    ? 'bg-white border-blue-700 text-blue-900 shadow-sm'
-                    : 'bg-[#d2d5d8] border-transparent text-slate-700 hover:bg-[#dfe2e5]'
+                    ? 'bg-white border-blue-700 text-blue-900 shadow-sm dark:bg-[#1b2b3d] dark:border-sky-400 dark:text-sky-200 dark:shadow-md'
+                    : 'bg-[#d2d5d8] border-transparent text-slate-700 hover:bg-[#dfe2e5] dark:bg-[#101b27] dark:text-slate-300 dark:border-slate-800/60 dark:hover:bg-[#162536] dark:hover:text-white'
                 }`}
               >
                 {s.name}
@@ -1008,7 +1008,7 @@ export const ExcelWorksheetModule: React.FC = () => {
         </div>
 
         {/* Total Tabs Count */}
-        <div className="text-[11px] font-semibold text-slate-500 px-2 font-mono">
+        <div className="text-[11px] font-semibold text-slate-500 px-2 font-mono dark:text-slate-400">
           {sheets.findIndex(s => s.id === activeSheetId) + 1} / {sheets.length}
         </div>
       </div>

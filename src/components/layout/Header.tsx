@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ChevronDown, ChevronRight, Database, LogOut, Menu, PanelLeftClose, PanelLeftOpen, ShieldCheck, UserRound } from 'lucide-react';
+import { ChevronDown, ChevronRight, Database, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, ShieldCheck, Sun, UserRound } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { useAuthRole } from '../../context/AuthRoleContext';
+import { useTheme } from '../../context/ThemeContext';
 import { getRoleDescription, getRoleLabel } from '../../utils/accessControl';
 
 interface HeaderProps {
@@ -26,6 +27,8 @@ const pageTitles: Record<string, string> = {
 
 export const Header: React.FC<HeaderProps> = ({ onMenuClick, onSidebarToggle, sidebarCollapsed = false }) => {
   const { backendConnected, backendHealth, authUser, role, logout } = useAuthRole();
+  const { theme, toggleTheme } = useTheme();
+  const isDark = theme === 'dark';
   const { pathname } = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -101,6 +104,31 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick, onSidebarToggle, si
           <span>{systemLabel}</span>
         </div>
 
+        {/* Dark Mode / Light Mode Toggle Button */}
+        <button
+          type="button"
+          onClick={toggleTheme}
+          aria-label={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          aria-pressed={isDark}
+          className="inline-flex h-10 items-center justify-center gap-1.5 rounded border border-slate-300 bg-white px-2.5 text-xs font-semibold text-slate-700 shadow-2xs hover:border-blue-300 hover:bg-blue-50/50 hover:text-blue-700 dark:border-slate-700 dark:bg-[#162436] dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-white active:scale-95 transition-transform"
+        >
+          {isDark ? (
+            <>
+              <Sun aria-hidden="true" className="h-4 w-4 text-amber-400 shrink-0" />
+              <span className="hidden text-[11px] font-bold uppercase tracking-wider sm:inline">
+                Dark
+              </span>
+            </>
+          ) : (
+            <>
+              <Moon aria-hidden="true" className="h-4 w-4 text-slate-600 shrink-0" />
+              <span className="hidden text-[11px] font-bold uppercase tracking-wider sm:inline">
+                Light
+              </span>
+            </>
+          )}
+        </button>
+
         <div className="relative" ref={menuRef}>
           <button
             type="button"
@@ -127,6 +155,20 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick, onSidebarToggle, si
               <div className="flex items-center gap-2 px-2.5 py-2 text-xs text-slate-600">
                 <UserRound aria-hidden="true" className="h-4 w-4 text-slate-400" /> Authorized account
               </div>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={toggleTheme}
+                className="flex w-full items-center justify-between rounded-md px-2.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100"
+              >
+                <span className="flex items-center gap-2">
+                  {isDark ? <Sun aria-hidden="true" className="h-4 w-4 text-amber-400" /> : <Moon aria-hidden="true" className="h-4 w-4 text-slate-500" />}
+                  Theme Mode
+                </span>
+                <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                  {isDark ? 'Dark' : 'Light'}
+                </span>
+              </button>
               <button
                 type="button"
                 role="menuitem"
