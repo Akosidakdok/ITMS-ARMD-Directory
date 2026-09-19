@@ -568,3 +568,152 @@ export const deleteLeaveApi = async (id: string): Promise<void> => {
   const res = await apiFetch(`${API_BASE_URL}/leave/${id}`, { method: 'DELETE' });
   if (!res.ok) throw new Error('Failed to delete leave record');
 };
+
+// ================= EXCEL WORKSHEET MODULE API =================
+export interface WorksheetSummary {
+  id: string;
+  name: string;
+  order: number;
+  rowCount: number;
+  colCount: number;
+  mergesCount: number;
+}
+
+export interface WorksheetCell {
+  v?: any;
+  f?: string | null;
+  res?: any;
+  s?: {
+    b?: number;
+    i?: number;
+    sz?: number;
+    fn?: string;
+    c?: string;
+    bg?: string;
+    ah?: 'left' | 'center' | 'right';
+    av?: 'top' | 'middle' | 'bottom';
+    wrap?: number;
+    br?: any;
+    nf?: string;
+  };
+  personnelId?: string;
+  isCalculated?: boolean;
+}
+
+export interface WorksheetDetail {
+  id: string;
+  name: string;
+  order: number;
+  rowCount: number;
+  colCount: number;
+  views?: any[];
+  merges: string[];
+  columnConfig: Record<string, { width: number; hidden: boolean; letter: string }>;
+  rowConfig: Record<string, { height?: number; hidden?: boolean }>;
+  cells: Record<string, WorksheetCell>;
+}
+
+export interface WorksheetAuditLog {
+  id: string;
+  worksheetId: string;
+  worksheetName: string;
+  cellAddress: string;
+  personnelId?: string | null;
+  fieldName: string;
+  oldValue: string;
+  newValue: string;
+  action: string;
+  modifiedBy: string;
+  timestamp: string;
+}
+
+export interface SmartImportPreviewResult {
+  sheetName: string;
+  detectedHeaderRow: number;
+  detectedHeaders: string[];
+  totalRecords: number;
+  newRecords: number;
+  updatedRecords: number;
+  duplicateRecords: number;
+  invalidRecords: number;
+  sampleRows: Record<string, any>[];
+}
+
+export const fetchWorksheetSummariesApi = async (): Promise<WorksheetSummary[]> => {
+  const res = await apiFetch(`${API_BASE_URL}/worksheets`);
+  if (!res.ok) throw new Error('Failed to fetch worksheets');
+  const json = await res.json();
+  return json.data;
+};
+
+export const fetchWorksheetDetailApi = async (sheetId: string): Promise<WorksheetDetail> => {
+  const res = await apiFetch(`${API_BASE_URL}/worksheets/${sheetId}`);
+  if (!res.ok) throw new Error(`Failed to fetch worksheet ${sheetId}`);
+  const json = await res.json();
+  return json.data;
+};
+
+export const updateWorksheetCellApi = async (
+  sheetId: string,
+  update: { address: string; value: any; oldValue?: any }
+): Promise<any> => {
+  const res = await apiFetch(`${API_BASE_URL}/worksheets/${sheetId}/cell`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(update)
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json?.message || 'Failed to update cell');
+  return json.data;
+};
+
+export const batchUpdateWorksheetCellsApi = async (
+  sheetId: string,
+  updates: Array<{ address: string; value: any; oldValue?: any }>
+): Promise<any> => {
+  const res = await apiFetch(`${API_BASE_URL}/worksheets/${sheetId}/batch`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ updates })
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json?.message || 'Batch update failed');
+  return json.data;
+};
+
+export const fetchWorksheetAuditLogsApi = async (): Promise<WorksheetAuditLog[]> => {
+  const res = await apiFetch(`${API_BASE_URL}/worksheets/audit/logs`);
+  if (!res.ok) throw new Error('Failed to fetch audit logs');
+  const json = await res.json();
+  return json.data;
+};
+
+export const downloadWorksheetExcelApi = async (sheetId?: string): Promise<void> => {
+  const url = `${API_BASE_URL}/worksheets/export/download${sheetId ? `?sheetId=${encodeURIComponent(sheetId)}` : ''}`;
+  const res = await apiFetch(url);
+  if (!res.ok) throw new Error('Failed to export workbook');
+  const blob = await res.blob();
+  const downloadUrl = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = downloadUrl;
+  a.download = sheetId 
+    ? `PAIS_Worksheet_${sheetId}_${new Date().toISOString().slice(0, 10)}.xlsx`
+    : `disposition September 7, 2026.xlsx`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.URL.revokeObjectURL(downloadUrl);
+};
+
+export const smartPreviewExcelImportApi = async (file: File): Promise<SmartImportPreviewResult> => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await apiFetch(`${API_BASE_URL}/worksheets/import/preview`, {
+    method: 'POST',
+    body: formData
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json?.message || 'Import inspection failed');
+  return json.data;
+};
+
