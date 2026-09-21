@@ -19,7 +19,6 @@ const pageTitles: Record<string, string> = {
   '/orders': 'Orders',
   '/education': 'Education & Training',
   '/promotion': 'Promotion & Time-in-Grade',
-  '/promotion-evaluation': 'Promotion Evaluation',
   '/reports': 'Reports',
   '/admin-accounts': 'Administrator Accounts',
   '/excel-integration': 'Interactive Excel Worksheets'

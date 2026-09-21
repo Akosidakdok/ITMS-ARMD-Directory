@@ -160,39 +160,6 @@ export interface AwardRecord {
   updatedAt?: string;
 }
 
-export type PromotionEvaluationStatus = 'Draft' | 'For Review' | 'Approved' | 'Rejected';
-
-export interface PromotionEvaluationFactor {
-  key: string;
-  label: string;
-  value: unknown;
-  points: number | null;
-  maxPoints?: number;
-  source: string;
-  status?: string;
-  remarks?: string;
-  enteredBy?: string | null;
-  enteredAt?: string | null;
-}
-
-export interface PromotionEvaluation {
-  id: string;
-  personnelId: string;
-  evaluationDate: string;
-  status: PromotionEvaluationStatus;
-  evaluator?: string;
-  remarks?: string;
-  calculation: {
-    evaluationDate: string;
-    factors: PromotionEvaluationFactor[];
-    totalPoints: number;
-    warnings: Array<{ code: string; message: string; assignmentId?: string; region?: string }>;
-    scoringConfiguration?: { status?: string; version?: string };
-  };
-  createdAt?: string;
-  updatedAt?: string;
-}
-
 export type DocumentTemplateType =
   | 'Assignment Order'
   | 'Administrative Order'

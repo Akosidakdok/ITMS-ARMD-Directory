@@ -44,8 +44,7 @@ const navigationGroups: NavigationGroup[] = [
       { label: 'Assignment', path: '/assignment', icon: Briefcase },
       { label: 'Orders', path: '/orders', icon: FileText },
       { label: 'Education & Training', path: '/education', icon: GraduationCap },
-      { label: 'Promotion', path: '/promotion', icon: Award },
-      { label: 'Promotion Evaluation', path: '/promotion-evaluation', icon: Award }
+      { label: 'Promotion', path: '/promotion', icon: Award }
     ]
   },
   {

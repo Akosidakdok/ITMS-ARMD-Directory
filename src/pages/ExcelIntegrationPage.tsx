@@ -2,6 +2,8 @@ import React from 'react';
 import { ExcelWorksheetModule } from '../components/spreadsheet/ExcelWorksheetModule';
 
 export const ExcelIntegrationPage: React.FC = () => {
+  const todayFormatted = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+
   return (
     <div className="mx-auto max-w-[1680px] space-y-4">
       {/* Top Banner */}
@@ -12,7 +14,7 @@ export const ExcelIntegrationPage: React.FC = () => {
               PAIS 2.0 Spreadsheet Module
             </span>
             <span className="text-xs text-slate-400">·</span>
-            <span className="text-xs font-semibold text-slate-600">disposition September 7, 2026.xlsx</span>
+            <span className="text-xs font-semibold text-slate-600">disposition {todayFormatted}.xlsx</span>
           </div>
           <h1 className="mt-1 text-2xl font-black tracking-tight text-slate-900">
             Interactive Excel Worksheets

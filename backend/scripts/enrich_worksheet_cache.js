@@ -65,15 +65,16 @@ async function enrichWorksheetCache() {
 
     // 2. Alpha List: dynamic DATEDIF evaluations for age & service
     if (sheet.name === 'Alpha List') {
+      const todayDate = new Date();
       for (let r = 9; r <= sheet.rowCount; r++) {
         const bdayCell = sheet.cells[`J${r}`];
         const ageCell = sheet.cells[`I${r}`];
         if (bdayCell && bdayCell.v && ageCell) {
-          const age = calculateDatedif(bdayCell.v, '2026-04-30');
+          const age = calculateDatedif(bdayCell.v, todayDate);
           if (age) {
             ageCell.v = age;
             ageCell.res = age;
-            ageCell.f = `DATEDIF(J${r},DATE(2026,4,30),"y")&" years, "&DATEDIF(J${r},DATE(2026,4,30),"ym")&" month(s), "&DATEDIF(J${r},DATE(2026,4,30),"md")&" day(s)"`;
+            ageCell.f = `DATEDIF(J${r},TODAY(),"y")&" years, "&DATEDIF(J${r},TODAY(),"ym")&" month(s), "&DATEDIF(J${r},TODAY(),"md")&" day(s)"`;
             ageCell.isCalculated = true;
           }
         }
@@ -81,11 +82,11 @@ async function enrichWorksheetCache() {
         const desCell = sheet.cells[`L${r}`];
         const servCell = sheet.cells[`K${r}`];
         if (desCell && desCell.v && servCell) {
-          const serv = calculateDatedif(desCell.v, '2026-04-30');
+          const serv = calculateDatedif(desCell.v, todayDate);
           if (serv) {
             servCell.v = serv;
             servCell.res = serv;
-            servCell.f = `DATEDIF(L${r},DATE(2026,4,30),"y")&" years, "&DATEDIF(L${r},DATE(2026,4,30),"ym")&" month(s), "&DATEDIF(L${r},DATE(2026,4,30),"md")&" day(s)"`;
+            servCell.f = `DATEDIF(L${r},TODAY(),"y")&" years, "&DATEDIF(L${r},TODAY(),"ym")&" month(s), "&DATEDIF(L${r},TODAY(),"md")&" day(s)"`;
             servCell.isCalculated = true;
           }
         }

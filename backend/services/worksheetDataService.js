@@ -68,13 +68,28 @@ export function getWorksheetSummaries() {
 }
 
 /**
+ * Timezone-safe date parser
+ */
+export function parseDateSafe(d) {
+  if (!d) return null;
+  if (d instanceof Date) return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  if (typeof d === 'string') {
+    const m = d.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) {
+      return new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10));
+    }
+  }
+  const dt = new Date(d);
+  return isNaN(dt.getTime()) ? null : new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
+}
+
+/**
  * Helper to calculate DATEDIF string: "X years, Y month(s), Z day(s)"
  */
 export function calculateDatedif(startDateStr, endDate = new Date()) {
-  if (!startDateStr) return '';
-  const start = new Date(startDateStr);
-  const end = new Date(endDate);
-  if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) return '';
+  const start = parseDateSafe(startDateStr);
+  const end = parseDateSafe(endDate);
+  if (!start || !end || start > end) return '';
 
   let years = end.getFullYear() - start.getFullYear();
   let months = end.getMonth() - start.getMonth();
@@ -270,6 +285,22 @@ export function getWorksheetDetail(sheetId, personnelList = []) {
     }
   });
 
+  // Dynamic header date replacement: update "(As of [Date])" across all header rows to the current date
+  const todayDate = new Date();
+  const todayFormatted = todayDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  for (const [addr, cell] of Object.entries(outputCells)) {
+    const rowMatch = addr.match(/\d+$/);
+    const rowNum = rowMatch ? parseInt(rowMatch[0], 10) : 0;
+    if (rowNum >= 1 && rowNum <= 8) {
+      if (typeof cell.v === 'string' && /\(as of\s+[^)]+\)/i.test(cell.v)) {
+        cell.v = cell.v.replace(/\(as of\s+[^)]+\)/gi, `(As of ${todayFormatted})`);
+      }
+      if (typeof cell.res === 'string' && /\(as of\s+[^)]+\)/i.test(cell.res)) {
+        cell.res = cell.res.replace(/\(as of\s+[^)]+\)/gi, `(As of ${todayFormatted})`);
+      }
+    }
+  }
+
   // 1. Sync Personnel in Worksheets (Disposition and Alpha List)
   if (sheet.name === 'Disposition' || sheet.name === 'Alpha List' || (sheet.order >= 1 && sheet.order <= 8)) {
     const startRow = (sheet.name === 'Alpha List' || sheet.legacyOrder === 6) ? 9 : 10;
@@ -291,25 +322,33 @@ export function getWorksheetDetail(sheetId, personnelList = []) {
   if (sheet.name === 'Alpha List' || sheet.legacyOrder === 6) {
     for (let r = 9; r <= sheet.rowCount; r++) {
       const bdayCell = outputCells[`J${r}`];
-      const ageCell = outputCells[`I${r}`];
-      if (bdayCell && bdayCell.v && ageCell) {
-        const age = calculateDatedif(bdayCell.v, '2026-04-30');
+      let ageCell = outputCells[`I${r}`];
+      if (bdayCell && bdayCell.v) {
+        const age = calculateDatedif(bdayCell.v, todayDate);
         if (age) {
+          if (!ageCell) {
+            ageCell = { s: { sz: 10, fn: 'Arial Narrow', ah: 'center', wrap: 1, br: { top: 'thin', bottom: 'thin', left: 'thin', right: 'thin' } } };
+            outputCells[`I${r}`] = ageCell;
+          }
           ageCell.v = age;
           ageCell.res = age;
-          ageCell.f = `DATEDIF(J${r},DATE(2026,4,30),"y")&" years, "&DATEDIF(J${r},DATE(2026,4,30),"ym")&" month(s), "&DATEDIF(J${r},DATE(2026,4,30),"md")&" day(s)"`;
+          ageCell.f = `DATEDIF(J${r},TODAY(),"y")&" years, "&DATEDIF(J${r},TODAY(),"ym")&" month(s), "&DATEDIF(J${r},TODAY(),"md")&" day(s)"`;
           ageCell.isCalculated = true;
         }
       }
 
       const desCell = outputCells[`L${r}`];
-      const servCell = outputCells[`K${r}`];
-      if (desCell && desCell.v && servCell) {
-        const serv = calculateDatedif(desCell.v, '2026-04-30');
+      let servCell = outputCells[`K${r}`];
+      if (desCell && desCell.v) {
+        const serv = calculateDatedif(desCell.v, todayDate);
         if (serv) {
+          if (!servCell) {
+            servCell = { s: { sz: 10, fn: 'Arial Narrow', ah: 'center', wrap: 1, br: { top: 'thin', bottom: 'thin', left: 'thin', right: 'thin' } } };
+            outputCells[`K${r}`] = servCell;
+          }
           servCell.v = serv;
           servCell.res = serv;
-          servCell.f = `DATEDIF(L${r},DATE(2026,4,30),"y")&" years, "&DATEDIF(L${r},DATE(2026,4,30),"ym")&" month(s), "&DATEDIF(L${r},DATE(2026,4,30),"md")&" day(s)"`;
+          servCell.f = `DATEDIF(L${r},TODAY(),"y")&" years, "&DATEDIF(L${r},TODAY(),"ym")&" month(s), "&DATEDIF(L${r},TODAY(),"md")&" day(s)"`;
           servCell.isCalculated = true;
         }
       }
@@ -617,6 +656,12 @@ export async function generateExcelExport(sheetId = null) {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'PNP-ITMS PAIS 2.0';
   wb.created = new Date();
+  wb.calcProperties.fullCalcOnLoad = true;
+
+  const todayDate = new Date();
+  const todayFormatted = todayDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+
+  const cachedSheets = getLoadedWorksheets();
 
   // Load from reference workbook to clone authentic master layout
   const refWb = new ExcelJS.Workbook();
@@ -636,8 +681,17 @@ export async function generateExcelExport(sheetId = null) {
     // Only include the 5 approved worksheets
     if (!ALLOWED_WORKSHEET_NAMES.includes(refSheet.name)) return;
 
-    const sId = `sheet-${idx + 1}`;
+    const cachedSheet = cachedSheets.find(s => s.name.trim() === refSheet.name.trim());
+    const sId = cachedSheet ? cachedSheet.id : `sheet-${idx + 1}`;
     if (sheetId && sheetId !== sId && sheetId !== refSheet.name && targetSheetName !== refSheet.name) return;
+
+    // Get live evaluated detail for this sheet (handles dynamic as of dates, TODAY() formulas, subtotals, overrides)
+    let sheetDetail = null;
+    try {
+      sheetDetail = getWorksheetDetail(sId);
+    } catch (e) {
+      console.warn(`[WorksheetDataService] Unable to get detail for ${sId}:`, e.message);
+    }
 
     const outSheet = wb.addWorksheet(refSheet.name, {
       views: refSheet.views
@@ -659,29 +713,97 @@ export async function generateExcelExport(sheetId = null) {
 
       r.eachCell({ includeEmpty: true }, (cell, cNum) => {
         const outCell = outRow.getCell(cNum);
+        const addr = cell.address;
         
-        // Check for override
-        const overrideKey = `${sId}:${cell.address}`;
-        if (cellOverrides.has(overrideKey)) {
-          const ov = cellOverrides.get(overrideKey);
-          outCell.value = ov.formula ? { formula: ov.formula, result: ov.value } : ov.value;
-        } else {
-          outCell.value = cell.value;
-        }
-
+        // Copy styles first
         if (cell.font) outCell.font = cell.font;
         if (cell.alignment) outCell.alignment = cell.alignment;
         if (cell.fill) outCell.fill = cell.fill;
         if (cell.border) outCell.border = cell.border;
-        if (cell.numFmt) outCell.numFmt = cell.numFmt;
+        if (cell.numFmt) {
+          if (refSheet.name === 'Alpha List' && (addr.startsWith('I') || addr.startsWith('K')) && parseInt(addr.slice(1), 10) >= 9) {
+            outCell.numFmt = '@';
+          } else {
+            outCell.numFmt = cell.numFmt;
+          }
+        }
+
+        // Check for override
+        const overrideKey = `${sId}:${addr}`;
+        if (cellOverrides.has(overrideKey)) {
+          const ov = cellOverrides.get(overrideKey);
+          if (ov.formula) {
+            let formula = String(ov.formula).trim();
+            if (formula.startsWith('=')) formula = formula.slice(1).trim();
+            formula = formula.replace(/\[1\]Disposition/g, "'Disposition'");
+            formula = formula.replace(/DATE\(2026,4,30\)/g, 'TODAY()');
+            const result = (ov.value !== null && ov.value !== undefined && !Number.isNaN(ov.value)) ? ov.value : '';
+            outCell.value = { formula, result };
+          } else {
+            let v = ov.value;
+            if (typeof v === 'string' && /\(as of\s+[^)]+\)/i.test(v)) {
+              v = v.replace(/\(as of\s+[^)]+\)/gi, `(As of ${todayFormatted})`);
+            }
+            outCell.value = (v !== undefined && !Number.isNaN(v)) ? v : null;
+          }
+          return;
+        }
+
+        // Use resolved sheetDetail cell if available
+        const detailCell = sheetDetail?.cells?.[addr];
+        if (detailCell) {
+          if (detailCell.f) {
+            let formula = String(detailCell.f).trim();
+            if (formula.startsWith('=')) formula = formula.slice(1).trim();
+            formula = formula.replace(/\[1\]Disposition/g, "'Disposition'");
+            formula = formula.replace(/DATE\(2026,4,30\)/g, 'TODAY()');
+
+            let result = detailCell.res !== undefined ? detailCell.res : detailCell.v;
+            if (result === null || result === undefined || Number.isNaN(result)) {
+              result = '';
+            }
+
+            outCell.value = { formula, result };
+          } else {
+            let v = detailCell.v;
+            if (typeof v === 'string' && /\(as of\s+[^)]+\)/i.test(v)) {
+              v = v.replace(/\(as of\s+[^)]+\)/gi, `(As of ${todayFormatted})`);
+            }
+            outCell.value = (v !== undefined && !Number.isNaN(v)) ? v : null;
+          }
+          return;
+        }
+
+        // Fallback to reference cell if not in detail
+        const val = cell.value;
+        if (val && typeof val === 'object' && val.formula) {
+          let formula = String(val.formula).trim();
+          if (formula.startsWith('=')) formula = formula.slice(1).trim();
+          formula = formula.replace(/\[1\]Disposition/g, "'Disposition'");
+          formula = formula.replace(/DATE\(2026,4,30\)/g, 'TODAY()');
+          const result = (val.result !== undefined && val.result !== null && !Number.isNaN(val.result)) ? val.result : '';
+          outCell.value = { formula, result };
+        } else if (val && typeof val === 'object' && val.sharedFormula) {
+          const result = (val.result !== undefined && val.result !== null && !Number.isNaN(val.result)) ? val.result : '';
+          outCell.value = result;
+        } else {
+          let v = val;
+          if (typeof v === 'string' && /\(as of\s+[^)]+\)/i.test(v)) {
+            v = v.replace(/\(as of\s+[^)]+\)/gi, `(As of ${todayFormatted})`);
+          }
+          outCell.value = (v !== undefined && !Number.isNaN(v)) ? v : null;
+        }
       });
     });
 
-    // Copy merges
+    // Copy merges (ignore any degenerate single-cell merges)
     if (refSheet.model?.merges) {
       refSheet.model.merges.forEach(mergeRange => {
         try {
-          outSheet.mergeCells(mergeRange);
+          const [start, end] = String(mergeRange).split(':');
+          if (start && end && start !== end) {
+            outSheet.mergeCells(mergeRange);
+          }
         } catch (e) {}
       });
     }

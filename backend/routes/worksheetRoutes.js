@@ -39,12 +39,23 @@ router.get('/export/download', async (req, res) => {
     const sheetId = req.query.sheetId || null;
     const buffer = await generateExcelExport(sheetId);
     
-    const filename = sheetId 
-      ? `PAIS_Worksheet_${sheetId}_${new Date().toISOString().slice(0, 10)}.xlsx`
-      : `PAIS_Interactive_Worksheets_September_7_2026.xlsx`;
+    const now = new Date();
+    const formattedDate = now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+
+    let filename = `disposition ${formattedDate}.xlsx`;
+    if (sheetId) {
+      try {
+        const target = getWorksheetDetail(sheetId);
+        const name = target?.name || sheetId;
+        filename = `${name} ${formattedDate}.xlsx`;
+      } catch {
+        filename = `PAIS_Worksheet_${sheetId}_${formattedDate}.xlsx`;
+      }
+    }
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
     return res.send(Buffer.from(buffer));
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Export failed', error: error.message });

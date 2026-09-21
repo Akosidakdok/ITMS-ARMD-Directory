@@ -8,7 +8,6 @@ import {
   LeaveRecord,
   AwardRecord
 } from '../types/pais';
-import type { PromotionEvaluation } from '../types/pais';
 import type {
   PersonnelImportIssue,
   PersonnelImportRow
@@ -363,7 +362,7 @@ export const deletePromotionApi = async (id: string): Promise<void> => {
   if (!res.ok) throw new Error('Failed to delete promotion');
 };
 
-// ================= DISPOSITION & PROMOTION EVALUATIONS API =================
+// ================= DISPOSITION API =================
 export interface DispositionStats {
   basis: string;
   status: string;
@@ -377,35 +376,6 @@ export const fetchDispositionStats = async (status = 'Active'): Promise<Disposit
   const res = await apiFetch(`${API_BASE_URL}/disposition/stats?status=${encodeURIComponent(status)}`);
   const json = await res.json().catch(() => null);
   if (!res.ok) throw new Error(json?.message || 'Failed to fetch disposition statistics');
-  return json.data;
-};
-
-export const fetchPromotionEvaluationPreview = async (personnelId: string, evaluationDate: string): Promise<PromotionEvaluation> => {
-  const res = await apiFetch(`${API_BASE_URL}/promotion-evaluations/preview/${encodeURIComponent(personnelId)}?evaluationDate=${encodeURIComponent(evaluationDate)}`);
-  const json = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(json?.message || 'Failed to calculate promotion evaluation');
-  return { id: '', personnelId, status: 'Draft', evaluationDate, calculation: json.data } as PromotionEvaluation;
-};
-
-export const createPromotionEvaluationApi = async (payload: Partial<PromotionEvaluation> & { externalFactors?: Record<string, unknown> }): Promise<PromotionEvaluation> => {
-  const res = await apiFetch(`${API_BASE_URL}/promotion-evaluations`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-  const json = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(json?.message || 'Failed to save promotion evaluation');
-  return json.data;
-};
-
-export const fetchPromotionEvaluations = async (personnelId?: string): Promise<PromotionEvaluation[]> => {
-  const query = personnelId ? `?personnelId=${encodeURIComponent(personnelId)}` : '';
-  const res = await apiFetch(`${API_BASE_URL}/promotion-evaluations${query}`);
-  const json = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(json?.message || 'Failed to load promotion evaluations');
-  return json.data;
-};
-
-export const updatePromotionEvaluationApi = async (id: string, payload: Partial<PromotionEvaluation>): Promise<PromotionEvaluation> => {
-  const res = await apiFetch(`${API_BASE_URL}/promotion-evaluations/${encodeURIComponent(id)}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-  const json = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(json?.message || 'Failed to update promotion evaluation');
   return json.data;
 };
 
@@ -625,13 +595,25 @@ export const downloadWorksheetExcelApi = async (sheetId?: string): Promise<void>
   const url = `${API_BASE_URL}/worksheets/export/download${sheetId ? `?sheetId=${encodeURIComponent(sheetId)}` : ''}`;
   const res = await apiFetch(url);
   if (!res.ok) throw new Error('Failed to export workbook');
+
+  let filename = '';
+  const disposition = res.headers.get('content-disposition');
+  if (disposition && disposition.includes('filename=')) {
+    const match = disposition.match(/filename="?([^";]+)"?/);
+    if (match?.[1]) filename = match[1].trim();
+  }
+
+  if (!filename) {
+    const now = new Date();
+    const formattedDate = now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    filename = sheetId ? `PAIS_Worksheet_${sheetId}_${formattedDate}.xlsx` : `disposition ${formattedDate}.xlsx`;
+  }
+
   const blob = await res.blob();
   const downloadUrl = window.URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = downloadUrl;
-  a.download = sheetId 
-    ? `PAIS_Worksheet_${sheetId}_${new Date().toISOString().slice(0, 10)}.xlsx`
-    : `disposition September 7, 2026.xlsx`;
+  a.download = filename;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

@@ -11,7 +11,6 @@ import trainingRoutes from './routes/trainingRoutes.js';
 import leaveRoutes from './routes/leaveRoutes.js';
 import awardsRoutes from './routes/awardsRoutes.js';
 import adminUsersRoutes from './routes/adminUsersRoutes.js';
-import promotionEvaluationsRoutes from './routes/promotionEvaluationsRoutes.js';
 import dispositionRoutes from './routes/dispositionRoutes.js';
 import worksheetRoutes from './routes/worksheetRoutes.js';
 import {
@@ -125,7 +124,6 @@ app.use('/api/leave', leaveRoutes);
 app.use('/api/awards', awardsRoutes);
 app.use('/api/admin-users', adminUsersRoutes);
 app.use('/api/disposition', dispositionRoutes);
-app.use('/api/promotion-evaluations', promotionEvaluationsRoutes);
 app.use('/api/worksheets', worksheetRoutes);
 
 // Global Error Handler

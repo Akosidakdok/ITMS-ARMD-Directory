@@ -107,7 +107,7 @@ test('ITMS HQ accurately calculates variance and subtotals with proper formulas'
   assert.equal(e13.f, 'D13-C13');
 });
 
-test('Alpha List contains evaluated DATEDIF age and service formulas', () => {
+test('Alpha List contains evaluated DATEDIF age and service formulas with TODAY()', () => {
   const alphaList = getWorksheetDetail('sheet-6', []);
   assert.equal(alphaList.name, 'Alpha List');
 
@@ -115,9 +115,72 @@ test('Alpha List contains evaluated DATEDIF age and service formulas', () => {
   assert.ok(i9);
   assert.match(String(i9.v), /years.*month.*day/);
   assert.ok(i9.f.includes('DATEDIF'));
+  assert.ok(i9.f.includes('TODAY()'), 'I9 formula must use TODAY()');
+  assert.ok(!i9.f.includes('DATE(2026,4,30)'), 'I9 formula must NOT use hardcoded DATE');
 
   const k9 = alphaList.cells['K9'];
   assert.ok(k9);
   assert.match(String(k9.v), /years.*month.*day/);
   assert.ok(k9.f.includes('DATEDIF'));
+  assert.ok(k9.f.includes('TODAY()'), 'K9 formula must use TODAY()');
+  assert.ok(!k9.f.includes('DATE(2026,4,30)'), 'K9 formula must NOT use hardcoded DATE');
 });
+
+test('worksheets dynamically update As of header to current date', () => {
+  const todayFormatted = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  const expectedHeader = `(As of ${todayFormatted})`;
+
+  const summaries = getWorksheetSummaries();
+  summaries.forEach(s => {
+    const detail = getWorksheetDetail(s.id, []);
+    // Find any cell matching "As of"
+    let foundAsOf = false;
+    for (const [addr, cell] of Object.entries(detail.cells)) {
+      if (typeof cell.v === 'string' && cell.v.includes('(As of')) {
+        assert.ok(cell.v.includes(expectedHeader), `Sheet ${s.name} cell ${addr} must contain ${expectedHeader}, found: ${cell.v}`);
+        foundAsOf = true;
+      }
+    }
+    assert.ok(foundAsOf, `Sheet ${s.name} must have at least one (As of ...) header cell`);
+  });
+});
+
+test('generateExcelExport outputs dynamic As of headers and TODAY() formulas', async () => {
+  const todayFormatted = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  const expectedHeader = `(As of ${todayFormatted})`;
+
+  const buffer = await generateExcelExport();
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(buffer);
+
+  // 1. Check Alpha List sheet
+  const alphaSheet = wb.getWorksheet('Alpha List');
+  assert.ok(alphaSheet);
+  const a7 = alphaSheet.getCell('A7').value;
+  assert.equal(a7, expectedHeader);
+
+  const i9 = alphaSheet.getCell('I9').value;
+  assert.ok(i9 && typeof i9 === 'object');
+  assert.ok(i9.formula.includes('TODAY()'));
+  assert.ok(!i9.formula.includes('DATE(2026,4,30)'));
+  assert.match(String(i9.result), /years.*month.*day/);
+
+  const k9 = alphaSheet.getCell('K9').value;
+  assert.ok(k9 && typeof k9 === 'object');
+  assert.ok(k9.formula.includes('TODAY()'));
+  assert.ok(!k9.formula.includes('DATE(2026,4,30)'));
+  assert.match(String(k9.result), /years.*month.*day/);
+
+  // 2. Check Disposition sheet header
+  const dispoSheet = wb.getWorksheet('Disposition');
+  assert.ok(dispoSheet);
+  const dispoA7 = dispoSheet.getCell('A7').value;
+  assert.equal(dispoA7, expectedHeader);
+
+  // 3. Check Rank Profile with OSSP header
+  const rankSheet = wb.getWorksheet('Rank Profile with OSSP');
+  assert.ok(rankSheet);
+  const rankA4 = rankSheet.getCell('A4').value;
+  assert.equal(rankA4, expectedHeader);
+});
+
