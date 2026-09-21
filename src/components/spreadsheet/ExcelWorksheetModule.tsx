@@ -268,10 +268,21 @@ export const ExcelWorksheetModule: React.FC = () => {
     return sheetData.cells[activeCell.address];
   }, [sheetData, activeCell.address]);
 
+  // Check if a cell is within active multi-cell selection range
+  const isCellInRange = useCallback((r: number, c: number): boolean => {
+    if (!selectionRange) return false;
+    const minR = Math.min(selectionRange.startRow, selectionRange.endRow);
+    const maxR = Math.max(selectionRange.startRow, selectionRange.endRow);
+    const minC = Math.min(selectionRange.startCol, selectionRange.endCol);
+    const maxC = Math.max(selectionRange.startCol, selectionRange.endCol);
+    return r >= minR && r <= maxR && c >= minC && c <= maxC;
+  }, [selectionRange]);
+
   // Apply a cell change locally and stage for server saving
   const applyCellChange = (address: string, rawValue: string) => {
     if (!sheetData) return;
-    const currentVal = sheetData.cells[address]?.v;
+    const existingCell = sheetData.cells[address] || {};
+    const currentVal = existingCell.v;
     let newVal: any = rawValue;
     let formula: string | undefined = undefined;
 
@@ -286,6 +297,13 @@ export const ExcelWorksheetModule: React.FC = () => {
       return;
     }
 
+    const rowNum = parseAddress(address).row;
+    const existingStyle = existingCell.s || {};
+    const newStyle = {
+      ...existingStyle,
+      ah: existingStyle.ah || (rowNum <= 8 ? 'center' : undefined)
+    };
+
     // Stage change
     setUnsavedChanges(prev => {
       const next = new Map(prev);
@@ -293,7 +311,7 @@ export const ExcelWorksheetModule: React.FC = () => {
       next.set(address, {
         oldValue: existing ? existing.oldValue : currentVal,
         newValue: newVal,
-        style: existing?.style
+        style: existing?.style || newStyle
       });
       return next;
     });
@@ -301,13 +319,6 @@ export const ExcelWorksheetModule: React.FC = () => {
     // Update locally in sheetData
     setSheetData(prev => {
       if (!prev) return prev;
-      const existingCell = prev.cells[address] || {};
-      const rowNum = parseAddress(address).row;
-      const existingStyle = existingCell.s || {};
-      const newStyle = {
-        ...existingStyle,
-        ah: existingStyle.ah || (rowNum <= 8 ? 'center' : undefined)
-      };
       return {
         ...prev,
         cells: {

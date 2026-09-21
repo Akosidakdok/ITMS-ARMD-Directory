@@ -527,6 +527,7 @@ export interface WorksheetCell {
   s?: {
     b?: number;
     i?: number;
+    u?: number | boolean;
     sz?: number;
     fn?: string;
     c?: string;
