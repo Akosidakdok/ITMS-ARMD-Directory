@@ -53,8 +53,6 @@ class PAISRepository {
     this.inMemoryTraining = [...INITIAL_TRAINING];
     this.inMemoryLeave = [...INITIAL_LEAVE];
     this.inMemoryAwards = [...INITIAL_AWARDS];
-    this.inMemoryPromotionEvaluations = [];
-    this.inMemoryExcelImportAudits = [];
     this.inMemoryAuthorizedStrengths = [];
   }
 
@@ -975,102 +973,6 @@ class PAISRepository {
       else this.inMemoryAuthorizedStrengths[index] = { ...this.inMemoryAuthorizedStrengths[index], ...record };
     });
     return normalized;
-  }
-
-  async getPromotionEvaluations(personnelId = null) {
-    if (this.isSupabaseConnected()) {
-      let query = supabase.from('promotion_evaluations').select('*').order('evaluationDate', { ascending: false });
-      if (personnelId) query = query.eq('personnelId', personnelId);
-      const { data, error } = await query;
-      if (!error && Array.isArray(data)) return data;
-    }
-    return personnelId
-      ? this.inMemoryPromotionEvaluations.filter(item => item.personnelId === personnelId)
-      : [...this.inMemoryPromotionEvaluations];
-  }
-
-  async getPromotionEvaluation(id) {
-    if (this.isSupabaseConnected()) {
-      const { data, error } = await supabase.from('promotion_evaluations').select('*').eq('id', id).single();
-      if (!error && data) return data;
-    }
-    return this.inMemoryPromotionEvaluations.find(item => item.id === id) || null;
-  }
-
-  async createExcelImportAudit(data) {
-    const record = { id: data.id || `excel-audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, ...data, createdAt: data.createdAt || new Date().toISOString() };
-    if (this.isSupabaseConnected()) {
-      try {
-        const { data: inserted, error } = await supabase.from('excel_import_audits').insert([record]).select().single();
-        if (!error && inserted) return inserted;
-        console.warn('Excel import audit table unavailable; retaining audit in memory:', error?.message);
-      } catch (error) { console.warn('Excel import audit persistence failed:', error.message); }
-    }
-    this.inMemoryExcelImportAudits.unshift(record);
-    return record;
-  }
-
-  async getExcelImportAudits(limit = 50) {
-    if (this.isSupabaseConnected()) {
-      try {
-        const { data, error } = await supabase.from('excel_import_audits').select('*').order('createdAt', { ascending: false }).limit(Math.min(Number(limit) || 50, 200));
-        if (!error && Array.isArray(data)) return data;
-      } catch (error) { console.warn('Excel import audit history unavailable:', error.message); }
-    }
-    return this.inMemoryExcelImportAudits.slice(0, Math.min(Number(limit) || 50, 200));
-  }
-
-  async updateExcelImportAudit(id, data) {
-    if (this.isSupabaseConnected()) {
-      try {
-        const { data: updated, error } = await supabase.from('excel_import_audits').update(data).eq('id', id).select().single();
-        if (!error && updated) return updated;
-      } catch (error) { console.warn('Excel import audit update failed:', error.message); }
-    }
-    const index = this.inMemoryExcelImportAudits.findIndex(item => item.id === id);
-    if (index === -1) return null;
-    this.inMemoryExcelImportAudits[index] = { ...this.inMemoryExcelImportAudits[index], ...data };
-    return this.inMemoryExcelImportAudits[index];
-  }
-
-  async createPromotionEvaluation(data) {
-    const record = {
-      id: data.id || `pe-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      personnelId: data.personnelId,
-      evaluationDate: data.evaluationDate,
-      status: data.status || 'Draft',
-      evaluator: data.evaluator || null,
-      remarks: data.remarks || '',
-      calculation: data.calculation,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    if (this.isSupabaseConnected()) {
-      const { data: inserted, error } = await supabase.from('promotion_evaluations').insert([record]).select().single();
-      if (error) throw new Error(`Promotion evaluation insert failed: ${error.message}`);
-      return inserted;
-    }
-    this.inMemoryPromotionEvaluations.unshift(record);
-    return record;
-  }
-
-  async updatePromotionEvaluation(id, data) {
-    const updateData = {
-      ...(data.status !== undefined ? { status: data.status } : {}),
-      ...(data.remarks !== undefined ? { remarks: data.remarks } : {}),
-      ...(data.calculation !== undefined ? { calculation: data.calculation } : {}),
-      ...(data.evaluator !== undefined ? { evaluator: data.evaluator } : {}),
-      updatedAt: new Date().toISOString()
-    };
-    if (this.isSupabaseConnected()) {
-      const { data: updated, error } = await supabase.from('promotion_evaluations').update(updateData).eq('id', id).select().single();
-      if (error) throw new Error(`Promotion evaluation update failed: ${error.message}`);
-      return updated;
-    }
-    const index = this.inMemoryPromotionEvaluations.findIndex(item => item.id === id);
-    if (index === -1) return null;
-    this.inMemoryPromotionEvaluations[index] = { ...this.inMemoryPromotionEvaluations[index], ...updateData };
-    return this.inMemoryPromotionEvaluations[index];
   }
 }
 

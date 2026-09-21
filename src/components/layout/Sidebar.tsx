@@ -44,15 +44,14 @@ const navigationGroups: NavigationGroup[] = [
       { label: 'Assignment', path: '/assignment', icon: Briefcase },
       { label: 'Orders', path: '/orders', icon: FileText },
       { label: 'Education & Training', path: '/education', icon: GraduationCap },
-      { label: 'Promotion', path: '/promotion', icon: Award },
-      { label: 'Promotion Evaluation', path: '/promotion-evaluation', icon: Award }
+      { label: 'Promotion', path: '/promotion', icon: Award }
     ]
   },
   {
     label: 'Reporting',
     items: [
       { label: 'Reports', path: '/reports', icon: FileSpreadsheet },
-      { label: 'Excel Integration', path: '/excel-integration', icon: FileSpreadsheet }
+      { label: 'Excel Worksheets', path: '/excel-integration', icon: FileSpreadsheet }
     ]
   },
   {

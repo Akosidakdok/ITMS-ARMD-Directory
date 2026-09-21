@@ -779,3 +779,111 @@
   .pais-login__submit:hover:not(:disabled) { transform: none; }
   .pais-login__submit .is-spinning { animation-duration: 1.4s !important; }
 }
+
+/* ==========================================================================
+   LOGIN PAGE DARK MODE STYLES
+   ========================================================================== */
+
+.dark .pais-login {
+  background: linear-gradient(135deg, #070e17 0%, #0b1522 52%, #08111d 100%) !important;
+}
+
+.dark .pais-login__shell {
+  border-color: #223448 !important;
+  box-shadow: 0 24px 64px rgb(0 0 0 / 0.7) !important;
+}
+
+.dark .pais-login__brand {
+  background: #08121e !important;
+  border-right-color: #1a2a3c !important;
+}
+
+.dark .pais-login__form {
+  background: #111d2b !important;
+}
+
+.dark .pais-login__form-heading h2 {
+  color: #f1f5f9 !important;
+}
+
+.dark .pais-login__form-heading span {
+  color: #94a3b8 !important;
+}
+
+.dark .pais-login__development-toggle {
+  background: #0e1724 !important;
+  border-color: #223448 !important;
+  color: #cbd5e1 !important;
+}
+
+.dark .pais-login__development-toggle strong {
+  color: #f1f5f9 !important;
+}
+
+.dark .pais-login__development-toggle small {
+  color: #94a3b8 !important;
+}
+
+.dark .pais-login__account-grid {
+  background: #09111b !important;
+  border-color: #1a293a !important;
+}
+
+.dark .pais-login__account {
+  background: #142131 !important;
+  border-color: #223448 !important;
+}
+
+.dark .pais-login__account:hover {
+  background: #1b2c40 !important;
+  border-color: #354e6b !important;
+}
+
+.dark .pais-login__account.is-selected {
+  border-color: #38bdf8 !important;
+  box-shadow: 0 0 0 2px rgb(56 189 248 / 0.22) !important;
+}
+
+.dark .pais-login__account-copy strong {
+  color: #f1f5f9 !important;
+}
+
+.dark .pais-login__account-copy small {
+  color: #94a3b8 !important;
+}
+
+.dark .pais-login__field label {
+  color: #cbd5e1 !important;
+}
+
+.dark .pais-login__input {
+  background: #0c1420 !important;
+  border-color: #273b50 !important;
+}
+
+.dark .pais-login__input:focus-within {
+  border-color: #38bdf8 !important;
+  box-shadow: 0 0 0 3px rgb(56 189 248 / 0.2) !important;
+}
+
+.dark .pais-login__input input {
+  color: #f1f5f9 !important;
+}
+
+.dark .pais-login__input input::placeholder {
+  color: #55677a !important;
+}
+
+.dark .pais-login__security-note {
+  color: #94a3b8 !important;
+}
+
+.dark .pais-login__form-footer {
+  color: #6a7b8c !important;
+}
+
+@media (max-width: 520px) {
+  .dark .pais-login {
+    background: #111d2b !important;
+  }
+}

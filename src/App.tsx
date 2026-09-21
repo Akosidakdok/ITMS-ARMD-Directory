@@ -14,7 +14,6 @@ const loadOrdersPage = () => import('./pages/OrdersPage');
 const loadAssignmentPage = () => import('./pages/AssignmentPage');
 const loadEducationPage = () => import('./pages/EducationPage');
 const loadPromotionPage = () => import('./pages/PromotionPage');
-const loadPromotionEvaluationPage = () => import('./pages/PromotionEvaluationPage');
 const loadManagementPage = () => import('./pages/ManagementPage');
 const loadAdminAccountsPage = () => import('./pages/AdminAccountsPage');
 const loadExcelIntegrationPage = () => import('./pages/ExcelIntegrationPage');
@@ -26,7 +25,6 @@ const OrdersPage = lazy(() => loadOrdersPage().then(module => ({ default: module
 const AssignmentPage = lazy(() => loadAssignmentPage().then(module => ({ default: module.AssignmentPage })));
 const EducationPage = lazy(() => loadEducationPage().then(module => ({ default: module.EducationPage })));
 const PromotionPage = lazy(() => loadPromotionPage().then(module => ({ default: module.PromotionPage })));
-const PromotionEvaluationPage = lazy(() => loadPromotionEvaluationPage().then(module => ({ default: module.PromotionEvaluationPage })));
 const ManagementPage = lazy(() => loadManagementPage().then(module => ({ default: module.ManagementPage })));
 const AdminAccountsPage = lazy(() => loadAdminAccountsPage().then(module => ({ default: module.AdminAccountsPage })));
 const ExcelIntegrationPage = lazy(() => loadExcelIntegrationPage().then(module => ({ default: module.ExcelIntegrationPage })));
@@ -39,7 +37,6 @@ const routeLoaders: Record<string, () => Promise<unknown>> = {
   '/assignment': loadAssignmentPage,
   '/education': loadEducationPage,
   '/promotion': loadPromotionPage,
-  '/promotion-evaluation': loadPromotionEvaluationPage,
   '/management': loadManagementPage,
   '/admin-accounts': loadAdminAccountsPage,
   '/excel-integration': loadExcelIntegrationPage
@@ -108,7 +105,6 @@ const AuthenticatedApplication: React.FC = () => {
                   <Route path="assignment" element={<AssignmentPage />} />
                   <Route path="education" element={<EducationPage />} />
                   <Route path="promotion" element={<PromotionPage />} />
-                  <Route path="promotion-evaluation" element={<PromotionEvaluationPage />} />
                   <Route path="management" element={<ManagementPage />} />
                   <Route path="admin-accounts" element={<AdminAccountsPage />} />
                   <Route path="excel-integration" element={<ExcelIntegrationPage />} />

@@ -8,12 +8,15 @@ import {
   FileCheck2,
   LoaderCircle,
   LockKeyhole,
+  Moon,
   Shield,
   ShieldCheck,
+  Sun,
   User
 } from 'lucide-react';
 import pnpLogo from '../assets/pnp-logo-transparent.png';
 import { useAuthRole } from '../context/AuthRoleContext';
+import { useTheme } from '../context/ThemeContext';
 import './LoginPage.css';
 
 const developmentAccounts = [
@@ -31,6 +34,8 @@ const developmentAccounts = [
 
 export const LoginPage: React.FC = () => {
   const { login } = useAuthRole();
+  const { theme, toggleTheme } = useTheme();
+  const isDark = theme === 'dark';
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -171,10 +176,31 @@ export const LoginPage: React.FC = () => {
         </aside>
 
         <form className="pais-login__form" onSubmit={handleSubmit} noValidate>
-          <div className="pais-login__form-heading">
-            <p>Authorized access</p>
-            <h2>Welcome back</h2>
-            <span>Enter your assigned credentials to continue to PAIS 2.0.</span>
+          <div className="flex items-start justify-between gap-3">
+            <div className="pais-login__form-heading">
+              <p>Authorized access</p>
+              <h2>Welcome back</h2>
+              <span>Enter your assigned credentials to continue to PAIS 2.0.</span>
+            </div>
+            <button
+              type="button"
+              onClick={toggleTheme}
+              aria-label={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+              title={isDark ? 'Current theme: Dark Mode' : 'Current theme: Light Mode'}
+              className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-slate-300 bg-white/90 px-2.5 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-100"
+            >
+              {isDark ? (
+                <>
+                  <Sun className="h-3.5 w-3.5 text-amber-500" />
+                  <span className="text-[10px] font-bold uppercase tracking-wider">Dark</span>
+                </>
+              ) : (
+                <>
+                  <Moon className="h-3.5 w-3.5 text-slate-600" />
+                  <span className="text-[10px] font-bold uppercase tracking-wider">Light</span>
+                </>
+              )}
+            </button>
           </div>
 
           {error && (

@@ -108,27 +108,18 @@ Expected Response:
 - `PATCH /api/leave/:id/status` — Update leave status (e.g. Approved / Rejected)
 - `DELETE /api/leave/:id` — Delete leave record
 
-### 8. Disposition Statistics and Promotion Evaluations
+### 8. Disposition Statistics and Interactive Worksheets
 - `GET /api/disposition/stats?status=Active` — Counts current personnel by unit, rank, and unit/rank combination.
 - `GET /api/disposition/authorized-strength?reportType=rank-profile` — Reads the separately controlled authorized-strength baseline.
 - `PUT /api/disposition/authorized-strength` — Administrator-only bulk upsert of authorized-strength records (`reportType`, `unitKey`, `rankKey`, `authorizedStrength`, optional `asOfDate`).
-- `GET /api/promotion-evaluations/preview/:personnelId?evaluationDate=YYYY-MM-DD` — Calculates a server-side evaluation preview with source values and warnings.
-- `GET /api/promotion-evaluations?personnelId=pnp-001` — Lists saved evaluation snapshots.
-- `POST /api/promotion-evaluations` — Saves an evaluation snapshot (administrator only).
-- `PUT /api/promotion-evaluations/:id` — Updates evaluation status or remarks (administrator only).
-- `GET /api/excel/templates` — Lists versioned Excel template definitions and permissions.
-- `GET /api/excel/templates/:templateId` — Returns field mappings, sheet layouts, and validation rules for one template.
-- `GET /api/excel/templates/:templateId/export?asOfDate=YYYY-MM-DD` — Downloads a protected PAIS-generated workbook.
-- `GET /api/excel/templates/:templateId/preview?asOfDate=YYYY-MM-DD` — Returns visible workbook sheets and cells for in-app review before export.
-- `POST /api/excel/import/preview` — Validates an uploaded training or education workbook without writing records.
-- `POST /api/excel/import/commit` — Commits a valid, unexpired preview after user approval.
-- `GET /api/excel/import/history` — Returns the authenticated user’s Excel import audit history.
+- `GET /api/worksheets` — Summaries of the 5 interactive Excel worksheets.
+- `GET /api/worksheets/:sheetId` — Details, formula cells, and layout for a specific worksheet.
+- `PUT /api/worksheets/:sheetId/cell` — Live cell edit with formula recalculation and audit logging.
+- `GET /api/worksheets/export/download` — Exports all 5 sheets or a single sheet as an `.xlsx` workbook.
+- `POST /api/worksheets/import-preview` — Previews and validates uploaded `.xlsx` data against worksheet schemas.
+- `POST /api/worksheets/import-commit` — Commits validated worksheet import records.
 
-The preview endpoint expects multipart form data with `templateId` (`training-import` or
-`education-import`) and an `.xlsx` file field named `file`. Preview tokens expire after ten
-minutes and are held in backend memory; all validation errors must be resolved before commit.
-
-Run `backend/scripts/migrate_assignment_regions.sql`, `backend/scripts/migrate_promotion_evaluations.sql`, and `backend/scripts/migrate_authorized_strength.sql` in Supabase before using these production endpoints. Promotion point values intentionally remain pending until the approved scoring worksheet or policy is supplied.
+Run `backend/scripts/migrate_assignment_regions.sql` and `backend/scripts/migrate_authorized_strength.sql` in Supabase before using these production endpoints.
 
 ---
 

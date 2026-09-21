@@ -61,7 +61,7 @@ export const StatCard: React.FC<StatCardProps> = ({
     >
       <div className="flex items-center justify-between">
         <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-500">{title}</span>
-        <div className="border-l-2 border-blue-700 pl-2 text-blue-700">
+        <div className="border-l-2 border-blue-700 pl-2 text-blue-700 dark:border-sky-400 dark:text-sky-400">
           <Icon className="w-4 h-4" />
         </div>
       </div>
@@ -69,7 +69,7 @@ export const StatCard: React.FC<StatCardProps> = ({
       <div className="mt-2 flex items-baseline justify-between">
         <span className="text-[1.75rem] font-bold leading-none tracking-[-0.035em] text-slate-900">{value}</span>
         {trend && (
-          <span className={`text-xs font-bold ${trend.isPositive ? 'text-emerald-600' : 'text-rose-600'}`}>
+          <span className={`text-xs font-bold ${trend.isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
             {trend.value}
           </span>
         )}
