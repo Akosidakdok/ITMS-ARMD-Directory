@@ -27,12 +27,14 @@ export const PageSetupModal: React.FC<PageSetupModalProps> = ({
   if (!isOpen) return null;
 
   const handlePrintClick = () => {
-    onPrint({ orientation, paperSize, margins, scope });
     onClose();
+    setTimeout(() => {
+      onPrint({ orientation, paperSize, margins, scope });
+    }, 150);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
+    <div className="no-print fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
       <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-[#101b2b] overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-slate-800">

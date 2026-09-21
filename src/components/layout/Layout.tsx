@@ -49,10 +49,12 @@ export const Layout: React.FC = () => {
 
   return (
     <div className="authenticated-shell flex min-h-dvh overflow-x-hidden text-slate-900">
-      <Sidebar collapsed={sidebarCollapsed} />
+      <div className="no-print">
+        <Sidebar collapsed={sidebarCollapsed} />
+      </div>
 
       {mobileMenuOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Navigation menu">
+        <div className="no-print fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Navigation menu">
           <button
             type="button"
             className={`mobile-menu-backdrop absolute inset-0 h-full w-full bg-slate-950/55 ${mobileMenuClosing ? 'mobile-menu-backdrop--closing' : ''}`}
@@ -74,11 +76,13 @@ export const Layout: React.FC = () => {
       )}
 
       <div className={`flex min-w-0 flex-1 flex-col overflow-x-hidden transition-[margin] duration-200 ease-out ${sidebarCollapsed ? 'lg:ml-[4.5rem]' : 'lg:ml-60'}`}>
-        <Header
-          onMenuClick={openMobileMenu}
-          onSidebarToggle={() => setSidebarCollapsed(collapsed => !collapsed)}
-          sidebarCollapsed={sidebarCollapsed}
-        />
+        <div className="no-print">
+          <Header
+            onMenuClick={openMobileMenu}
+            onSidebarToggle={() => setSidebarCollapsed(collapsed => !collapsed)}
+            sidebarCollapsed={sidebarCollapsed}
+          />
+        </div>
         <main className="authenticated-main w-full min-w-0 flex-1 p-3 sm:p-4 lg:p-5">
           <div className="mx-auto w-full max-w-[1680px]">
             <Outlet />

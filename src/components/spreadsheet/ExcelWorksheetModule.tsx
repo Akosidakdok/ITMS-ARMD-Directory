@@ -1082,12 +1082,35 @@ export const ExcelWorksheetModule: React.FC = () => {
     setTimeout(() => setMessage(''), 2000);
   };
 
+  const handlePrint = (options: {
+    orientation: 'portrait' | 'landscape';
+    paperSize: 'letter' | 'legal' | 'a4';
+    margins: 'normal' | 'wide' | 'narrow';
+    scope: 'sheet' | 'selection' | 'workbook';
+  }) => {
+    let styleTag = document.getElementById('dynamic-print-page-style') as HTMLStyleElement;
+    if (!styleTag) {
+      styleTag = document.createElement('style');
+      styleTag.id = 'dynamic-print-page-style';
+      document.head.appendChild(styleTag);
+    }
+    const marginSizes = { normal: '10mm', wide: '20mm', narrow: '5mm' };
+    styleTag.textContent = `
+      @page {
+        size: ${options.paperSize} ${options.orientation};
+        margin: ${marginSizes[options.margins] || '10mm'};
+      }
+    `;
+    window.print();
+  };
+
   return (
-    <div className="flex flex-col rounded-2xl border border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-[#101b2b] overflow-hidden">
+    <div className="excel-worksheet-card flex flex-col rounded-2xl border border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-[#101b2b] overflow-hidden">
       {/* 1. EXCEL FUNCTIONAL RIBBON */}
-      <ExcelRibbon
-        activeTab={activeRibbonTab}
-        onChangeTab={setActiveRibbonTab}
+      <div className="no-print">
+        <ExcelRibbon
+          activeTab={activeRibbonTab}
+          onChangeTab={setActiveRibbonTab}
         isSaving={saving}
         saveStatus={saving ? 'saving' : unsavedChanges.size > 0 ? 'unsaved' : error ? 'error' : 'saved'}
         unsavedCount={unsavedChanges.size}
@@ -1254,36 +1277,39 @@ export const ExcelWorksheetModule: React.FC = () => {
           onToggleFreezePanes: () => setFreezePanes(!freezePanes)
         }}
       />
+      </div>
 
       {/* 2. EXCEL FORMULA BAR & NAME BOX */}
       {showFormulaBar && (
-        <FormulaBar
-          selectedAddress={activeCell.address}
-          value={formulaInputValue}
-          onChange={setFormulaInputValue}
-          onCommit={() => {
-            applyCellChange(activeCell.address, formulaInputValue);
-            setIsEditing(false);
-          }}
-          onCancel={() => {
-            const orig = getFormulaBarDisplay(sheetData?.cells[activeCell.address]);
-            setFormulaInputValue(orig);
-            setIsEditing(false);
-          }}
-          onJumpToAddress={handleJumpToAddress}
-          onOpenFunctionWizard={() => setIsFunctionWizardOpen(true)}
-          isEditing={isEditing}
-        />
+        <div className="no-print">
+          <FormulaBar
+            selectedAddress={activeCell.address}
+            value={formulaInputValue}
+            onChange={setFormulaInputValue}
+            onCommit={() => {
+              applyCellChange(activeCell.address, formulaInputValue);
+              setIsEditing(false);
+            }}
+            onCancel={() => {
+              const orig = getFormulaBarDisplay(sheetData?.cells[activeCell.address]);
+              setFormulaInputValue(orig);
+              setIsEditing(false);
+            }}
+            onJumpToAddress={handleJumpToAddress}
+            onOpenFunctionWizard={() => setIsFunctionWizardOpen(true)}
+            isEditing={isEditing}
+          />
+        </div>
       )}
 
       {/* Notifications & Status Banner */}
       {message && (
-        <div className="bg-emerald-50 text-emerald-800 px-4 py-1.5 text-xs font-semibold border-b border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 flex items-center gap-2">
+        <div className="no-print bg-emerald-50 text-emerald-800 px-4 py-1.5 text-xs font-semibold border-b border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 flex items-center gap-2">
           <span>{message}</span>
         </div>
       )}
       {error && (
-        <div className="bg-red-50 text-red-800 px-4 py-1.5 text-xs font-semibold border-b border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800 flex items-center gap-2">
+        <div className="no-print bg-red-50 text-red-800 px-4 py-1.5 text-xs font-semibold border-b border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800 flex items-center gap-2">
           <ShieldAlert className="h-4 w-4" />
           <span>{error}</span>
         </div>
@@ -1300,7 +1326,7 @@ export const ExcelWorksheetModule: React.FC = () => {
           transformOrigin: 'top left',
           height: '620px'
         }}
-        className="relative flex-1 overflow-auto bg-white dark:bg-[#0c1624] outline-hidden select-none"
+        className="spreadsheet-grid-container relative flex-1 overflow-auto bg-white dark:bg-[#0c1624] outline-hidden select-none"
       >
         {loading ? (
           <div className="flex h-96 flex-col items-center justify-center gap-3">
@@ -1312,7 +1338,7 @@ export const ExcelWorksheetModule: React.FC = () => {
         ) : !sheetData ? (
           <div className="p-8 text-center text-slate-500">No worksheet data available.</div>
         ) : (
-          <table className="border-collapse text-left font-sans text-xs">
+          <table className="spreadsheet-table border-collapse text-left font-sans text-xs">
             {/* Column Headers (A, B, C...) */}
             {showHeadings && (
               <thead className="sticky top-0 z-30 bg-[#f8f9fa] dark:bg-[#142232] shadow-xs">
@@ -1487,7 +1513,7 @@ export const ExcelWorksheetModule: React.FC = () => {
       </div>
 
       {/* 4. EXCEL 13-WORKSHEET TABS BAR */}
-      <div className="flex items-center justify-between border-t border-slate-200 bg-[#f8f9fa] px-2 py-1 dark:border-slate-800 dark:bg-[#0c1624]">
+      <div className="no-print flex items-center justify-between border-t border-slate-200 bg-[#f8f9fa] px-2 py-1 dark:border-slate-800 dark:bg-[#0c1624]">
         <div className="flex items-center gap-1 overflow-hidden">
           {/* Scroll left/right tabs buttons */}
           <button
@@ -1630,7 +1656,7 @@ export const ExcelWorksheetModule: React.FC = () => {
         isOpen={isPageSetupOpen}
         onClose={() => setIsPageSetupOpen(false)}
         worksheetName={sheetData?.name || 'Sheet'}
-        onPrint={() => window.print()}
+        onPrint={handlePrint}
       />
 
       <InsertFunctionModal

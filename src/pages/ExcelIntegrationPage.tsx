@@ -62,7 +62,7 @@ export const ExcelIntegrationPage: React.FC = () => {
   return (
     <div className="mx-auto max-w-[1680px] space-y-4">
       {/* Top Banner */}
-      <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-xs dark:bg-[#101b2b] dark:border-slate-800">
+      <section className="no-print flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-xs dark:bg-[#101b2b] dark:border-slate-800">
         <div>
           <div className="flex items-center gap-2">
             <span className="rounded-md bg-blue-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-blue-800 dark:bg-blue-900/60 dark:text-blue-200">

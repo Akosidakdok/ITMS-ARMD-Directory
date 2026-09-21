@@ -976,3 +976,109 @@
 .dark ::-webkit-scrollbar-thumb:hover {
   background: #395270;
 }
+
+/* ==========================================================================
+   EXCEL SPREADSHEET PRINTING STYLES
+   ========================================================================== */
+@media print {
+  /* Hide all app chrome: sidebar, headers, ribbons, toolbars, tabs, modals, backdrops */
+  .no-print,
+  .authenticated-shell > aside,
+  .authenticated-shell > div > header,
+  header,
+  nav,
+  aside,
+  button,
+  input,
+  select,
+  [role="dialog"],
+  .fixed,
+  .mobile-menu-backdrop,
+  .mobile-menu-panel,
+  footer {
+    display: none !important;
+  }
+
+  html, body, #root, .authenticated-shell, main, .authenticated-main,
+  html.dark, html.dark body, html.dark #root, html.dark .authenticated-shell, html.dark main, html.dark .authenticated-main, html.dark .spreadsheet-grid-container {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    height: auto !important;
+    min-height: auto !important;
+    max-width: 100% !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  .authenticated-shell > div {
+    margin-left: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Reset outer card styling on print */
+  .excel-worksheet-card {
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Make the spreadsheet container expand cleanly across pages */
+  .spreadsheet-grid-container {
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+    position: static !important;
+    transform: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #ffffff !important;
+  }
+
+  .spreadsheet-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    table-layout: auto !important;
+    font-size: 10px !important;
+    color: #000000 !important;
+  }
+
+  .spreadsheet-table th,
+  .spreadsheet-table td {
+    position: static !important;
+    outline: none !important;
+    box-shadow: none !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Ensure clean thin cell gridlines print when gridlines are active */
+  .spreadsheet-table td.border-r,
+  .spreadsheet-table td.border-b {
+    border-color: #d1d5db !important;
+  }
+
+  .spreadsheet-table thead th {
+    background-color: #f3f4f6 !important;
+    color: #374151 !important;
+    border-color: #d1d5db !important;
+  }
+
+  .spreadsheet-table thead {
+    display: table-header-group !important;
+  }
+
+  .spreadsheet-table tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+}
+
