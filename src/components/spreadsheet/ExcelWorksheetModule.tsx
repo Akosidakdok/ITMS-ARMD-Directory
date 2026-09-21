@@ -133,10 +133,25 @@ export const ExcelWorksheetModule: React.FC = () => {
   const [editValue, setEditValue] = useState('');
   const [formulaInputValue, setFormulaInputValue] = useState('');
 
+  // Range Selection
+  const [selectionRange, setSelectionRange] = useState<{
+    startRow: number;
+    startCol: number;
+    endRow: number;
+    endCol: number;
+  } | null>(null);
+  const [isDraggingRange, setIsDraggingRange] = useState(false);
+
+  // Column & Row Interactive Resizing
+  const [customColWidths, setCustomColWidths] = useState<Record<number, number>>({});
+  const [customRowHeights, setCustomRowHeights] = useState<Record<number, number>>({});
+  const resizingColRef = useRef<{ col: number; startX: number; startW: number } | null>(null);
+  const resizingRowRef = useRef<{ row: number; startY: number; startH: number } | null>(null);
+
   // Unsaved changes & Undo/Redo
   const [unsavedChanges, setUnsavedChanges] = useState<Map<string, { oldValue: any; newValue: any; style?: any }>>(new Map());
-  const [undoStack, setUndoStack] = useState<Array<{ sheetId: string; address: string; oldValue: any; newValue: any }>>([]);
-  const [redoStack, setRedoStack] = useState<Array<{ sheetId: string; address: string; oldValue: any; newValue: any }>>([]);
+  const [undoStack, setUndoStack] = useState<Array<{ sheetId: string; address: string; oldValue: any; newValue: any; oldStyle?: any; newStyle?: any }>>([]);
+  const [redoStack, setRedoStack] = useState<Array<{ sheetId: string; address: string; oldValue: any; newValue: any; oldStyle?: any; newStyle?: any }>>([]);
 
   // Search & Filtering
   const [searchOpen, setSearchOpen] = useState(false);
@@ -309,7 +324,14 @@ export const ExcelWorksheetModule: React.FC = () => {
     });
 
     // Record undo
-    setUndoStack(prev => [...prev, { sheetId: activeSheetId, address, oldValue: currentVal, newValue: newVal }]);
+    setUndoStack(prev => [...prev, {
+      sheetId: activeSheetId,
+      address,
+      oldValue: currentVal,
+      newValue: newVal,
+      oldStyle: existingStyle,
+      newStyle
+    }]);
     setRedoStack([]);
   };
 
@@ -350,6 +372,16 @@ export const ExcelWorksheetModule: React.FC = () => {
       });
       return next;
     });
+
+    setUndoStack(prev => [...prev, {
+      sheetId: activeSheetId,
+      address,
+      oldValue: existingCell.v,
+      newValue: existingCell.v,
+      oldStyle: existingStyle,
+      newStyle
+    }]);
+    setRedoStack([]);
 
     setMessage(`Applied ${alignH || alignV} justification to ${address}`);
     setTimeout(() => setMessage(''), 2000);
@@ -445,75 +477,172 @@ export const ExcelWorksheetModule: React.FC = () => {
   };
 
   // Undo Handler
-  const handleUndo = () => {
+  const handleUndo = useCallback(() => {
     if (undoStack.length === 0) return;
     const last = undoStack[undoStack.length - 1];
     setUndoStack(prev => prev.slice(0, prev.length - 1));
     setRedoStack(prev => [...prev, last]);
 
-    // Apply reverted value
     if (sheetData) {
-      setSheetData({
-        ...sheetData,
-        cells: {
-          ...sheetData.cells,
-          [last.address]: {
-            ...sheetData.cells[last.address],
-            v: last.oldValue
+      const existingCell = sheetData.cells[last.address] || {};
+      const revertedCell = {
+        ...existingCell,
+        v: last.oldValue,
+        res: last.oldValue,
+        s: last.oldStyle || existingCell.s
+      };
+
+      setSheetData(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          cells: {
+            ...prev.cells,
+            [last.address]: revertedCell
           }
-        }
+        };
       });
-      setActiveCell({ ...parseAddress(last.address), address: last.address });
+
+      setUnsavedChanges(prev => {
+        const next = new Map(prev);
+        next.delete(last.address);
+        return next;
+      });
+
+      const parsed = parseAddress(last.address);
+      setActiveCell({ ...parsed, address: last.address });
+      setFormulaInputValue(getFormulaBarDisplay(revertedCell));
+      setEditValue(String(last.oldValue ?? ''));
+      setMessage(`Undid change on ${last.address}`);
+      setTimeout(() => setMessage(''), 2000);
     }
-  };
+  }, [undoStack, sheetData]);
 
   // Redo Handler
-  const handleRedo = () => {
+  const handleRedo = useCallback(() => {
     if (redoStack.length === 0) return;
     const next = redoStack[redoStack.length - 1];
     setRedoStack(prev => prev.slice(0, prev.length - 1));
     setUndoStack(prev => [...prev, next]);
 
     if (sheetData) {
-      setSheetData({
-        ...sheetData,
-        cells: {
-          ...sheetData.cells,
-          [next.address]: {
-            ...sheetData.cells[next.address],
-            v: next.newValue
+      const existingCell = sheetData.cells[next.address] || {};
+      const redoneCell = {
+        ...existingCell,
+        v: next.newValue,
+        res: next.newValue,
+        s: next.newStyle || existingCell.s
+      };
+
+      setSheetData(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          cells: {
+            ...prev.cells,
+            [next.address]: redoneCell
           }
-        }
+        };
       });
-      setActiveCell({ ...parseAddress(next.address), address: next.address });
+
+      setUnsavedChanges(prev => {
+        const nextMap = new Map(prev);
+        nextMap.set(next.address, {
+          oldValue: next.oldValue,
+          newValue: next.newValue,
+          style: next.newStyle
+        });
+        return nextMap;
+      });
+
+      const parsed = parseAddress(next.address);
+      setActiveCell({ ...parsed, address: next.address });
+      setFormulaInputValue(getFormulaBarDisplay(redoneCell));
+      setEditValue(String(next.newValue ?? ''));
+      setMessage(`Redid change on ${next.address}`);
+      setTimeout(() => setMessage(''), 2000);
     }
-  };
+  }, [redoStack, sheetData]);
 
   // Copy cell or range to TSV clipboard
-  const handleCopy = () => {
+  const handleCopy = useCallback(() => {
     if (!sheetData) return;
+
+    if (selectionRange) {
+      const minR = Math.min(selectionRange.startRow, selectionRange.endRow);
+      const maxR = Math.max(selectionRange.startRow, selectionRange.endRow);
+      const minC = Math.min(selectionRange.startCol, selectionRange.endCol);
+      const maxC = Math.max(selectionRange.startCol, selectionRange.endCol);
+
+      const rows: string[] = [];
+      for (let r = minR; r <= maxR; r++) {
+        const rowCells: string[] = [];
+        for (let c = minC; c <= maxC; c++) {
+          const addr = `${colNumToLetter(c)}${r}`;
+          const cell = sheetData.cells[addr];
+          const text = cell?.v !== undefined && cell?.v !== null ? String(cell.v) : '';
+          rowCells.push(text);
+        }
+        rows.push(rowCells.join('\t'));
+      }
+      const tsv = rows.join('\n');
+      navigator.clipboard.writeText(tsv);
+      setMessage(`Copied range (${colNumToLetter(minC)}${minR}:${colNumToLetter(maxC)}${maxR}) to clipboard`);
+      setTimeout(() => setMessage(''), 2000);
+      return;
+    }
+
     const cell = sheetData.cells[activeCell.address];
     const text = cell?.v !== undefined && cell?.v !== null ? String(cell.v) : '';
     navigator.clipboard.writeText(text);
     setMessage(`Copied "${text}" to clipboard`);
     setTimeout(() => setMessage(''), 2000);
-  };
+  }, [sheetData, selectionRange, activeCell.address]);
 
-  // Paste TSV clipboard to cells
-  const handlePaste = async () => {
+  // Cut cell or range to TSV clipboard
+  const handleCut = useCallback(() => {
+    if (!sheetData || !canEdit) return;
+    handleCopy();
+
+    if (selectionRange) {
+      const minR = Math.min(selectionRange.startRow, selectionRange.endRow);
+      const maxR = Math.max(selectionRange.startRow, selectionRange.endRow);
+      const minC = Math.min(selectionRange.startCol, selectionRange.endCol);
+      const maxC = Math.max(selectionRange.startCol, selectionRange.endCol);
+
+      for (let r = minR; r <= maxR; r++) {
+        for (let c = minC; c <= maxC; c++) {
+          const addr = `${colNumToLetter(c)}${r}`;
+          applyCellChange(addr, '');
+        }
+      }
+      setMessage(`Cut selected range to clipboard`);
+      setTimeout(() => setMessage(''), 2000);
+      return;
+    }
+
+    applyCellChange(activeCell.address, '');
+    setFormulaInputValue('');
+    setMessage(`Cut ${activeCell.address} to clipboard`);
+    setTimeout(() => setMessage(''), 2000);
+  }, [sheetData, canEdit, handleCopy, selectionRange, activeCell.address]);
+
+  // Paste TSV clipboard to cells (compatible with Excel & Google Sheets)
+  const handlePaste = useCallback(async () => {
     if (!canEdit || !sheetData) return;
     try {
       const clipText = await navigator.clipboard.readText();
       if (!clipText) return;
 
       const rows = clipText.split(/\r?\n/).map(r => r.split('\t'));
-      const startRow = activeCell.row;
-      const startCol = activeCell.col;
+      const startRow = selectionRange ? Math.min(selectionRange.startRow, selectionRange.endRow) : activeCell.row;
+      const startCol = selectionRange ? Math.min(selectionRange.startCol, selectionRange.endCol) : activeCell.col;
 
       const newCells = { ...sheetData.cells };
       const updates: Array<{ address: string; value: any; oldValue: any }> = [];
 
       rows.forEach((rowVals, rIdx) => {
+        if (rIdx === rows.length - 1 && rowVals.length === 1 && rowVals[0] === '') return;
         rowVals.forEach((val, cIdx) => {
           const targetRow = startRow + rIdx;
           const targetCol = startCol + cIdx;
@@ -522,10 +651,12 @@ export const ExcelWorksheetModule: React.FC = () => {
 
           newCells[targetAddr] = {
             ...newCells[targetAddr],
-            v: val
+            v: val,
+            res: val
           };
 
           updates.push({ address: targetAddr, value: val, oldValue: currentVal });
+          setUndoStack(prev => [...prev, { sheetId: activeSheetId, address: targetAddr, oldValue: currentVal, newValue: val }]);
         });
       });
 
@@ -536,14 +667,154 @@ export const ExcelWorksheetModule: React.FC = () => {
         return next;
       });
 
-      setMessage(`Pasted ${updates.length} cell(s) from clipboard`);
+      setMessage(`Pasted ${updates.length} cell(s) preserving row/column layout`);
       setTimeout(() => setMessage(''), 2500);
     } catch (e: any) {
       setError('Unable to paste: ' + e.message);
     }
+  }, [canEdit, sheetData, selectionRange, activeCell.row, activeCell.col, activeSheetId]);
+
+  // Global window keyboard shortcuts for Ctrl+Z, Ctrl+Y, Ctrl+X, Ctrl+C, Ctrl+V
+  useEffect(() => {
+    const handleGlobalShortcuts = (e: KeyboardEvent) => {
+      if (document.activeElement?.tagName === 'INPUT' &&
+          document.activeElement !== inCellInputRef.current &&
+          document.activeElement !== formulaBarInputRef.current) {
+        return;
+      }
+
+      if (e.ctrlKey || e.metaKey) {
+        const k = e.key.toLowerCase();
+        if (k === 'z') {
+          e.preventDefault();
+          if (e.shiftKey) {
+            handleRedo();
+          } else {
+            handleUndo();
+          }
+        } else if (k === 'y') {
+          e.preventDefault();
+          handleRedo();
+        } else if (k === 'x' && !isEditing) {
+          e.preventDefault();
+          handleCut();
+        } else if (k === 'c' && !isEditing) {
+          e.preventDefault();
+          handleCopy();
+        } else if (k === 'v' && !isEditing) {
+          e.preventDefault();
+          handlePaste();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalShortcuts);
+    return () => window.removeEventListener('keydown', handleGlobalShortcuts);
+  }, [handleUndo, handleRedo, handleCut, handleCopy, handlePaste, isEditing]);
+
+  // Column interactive resize mousedown
+  const handleColumnResizeStart = (colNum: number, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const currentW = customColWidths[colNum] || (sheetData?.columnConfig[colNum]?.width ? Math.round(sheetData.columnConfig[colNum].width * 8.5) : 80);
+    resizingColRef.current = { col: colNum, startX: e.clientX, startW: currentW };
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      if (!resizingColRef.current) return;
+      const diff = moveEvent.clientX - resizingColRef.current.startX;
+      const newW = Math.max(32, resizingColRef.current.startW + diff);
+      setCustomColWidths(prev => ({ ...prev, [resizingColRef.current!.col]: newW }));
+    };
+
+    const onMouseUp = () => {
+      resizingColRef.current = null;
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
   };
 
-  // Keyboard navigation & Shortcuts
+  // Row interactive resize mousedown
+  const handleRowResizeStart = (rNum: number, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const currentH = customRowHeights[rNum] || (sheetData?.rowConfig[rNum]?.height ? Math.max(22, Math.round(sheetData.rowConfig[rNum].height * 1.33)) : 24);
+    resizingRowRef.current = { row: rNum, startY: e.clientY, startH: currentH };
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      if (!resizingRowRef.current) return;
+      const diff = moveEvent.clientY - resizingRowRef.current.startY;
+      const newH = Math.max(18, resizingRowRef.current.startH + diff);
+      setCustomRowHeights(prev => ({ ...prev, [resizingRowRef.current!.row]: newH }));
+    };
+
+    const onMouseUp = () => {
+      resizingRowRef.current = null;
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  };
+
+  // Select entire row by clicking row number
+  const handleRowHeaderClick = (rNum: number) => {
+    if (!sheetData) return;
+    setSelectionRange({
+      startRow: rNum,
+      startCol: 1,
+      endRow: rNum,
+      endCol: sheetData.colCount
+    });
+    setActiveCell({ row: rNum, col: 1, address: `A${rNum}` });
+  };
+
+  // Select entire column by clicking column letter
+  const handleColHeaderClick = (colNum: number) => {
+    if (!sheetData) return;
+    setSelectionRange({
+      startRow: 1,
+      startCol: colNum,
+      endRow: sheetData.rowCount,
+      endCol: colNum
+    });
+    setActiveCell({ row: 1, col: colNum, address: `${colNumToLetter(colNum)}1` });
+  };
+
+  // Cell mouse interactions for Drag-to-Select
+  const handleCellMouseDown = (r: number, c: number, addr: string, e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    if (e.shiftKey && activeCell) {
+      setSelectionRange({
+        startRow: activeCell.row,
+        startCol: activeCell.col,
+        endRow: r,
+        endCol: c
+      });
+      return;
+    }
+    handleCellClick(r, c, addr);
+    setIsDraggingRange(true);
+    setSelectionRange({ startRow: r, startCol: c, endRow: r, endCol: c });
+  };
+
+  const handleCellMouseEnter = (r: number, c: number) => {
+    if (!isDraggingRange) return;
+    setSelectionRange(prev => prev ? { ...prev, endRow: r, endCol: c } : null);
+  };
+
+  useEffect(() => {
+    const handleMouseUp = () => {
+      setIsDraggingRange(false);
+    };
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => window.removeEventListener('mouseup', handleMouseUp);
+  }, []);
+
+  // Keyboard navigation & Shortcuts inside container
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (isEditing) {
       if (e.key === 'Enter') {
@@ -561,22 +832,32 @@ export const ExcelWorksheetModule: React.FC = () => {
 
     // Ctrl shortcuts
     if (e.ctrlKey || e.metaKey) {
-      if (e.key.toLowerCase() === 'c') {
+      const k = e.key.toLowerCase();
+      if (k === 'x') {
+        e.preventDefault();
+        handleCut();
+        return;
+      }
+      if (k === 'c') {
         e.preventDefault();
         handleCopy();
         return;
       }
-      if (e.key.toLowerCase() === 'v') {
+      if (k === 'v') {
         e.preventDefault();
         handlePaste();
         return;
       }
-      if (e.key.toLowerCase() === 'z') {
+      if (k === 'z') {
         e.preventDefault();
-        handleUndo();
+        if (e.shiftKey) {
+          handleRedo();
+        } else {
+          handleUndo();
+        }
         return;
       }
-      if (e.key.toLowerCase() === 'y') {
+      if (k === 'y') {
         e.preventDefault();
         handleRedo();
         return;
@@ -590,25 +871,62 @@ export const ExcelWorksheetModule: React.FC = () => {
       return;
     }
 
-    // Delete or Backspace clears cell
+    // Delete or Backspace clears cell or range
     if (e.key === 'Delete' || e.key === 'Backspace') {
       e.preventDefault();
-      applyCellChange(activeCell.address, '');
+      if (selectionRange) {
+        const minR = Math.min(selectionRange.startRow, selectionRange.endRow);
+        const maxR = Math.max(selectionRange.startRow, selectionRange.endRow);
+        const minC = Math.min(selectionRange.startCol, selectionRange.endCol);
+        const maxC = Math.max(selectionRange.startCol, selectionRange.endCol);
+        for (let r = minR; r <= maxR; r++) {
+          for (let c = minC; c <= maxC; c++) {
+            applyCellChange(`${colNumToLetter(c)}${r}`, '');
+          }
+        }
+      } else {
+        applyCellChange(activeCell.address, '');
+      }
       setFormulaInputValue('');
+      return;
+    }
+
+    const maxRow = sheetData?.rowCount || 100;
+    const maxCol = sheetData?.colCount || 26;
+
+    // Shift + Arrow Range Selection
+    if (e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+      e.preventDefault();
+      const currentRange = selectionRange || {
+        startRow: activeCell.row,
+        startCol: activeCell.col,
+        endRow: activeCell.row,
+        endCol: activeCell.col
+      };
+      let newEndRow = currentRange.endRow;
+      let newEndCol = currentRange.endCol;
+      if (e.key === 'ArrowUp') newEndRow = Math.max(1, newEndRow - 1);
+      if (e.key === 'ArrowDown') newEndRow = Math.min(maxRow, newEndRow + 1);
+      if (e.key === 'ArrowLeft') newEndCol = Math.max(1, newEndCol - 1);
+      if (e.key === 'ArrowRight') newEndCol = Math.min(maxCol, newEndCol + 1);
+      setSelectionRange({
+        ...currentRange,
+        endRow: newEndRow,
+        endCol: newEndCol
+      });
       return;
     }
 
     // Single printable character starts editing immediately with that character
     if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
       e.preventDefault();
+      setSelectionRange(null);
       startInCellEdit(e.key);
       return;
     }
 
     // Arrows & Tab Navigation
     let { row, col } = activeCell;
-    const maxRow = sheetData?.rowCount || 100;
-    const maxCol = sheetData?.colCount || 26;
 
     if (e.key === 'ArrowUp') {
       e.preventDefault();
@@ -633,6 +951,7 @@ export const ExcelWorksheetModule: React.FC = () => {
       return;
     }
 
+    setSelectionRange(null);
     if (row !== activeCell.row || col !== activeCell.col) {
       const address = `${colNumToLetter(col)}${row}`;
       setActiveCell({ row, col, address });
@@ -772,6 +1091,15 @@ export const ExcelWorksheetModule: React.FC = () => {
           >
             <Copy className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Copy</span>
+          </button>
+          <button
+            onClick={handleCut}
+            disabled={!canEdit}
+            className="flex items-center gap-1 rounded px-2 py-1 text-slate-700 hover:bg-slate-100 disabled:opacity-40 dark:text-slate-200 dark:hover:bg-slate-800"
+            title="Cut (Ctrl+X)"
+          >
+            <Scissors className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Cut</span>
           </button>
           <button
             onClick={handlePaste}
@@ -1083,7 +1411,7 @@ export const ExcelWorksheetModule: React.FC = () => {
                 const colNum = cIdx + 1;
                 const colConf = sheetData.columnConfig[colNum];
                 if (colConf?.hidden) return null;
-                const pxWidth = colConf?.width ? Math.max(48, Math.round(colConf.width * 8.5 + 10)) : 80;
+                const pxWidth = customColWidths[colNum] || (colConf?.width ? Math.max(48, Math.round(colConf.width * 8.5 + 10)) : 80);
                 return <col key={colNum} style={{ width: `${pxWidth}px` }} />;
               })}
             </colgroup>
@@ -1092,7 +1420,19 @@ export const ExcelWorksheetModule: React.FC = () => {
             <thead className={freezePanes ? 'sticky top-0 z-20 bg-[#f1f3f4] dark:bg-[#142232]' : 'bg-[#f1f3f4] dark:bg-[#142232]'}>
               <tr className="border-b border-slate-300 dark:border-slate-800">
                 {/* Top-left corner cell */}
-                <th className={`border-r border-slate-300 bg-[#e1e3e5] p-0 text-center font-bold text-[10px] text-slate-600 dark:bg-[#192a3e] dark:border-slate-800 dark:text-slate-400 ${freezePanes ? 'sticky left-0 z-30' : ''}`}>
+                <th
+                  onClick={() => {
+                    if (!sheetData) return;
+                    setSelectionRange({
+                      startRow: 1,
+                      startCol: 1,
+                      endRow: sheetData.rowCount,
+                      endCol: sheetData.colCount
+                    });
+                  }}
+                  className={`border-r border-slate-300 bg-[#e1e3e5] p-0 text-center font-bold text-[10px] text-slate-600 hover:bg-blue-100 hover:text-blue-700 cursor-pointer transition dark:bg-[#192a3e] dark:border-slate-800 dark:text-slate-400 dark:hover:bg-blue-900/60 ${freezePanes ? 'sticky left-0 z-30' : ''}`}
+                  title="Select Entire Worksheet"
+                >
                   ◢
                 </th>
                 {Array.from({ length: sheetData.colCount }).map((_, cIdx) => {
@@ -1101,16 +1441,33 @@ export const ExcelWorksheetModule: React.FC = () => {
                   if (colConf?.hidden) return null;
                   const letter = colNumToLetter(colNum);
                   const isFiltered = !!columnFilters[colNum];
+                  const isColSelected = selectionRange &&
+                    colNum >= Math.min(selectionRange.startCol, selectionRange.endCol) &&
+                    colNum <= Math.max(selectionRange.startCol, selectionRange.endCol) &&
+                    selectionRange.startRow === 1 &&
+                    selectionRange.endRow === sheetData.rowCount;
 
                   return (
                     <th
                       key={colNum}
-                      className="border-r border-slate-300 bg-[#f1f3f4] px-1 py-1 text-center font-semibold text-xs text-slate-600 hover:bg-[#e4e7eb] transition relative group dark:bg-[#142232] dark:border-slate-800 dark:text-slate-400 dark:hover:bg-[#1b2d42]"
+                      onClick={() => handleColHeaderClick(colNum)}
+                      className={`border-r border-slate-300 px-1 py-1 text-center font-semibold text-xs transition relative group cursor-pointer select-none dark:border-slate-800 ${
+                        isColSelected
+                          ? 'bg-blue-200 text-blue-900 dark:bg-blue-900/70 dark:text-sky-200 font-bold'
+                          : 'bg-[#f1f3f4] text-slate-600 hover:bg-[#e4e7eb] dark:bg-[#142232] dark:text-slate-400 dark:hover:bg-[#1b2d42]'
+                      }`}
+                      title={`Select Column ${letter} (Drag right border to resize)`}
                     >
                       <div className="flex items-center justify-center gap-1">
                         <span>{letter}</span>
                         {isFiltered && <Filter className="h-2.5 w-2.5 text-blue-600" />}
                       </div>
+                      {/* Column Resize Handle */}
+                      <div
+                        onMouseDown={e => handleColumnResizeStart(colNum, e)}
+                        className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-500 active:bg-blue-600 z-30 opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Drag to resize column"
+                      />
                     </th>
                   );
                 })}
@@ -1121,17 +1478,34 @@ export const ExcelWorksheetModule: React.FC = () => {
             <tbody>
               {visibleRows.map(rNum => {
                 const rowConf = sheetData.rowConfig[rNum];
-                const rowPxHeight = rowConf?.height ? Math.max(22, Math.round(rowConf.height * 1.33)) : 24;
+                const rowPxHeight = customRowHeights[rNum] || (rowConf?.height ? Math.max(22, Math.round(rowConf.height * 1.33)) : 24);
+                const isRowSelected = selectionRange &&
+                  rNum >= Math.min(selectionRange.startRow, selectionRange.endRow) &&
+                  rNum <= Math.max(selectionRange.startRow, selectionRange.endRow) &&
+                  selectionRange.startCol === 1 &&
+                  selectionRange.endCol === sheetData.colCount;
 
                 return (
                   <tr key={rNum} style={{ height: `${rowPxHeight}px` }} className="border-b border-slate-200 dark:border-slate-800">
                     {/* Row Header Number (1, 2, 3...) */}
                     <td
-                      className={`border-r border-slate-300 bg-[#f1f3f4] text-center font-medium text-[11px] text-slate-500 select-none dark:bg-[#142232] dark:border-slate-800 dark:text-slate-400 ${
-                        freezePanes ? 'sticky left-0 z-10 bg-[#f1f3f4] dark:bg-[#142232]' : ''
+                      onClick={() => handleRowHeaderClick(rNum)}
+                      className={`border-r border-slate-300 text-center font-medium text-[11px] select-none cursor-pointer transition relative group dark:border-slate-800 ${
+                        freezePanes ? 'sticky left-0 z-10' : ''
+                      } ${
+                        isRowSelected
+                          ? 'bg-blue-200 text-blue-900 font-bold dark:bg-blue-900/70 dark:text-sky-200'
+                          : 'bg-[#f1f3f4] text-slate-500 hover:bg-[#e4e7eb] dark:bg-[#142232] dark:text-slate-400 dark:hover:bg-[#1b2d42]'
                       }`}
+                      title={`Select Row ${rNum} (Drag bottom border to resize)`}
                     >
                       {rNum}
+                      {/* Row Resize Handle */}
+                      <div
+                        onMouseDown={e => handleRowResizeStart(rNum, e)}
+                        className="absolute left-0 right-0 bottom-0 h-1.5 cursor-row-resize hover:bg-blue-500 active:bg-blue-600 z-30 opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Drag to resize row"
+                      />
                     </td>
 
                     {/* Row Cells */}
@@ -1157,13 +1531,23 @@ export const ExcelWorksheetModule: React.FC = () => {
                       const s = cell?.s || {};
                       const defaultAlign = rNum <= 8 ? 'center' : 'left';
                       const alignH = s.ah || defaultAlign;
+                      const isDoubleBottom = s.br?.bottom === 'double' || s.br?.b === 'double';
+                      const isThickBottom = s.br?.bottom === 'thick' || s.br?.bottom === 'medium';
+                      const isThinTop = s.br?.top === 'thin' || s.br?.t === 'thin';
+                      const inRange = isCellInRange(rNum, colNum);
+
                       const style: React.CSSProperties = {
                         fontWeight: s.b ? 'bold' : 'normal',
                         fontStyle: s.i ? 'italic' : 'normal',
+                        textDecoration: s.u ? 'underline' : undefined,
+                        fontFamily: s.fn ? `${s.fn}, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif` : undefined,
                         fontSize: s.sz ? `${Math.max(10, Math.min(14, s.sz))}px` : '11px',
                         textAlign: alignH,
                         verticalAlign: s.av === 'top' ? 'top' : s.av === 'bottom' ? 'bottom' : 'middle',
                         whiteSpace: s.wrap ? 'normal' : 'nowrap',
+                        borderBottomStyle: isDoubleBottom ? 'double' : undefined,
+                        borderBottomWidth: isDoubleBottom ? '3px' : isThickBottom ? '2px' : undefined,
+                        borderTopWidth: isThinTop ? '1px' : undefined,
                         backgroundColor: isCurrentMatch
                           ? '#fde047'
                           : isMatchedSearch
@@ -1180,12 +1564,15 @@ export const ExcelWorksheetModule: React.FC = () => {
                           rowSpan={mergeInfo?.rowSpan}
                           colSpan={mergeInfo?.colSpan}
                           style={style}
-                          onClick={() => handleCellClick(rNum, colNum, addr)}
+                          onMouseDown={e => handleCellMouseDown(rNum, colNum, addr, e)}
+                          onMouseEnter={() => handleCellMouseEnter(rNum, colNum)}
                           onDoubleClick={() => handleCellDoubleClick(rNum, colNum, addr)}
                           className={`border-r border-b border-slate-200 px-1.5 py-0.5 overflow-hidden text-ellipsis cursor-cell relative dark:border-slate-800 ${
                             isSelected
                               ? 'outline-2 outline-blue-600 outline-offset-[-2px] z-10 bg-blue-50/20 dark:outline-sky-400'
-                              : 'hover:bg-slate-50/50 dark:hover:bg-slate-800/50'
+                              : inRange
+                                ? 'bg-blue-500/15 dark:bg-sky-400/20 z-10'
+                                : 'hover:bg-slate-50/50 dark:hover:bg-slate-800/50'
                           } ${
                             isUnsaved
                               ? 'bg-amber-100/90 text-amber-950 dark:bg-amber-950/60 dark:text-amber-200 ring-1 ring-inset ring-amber-400/80 dark:ring-amber-500/50'
