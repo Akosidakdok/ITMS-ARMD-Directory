@@ -20,7 +20,11 @@ import {
   CheckCircle2,
   Sparkles,
   Check,
-  Calculator
+  Calculator,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  AlignVerticalJustifyCenter
 } from 'lucide-react';
 import {
   fetchWorksheetSummariesApi,
@@ -130,7 +134,7 @@ export const ExcelWorksheetModule: React.FC = () => {
   const [formulaInputValue, setFormulaInputValue] = useState('');
 
   // Unsaved changes & Undo/Redo
-  const [unsavedChanges, setUnsavedChanges] = useState<Map<string, { oldValue: any; newValue: any }>>(new Map());
+  const [unsavedChanges, setUnsavedChanges] = useState<Map<string, { oldValue: any; newValue: any; style?: any }>>(new Map());
   const [undoStack, setUndoStack] = useState<Array<{ sheetId: string; address: string; oldValue: any; newValue: any }>>([]);
   const [redoStack, setRedoStack] = useState<Array<{ sheetId: string; address: string; oldValue: any; newValue: any }>>([]);
 
@@ -270,7 +274,12 @@ export const ExcelWorksheetModule: React.FC = () => {
     // Stage change
     setUnsavedChanges(prev => {
       const next = new Map(prev);
-      next.set(address, { oldValue: currentVal, newValue: newVal });
+      const existing = next.get(address);
+      next.set(address, {
+        oldValue: existing ? existing.oldValue : currentVal,
+        newValue: newVal,
+        style: existing?.style
+      });
       return next;
     });
 
@@ -278,6 +287,12 @@ export const ExcelWorksheetModule: React.FC = () => {
     setSheetData(prev => {
       if (!prev) return prev;
       const existingCell = prev.cells[address] || {};
+      const rowNum = parseAddress(address).row;
+      const existingStyle = existingCell.s || {};
+      const newStyle = {
+        ...existingStyle,
+        ah: existingStyle.ah || (rowNum <= 8 ? 'center' : undefined)
+      };
       return {
         ...prev,
         cells: {
@@ -286,7 +301,8 @@ export const ExcelWorksheetModule: React.FC = () => {
             ...existingCell,
             v: newVal,
             res: newVal,
-            f: formula || existingCell.f
+            f: formula || existingCell.f,
+            s: newStyle
           }
         }
       };
@@ -295,6 +311,48 @@ export const ExcelWorksheetModule: React.FC = () => {
     // Record undo
     setUndoStack(prev => [...prev, { sheetId: activeSheetId, address, oldValue: currentVal, newValue: newVal }]);
     setRedoStack([]);
+  };
+
+  // Apply horizontal or vertical alignment to current active cell
+  const applyCellAlignment = (alignH?: 'left' | 'center' | 'right', alignV?: 'top' | 'middle' | 'bottom') => {
+    if (!sheetData) return;
+    const address = activeCell.address;
+    const existingCell = sheetData.cells[address] || {};
+    const existingStyle = existingCell.s || {};
+
+    const newStyle: any = {
+      ...existingStyle,
+      ...(alignH ? { ah: alignH } : {}),
+      ...(alignV ? { av: alignV } : {})
+    };
+
+    setSheetData(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        cells: {
+          ...prev.cells,
+          [address]: {
+            ...existingCell,
+            s: newStyle
+          }
+        }
+      };
+    });
+
+    setUnsavedChanges(prev => {
+      const next = new Map(prev);
+      const existingChange = next.get(address);
+      next.set(address, {
+        oldValue: existingChange?.oldValue ?? existingCell.v,
+        newValue: existingChange?.newValue ?? existingCell.v,
+        style: newStyle
+      });
+      return next;
+    });
+
+    setMessage(`Applied ${alignH || alignV} justification to ${address}`);
+    setTimeout(() => setMessage(''), 2000);
   };
 
   // Start in-cell edit
@@ -364,7 +422,8 @@ export const ExcelWorksheetModule: React.FC = () => {
       const updates = Array.from(unsavedChanges.entries()).map(([address, ch]) => ({
         address,
         value: ch.newValue,
-        oldValue: ch.oldValue
+        oldValue: ch.oldValue,
+        style: ch.style
       }));
 
       await batchUpdateWorksheetCellsApi(activeSheetId, updates);
@@ -743,6 +802,61 @@ export const ExcelWorksheetModule: React.FC = () => {
             <Pin className="h-3.5 w-3.5" />
             <span className="hidden md:inline">Freeze</span>
           </button>
+
+          <div className="h-4 w-[1px] bg-slate-300 mx-1 dark:bg-slate-700" />
+
+          {/* Justification / Text Alignment Button Group */}
+          <div className="flex items-center gap-0.5 bg-slate-200/70 dark:bg-slate-800/90 p-0.5 rounded-md border border-slate-300 dark:border-slate-700 shadow-xs">
+            <button
+              type="button"
+              onClick={() => applyCellAlignment('left')}
+              className={`p-1 rounded transition ${
+                currentCellObj?.s?.ah === 'left' || (!currentCellObj?.s?.ah && activeCell.row > 8)
+                  ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-sky-300 shadow-xs font-bold'
+                  : 'text-slate-600 dark:text-slate-300 hover:bg-white/70 dark:hover:bg-slate-700/60'
+              }`}
+              title="Align Left"
+            >
+              <AlignLeft className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => applyCellAlignment('center')}
+              className={`p-1 rounded transition ${
+                currentCellObj?.s?.ah === 'center' || (!currentCellObj?.s?.ah && activeCell.row <= 8)
+                  ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-sky-300 shadow-xs font-bold'
+                  : 'text-slate-600 dark:text-slate-300 hover:bg-white/70 dark:hover:bg-slate-700/60'
+              }`}
+              title="Align Center"
+            >
+              <AlignCenter className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => applyCellAlignment('right')}
+              className={`p-1 rounded transition ${
+                currentCellObj?.s?.ah === 'right'
+                  ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-sky-300 shadow-xs font-bold'
+                  : 'text-slate-600 dark:text-slate-300 hover:bg-white/70 dark:hover:bg-slate-700/60'
+              }`}
+              title="Align Right"
+            >
+              <AlignRight className="h-3.5 w-3.5" />
+            </button>
+            <div className="h-3.5 w-[1px] bg-slate-300 dark:bg-slate-600 mx-0.5" />
+            <button
+              type="button"
+              onClick={() => applyCellAlignment(undefined, 'middle')}
+              className={`p-1 rounded transition ${
+                currentCellObj?.s?.av === 'middle' || !currentCellObj?.s?.av
+                  ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-sky-300 shadow-xs font-bold'
+                  : 'text-slate-600 dark:text-slate-300 hover:bg-white/70 dark:hover:bg-slate-700/60'
+              }`}
+              title="Align Middle (Vertical)"
+            >
+              <AlignVerticalJustifyCenter className="h-3.5 w-3.5" />
+            </button>
+          </div>
         </div>
 
         {/* Right Section: Import / Export, Audit, and Save Changes */}
@@ -1041,22 +1155,22 @@ export const ExcelWorksheetModule: React.FC = () => {
 
                       // Style resolution
                       const s = cell?.s || {};
+                      const defaultAlign = rNum <= 8 ? 'center' : 'left';
+                      const alignH = s.ah || defaultAlign;
                       const style: React.CSSProperties = {
                         fontWeight: s.b ? 'bold' : 'normal',
                         fontStyle: s.i ? 'italic' : 'normal',
                         fontSize: s.sz ? `${Math.max(10, Math.min(14, s.sz))}px` : '11px',
-                        textAlign: s.ah || 'left',
+                        textAlign: alignH,
                         verticalAlign: s.av === 'top' ? 'top' : s.av === 'bottom' ? 'bottom' : 'middle',
                         whiteSpace: s.wrap ? 'normal' : 'nowrap',
                         backgroundColor: isCurrentMatch
                           ? '#fde047'
                           : isMatchedSearch
                             ? '#fef08a'
-                            : isUnsaved
-                              ? '#fef3c7'
-                              : s.bg
-                                ? `#${s.bg.slice(-6)}`
-                                : undefined,
+                            : s.bg
+                              ? `#${s.bg.slice(-6)}`
+                              : undefined,
                         color: s.c ? `#${s.c.slice(-6)}` : undefined
                       };
 
@@ -1072,6 +1186,10 @@ export const ExcelWorksheetModule: React.FC = () => {
                             isSelected
                               ? 'outline-2 outline-blue-600 outline-offset-[-2px] z-10 bg-blue-50/20 dark:outline-sky-400'
                               : 'hover:bg-slate-50/50 dark:hover:bg-slate-800/50'
+                          } ${
+                            isUnsaved
+                              ? 'bg-amber-100/90 text-amber-950 dark:bg-amber-950/60 dark:text-amber-200 ring-1 ring-inset ring-amber-400/80 dark:ring-amber-500/50'
+                              : ''
                           }`}
                         >
                           {isSelected && isEditing ? (
@@ -1157,6 +1275,11 @@ export const ExcelWorksheetModule: React.FC = () => {
                                     e.preventDefault();
                                     cancelInCellEdit();
                                   }
+                                }}
+                                style={{
+                                  textAlign: alignH,
+                                  fontWeight: s.b ? 'bold' : 'normal',
+                                  fontSize: s.sz ? `${Math.max(10, Math.min(14, s.sz))}px` : '11px'
                                 }}
                                 className="w-full bg-white dark:bg-[#162537] border-2 border-blue-600 dark:border-sky-400 text-slate-900 dark:text-slate-100 rounded px-1 py-0.5 text-xs font-mono focus:outline-none shadow-sm z-20"
                               />

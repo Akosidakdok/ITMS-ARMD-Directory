@@ -76,12 +76,12 @@ router.get('/:sheetId', async (req, res) => {
 // Update a single cell
 router.put('/:sheetId/cell', async (req, res) => {
   try {
-    const { address, value, oldValue } = req.body;
+    const { address, value, oldValue, formula, style } = req.body;
     if (!address) return res.status(400).json({ success: false, message: 'Cell address is required' });
 
     const result = await updateWorksheetCell(
       req.params.sheetId,
-      { address, value, oldValue },
+      { address, value, oldValue, formula, style },
       req.user,
       db
     );

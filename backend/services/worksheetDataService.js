@@ -254,10 +254,11 @@ export function getWorksheetDetail(sheetId, personnelList = []) {
     if (key.startsWith(`${sheet.id}:`)) {
       const addr = key.split(':')[1];
       if (outputCells[addr]) {
-        outputCells[addr].v = override.value;
+        if (override.value !== undefined) outputCells[addr].v = override.value;
         if (override.formula) outputCells[addr].f = override.formula;
+        if (override.style) outputCells[addr].s = { ...(outputCells[addr].s || {}), ...override.style };
       } else {
-        outputCells[addr] = { v: override.value, f: override.formula };
+        outputCells[addr] = { v: override.value, f: override.formula, s: override.style };
       }
     }
   }
@@ -616,9 +617,11 @@ export async function updateWorksheetCell(sheetId, cellUpdate, user, db) {
 
   // Record cell override in memory
   const overrideKey = `${sheet.id}:${address}`;
+  const existingOverride = cellOverrides.get(overrideKey) || {};
   cellOverrides.set(overrideKey, {
-    value,
-    formula: cellUpdate.formula || null,
+    value: value !== undefined ? value : existingOverride.value,
+    formula: cellUpdate.formula !== undefined ? cellUpdate.formula : existingOverride.formula,
+    style: cellUpdate.style ? { ...(existingOverride.style || {}), ...cellUpdate.style } : existingOverride.style,
     updatedBy: user?.displayName || user?.email || 'Admin',
     updatedAt: new Date().toISOString()
   });
@@ -752,6 +755,10 @@ export async function generateExcelExport(sheetId = null) {
               v = v.replace(/\(as of\s+[^)]+\)/gi, `(As of ${todayFormatted})`);
             }
             outCell.value = (v !== undefined && !Number.isNaN(v)) ? v : null;
+          }
+          if (ov.style) {
+            if (ov.style.ah) outCell.alignment = { ...(outCell.alignment || {}), horizontal: ov.style.ah };
+            if (ov.style.av) outCell.alignment = { ...(outCell.alignment || {}), vertical: ov.style.av };
           }
           return;
         }
