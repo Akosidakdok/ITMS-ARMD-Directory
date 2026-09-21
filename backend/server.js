@@ -91,6 +91,8 @@ app.get('/api/health', async (req, res) => {
       '/api/training',
       '/api/leave',
       '/api/awards',
+      '/api/disposition',
+      '/api/worksheets'
     ]
   });
 });

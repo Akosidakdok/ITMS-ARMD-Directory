@@ -148,16 +148,22 @@ export const ExcelWorksheetModule: React.FC = () => {
   const cellInputRef = useRef<HTMLInputElement>(null);
 
   // Load worksheet list
-  useEffect(() => {
-    fetchWorksheetSummariesApi()
-      .then(res => {
-        setSheets(res);
-        if (res.length > 0) {
-          setActiveSheetId(res[0].id);
-        }
-      })
-      .catch(err => setError(err.message));
+  const loadSummaries = useCallback(async () => {
+    try {
+      setError('');
+      const res = await fetchWorksheetSummariesApi();
+      setSheets(res);
+      if (res.length > 0) {
+        setActiveSheetId(prev => prev || res[0].id);
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to load worksheets');
+    }
   }, []);
+
+  useEffect(() => {
+    loadSummaries();
+  }, [loadSummaries]);
 
   // Load single worksheet details
   const loadActiveSheet = useCallback(async (id: string) => {
@@ -799,9 +805,25 @@ export const ExcelWorksheetModule: React.FC = () => {
         </div>
       )}
       {error && (
-        <div className="flex items-center gap-2 bg-red-50 border-b border-red-200 px-4 py-1.5 text-xs text-red-800 font-semibold">
-          <ShieldAlert className="h-3.5 w-3.5 text-red-600" />
-          <span>{error}</span>
+        <div className="flex items-center justify-between bg-red-50 border-b border-red-200 px-4 py-1.5 text-xs text-red-800 font-semibold dark:bg-red-950/40 dark:border-red-800/60 dark:text-red-300">
+          <div className="flex items-center gap-2">
+            <ShieldAlert className="h-3.5 w-3.5 text-red-600 dark:text-red-400 shrink-0" />
+            <span>{error}</span>
+          </div>
+          <button
+            onClick={() => {
+              setError('');
+              if (sheets.length === 0) {
+                loadSummaries();
+              } else if (activeSheetId) {
+                loadActiveSheet(activeSheetId);
+              }
+            }}
+            className="flex items-center gap-1 rounded bg-red-100 hover:bg-red-200 dark:bg-red-900/60 dark:hover:bg-red-800/80 px-2 py-0.5 text-[11px] font-bold text-red-900 dark:text-red-200 transition cursor-pointer shrink-0 ml-2"
+          >
+            <RotateCcw className="h-3 w-3" />
+            <span>Retry Connection</span>
+          </button>
         </div>
       )}
 

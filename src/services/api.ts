@@ -544,14 +544,32 @@ export interface SmartImportPreviewResult {
 
 export const fetchWorksheetSummariesApi = async (): Promise<WorksheetSummary[]> => {
   const res = await apiFetch(`${API_BASE_URL}/worksheets`);
-  if (!res.ok) throw new Error('Failed to fetch worksheets');
+  if (!res.ok) {
+    const json = await res.json().catch(() => null);
+    if (res.status === 401) {
+      throw new Error('Authentication required. Please sign in again.');
+    }
+    if (res.status === 502 || res.status === 504) {
+      throw new Error('Backend server is waking up or temporarily unavailable. Please retry in a moment.');
+    }
+    throw new Error(json?.message || `Failed to fetch worksheets (${res.status} ${res.statusText})`);
+  }
   const json = await res.json();
   return json.data;
 };
 
 export const fetchWorksheetDetailApi = async (sheetId: string): Promise<WorksheetDetail> => {
   const res = await apiFetch(`${API_BASE_URL}/worksheets/${sheetId}`);
-  if (!res.ok) throw new Error(`Failed to fetch worksheet ${sheetId}`);
+  if (!res.ok) {
+    const json = await res.json().catch(() => null);
+    if (res.status === 401) {
+      throw new Error('Authentication required. Please sign in again.');
+    }
+    if (res.status === 502 || res.status === 504) {
+      throw new Error('Backend server is waking up. Please retry in a moment.');
+    }
+    throw new Error(json?.message || `Failed to fetch worksheet ${sheetId} (${res.status} ${res.statusText})`);
+  }
   const json = await res.json();
   return json.data;
 };
