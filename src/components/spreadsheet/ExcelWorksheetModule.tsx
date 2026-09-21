@@ -115,6 +115,7 @@ export const ExcelWorksheetModule: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string>('');
   const [error, setError] = useState<string>('');
+  const [wakingUp, setWakingUp] = useState(false); // true while auto-retrying on Render cold start
 
   // Active cell & editing
   const [activeCell, setActiveCell] = useState<{ row: number; col: number; address: string }>({
@@ -151,12 +152,19 @@ export const ExcelWorksheetModule: React.FC = () => {
   const loadSummaries = useCallback(async () => {
     try {
       setError('');
-      const res = await fetchWorksheetSummariesApi();
+      setWakingUp(false);
+      const res = await fetchWorksheetSummariesApi((attempt, delayMs) => {
+        // Show "waking up" UI instead of an error while auto-retrying
+        setWakingUp(true);
+        console.log(`[WorksheetModule] Backend cold-start retry ${attempt}, waiting ${delayMs}ms...`);
+      });
+      setWakingUp(false);
       setSheets(res);
       if (res.length > 0) {
         setActiveSheetId(prev => prev || res[0].id);
       }
     } catch (err: any) {
+      setWakingUp(false);
       setError(err.message || 'Failed to load worksheets');
     }
   }, []);
@@ -169,13 +177,19 @@ export const ExcelWorksheetModule: React.FC = () => {
   const loadActiveSheet = useCallback(async (id: string) => {
     setLoading(true);
     setError('');
+    setWakingUp(false);
     try {
-      const data = await fetchWorksheetDetailApi(id);
+      const data = await fetchWorksheetDetailApi(id, (attempt, delayMs) => {
+        setWakingUp(true);
+        console.log(`[WorksheetModule] Backend cold-start retry ${attempt} for sheet ${id}, waiting ${delayMs}ms...`);
+      });
+      setWakingUp(false);
       setSheetData(data);
       // Reset active cell to A1 or top visible
       setActiveCell({ row: 1, col: 1, address: 'A1' });
       setIsEditing(false);
     } catch (err: any) {
+      setWakingUp(false);
       setError(err.message || 'Failed to load worksheet');
     } finally {
       setLoading(false);
@@ -804,6 +818,12 @@ export const ExcelWorksheetModule: React.FC = () => {
           <span>{message}</span>
         </div>
       )}
+      {wakingUp && !error && (
+        <div className="flex items-center gap-2 bg-amber-50 border-b border-amber-200 px-4 py-1.5 text-xs text-amber-800 font-semibold">
+          <Loader2 className="h-3.5 w-3.5 text-amber-600 animate-spin shrink-0" />
+          <span>Connecting to server — backend is waking up, please wait a moment…</span>
+        </div>
+      )}
       {error && (
         <div className="flex items-center justify-between bg-red-50 border-b border-red-200 px-4 py-1.5 text-xs text-red-800 font-semibold dark:bg-red-950/40 dark:border-red-800/60 dark:text-red-300">
           <div className="flex items-center gap-2">
@@ -835,7 +855,17 @@ export const ExcelWorksheetModule: React.FC = () => {
         {loading ? (
           <div className="flex h-full items-center justify-center gap-3 text-sm font-semibold text-slate-600">
             <Loader2 className="h-6 w-6 animate-spin text-blue-700" />
-            Loading worksheet &quot;{sheets.find(s => s.id === activeSheetId)?.name}&quot;...
+            {wakingUp
+              ? 'Backend server is waking up — this may take up to 60 seconds on first load…'
+              : `Loading worksheet "${sheets.find(s => s.id === activeSheetId)?.name}"...`}
+          </div>
+        ) : !sheetData && wakingUp ? (
+          <div className="flex h-full flex-col items-center justify-center gap-3 text-sm text-slate-500">
+            <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
+            <div className="text-center">
+              <p className="font-semibold text-slate-700">Connecting to backend server…</p>
+              <p className="text-xs text-slate-500 mt-1">The server was sleeping. It's waking up now — please wait.</p>
+            </div>
           </div>
         ) : !sheetData ? (
           <div className="flex h-full items-center justify-center text-sm text-slate-500">

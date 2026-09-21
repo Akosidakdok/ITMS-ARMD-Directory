@@ -32,6 +32,44 @@ const apiFetch = (input: RequestInfo | URL, init: RequestInit = {}) => {
   return fetch(input, { ...init, headers });
 };
 
+/**
+ * Fetch with automatic retry on Render cold-start errors (502/504/network failure).
+ * Retries up to maxRetries times with increasing delay. Calls onRetry(attempt, delayMs)
+ * before each retry so the UI can show a "waking up" message.
+ */
+const fetchWithRetry = async (
+  input: RequestInfo | URL,
+  init: RequestInit = {},
+  maxRetries = 3,
+  onRetry?: (attempt: number, delayMs: number) => void
+): Promise<Response> => {
+  const delays = [2000, 4000, 6000];
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const res = await apiFetch(input, init);
+      // Only retry on server-unreachable errors, not auth or client errors
+      if ((res.status === 502 || res.status === 503 || res.status === 504) && attempt < maxRetries) {
+        const delay = delays[attempt] ?? 6000;
+        onRetry?.(attempt + 1, delay);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+      return res;
+    } catch (networkErr) {
+      // Network-level failure (no response at all — Render still waking up)
+      if (attempt < maxRetries) {
+        const delay = delays[attempt] ?? 6000;
+        onRetry?.(attempt + 1, delay);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+      throw networkErr;
+    }
+  }
+  // Unreachable, but TypeScript needs this
+  throw new Error('Max retries exceeded');
+};
+
 export const loginApi = async (username: string, password: string): Promise<AuthenticatedUser> => {
   const res = await fetch(`${API_BASE_URL}/auth/login`, {
     method: 'POST',
@@ -542,15 +580,17 @@ export interface SmartImportPreviewResult {
   sampleRows: Record<string, any>[];
 }
 
-export const fetchWorksheetSummariesApi = async (): Promise<WorksheetSummary[]> => {
-  const res = await apiFetch(`${API_BASE_URL}/worksheets`);
+export const fetchWorksheetSummariesApi = async (
+  onRetry?: (attempt: number, delayMs: number) => void
+): Promise<WorksheetSummary[]> => {
+  const res = await fetchWithRetry(`${API_BASE_URL}/worksheets`, {}, 3, onRetry);
   if (!res.ok) {
     const json = await res.json().catch(() => null);
     if (res.status === 401) {
       throw new Error('Authentication required. Please sign in again.');
     }
-    if (res.status === 502 || res.status === 504) {
-      throw new Error('Backend server is waking up or temporarily unavailable. Please retry in a moment.');
+    if (res.status === 502 || res.status === 503 || res.status === 504) {
+      throw new Error('Backend server is temporarily unavailable. Please try again in a moment.');
     }
     throw new Error(json?.message || `Failed to fetch worksheets (${res.status} ${res.statusText})`);
   }
@@ -558,15 +598,18 @@ export const fetchWorksheetSummariesApi = async (): Promise<WorksheetSummary[]> 
   return json.data;
 };
 
-export const fetchWorksheetDetailApi = async (sheetId: string): Promise<WorksheetDetail> => {
-  const res = await apiFetch(`${API_BASE_URL}/worksheets/${sheetId}`);
+export const fetchWorksheetDetailApi = async (
+  sheetId: string,
+  onRetry?: (attempt: number, delayMs: number) => void
+): Promise<WorksheetDetail> => {
+  const res = await fetchWithRetry(`${API_BASE_URL}/worksheets/${sheetId}`, {}, 3, onRetry);
   if (!res.ok) {
     const json = await res.json().catch(() => null);
     if (res.status === 401) {
       throw new Error('Authentication required. Please sign in again.');
     }
-    if (res.status === 502 || res.status === 504) {
-      throw new Error('Backend server is waking up. Please retry in a moment.');
+    if (res.status === 502 || res.status === 503 || res.status === 504) {
+      throw new Error('Backend server is temporarily unavailable. Please try again in a moment.');
     }
     throw new Error(json?.message || `Failed to fetch worksheet ${sheetId} (${res.status} ${res.statusText})`);
   }
