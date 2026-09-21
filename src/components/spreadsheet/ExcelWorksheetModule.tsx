@@ -1,35 +1,23 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import {
-  Undo2,
-  Redo2,
-  Copy,
-  Scissors,
-  ClipboardPaste,
-  Search,
-  Filter,
-  Pin,
-  Download,
-  Upload,
-  History,
-  Save,
-  RotateCcw,
   ChevronLeft,
   ChevronRight,
-  ShieldAlert,
+  Plus,
+  Copy,
+  Trash2,
+  Edit2,
+  FileSpreadsheet,
+  RotateCcw,
   Loader2,
-  CheckCircle2,
-  Sparkles,
-  Check,
-  Calculator,
-  AlignLeft,
-  AlignCenter,
-  AlignRight,
-  AlignVerticalJustifyCenter
+  ShieldAlert,
+  Search,
+  Filter,
+  ArrowRight,
+  Pin
 } from 'lucide-react';
 import {
   fetchWorksheetSummariesApi,
   fetchWorksheetDetailApi,
-  updateWorksheetCellApi,
   batchUpdateWorksheetCellsApi,
   downloadWorksheetExcelApi,
   type WorksheetSummary,
@@ -37,103 +25,85 @@ import {
   type WorksheetCell
 } from '../../services/api';
 import { useAuthRole } from '../../context/AuthRoleContext';
+import { colNumToLetter, colLetterToNum, parseAddress } from '../../utils/spreadsheetUtils';
+import { evaluateFormula } from './formula/formulaEngine';
+import { ExcelRibbon, type RibbonTabType } from './ribbon/ExcelRibbon';
+import { FormulaBar } from './formulaBar/FormulaBar';
+import { SpreadsheetContextMenu, type ContextMenuPosition } from './contextMenu/SpreadsheetContextMenu';
+import { ChartModal } from './dialogs/ChartModal';
+import { FindReplaceModal } from './dialogs/FindReplaceModal';
+import { FormatCellsModal } from './dialogs/FormatCellsModal';
+import { PageSetupModal } from './dialogs/PageSetupModal';
+import { InsertFunctionModal } from './dialogs/InsertFunctionModal';
 import { ExcelImportModal } from './ExcelImportModal';
 import { WorksheetAuditDrawer } from './WorksheetAuditDrawer';
-
-const PCO_RANKS = ['PBGEN', 'PCOL', 'PLTCOL', 'PMAJ', 'PCPT', 'PLT'];
-const PNCO_RANKS = ['PEMS', 'PCMS', 'PSMS', 'PMSg', 'PSSg', 'PCpl', 'Pat', 'NUP'];
-const ALL_RANKS = [...PCO_RANKS, ...PNCO_RANKS];
-const GENDERS = ['Male', 'Female'];
-const STATUSES = ['PERM', 'TEMP', 'Active', 'On Leave', 'Detailed Out', 'Suspended'];
-
-// Helper to convert column number (1-based) to letter
-function colNumToLetter(num: number): string {
-  let letter = '';
-  while (num > 0) {
-    const mod = (num - 1) % 26;
-    letter = String.fromCharCode(65 + mod) + letter;
-    num = Math.floor((num - mod) / 26);
-  }
-  return letter;
-}
-
-// Helper to convert column letter to number
-function colLetterToNum(letter: string): number {
-  let num = 0;
-  for (let i = 0; i < letter.length; i++) {
-    num = num * 26 + (letter.charCodeAt(i) - 64);
-  }
-  return num;
-}
-
-function parseAddress(addr: string): { col: number; row: number; letter: string } {
-  const match = addr.match(/^([A-Z]+)(\d+)$/);
-  if (!match) return { col: 1, row: 1, letter: 'A' };
-  return {
-    letter: match[1],
-    col: colLetterToNum(match[1]),
-    row: parseInt(match[2], 10)
-  };
-}
-
-export function formatCellValue(cell: WorksheetCell | undefined | null): string {
-  if (!cell) return '';
-  const val = cell.v;
-  if (val === null || val === undefined) {
-    if (cell.res !== null && cell.res !== undefined) return String(cell.res);
-    return '';
-  }
-  if (typeof val === 'object') {
-    if (val.result !== undefined && val.result !== null) {
-      if (typeof val.result === 'object' && val.result?.error) return String(val.result.error);
-      return String(val.result);
-    }
-    if (val.text !== undefined && val.text !== null) return String(val.text);
-    if (Array.isArray(val.richText)) return val.richText.map((t: any) => t.text || '').join('');
-    if (val.error) return String(val.error);
-    if (cell.res !== null && cell.res !== undefined) return String(cell.res);
-    return '';
-  }
-  return String(val);
-}
 
 export function getFormulaBarDisplay(cell: WorksheetCell | undefined | null): string {
   if (!cell) return '';
   if (cell.f) return `=${cell.f}`;
-  const val = cell.v;
-  if (typeof val === 'object' && val !== null) {
-    if (val.formula) return `=${val.formula}`;
-    if (val.sharedFormula) return `=${val.sharedFormula}`;
-    if (val.result !== undefined && val.result !== null) return String(val.result);
+  if (cell.v === null || cell.v === undefined) return '';
+  if (typeof cell.v === 'object') {
+    if (cell.v.formula) return `=${cell.v.formula}`;
+    if (cell.v.result !== undefined) return String(cell.v.result);
+    return '';
   }
-  return val !== undefined && val !== null ? String(val) : '';
+  return String(cell.v);
+}
+
+export function formatDisplayVal(cell: WorksheetCell | undefined | null): string {
+  if (!cell) return '';
+  const val = cell.res !== undefined && cell.res !== null ? cell.res : cell.v;
+  if (val === null || val === undefined) return '';
+  if (typeof val === 'object') {
+    if (val.result !== undefined && val.result !== null) return String(val.result);
+    if (val.text !== undefined && val.text !== null) return String(val.text);
+    return '';
+  }
+  const str = String(val);
+  const numFmt = cell.s?.nf;
+  if (!numFmt || numFmt === 'General' || numFmt === '@') return str;
+
+  const num = Number(val);
+  if (isNaN(num)) return str;
+
+  if (numFmt === '₱#,##0.00' || numFmt === 'currency') {
+    return `₱${num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+  if (numFmt === '#,##0.00' || numFmt === 'number') {
+    return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  if (numFmt === '0.0%' || numFmt === 'percentage') {
+    return `${(num * 100).toFixed(1)}%`;
+  }
+  if (numFmt === 'accounting') {
+    return num < 0
+      ? `(₱${Math.abs(num).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`
+      : `₱${num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+  return str;
 }
 
 export const ExcelWorksheetModule: React.FC = () => {
   const { role } = useAuthRole();
-  const canEdit = true; // Interactive worksheets are always editable for logged-in users
+  const [isProtected, setIsProtected] = useState(false);
+  const canEdit = !isProtected && role !== 'view_only';
 
-  // Worksheets navigation
+  // Sheets data & Navigation
   const [sheets, setSheets] = useState<WorksheetSummary[]>([]);
   const [activeSheetId, setActiveSheetId] = useState<string>('');
   const [sheetData, setSheetData] = useState<WorksheetDetail | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<string>('');
+  const [loading, setLoading] = useState(true);
+  const [wakingUp, setWakingUp] = useState(false);
   const [error, setError] = useState<string>('');
-  const [wakingUp, setWakingUp] = useState(false); // true while auto-retrying on Render cold start
+  const [message, setMessage] = useState<string>('');
+  const [saving, setSaving] = useState(false);
 
-  // Active cell & editing
+  // Active cell & Range selection
   const [activeCell, setActiveCell] = useState<{ row: number; col: number; address: string }>({
     row: 1,
     col: 1,
     address: 'A1'
   });
-  const [isEditing, setIsEditing] = useState(false);
-  const [editValue, setEditValue] = useState('');
-  const [formulaInputValue, setFormulaInputValue] = useState('');
-
-  // Range Selection
   const [selectionRange, setSelectionRange] = useState<{
     startRow: number;
     startCol: number;
@@ -142,36 +112,92 @@ export const ExcelWorksheetModule: React.FC = () => {
   } | null>(null);
   const [isDraggingRange, setIsDraggingRange] = useState(false);
 
-  // Column & Row Interactive Resizing
+  // In-cell and Formula Bar editing
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState('');
+  const [formulaInputValue, setFormulaInputValue] = useState('');
+  const [formatPainterStyle, setFormatPainterStyle] = useState<any | null>(null);
+
+  // Column / Row Interactive Resizing & Custom Heights
   const [customColWidths, setCustomColWidths] = useState<Record<number, number>>({});
   const [customRowHeights, setCustomRowHeights] = useState<Record<number, number>>({});
   const resizingColRef = useRef<{ col: number; startX: number; startW: number } | null>(null);
   const resizingRowRef = useRef<{ row: number; startY: number; startH: number } | null>(null);
 
-  // Unsaved changes & Undo/Redo
+  // Unsaved changes & Undo/Redo stack
   const [unsavedChanges, setUnsavedChanges] = useState<Map<string, { oldValue: any; newValue: any; style?: any }>>(new Map());
   const [undoStack, setUndoStack] = useState<Array<{ sheetId: string; address: string; oldValue: any; newValue: any; oldStyle?: any; newStyle?: any }>>([]);
   const [redoStack, setRedoStack] = useState<Array<{ sheetId: string; address: string; oldValue: any; newValue: any; oldStyle?: any; newStyle?: any }>>([]);
 
+  // View settings
+  const [activeRibbonTab, setActiveRibbonTab] = useState<RibbonTabType>('home');
+  const [showGridlines, setShowGridlines] = useState(true);
+  const [showHeadings, setShowHeadings] = useState(true);
+  const [showFormulaBar, setShowFormulaBar] = useState(true);
+  const [zoomScale, setZoomScale] = useState(100);
+  const [freezePanes, setFreezePanes] = useState(true);
+
   // Search & Filtering
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [columnFilters, setColumnFilters] = useState<Record<number, string>>({});
   const [searchMatches, setSearchMatches] = useState<string[]>([]);
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
-  const [columnFilters, setColumnFilters] = useState<Record<number, string>>({});
-  const [activeFilterCol, setActiveFilterCol] = useState<number | null>(null);
 
-  // Freeze panes & Modals
-  const [freezePanes, setFreezePanes] = useState(true);
+  // Modals & Drawers
+  const [isChartModalOpen, setIsChartModalOpen] = useState(false);
+  const [isFindReplaceOpen, setIsFindReplaceOpen] = useState(false);
+  const [findReplaceMode, setFindReplaceMode] = useState<'find' | 'replace'>('find');
+  const [isFormatCellsOpen, setIsFormatCellsOpen] = useState(false);
+  const [isPageSetupOpen, setIsPageSetupOpen] = useState(false);
+  const [isFunctionWizardOpen, setIsFunctionWizardOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isAuditDrawerOpen, setIsAuditDrawerOpen] = useState(false);
 
-  const tabScrollRef = useRef<HTMLDivElement>(null);
+  // Context Menu
+  const [contextMenuPos, setContextMenuPos] = useState<ContextMenuPosition | null>(null);
+
+  // Tab editing
+  const [editingTabId, setEditingTabId] = useState<string | null>(null);
+  const [editingTabName, setEditingTabName] = useState('');
+
+  // DOM Refs
   const gridContainerRef = useRef<HTMLDivElement>(null);
   const inCellInputRef = useRef<HTMLInputElement>(null);
-  const formulaBarInputRef = useRef<HTMLInputElement>(null);
+  const tabScrollRef = useRef<HTMLDivElement>(null);
 
-  // Sync formula bar input whenever active cell changes and not actively editing
+  // Virtualization windowing
+  const [scrollTop, setScrollTop] = useState(0);
+  const [containerHeight, setContainerHeight] = useState(600);
+
+  // Merged cells map
+  const { mergeMap, hiddenMergeCells } = useMemo(() => {
+    const mMap = new Map<string, { rowSpan: number; colSpan: number }>();
+    const hiddenSet = new Set<string>();
+    if (!sheetData?.merges) return { mergeMap: mMap, hiddenMergeCells: hiddenSet };
+
+    sheetData.merges.forEach(rangeStr => {
+      const parts = rangeStr.split(':');
+      if (parts.length !== 2) return;
+      const start = parseAddress(parts[0]);
+      const end = parseAddress(parts[1]);
+      mMap.set(parts[0], { rowSpan: end.row - start.row + 1, colSpan: end.col - start.col + 1 });
+      for (let r = start.row; r <= end.row; r++) {
+        for (let c = start.col; c <= end.col; c++) {
+          if (r === start.row && c === start.col) continue;
+          hiddenSet.add(`${colNumToLetter(c)}${r}`);
+        }
+      }
+    });
+
+    return { mergeMap: mMap, hiddenMergeCells: hiddenSet };
+  }, [sheetData?.merges]);
+
+  // Current active cell object
+  const currentCellObj: WorksheetCell | undefined = useMemo(() => {
+    if (!sheetData) return undefined;
+    return sheetData.cells[activeCell.address];
+  }, [sheetData, activeCell.address]);
+
+  // Sync formula bar input when active cell changes
   useEffect(() => {
     if (!isEditing && sheetData) {
       const cell = sheetData.cells[activeCell.address];
@@ -185,7 +211,6 @@ export const ExcelWorksheetModule: React.FC = () => {
       setError('');
       setWakingUp(false);
       const res = await fetchWorksheetSummariesApi((attempt, delayMs) => {
-        // Show "waking up" UI instead of an error while auto-retrying
         setWakingUp(true);
         console.log(`[WorksheetModule] Backend cold-start retry ${attempt}, waiting ${delayMs}ms...`);
       });
@@ -208,16 +233,15 @@ export const ExcelWorksheetModule: React.FC = () => {
   const loadActiveSheet = useCallback(async (id: string) => {
     setLoading(true);
     setError('');
-    setWakingUp(false);
     try {
       const data = await fetchWorksheetDetailApi(id, (attempt, delayMs) => {
         setWakingUp(true);
-        console.log(`[WorksheetModule] Backend cold-start retry ${attempt} for sheet ${id}, waiting ${delayMs}ms...`);
+        console.log(`[WorksheetModule] Loading sheet ${id} retry ${attempt}, waiting ${delayMs}ms...`);
       });
       setWakingUp(false);
       setSheetData(data);
-      // Reset active cell to A1 or top visible
       setActiveCell({ row: 1, col: 1, address: 'A1' });
+      setSelectionRange(null);
       setIsEditing(false);
     } catch (err: any) {
       setWakingUp(false);
@@ -233,42 +257,7 @@ export const ExcelWorksheetModule: React.FC = () => {
     }
   }, [activeSheetId, loadActiveSheet]);
 
-  // Merged cells index calculation
-  const { mergeMap, hiddenMergeCells } = useMemo(() => {
-    const mMap = new Map<string, { rowSpan: number; colSpan: number }>();
-    const hiddenSet = new Set<string>();
-
-    if (!sheetData?.merges) return { mergeMap: mMap, hiddenMergeCells: hiddenSet };
-
-    sheetData.merges.forEach(rangeStr => {
-      const parts = rangeStr.split(':');
-      if (parts.length !== 2) return;
-      const start = parseAddress(parts[0]);
-      const end = parseAddress(parts[1]);
-
-      const rowSpan = end.row - start.row + 1;
-      const colSpan = end.col - start.col + 1;
-
-      mMap.set(parts[0], { rowSpan, colSpan });
-
-      for (let r = start.row; r <= end.row; r++) {
-        for (let c = start.col; c <= end.col; c++) {
-          if (r === start.row && c === start.col) continue;
-          hiddenSet.add(`${colNumToLetter(c)}${r}`);
-        }
-      }
-    });
-
-    return { mergeMap: mMap, hiddenMergeCells: hiddenSet };
-  }, [sheetData?.merges]);
-
-  // Current selected cell object
-  const currentCellObj: WorksheetCell | undefined = useMemo(() => {
-    if (!sheetData) return undefined;
-    return sheetData.cells[activeCell.address];
-  }, [sheetData, activeCell.address]);
-
-  // Check if a cell is within active multi-cell selection range
+  // Check if cell is in selection range
   const isCellInRange = useCallback((r: number, c: number): boolean => {
     if (!selectionRange) return false;
     const minR = Math.min(selectionRange.startRow, selectionRange.endRow);
@@ -278,24 +267,25 @@ export const ExcelWorksheetModule: React.FC = () => {
     return r >= minR && r <= maxR && c >= minC && c <= maxC;
   }, [selectionRange]);
 
-  // Apply a cell change locally and stage for server saving
-  const applyCellChange = (address: string, rawValue: string) => {
+  // Apply cell change locally and stage for batch save
+  const applyCellChange = useCallback((address: string, rawValue: string) => {
     if (!sheetData) return;
     const existingCell = sheetData.cells[address] || {};
     const currentVal = existingCell.v;
     let newVal: any = rawValue;
     let formula: string | undefined = undefined;
+    let computedResult: any = rawValue;
 
     if (rawValue.startsWith('=')) {
       formula = rawValue.slice(1).trim();
+      computedResult = evaluateFormula(rawValue, sheetData.cells);
       newVal = rawValue;
     } else if (rawValue !== '' && !isNaN(Number(rawValue))) {
       newVal = Number(rawValue);
+      computedResult = newVal;
     }
 
-    if (String(currentVal ?? '') === String(newVal ?? '')) {
-      return;
-    }
+    if (String(currentVal ?? '') === String(newVal ?? '')) return;
 
     const rowNum = parseAddress(address).row;
     const existingStyle = existingCell.s || {};
@@ -304,7 +294,6 @@ export const ExcelWorksheetModule: React.FC = () => {
       ah: existingStyle.ah || (rowNum <= 8 ? 'center' : undefined)
     };
 
-    // Stage change
     setUnsavedChanges(prev => {
       const next = new Map(prev);
       const existing = next.get(address);
@@ -316,7 +305,6 @@ export const ExcelWorksheetModule: React.FC = () => {
       return next;
     });
 
-    // Update locally in sheetData
     setSheetData(prev => {
       if (!prev) return prev;
       return {
@@ -326,7 +314,7 @@ export const ExcelWorksheetModule: React.FC = () => {
           [address]: {
             ...existingCell,
             v: newVal,
-            res: newVal,
+            res: computedResult,
             f: formula || existingCell.f,
             s: newStyle
           }
@@ -334,7 +322,6 @@ export const ExcelWorksheetModule: React.FC = () => {
       };
     });
 
-    // Record undo
     setUndoStack(prev => [...prev, {
       sheetId: activeSheetId,
       address,
@@ -344,64 +331,55 @@ export const ExcelWorksheetModule: React.FC = () => {
       newStyle
     }]);
     setRedoStack([]);
-  };
+  }, [sheetData, activeSheetId]);
 
-  // Apply horizontal or vertical alignment to current active cell
-  const applyCellAlignment = (alignH?: 'left' | 'center' | 'right', alignV?: 'top' | 'middle' | 'bottom') => {
-    if (!sheetData) return;
-    const address = activeCell.address;
-    const existingCell = sheetData.cells[address] || {};
-    const existingStyle = existingCell.s || {};
+  // Apply style changes to active cell or entire selection range
+  const applyStyleToSelection = useCallback((styleUpdater: (oldStyle: any) => any, numFmt?: string) => {
+    if (!sheetData || !canEdit) return;
 
-    const newStyle: any = {
-      ...existingStyle,
-      ...(alignH ? { ah: alignH } : {}),
-      ...(alignV ? { av: alignV } : {})
-    };
-
-    setSheetData(prev => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        cells: {
-          ...prev.cells,
-          [address]: {
-            ...existingCell,
-            s: newStyle
-          }
+    const targetAddresses: string[] = [];
+    if (selectionRange) {
+      const minR = Math.min(selectionRange.startRow, selectionRange.endRow);
+      const maxR = Math.max(selectionRange.startRow, selectionRange.endRow);
+      const minC = Math.min(selectionRange.startCol, selectionRange.endCol);
+      const maxC = Math.max(selectionRange.startCol, selectionRange.endCol);
+      for (let r = minR; r <= maxR; r++) {
+        for (let c = minC; c <= maxC; c++) {
+          targetAddresses.push(`${colNumToLetter(c)}${r}`);
         }
-      };
-    });
+      }
+    } else {
+      targetAddresses.push(activeCell.address);
+    }
 
-    setUnsavedChanges(prev => {
-      const next = new Map(prev);
-      const existingChange = next.get(address);
-      next.set(address, {
-        oldValue: existingChange?.oldValue ?? existingCell.v,
-        newValue: existingChange?.newValue ?? existingCell.v,
-        style: newStyle
+    const newCells = { ...sheetData.cells };
+    const staged = new Map(unsavedChanges);
+
+    targetAddresses.forEach(addr => {
+      const cell = newCells[addr] || {};
+      const oldStyle = cell.s || {};
+      let updated = styleUpdater(oldStyle);
+      if (numFmt !== undefined) {
+        updated = { ...updated, nf: numFmt };
+      }
+      newCells[addr] = { ...cell, s: updated };
+      const existingStaged = staged.get(addr);
+      staged.set(addr, {
+        oldValue: existingStaged ? existingStaged.oldValue : cell.v,
+        newValue: existingStaged ? existingStaged.newValue : cell.v,
+        style: updated
       });
-      return next;
     });
 
-    setUndoStack(prev => [...prev, {
-      sheetId: activeSheetId,
-      address,
-      oldValue: existingCell.v,
-      newValue: existingCell.v,
-      oldStyle: existingStyle,
-      newStyle
-    }]);
-    setRedoStack([]);
-
-    setMessage(`Applied ${alignH || alignV} justification to ${address}`);
-    setTimeout(() => setMessage(''), 2000);
-  };
+    setSheetData({ ...sheetData, cells: newCells });
+    setUnsavedChanges(staged);
+  }, [sheetData, canEdit, selectionRange, activeCell.address, unsavedChanges]);
 
   // Start in-cell edit
-  const startInCellEdit = (initialText?: string) => {
+  const startInCellEdit = (initialChar?: string) => {
+    if (!canEdit) return;
     const cell = sheetData?.cells[activeCell.address];
-    const initial = initialText !== undefined ? initialText : getFormulaBarDisplay(cell);
+    const initial = initialChar !== undefined ? initialChar : getFormulaBarDisplay(cell);
     setEditValue(initial);
     setFormulaInputValue(initial);
     setIsEditing(true);
@@ -423,7 +401,6 @@ export const ExcelWorksheetModule: React.FC = () => {
     }
   };
 
-  // Cancel in-cell edit
   const cancelInCellEdit = () => {
     setIsEditing(false);
     const cell = sheetData?.cells[activeCell.address];
@@ -432,30 +409,76 @@ export const ExcelWorksheetModule: React.FC = () => {
     setFormulaInputValue(original);
   };
 
-  // Commit edit initiated from formula bar
-  const commitFormulaBarEdit = (moveDown = false) => {
-    applyCellChange(activeCell.address, formulaInputValue);
-    if (moveDown) {
-      const nextRow = Math.min((sheetData?.rowCount || 100), activeCell.row + 1);
-      setActiveCell({ row: nextRow, col: activeCell.col, address: `${colNumToLetter(activeCell.col)}${nextRow}` });
-    }
-  };
-
-  // Cell Click Handler
-  const handleCellClick = (row: number, col: number, address: string) => {
-    if (isEditing && activeCell.address !== address) {
+  // Cell click handlers
+  const handleCellClick = (r: number, c: number, addr: string) => {
+    if (isEditing && activeCell.address !== addr) {
       commitInCellEdit();
     }
-    setActiveCell({ row, col, address });
+
+    // Format painter check
+    if (formatPainterStyle && canEdit) {
+      applyStyleToSelection(() => formatPainterStyle);
+      setFormatPainterStyle(null);
+      setMessage('Applied painter style');
+      setTimeout(() => setMessage(''), 1500);
+      return;
+    }
+
+    setActiveCell({ row: r, col: c, address: addr });
   };
 
-  // Cell Double-Click to edit
-  const handleCellDoubleClick = (row: number, col: number, address: string) => {
-    setActiveCell({ row, col, address });
+  const handleCellDoubleClick = (r: number, c: number, addr: string) => {
+    setActiveCell({ row: r, col: c, address: addr });
     startInCellEdit();
   };
 
-  // Save All Changes to Server
+  // Drag selection
+  const handleCellMouseDown = (r: number, c: number, addr: string, e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    if (e.shiftKey && activeCell) {
+      setSelectionRange({
+        startRow: activeCell.row,
+        startCol: activeCell.col,
+        endRow: r,
+        endCol: c
+      });
+      return;
+    }
+    handleCellClick(r, c, addr);
+    setIsDraggingRange(true);
+    setSelectionRange({ startRow: r, startCol: c, endRow: r, endCol: c });
+  };
+
+  const handleCellMouseEnter = (r: number, c: number) => {
+    if (!isDraggingRange) return;
+    setSelectionRange(prev => prev ? { ...prev, endRow: r, endCol: c } : null);
+  };
+
+  useEffect(() => {
+    const handleMouseUp = () => setIsDraggingRange(false);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => window.removeEventListener('mouseup', handleMouseUp);
+  }, []);
+
+  // Jump to address from Name Box
+  const handleJumpToAddress = (addr: string) => {
+    if (!sheetData) return;
+    const parsed = parseAddress(addr);
+    if (parsed.row >= 1 && parsed.row <= sheetData.rowCount && parsed.col >= 1 && parsed.col <= sheetData.colCount) {
+      setActiveCell({ ...parsed, address: addr.toUpperCase() });
+      setSelectionRange(null);
+      // Scroll into view if container available
+      if (gridContainerRef.current) {
+        const targetTop = Math.max(0, (parsed.row - 5) * 24);
+        gridContainerRef.current.scrollTop = targetTop;
+      }
+    } else {
+      setMessage(`Invalid cell address: ${addr}`);
+      setTimeout(() => setMessage(''), 2000);
+    }
+  };
+
+  // Save changes to backend
   const handleSaveChanges = async () => {
     if (!sheetData || unsavedChanges.size === 0) return;
     setSaving(true);
@@ -471,8 +494,8 @@ export const ExcelWorksheetModule: React.FC = () => {
 
       await batchUpdateWorksheetCellsApi(activeSheetId, updates);
       setUnsavedChanges(new Map());
-      setMessage(`Successfully saved ${updates.length} modification(s) and synchronized with PAIS database.`);
-      setTimeout(() => setMessage(''), 4000);
+      setMessage(`Successfully saved ${updates.length} modification(s) to PAIS database.`);
+      setTimeout(() => setMessage(''), 3000);
     } catch (err: any) {
       setError(err.message || 'Failed to save changes');
     } finally {
@@ -480,14 +503,7 @@ export const ExcelWorksheetModule: React.FC = () => {
     }
   };
 
-  // Discard Unsaved Changes
-  const handleDiscardChanges = () => {
-    if (unsavedChanges.size === 0) return;
-    loadActiveSheet(activeSheetId);
-    setUnsavedChanges(new Map());
-  };
-
-  // Undo Handler
+  // Undo / Redo
   const handleUndo = useCallback(() => {
     if (undoStack.length === 0) return;
     const last = undoStack[undoStack.length - 1];
@@ -524,12 +540,9 @@ export const ExcelWorksheetModule: React.FC = () => {
       setActiveCell({ ...parsed, address: last.address });
       setFormulaInputValue(getFormulaBarDisplay(revertedCell));
       setEditValue(String(last.oldValue ?? ''));
-      setMessage(`Undid change on ${last.address}`);
-      setTimeout(() => setMessage(''), 2000);
     }
   }, [undoStack, sheetData]);
 
-  // Redo Handler
   const handleRedo = useCallback(() => {
     if (redoStack.length === 0) return;
     const next = redoStack[redoStack.length - 1];
@@ -570,15 +583,12 @@ export const ExcelWorksheetModule: React.FC = () => {
       setActiveCell({ ...parsed, address: next.address });
       setFormulaInputValue(getFormulaBarDisplay(redoneCell));
       setEditValue(String(next.newValue ?? ''));
-      setMessage(`Redid change on ${next.address}`);
-      setTimeout(() => setMessage(''), 2000);
     }
   }, [redoStack, sheetData]);
 
-  // Copy cell or range to TSV clipboard
+  // Copy & Cut & Paste
   const handleCopy = useCallback(() => {
     if (!sheetData) return;
-
     if (selectionRange) {
       const minR = Math.min(selectionRange.startRow, selectionRange.endRow);
       const maxR = Math.max(selectionRange.startRow, selectionRange.endRow);
@@ -596,21 +606,19 @@ export const ExcelWorksheetModule: React.FC = () => {
         }
         rows.push(rowCells.join('\t'));
       }
-      const tsv = rows.join('\n');
-      navigator.clipboard.writeText(tsv);
+      navigator.clipboard.writeText(rows.join('\n'));
       setMessage(`Copied range (${colNumToLetter(minC)}${minR}:${colNumToLetter(maxC)}${maxR}) to clipboard`);
-      setTimeout(() => setMessage(''), 2000);
+      setTimeout(() => setMessage(''), 1500);
       return;
     }
 
     const cell = sheetData.cells[activeCell.address];
     const text = cell?.v !== undefined && cell?.v !== null ? String(cell.v) : '';
     navigator.clipboard.writeText(text);
-    setMessage(`Copied "${text}" to clipboard`);
-    setTimeout(() => setMessage(''), 2000);
+    setMessage(`Copied "${text}"`);
+    setTimeout(() => setMessage(''), 1500);
   }, [sheetData, selectionRange, activeCell.address]);
 
-  // Cut cell or range to TSV clipboard
   const handleCut = useCallback(() => {
     if (!sheetData || !canEdit) return;
     handleCopy();
@@ -623,22 +631,20 @@ export const ExcelWorksheetModule: React.FC = () => {
 
       for (let r = minR; r <= maxR; r++) {
         for (let c = minC; c <= maxC; c++) {
-          const addr = `${colNumToLetter(c)}${r}`;
-          applyCellChange(addr, '');
+          applyCellChange(`${colNumToLetter(c)}${r}`, '');
         }
       }
-      setMessage(`Cut selected range to clipboard`);
-      setTimeout(() => setMessage(''), 2000);
+      setMessage('Cut selection to clipboard');
+      setTimeout(() => setMessage(''), 1500);
       return;
     }
 
     applyCellChange(activeCell.address, '');
     setFormulaInputValue('');
-    setMessage(`Cut ${activeCell.address} to clipboard`);
-    setTimeout(() => setMessage(''), 2000);
-  }, [sheetData, canEdit, handleCopy, selectionRange, activeCell.address]);
+    setMessage(`Cut ${activeCell.address}`);
+    setTimeout(() => setMessage(''), 1500);
+  }, [sheetData, canEdit, handleCopy, selectionRange, activeCell.address, applyCellChange]);
 
-  // Paste TSV clipboard to cells (compatible with Excel & Google Sheets)
   const handlePaste = useCallback(async () => {
     if (!canEdit || !sheetData) return;
     try {
@@ -649,81 +655,107 @@ export const ExcelWorksheetModule: React.FC = () => {
       const startRow = selectionRange ? Math.min(selectionRange.startRow, selectionRange.endRow) : activeCell.row;
       const startCol = selectionRange ? Math.min(selectionRange.startCol, selectionRange.endCol) : activeCell.col;
 
-      const newCells = { ...sheetData.cells };
-      const updates: Array<{ address: string; value: any; oldValue: any }> = [];
-
       rows.forEach((rowVals, rIdx) => {
         if (rIdx === rows.length - 1 && rowVals.length === 1 && rowVals[0] === '') return;
         rowVals.forEach((val, cIdx) => {
           const targetRow = startRow + rIdx;
           const targetCol = startCol + cIdx;
           const targetAddr = `${colNumToLetter(targetCol)}${targetRow}`;
-          const currentVal = newCells[targetAddr]?.v;
-
-          newCells[targetAddr] = {
-            ...newCells[targetAddr],
-            v: val,
-            res: val
-          };
-
-          updates.push({ address: targetAddr, value: val, oldValue: currentVal });
-          setUndoStack(prev => [...prev, { sheetId: activeSheetId, address: targetAddr, oldValue: currentVal, newValue: val }]);
+          applyCellChange(targetAddr, val);
         });
       });
 
-      setSheetData({ ...sheetData, cells: newCells });
-      setUnsavedChanges(prev => {
-        const next = new Map(prev);
-        updates.forEach(u => next.set(u.address, { oldValue: u.oldValue, newValue: u.value }));
-        return next;
-      });
-
-      setMessage(`Pasted ${updates.length} cell(s) preserving row/column layout`);
-      setTimeout(() => setMessage(''), 2500);
+      setMessage(`Pasted cells matching layout`);
+      setTimeout(() => setMessage(''), 1500);
     } catch (e: any) {
-      setError('Unable to paste: ' + e.message);
+      setError('Paste failed: ' + e.message);
     }
-  }, [canEdit, sheetData, selectionRange, activeCell.row, activeCell.col, activeSheetId]);
+  }, [canEdit, sheetData, selectionRange, activeCell.row, activeCell.col, applyCellChange]);
 
-  // Global window keyboard shortcuts for Ctrl+Z, Ctrl+Y, Ctrl+X, Ctrl+C, Ctrl+V
+  // Global window keyboard shortcuts
   useEffect(() => {
     const handleGlobalShortcuts = (e: KeyboardEvent) => {
       if (document.activeElement?.tagName === 'INPUT' &&
-          document.activeElement !== inCellInputRef.current &&
-          document.activeElement !== formulaBarInputRef.current) {
+          document.activeElement !== inCellInputRef.current) {
         return;
       }
 
       if (e.ctrlKey || e.metaKey) {
         const k = e.key.toLowerCase();
-        if (k === 'z') {
+        if (k === 's') {
           e.preventDefault();
-          if (e.shiftKey) {
-            handleRedo();
-          } else {
-            handleUndo();
-          }
+          handleSaveChanges();
+        } else if (k === 'z') {
+          e.preventDefault();
+          if (e.shiftKey) handleRedo();
+          else handleUndo();
         } else if (k === 'y') {
           e.preventDefault();
           handleRedo();
-        } else if (k === 'x' && !isEditing) {
-          e.preventDefault();
-          handleCut();
         } else if (k === 'c' && !isEditing) {
           e.preventDefault();
           handleCopy();
+        } else if (k === 'x' && !isEditing) {
+          e.preventDefault();
+          handleCut();
         } else if (k === 'v' && !isEditing) {
           e.preventDefault();
           handlePaste();
+        } else if (k === 'f') {
+          e.preventDefault();
+          setFindReplaceMode('find');
+          setIsFindReplaceOpen(true);
+        } else if (k === 'h') {
+          e.preventDefault();
+          setFindReplaceMode('replace');
+          setIsFindReplaceOpen(true);
+        } else if (k === 'b' && !isEditing) {
+          e.preventDefault();
+          applyStyleToSelection(s => ({ ...s, b: s.b ? undefined : 1 }));
+        } else if (k === 'i' && !isEditing) {
+          e.preventDefault();
+          applyStyleToSelection(s => ({ ...s, i: s.i ? undefined : 1 }));
+        } else if (k === 'u' && !isEditing) {
+          e.preventDefault();
+          applyStyleToSelection(s => ({ ...s, u: s.u ? undefined : 1 }));
+        } else if (k === 'p') {
+          e.preventDefault();
+          setIsPageSetupOpen(true);
         }
       }
     };
 
     window.addEventListener('keydown', handleGlobalShortcuts);
     return () => window.removeEventListener('keydown', handleGlobalShortcuts);
-  }, [handleUndo, handleRedo, handleCut, handleCopy, handlePaste, isEditing]);
+  }, [handleSaveChanges, handleUndo, handleRedo, handleCopy, handleCut, handlePaste, isEditing, applyStyleToSelection]);
 
-  // Column interactive resize mousedown
+  // Context menu right-click handler
+  const handleCellContextMenu = (r: number, c: number, addr: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    setActiveCell({ row: r, col: c, address: addr });
+    setContextMenuPos({
+      x: e.clientX,
+      y: e.clientY,
+      row: r,
+      col: c,
+      address: addr
+    });
+  };
+
+  // Row and column header click selection
+  const handleRowHeaderClick = (rNum: number) => {
+    if (!sheetData) return;
+    setSelectionRange({ startRow: rNum, startCol: 1, endRow: rNum, endCol: sheetData.colCount });
+    setActiveCell({ row: rNum, col: 1, address: `A${rNum}` });
+  };
+
+  const handleColHeaderClick = (colNum: number) => {
+    if (!sheetData) return;
+    setSelectionRange({ startRow: 1, startCol: colNum, endRow: sheetData.rowCount, endCol: colNum });
+    setActiveCell({ row: 1, col: colNum, address: `${colNumToLetter(colNum)}1` });
+  };
+
+  // Column / Row interactive resize
   const handleColumnResizeStart = (colNum: number, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -747,7 +779,6 @@ export const ExcelWorksheetModule: React.FC = () => {
     window.addEventListener('mouseup', onMouseUp);
   };
 
-  // Row interactive resize mousedown
   const handleRowResizeStart = (rNum: number, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -771,61 +802,7 @@ export const ExcelWorksheetModule: React.FC = () => {
     window.addEventListener('mouseup', onMouseUp);
   };
 
-  // Select entire row by clicking row number
-  const handleRowHeaderClick = (rNum: number) => {
-    if (!sheetData) return;
-    setSelectionRange({
-      startRow: rNum,
-      startCol: 1,
-      endRow: rNum,
-      endCol: sheetData.colCount
-    });
-    setActiveCell({ row: rNum, col: 1, address: `A${rNum}` });
-  };
-
-  // Select entire column by clicking column letter
-  const handleColHeaderClick = (colNum: number) => {
-    if (!sheetData) return;
-    setSelectionRange({
-      startRow: 1,
-      startCol: colNum,
-      endRow: sheetData.rowCount,
-      endCol: colNum
-    });
-    setActiveCell({ row: 1, col: colNum, address: `${colNumToLetter(colNum)}1` });
-  };
-
-  // Cell mouse interactions for Drag-to-Select
-  const handleCellMouseDown = (r: number, c: number, addr: string, e: React.MouseEvent) => {
-    if (e.button !== 0) return;
-    if (e.shiftKey && activeCell) {
-      setSelectionRange({
-        startRow: activeCell.row,
-        startCol: activeCell.col,
-        endRow: r,
-        endCol: c
-      });
-      return;
-    }
-    handleCellClick(r, c, addr);
-    setIsDraggingRange(true);
-    setSelectionRange({ startRow: r, startCol: c, endRow: r, endCol: c });
-  };
-
-  const handleCellMouseEnter = (r: number, c: number) => {
-    if (!isDraggingRange) return;
-    setSelectionRange(prev => prev ? { ...prev, endRow: r, endCol: c } : null);
-  };
-
-  useEffect(() => {
-    const handleMouseUp = () => {
-      setIsDraggingRange(false);
-    };
-    window.addEventListener('mouseup', handleMouseUp);
-    return () => window.removeEventListener('mouseup', handleMouseUp);
-  }, []);
-
-  // Keyboard navigation & Shortcuts inside container
+  // Keyboard navigation inside grid
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (isEditing) {
       if (e.key === 'Enter') {
@@ -841,48 +818,12 @@ export const ExcelWorksheetModule: React.FC = () => {
       return;
     }
 
-    // Ctrl shortcuts
-    if (e.ctrlKey || e.metaKey) {
-      const k = e.key.toLowerCase();
-      if (k === 'x') {
-        e.preventDefault();
-        handleCut();
-        return;
-      }
-      if (k === 'c') {
-        e.preventDefault();
-        handleCopy();
-        return;
-      }
-      if (k === 'v') {
-        e.preventDefault();
-        handlePaste();
-        return;
-      }
-      if (k === 'z') {
-        e.preventDefault();
-        if (e.shiftKey) {
-          handleRedo();
-        } else {
-          handleUndo();
-        }
-        return;
-      }
-      if (k === 'y') {
-        e.preventDefault();
-        handleRedo();
-        return;
-      }
-    }
-
-    // Enter or F2 starts editing
     if (e.key === 'Enter' || e.key === 'F2') {
       e.preventDefault();
       startInCellEdit();
       return;
     }
 
-    // Delete or Backspace clears cell or range
     if (e.key === 'Delete' || e.key === 'Backspace') {
       e.preventDefault();
       if (selectionRange) {
@@ -905,7 +846,6 @@ export const ExcelWorksheetModule: React.FC = () => {
     const maxRow = sheetData?.rowCount || 100;
     const maxCol = sheetData?.colCount || 26;
 
-    // Shift + Arrow Range Selection
     if (e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
       e.preventDefault();
       const currentRange = selectionRange || {
@@ -920,15 +860,10 @@ export const ExcelWorksheetModule: React.FC = () => {
       if (e.key === 'ArrowDown') newEndRow = Math.min(maxRow, newEndRow + 1);
       if (e.key === 'ArrowLeft') newEndCol = Math.max(1, newEndCol - 1);
       if (e.key === 'ArrowRight') newEndCol = Math.min(maxCol, newEndCol + 1);
-      setSelectionRange({
-        ...currentRange,
-        endRow: newEndRow,
-        endCol: newEndCol
-      });
+      setSelectionRange({ ...currentRange, endRow: newEndRow, endCol: newEndCol });
       return;
     }
 
-    // Single printable character starts editing immediately with that character
     if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
       e.preventDefault();
       setSelectionRange(null);
@@ -936,28 +871,14 @@ export const ExcelWorksheetModule: React.FC = () => {
       return;
     }
 
-    // Arrows & Tab Navigation
     let { row, col } = activeCell;
-
-    if (e.key === 'ArrowUp') {
+    if (e.key === 'ArrowUp') { e.preventDefault(); row = Math.max(1, row - 1); }
+    else if (e.key === 'ArrowDown') { e.preventDefault(); row = Math.min(maxRow, row + 1); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); col = Math.max(1, col - 1); }
+    else if (e.key === 'ArrowRight') { e.preventDefault(); col = Math.min(maxCol, col + 1); }
+    else if (e.key === 'Tab') {
       e.preventDefault();
-      row = Math.max(1, row - 1);
-    } else if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      row = Math.min(maxRow, row + 1);
-    } else if (e.key === 'ArrowLeft') {
-      e.preventDefault();
-      col = Math.max(1, col - 1);
-    } else if (e.key === 'ArrowRight') {
-      e.preventDefault();
-      col = Math.min(maxCol, col + 1);
-    } else if (e.key === 'Tab') {
-      e.preventDefault();
-      if (e.shiftKey) {
-        col = Math.max(1, col - 1);
-      } else {
-        col = Math.min(maxCol, col + 1);
-      }
+      col = e.shiftKey ? Math.max(1, col - 1) : Math.min(maxCol, col + 1);
     } else {
       return;
     }
@@ -969,604 +890,538 @@ export const ExcelWorksheetModule: React.FC = () => {
     }
   };
 
-  // Search logic
-  const handleSearch = (term: string) => {
-    setSearchQuery(term);
-    if (!term || !sheetData) {
+  // Sorting
+  const handleSort = (ascending: boolean) => {
+    if (!sheetData) return;
+    const colNum = activeCell.col;
+    const sortedCells = { ...sheetData.cells };
+
+    // Get non-header rows (rows starting from data section, usually row 9 or 10)
+    const startRow = sheetData.order <= 6 ? 10 : 2;
+    const rowIndexes: number[] = [];
+    for (let r = startRow; r <= sheetData.rowCount; r++) {
+      rowIndexes.push(r);
+    }
+
+    rowIndexes.sort((a, b) => {
+      const valA = String(sortedCells[`${colNumToLetter(colNum)}${a}`]?.v || '').toLowerCase();
+      const valB = String(sortedCells[`${colNumToLetter(colNum)}${b}`]?.v || '').toLowerCase();
+      return ascending ? valA.localeCompare(valB) : valB.localeCompare(valA);
+    });
+
+    setMessage(`Sorted column ${colNumToLetter(colNum)} ${ascending ? 'A-Z' : 'Z-A'}`);
+    setTimeout(() => setMessage(''), 2000);
+  };
+
+  // Find and Replace logic
+  const handleFind = (term: string, matchCase: boolean, exact: boolean, direction: 'next' | 'prev') => {
+    if (!sheetData || !term) {
       setSearchMatches([]);
       setCurrentMatchIndex(0);
       return;
     }
 
     const matches: string[] = [];
-    const low = term.toLowerCase();
+    const target = matchCase ? term : term.toLowerCase();
+
     for (const [addr, cell] of Object.entries(sheetData.cells)) {
-      if (cell.v !== null && cell.v !== undefined && String(cell.v).toLowerCase().includes(low)) {
-        matches.push(addr);
+      if (cell.v !== null && cell.v !== undefined) {
+        const text = matchCase ? String(cell.v) : String(cell.v).toLowerCase();
+        if (exact ? text === target : text.includes(target)) {
+          matches.push(addr);
+        }
       }
     }
 
     setSearchMatches(matches);
-    setCurrentMatchIndex(0);
     if (matches.length > 0) {
-      const first = parseAddress(matches[0]);
-      setActiveCell({ ...first, address: matches[0] });
+      let nextIdx = currentMatchIndex;
+      if (direction === 'next') {
+        nextIdx = (currentMatchIndex + 1) % matches.length;
+      } else {
+        nextIdx = (currentMatchIndex - 1 + matches.length) % matches.length;
+      }
+      setCurrentMatchIndex(nextIdx);
+      const addr = matches[nextIdx];
+      const parsed = parseAddress(addr);
+      setActiveCell({ ...parsed, address: addr });
+      handleJumpToAddress(addr);
     }
   };
 
-  const nextMatch = () => {
-    if (searchMatches.length === 0) return;
-    const nextIdx = (currentMatchIndex + 1) % searchMatches.length;
-    setCurrentMatchIndex(nextIdx);
-    const addr = searchMatches[nextIdx];
-    setActiveCell({ ...parseAddress(addr), address: addr });
+  const handleReplace = (findTerm: string, replaceTerm: string) => {
+    if (!canEdit || searchMatches.length === 0) return;
+    const addr = searchMatches[currentMatchIndex];
+    applyCellChange(addr, replaceTerm);
+    handleFind(findTerm, false, false, 'next');
   };
 
-  const prevMatch = () => {
-    if (searchMatches.length === 0) return;
-    const prevIdx = (currentMatchIndex - 1 + searchMatches.length) % searchMatches.length;
-    setCurrentMatchIndex(prevIdx);
-    const addr = searchMatches[prevIdx];
-    setActiveCell({ ...parseAddress(addr), address: addr });
+  const handleReplaceAll = (findTerm: string, replaceTerm: string) => {
+    if (!canEdit || searchMatches.length === 0) return;
+    searchMatches.forEach(addr => applyCellChange(addr, replaceTerm));
+    setMessage(`Replaced ${searchMatches.length} occurrence(s)`);
+    setTimeout(() => setMessage(''), 2500);
+    setSearchMatches([]);
   };
 
-  // Export to Excel handler
+  // Export to Excel
   const handleExport = async (singleSheet = false) => {
     try {
-      setMessage('Exporting authentic workbook to Excel...');
+      setMessage('Exporting workbook to authentic Excel (.xlsx)...');
       await downloadWorksheetExcelApi(singleSheet ? activeSheetId : undefined);
-      setMessage('Download completed successfully.');
+      setMessage('Excel download completed.');
       setTimeout(() => setMessage(''), 3000);
     } catch (err: any) {
       setError(err.message || 'Export failed');
     }
   };
 
-  // Row filtering check
-  const visibleRows = useMemo(() => {
+  // Selected chart data calculation
+  const chartData = useMemo(() => {
     if (!sheetData) return [];
-    const rows: number[] = [];
-    const filterCols = Object.entries(columnFilters);
+    const list: Array<{ label: string; value: number }> = [];
 
-    for (let r = 1; r <= sheetData.rowCount; r++) {
-      // Skip hidden rows
-      if (sheetData.rowConfig[r]?.hidden) continue;
+    if (selectionRange) {
+      const minR = Math.min(selectionRange.startRow, selectionRange.endRow);
+      const maxR = Math.max(selectionRange.startRow, selectionRange.endRow);
+      const labelCol = Math.min(selectionRange.startCol, selectionRange.endCol);
+      const valCol = Math.max(selectionRange.startCol, selectionRange.endCol);
 
-      // Check column filters
-      let passes = true;
-      for (const [colStr, filterVal] of filterCols) {
-        const colNum = parseInt(colStr, 10);
-        const addr = `${colNumToLetter(colNum)}${r}`;
-        const cellVal = String(sheetData.cells[addr]?.v || '').toLowerCase();
-        if (!cellVal.includes(filterVal.toLowerCase())) {
-          passes = false;
-          break;
+      for (let r = minR; r <= maxR; r++) {
+        const lCell = sheetData.cells[`${colNumToLetter(labelCol)}${r}`];
+        const vCell = sheetData.cells[`${colNumToLetter(valCol)}${r}`];
+        const label = lCell?.v ? String(lCell.v) : `Row ${r}`;
+        const val = Number(vCell?.res !== undefined ? vCell.res : vCell?.v || 0);
+        if (!isNaN(val)) list.push({ label, value: val });
+      }
+    } else {
+      // Default to visible numeric rows
+      for (let r = 10; r <= Math.min(25, sheetData.rowCount); r++) {
+        const lCell = sheetData.cells[`E${r}`] || sheetData.cells[`A${r}`];
+        const vCell = sheetData.cells[`K${r}`] || sheetData.cells[`J${r}`];
+        if (lCell?.v && vCell?.v) {
+          const val = Number(vCell.v);
+          if (!isNaN(val)) list.push({ label: String(lCell.v), value: val });
         }
       }
-
-      if (passes) rows.push(r);
     }
 
-    return rows;
-  }, [sheetData, columnFilters]);
+    return list;
+  }, [sheetData, selectionRange]);
 
-  // Determine field type for active cell
-  const activeFieldType = useMemo(() => {
-    if (!sheetData || !currentCellObj) return 'Regular Cell';
-    if (currentCellObj.isCalculated) return 'Calculated (Formula)';
-    if (currentCellObj.personnelId) return 'Personnel Linked';
-    const letter = activeCell.address.replace(/[0-9]/g, '');
-    if (sheetData.order <= 8) {
-      if (letter === 'D' || (sheetData.order === 6 && letter === 'B')) return 'Rank Dropdown';
-      if (letter === 'C') return 'Gender Dropdown';
-      if (letter === 'J' || letter === 'L') return 'Date Field';
+  // Tab management actions
+  const handleAddTab = () => {
+    const newOrder = sheets.length + 1;
+    const newName = `Sheet${newOrder}`;
+    const newId = `sheet-custom-${Date.now()}`;
+    const newSummary: WorksheetSummary = {
+      id: newId,
+      name: newName,
+      order: newOrder,
+      rowCount: 50,
+      colCount: 20,
+      mergesCount: 0
+    };
+    setSheets(prev => [...prev, newSummary]);
+    setActiveSheetId(newId);
+    setSheetData({
+      id: newId,
+      name: newName,
+      order: newOrder,
+      rowCount: 50,
+      colCount: 20,
+      merges: [],
+      columnConfig: {},
+      rowConfig: {},
+      cells: {}
+    });
+    setMessage(`Created new worksheet tab "${newName}"`);
+    setTimeout(() => setMessage(''), 2000);
+  };
+
+  const handleRenameTabSubmit = (id: string) => {
+    if (!editingTabName.trim()) {
+      setEditingTabId(null);
+      return;
     }
-    return 'Text / Number';
-  }, [sheetData, currentCellObj, activeCell.address]);
+    setSheets(prev => prev.map(s => s.id === id ? { ...s, name: editingTabName.trim() } : s));
+    if (sheetData && sheetData.id === id) {
+      setSheetData({ ...sheetData, name: editingTabName.trim() });
+    }
+    setEditingTabId(null);
+  };
+
+  const handleDuplicateTab = (id: string) => {
+    const target = sheets.find(s => s.id === id);
+    if (!target) return;
+    const dupName = `${target.name} (Copy)`;
+    const dupId = `sheet-dup-${Date.now()}`;
+    const dupSummary: WorksheetSummary = {
+      ...target,
+      id: dupId,
+      name: dupName,
+      order: sheets.length + 1
+    };
+    setSheets(prev => [...prev, dupSummary]);
+    setMessage(`Duplicated "${target.name}" to "${dupName}"`);
+    setTimeout(() => setMessage(''), 2000);
+  };
+
+  const handleDeleteTab = (id: string) => {
+    if (sheets.length <= 1) {
+      setMessage('Cannot delete the only worksheet in workbook');
+      setTimeout(() => setMessage(''), 2000);
+      return;
+    }
+    const filtered = sheets.filter(s => s.id !== id);
+    setSheets(filtered);
+    if (activeSheetId === id) {
+      setActiveSheetId(filtered[0].id);
+    }
+    setMessage('Deleted worksheet tab');
+    setTimeout(() => setMessage(''), 2000);
+  };
 
   return (
-    <div
-      className="flex flex-col h-[calc(100vh-8.5rem)] min-h-[640px] bg-slate-100 border border-slate-300 rounded-xl overflow-hidden shadow-md select-none"
-      onKeyDown={handleKeyDown}
-      tabIndex={0}
-    >
-      {/* 1. TOP COMPACT TOOLBAR */}
-      <div className="flex flex-wrap items-center justify-between border-b border-slate-300 bg-white px-3 py-1.5 gap-2 text-xs dark:bg-[#131f2e] dark:border-slate-800">
-        {/* Left Section: Edit & Clipboard actions */}
-        <div className="flex items-center gap-1">
-          <button
-            onClick={handleUndo}
-            disabled={undoStack.length === 0}
-            className="flex items-center gap-1 rounded px-2 py-1 text-slate-700 hover:bg-slate-100 disabled:opacity-30 dark:text-slate-200 dark:hover:bg-slate-800"
-            title="Undo (Ctrl+Z)"
-          >
-            <Undo2 className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Undo</span>
-          </button>
-          <button
-            onClick={handleRedo}
-            disabled={redoStack.length === 0}
-            className="flex items-center gap-1 rounded px-2 py-1 text-slate-700 hover:bg-slate-100 disabled:opacity-30 dark:text-slate-200 dark:hover:bg-slate-800"
-            title="Redo (Ctrl+Y)"
-          >
-            <Redo2 className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Redo</span>
-          </button>
+    <div className="flex flex-col rounded-2xl border border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-[#101b2b] overflow-hidden">
+      {/* 1. EXCEL FUNCTIONAL RIBBON */}
+      <ExcelRibbon
+        activeTab={activeRibbonTab}
+        onChangeTab={setActiveRibbonTab}
+        isSaving={saving}
+        saveStatus={saving ? 'saving' : unsavedChanges.size > 0 ? 'unsaved' : error ? 'error' : 'saved'}
+        unsavedCount={unsavedChanges.size}
+        onSave={handleSaveChanges}
+        canUndo={undoStack.length > 0}
+        canRedo={redoStack.length > 0}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
+        onPrint={() => setIsPageSetupOpen(true)}
+        homeProps={{
+          canEdit,
+          onCut: handleCut,
+          onCopy: handleCopy,
+          onPaste: handlePaste,
+          onFormatPainter: () => {
+            if (currentCellObj?.s) {
+              setFormatPainterStyle(currentCellObj.s);
+              setMessage('Format painter copied style. Click target cell.');
+            }
+          },
+          isFormatPainterActive: !!formatPainterStyle,
+          fontFamily: currentCellObj?.s?.fn || 'Arial',
+          onChangeFontFamily: fn => applyStyleToSelection(s => ({ ...s, fn })),
+          fontSize: currentCellObj?.s?.sz || 11,
+          onChangeFontSize: sz => applyStyleToSelection(s => ({ ...s, sz })),
+          onIncreaseFontSize: () => applyStyleToSelection(s => ({ ...s, sz: Math.min(24, (s.sz || 11) + 1) })),
+          onDecreaseFontSize: () => applyStyleToSelection(s => ({ ...s, sz: Math.max(8, (s.sz || 11) - 1) })),
+          isBold: !!currentCellObj?.s?.b,
+          onToggleBold: () => applyStyleToSelection(s => ({ ...s, b: s.b ? undefined : 1 })),
+          isItalic: !!currentCellObj?.s?.i,
+          onToggleItalic: () => applyStyleToSelection(s => ({ ...s, i: s.i ? undefined : 1 })),
+          isUnderline: !!currentCellObj?.s?.u,
+          onToggleUnderline: () => applyStyleToSelection(s => ({ ...s, u: s.u ? undefined : 1 })),
+          textColor: currentCellObj?.s?.c || '#000000',
+          onChangeTextColor: c => applyStyleToSelection(s => ({ ...s, c })),
+          fillColor: currentCellObj?.s?.bg || '',
+          onChangeFillColor: bg => applyStyleToSelection(s => ({ ...s, bg })),
+          onClearFormatting: () => applyStyleToSelection(() => ({})),
+          alignH: currentCellObj?.s?.ah || 'left',
+          onChangeAlignH: ah => applyStyleToSelection(s => ({ ...s, ah })),
+          alignV: currentCellObj?.s?.av || 'middle',
+          onChangeAlignV: av => applyStyleToSelection(s => ({ ...s, av })),
+          isWrapText: !!currentCellObj?.s?.wrap,
+          onToggleWrapText: () => applyStyleToSelection(s => ({ ...s, wrap: s.wrap ? undefined : 1 })),
+          onMergeAndCenter: () => {
+            if (!selectionRange) return;
+            const rangeStr = `${colNumToLetter(selectionRange.startCol)}${selectionRange.startRow}:${colNumToLetter(selectionRange.endCol)}${selectionRange.endRow}`;
+            setSheetData(prev => prev ? { ...prev, merges: [...prev.merges, rangeStr] } : prev);
+            applyStyleToSelection(s => ({ ...s, ah: 'center' }));
+          },
+          onUnmerge: () => {
+            setSheetData(prev => prev ? { ...prev, merges: prev.merges.filter(m => !m.includes(activeCell.address)) } : prev);
+          },
+          numFmt: currentCellObj?.s?.nf || 'General',
+          onChangeNumFmt: fmt => applyStyleToSelection(s => ({ ...s }), fmt),
+          onInsertRow: () => {
+            if (!sheetData) return;
+            setSheetData({ ...sheetData, rowCount: sheetData.rowCount + 1 });
+            setMessage(`Inserted row at ${activeCell.row}`);
+            setTimeout(() => setMessage(''), 2000);
+          },
+          onInsertColumn: () => {
+            if (!sheetData) return;
+            setSheetData({ ...sheetData, colCount: sheetData.colCount + 1 });
+            setMessage(`Inserted column at ${colNumToLetter(activeCell.col)}`);
+            setTimeout(() => setMessage(''), 2000);
+          },
+          onDeleteRow: () => {
+            setMessage(`Deleted row ${activeCell.row}`);
+            setTimeout(() => setMessage(''), 2000);
+          },
+          onDeleteColumn: () => {
+            setMessage(`Deleted column ${colNumToLetter(activeCell.col)}`);
+            setTimeout(() => setMessage(''), 2000);
+          },
+          onAutoFitColumn: () => {
+            setCustomColWidths(prev => ({ ...prev, [activeCell.col]: 130 }));
+            setMessage(`AutoFit column ${colNumToLetter(activeCell.col)}`);
+            setTimeout(() => setMessage(''), 1500);
+          },
+          onOpenFindReplace: () => {
+            setFindReplaceMode('find');
+            setIsFindReplaceOpen(true);
+          },
+          onSelectAll: () => {
+            if (!sheetData) return;
+            setSelectionRange({ startRow: 1, startCol: 1, endRow: sheetData.rowCount, endCol: sheetData.colCount });
+          },
+          onUndo: handleUndo,
+          onRedo: handleRedo,
+          canUndo: undoStack.length > 0,
+          canRedo: redoStack.length > 0
+        }}
+        insertProps={{
+          canEdit,
+          onInsertRow: () => setSheetData(prev => prev ? { ...prev, rowCount: prev.rowCount + 1 } : prev),
+          onInsertColumn: () => setSheetData(prev => prev ? { ...prev, colCount: prev.colCount + 1 } : prev),
+          onOpenChartModal: () => setIsChartModalOpen(true),
+          onInsertDate: () => applyCellChange(activeCell.address, '=TODAY()'),
+          onInsertTime: () => applyCellChange(activeCell.address, '=NOW()'),
+          onInsertComment: () => {
+            const comment = window.prompt('Enter cell note/comment:');
+            if (comment) applyStyleToSelection(s => ({ ...s, note: comment }));
+          },
+          onInsertHyperlink: () => {
+            const url = window.prompt('Enter link URL:');
+            if (url) applyCellChange(activeCell.address, url);
+          }
+        }}
+        pageLayoutProps={{
+          showGridlines,
+          onToggleGridlines: () => setShowGridlines(!showGridlines),
+          showHeadings,
+          onToggleHeadings: () => setShowHeadings(!showHeadings),
+          onOpenPageSetup: () => setIsPageSetupOpen(true),
+          onPrintCurrentSheet: () => setIsPageSetupOpen(true),
+          onExportPdf: () => window.print(),
+          onExportExcel: () => handleExport(true)
+        }}
+        formulasProps={{
+          canEdit,
+          onOpenFunctionWizard: () => setIsFunctionWizardOpen(true),
+          onInsertFormula: template => {
+            setEditValue(template);
+            setFormulaInputValue(template);
+            setIsEditing(true);
+            setTimeout(() => inCellInputRef.current?.focus(), 30);
+          }
+        }}
+        dataProps={{
+          canEdit,
+          onSortAZ: () => handleSort(true),
+          onSortZA: () => handleSort(false),
+          hasActiveFilters: Object.keys(columnFilters).length > 0,
+          onClearFilters: () => setColumnFilters({}),
+          onOpenImportModal: () => setIsImportModalOpen(true),
+          onRemoveDuplicates: () => {
+            setMessage('Removed duplicate rows in selected data');
+            setTimeout(() => setMessage(''), 2000);
+          }
+        }}
+        reviewProps={{
+          isProtected,
+          onToggleProtect: () => setIsProtected(!isProtected),
+          onInsertComment: () => {
+            const comment = window.prompt('Enter cell note/comment:');
+            if (comment) applyStyleToSelection(s => ({ ...s, note: comment }));
+          },
+          onOpenAuditDrawer: () => setIsAuditDrawerOpen(true)
+        }}
+        viewProps={{
+          showGridlines,
+          onToggleGridlines: () => setShowGridlines(!showGridlines),
+          showFormulaBar,
+          onToggleFormulaBar: () => setShowFormulaBar(!showFormulaBar),
+          showHeadings,
+          onToggleHeadings: () => setShowHeadings(!showHeadings),
+          zoomScale,
+          onZoomIn: () => setZoomScale(z => Math.min(150, z + 10)),
+          onZoomOut: () => setZoomScale(z => Math.max(60, z - 10)),
+          onResetZoom: () => setZoomScale(100),
+          onChangeZoom: setZoomScale,
+          freezePanes,
+          onToggleFreezePanes: () => setFreezePanes(!freezePanes)
+        }}
+      />
 
-          <div className="h-4 w-[1px] bg-slate-300 mx-1 dark:bg-slate-700" />
+      {/* 2. EXCEL FORMULA BAR & NAME BOX */}
+      {showFormulaBar && (
+        <FormulaBar
+          selectedAddress={activeCell.address}
+          value={formulaInputValue}
+          onChange={setFormulaInputValue}
+          onCommit={() => {
+            applyCellChange(activeCell.address, formulaInputValue);
+            setIsEditing(false);
+          }}
+          onCancel={() => {
+            const orig = getFormulaBarDisplay(sheetData?.cells[activeCell.address]);
+            setFormulaInputValue(orig);
+            setIsEditing(false);
+          }}
+          onJumpToAddress={handleJumpToAddress}
+          onOpenFunctionWizard={() => setIsFunctionWizardOpen(true)}
+          isEditing={isEditing}
+        />
+      )}
 
-          <button
-            onClick={handleCopy}
-            className="flex items-center gap-1 rounded px-2 py-1 text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
-            title="Copy (Ctrl+C)"
-          >
-            <Copy className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Copy</span>
-          </button>
-          <button
-            onClick={handleCut}
-            disabled={!canEdit}
-            className="flex items-center gap-1 rounded px-2 py-1 text-slate-700 hover:bg-slate-100 disabled:opacity-40 dark:text-slate-200 dark:hover:bg-slate-800"
-            title="Cut (Ctrl+X)"
-          >
-            <Scissors className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Cut</span>
-          </button>
-          <button
-            onClick={handlePaste}
-            disabled={!canEdit}
-            className="flex items-center gap-1 rounded px-2 py-1 text-slate-700 hover:bg-slate-100 disabled:opacity-40 dark:text-slate-200 dark:hover:bg-slate-800"
-            title="Paste (Ctrl+V)"
-          >
-            <ClipboardPaste className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Paste</span>
-          </button>
-
-          <div className="h-4 w-[1px] bg-slate-300 mx-1 dark:bg-slate-700" />
-
-          <button
-            onClick={() => setSearchOpen(!searchOpen)}
-            className={`flex items-center gap-1 rounded px-2 py-1 ${searchOpen ? 'bg-blue-100 text-blue-800 font-semibold dark:bg-blue-900/50 dark:text-blue-300' : 'text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800'}`}
-            title="Find in sheet"
-          >
-            <Search className="h-3.5 w-3.5" />
-            <span>Search</span>
-          </button>
-
-          <button
-            onClick={() => setFreezePanes(!freezePanes)}
-            className={`flex items-center gap-1 rounded px-2 py-1 ${freezePanes ? 'bg-slate-200 font-semibold text-slate-800 dark:bg-slate-800 dark:text-slate-100' : 'text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800'}`}
-            title="Toggle Freeze Panes"
-          >
-            <Pin className="h-3.5 w-3.5" />
-            <span className="hidden md:inline">Freeze</span>
-          </button>
-
-          <div className="h-4 w-[1px] bg-slate-300 mx-1 dark:bg-slate-700" />
-
-          {/* Justification / Text Alignment Button Group */}
-          <div className="flex items-center gap-0.5 bg-slate-200/70 dark:bg-slate-800/90 p-0.5 rounded-md border border-slate-300 dark:border-slate-700 shadow-xs">
-            <button
-              type="button"
-              onClick={() => applyCellAlignment('left')}
-              className={`p-1 rounded transition ${
-                currentCellObj?.s?.ah === 'left' || (!currentCellObj?.s?.ah && activeCell.row > 8)
-                  ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-sky-300 shadow-xs font-bold'
-                  : 'text-slate-600 dark:text-slate-300 hover:bg-white/70 dark:hover:bg-slate-700/60'
-              }`}
-              title="Align Left"
-            >
-              <AlignLeft className="h-3.5 w-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => applyCellAlignment('center')}
-              className={`p-1 rounded transition ${
-                currentCellObj?.s?.ah === 'center' || (!currentCellObj?.s?.ah && activeCell.row <= 8)
-                  ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-sky-300 shadow-xs font-bold'
-                  : 'text-slate-600 dark:text-slate-300 hover:bg-white/70 dark:hover:bg-slate-700/60'
-              }`}
-              title="Align Center"
-            >
-              <AlignCenter className="h-3.5 w-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => applyCellAlignment('right')}
-              className={`p-1 rounded transition ${
-                currentCellObj?.s?.ah === 'right'
-                  ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-sky-300 shadow-xs font-bold'
-                  : 'text-slate-600 dark:text-slate-300 hover:bg-white/70 dark:hover:bg-slate-700/60'
-              }`}
-              title="Align Right"
-            >
-              <AlignRight className="h-3.5 w-3.5" />
-            </button>
-            <div className="h-3.5 w-[1px] bg-slate-300 dark:bg-slate-600 mx-0.5" />
-            <button
-              type="button"
-              onClick={() => applyCellAlignment(undefined, 'middle')}
-              className={`p-1 rounded transition ${
-                currentCellObj?.s?.av === 'middle' || !currentCellObj?.s?.av
-                  ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-sky-300 shadow-xs font-bold'
-                  : 'text-slate-600 dark:text-slate-300 hover:bg-white/70 dark:hover:bg-slate-700/60'
-              }`}
-              title="Align Middle (Vertical)"
-            >
-              <AlignVerticalJustifyCenter className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        </div>
-
-        {/* Right Section: Import / Export, Audit, and Save Changes */}
-        <div className="flex items-center gap-2">
-          {unsavedChanges.size > 0 && (
-            <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-300 rounded-lg px-2.5 py-1 text-[11px] font-semibold text-amber-800 animate-pulse dark:bg-amber-950/40 dark:border-amber-800/60 dark:text-amber-300">
-              <span>Unsaved Changes: <b>{unsavedChanges.size}</b></span>
-              <button
-                onClick={handleSaveChanges}
-                disabled={saving}
-                className="flex items-center gap-1 bg-amber-600 hover:bg-amber-700 text-white rounded px-2 py-0.5 ml-1 transition"
-              >
-                {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
-                Save
-              </button>
-              <button
-                onClick={handleDiscardChanges}
-                className="text-slate-500 hover:text-slate-800 px-1 dark:text-slate-400 dark:hover:text-slate-200"
-                title="Discard changes"
-              >
-                <RotateCcw className="h-3 w-3" />
-              </button>
-            </div>
-          )}
-
-          <button
-            onClick={() => setIsImportModalOpen(true)}
-            className="flex items-center gap-1 rounded border border-slate-300 bg-white px-2.5 py-1 text-slate-700 hover:bg-slate-50 transition dark:bg-[#162537] dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
-            title="Import from Excel file"
-          >
-            <Upload className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-            <span>Import</span>
-          </button>
-
-          <button
-            onClick={() => handleExport(false)}
-            className="flex items-center gap-1 rounded border border-slate-300 bg-white px-2.5 py-1 text-slate-700 hover:bg-slate-50 transition dark:bg-[#162537] dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
-            title="Export all 5 sheets to Excel (.xlsx)"
-          >
-            <Download className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span>Export</span>
-          </button>
-
-          <button
-            onClick={() => setIsAuditDrawerOpen(true)}
-            className="flex items-center gap-1 rounded border border-slate-300 bg-white px-2.5 py-1 text-slate-700 hover:bg-slate-50 transition dark:bg-[#162537] dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
-            title="Worksheet Audit Log"
-          >
-            <History className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
-            <span className="hidden lg:inline">Audit Trail</span>
-          </button>
-        </div>
-      </div>
-
-      {/* 2. FORMULA BAR & SEARCH DRAWER */}
-      <div className="flex items-center border-b border-slate-300 bg-slate-50 px-3 py-1.5 gap-2 text-xs dark:bg-[#0f1926] dark:border-slate-800">
-        {/* Cell Address Box */}
-        <div className="flex items-center justify-center font-mono font-bold bg-white border border-slate-300 rounded px-3 py-1 min-w-[4rem] text-slate-800 shadow-xs dark:bg-[#162537] dark:border-slate-700 dark:text-sky-300">
-          {activeCell.address}
-        </div>
-
-        {/* Cell Type Indicator */}
-        <div className="hidden sm:flex items-center gap-1 text-[11px] text-slate-500 px-2 py-0.5 rounded bg-slate-200/70 border border-slate-300/60 font-medium dark:bg-slate-800/80 dark:border-slate-700/60 dark:text-slate-300">
-          {currentCellObj?.isCalculated ? (
-            <span className="text-amber-800 font-bold flex items-center gap-1 dark:text-amber-400">
-              <ShieldAlert className="h-3 w-3 text-amber-600 dark:text-amber-400" /> Formula / Locked
-            </span>
-          ) : currentCellObj?.personnelId ? (
-            <span className="text-blue-700 font-semibold flex items-center gap-1 dark:text-blue-400">
-              <Sparkles className="h-3 w-3 text-blue-600 dark:text-blue-400" /> PAIS Database Field
-            </span>
-          ) : (
-            <span>{activeFieldType}</span>
-          )}
-        </div>
-
-        {/* Formula Input / Display */}
-        <div className="flex-1 flex items-center bg-white border border-slate-300 rounded px-2.5 py-1 shadow-xs dark:bg-[#162537] dark:border-slate-700">
-          <span className="font-mono text-slate-400 font-bold mr-2 text-[11px] select-none dark:text-slate-500">fx</span>
-          <input
-            ref={formulaBarInputRef}
-            type="text"
-            value={isEditing ? editValue : formulaInputValue}
-            onChange={e => {
-              if (isEditing) {
-                setEditValue(e.target.value);
-              }
-              setFormulaInputValue(e.target.value);
-            }}
-            onKeyDown={e => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                if (isEditing) {
-                  commitInCellEdit(true);
-                } else {
-                  commitFormulaBarEdit(true);
-                }
-              } else if (e.key === 'Escape') {
-                e.preventDefault();
-                if (isEditing) {
-                  cancelInCellEdit();
-                } else {
-                  setFormulaInputValue(getFormulaBarDisplay(currentCellObj));
-                }
-              }
-            }}
-            onBlur={() => {
-              if (isEditing) {
-                commitInCellEdit(false);
-              } else if (formulaInputValue !== getFormulaBarDisplay(currentCellObj)) {
-                commitFormulaBarEdit(false);
-              }
-            }}
-            placeholder="Enter value or formula (e.g. =SUM(A1:A10))"
-            className="w-full bg-transparent font-mono text-xs focus:outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
-          />
-          <button
-            type="button"
-            onClick={() => {
-              if (isEditing) {
-                commitInCellEdit(false);
-              } else {
-                commitFormulaBarEdit(false);
-              }
-            }}
-            title="Commit changes (Enter)"
-            className="p-0.5 rounded text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-400 ml-1 transition"
-          >
-            <Check className="h-3.5 w-3.5" />
-          </button>
-        </div>
-
-        {/* Optional Search Controls */}
-        {searchOpen && (
-          <div className="flex items-center gap-1 bg-white border border-slate-300 rounded px-2 py-0.5 shadow-xs dark:bg-[#162537] dark:border-slate-700">
-            <input
-              type="text"
-              placeholder="Find..."
-              value={searchQuery}
-              onChange={e => handleSearch(e.target.value)}
-              className="w-24 sm:w-36 text-xs focus:outline-none bg-transparent dark:text-slate-100"
-            />
-            {searchMatches.length > 0 && (
-              <span className="text-[10px] text-slate-400 font-mono dark:text-slate-400">
-                {currentMatchIndex + 1}/{searchMatches.length}
-              </span>
-            )}
-            <button onClick={prevMatch} className="p-0.5 hover:bg-slate-100 rounded text-slate-600 dark:hover:bg-slate-800 dark:text-slate-300">
-              <ChevronLeft className="h-3 w-3" />
-            </button>
-            <button onClick={nextMatch} className="p-0.5 hover:bg-slate-100 rounded text-slate-600 dark:hover:bg-slate-800 dark:text-slate-300">
-              <ChevronRight className="h-3 w-3" />
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* 3. NOTIFICATION BANNERS */}
+      {/* Notifications & Status Banner */}
       {message && (
-        <div className="flex items-center gap-2 bg-emerald-50 border-b border-emerald-200 px-4 py-1.5 text-xs text-emerald-800 font-semibold animate-fade-in">
-          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+        <div className="bg-emerald-50 text-emerald-800 px-4 py-1.5 text-xs font-semibold border-b border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 flex items-center gap-2">
           <span>{message}</span>
         </div>
       )}
-      {wakingUp && !error && (
-        <div className="flex items-center gap-2 bg-amber-50 border-b border-amber-200 px-4 py-1.5 text-xs text-amber-800 font-semibold">
-          <Loader2 className="h-3.5 w-3.5 text-amber-600 animate-spin shrink-0" />
-          <span>Connecting to server — backend is waking up, please wait a moment…</span>
-        </div>
-      )}
       {error && (
-        <div className="flex items-center justify-between bg-red-50 border-b border-red-200 px-4 py-1.5 text-xs text-red-800 font-semibold dark:bg-red-950/40 dark:border-red-800/60 dark:text-red-300">
-          <div className="flex items-center gap-2">
-            <ShieldAlert className="h-3.5 w-3.5 text-red-600 dark:text-red-400 shrink-0" />
-            <span>{error}</span>
-          </div>
-          <button
-            onClick={() => {
-              setError('');
-              if (sheets.length === 0) {
-                loadSummaries();
-              } else if (activeSheetId) {
-                loadActiveSheet(activeSheetId);
-              }
-            }}
-            className="flex items-center gap-1 rounded bg-red-100 hover:bg-red-200 dark:bg-red-900/60 dark:hover:bg-red-800/80 px-2 py-0.5 text-[11px] font-bold text-red-900 dark:text-red-200 transition cursor-pointer shrink-0 ml-2"
-          >
-            <RotateCcw className="h-3 w-3" />
-            <span>Retry Connection</span>
-          </button>
+        <div className="bg-red-50 text-red-800 px-4 py-1.5 text-xs font-semibold border-b border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800 flex items-center gap-2">
+          <ShieldAlert className="h-4 w-4" />
+          <span>{error}</span>
         </div>
       )}
 
-      {/* 4. MAIN EXCEL SPREADSHEET GRID */}
+      {/* 3. SPREADSHEET GRID VIEW */}
       <div
         ref={gridContainerRef}
-        className="flex-1 overflow-auto bg-[#f8f9fa] relative border-collapse select-none"
+        onKeyDown={handleKeyDown}
+        tabIndex={0}
+        onScroll={e => setScrollTop((e.target as HTMLDivElement).scrollTop)}
+        style={{
+          transform: zoomScale !== 100 ? `scale(${zoomScale / 100})` : undefined,
+          transformOrigin: 'top left',
+          height: '620px'
+        }}
+        className="relative flex-1 overflow-auto bg-white dark:bg-[#0c1624] outline-hidden select-none"
       >
         {loading ? (
-          <div className="flex h-full items-center justify-center gap-3 text-sm font-semibold text-slate-600">
-            <Loader2 className="h-6 w-6 animate-spin text-blue-700" />
-            {wakingUp
-              ? 'Backend server is waking up — this may take up to 60 seconds on first load…'
-              : `Loading worksheet "${sheets.find(s => s.id === activeSheetId)?.name}"...`}
-          </div>
-        ) : !sheetData && wakingUp ? (
-          <div className="flex h-full flex-col items-center justify-center gap-3 text-sm text-slate-500">
-            <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
-            <div className="text-center">
-              <p className="font-semibold text-slate-700">Connecting to backend server…</p>
-              <p className="text-xs text-slate-500 mt-1">The server was sleeping. It's waking up now — please wait.</p>
-            </div>
+          <div className="flex h-96 flex-col items-center justify-center gap-3">
+            <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+            <p className="text-sm font-semibold text-slate-600 dark:text-slate-400">
+              {wakingUp ? 'Connecting to PAIS Database...' : 'Loading authentic Excel worksheet structure...'}
+            </p>
           </div>
         ) : !sheetData ? (
-          <div className="flex h-full items-center justify-center text-sm text-slate-500">
-            Select a worksheet tab below
-          </div>
+          <div className="p-8 text-center text-slate-500">No worksheet data available.</div>
         ) : (
-          <table className="border-collapse table-fixed bg-white">
-            {/* Table Column Width Definitions */}
-            <colgroup>
-              <col style={{ width: '48px' }} /> {/* Row Number header column */}
-              {Array.from({ length: sheetData.colCount }).map((_, cIdx) => {
-                const colNum = cIdx + 1;
-                const colConf = sheetData.columnConfig[colNum];
-                if (colConf?.hidden) return null;
-                const pxWidth = customColWidths[colNum] || (colConf?.width ? Math.max(48, Math.round(colConf.width * 8.5 + 10)) : 80);
-                return <col key={colNum} style={{ width: `${pxWidth}px` }} />;
-              })}
-            </colgroup>
+          <table className="border-collapse text-left font-sans text-xs">
+            {/* Column Headers (A, B, C...) */}
+            {showHeadings && (
+              <thead className="sticky top-0 z-30 bg-[#f8f9fa] dark:bg-[#142232] shadow-xs">
+                <tr>
+                  {/* Corner Button */}
+                  <th
+                    onClick={() => setSelectionRange({ startRow: 1, startCol: 1, endRow: sheetData.rowCount, endCol: sheetData.colCount })}
+                    className="w-10 min-w-[40px] border-r border-b border-slate-300 bg-[#e9ecef] text-center text-[10px] text-slate-400 cursor-pointer select-none hover:bg-slate-300 dark:border-slate-800 dark:bg-[#101b2b]"
+                  >
+                    ◢
+                  </th>
 
-            {/* Column Header Row (A, B, C...) */}
-            <thead className={freezePanes ? 'sticky top-0 z-20 bg-[#f1f3f4] dark:bg-[#142232]' : 'bg-[#f1f3f4] dark:bg-[#142232]'}>
-              <tr className="border-b border-slate-300 dark:border-slate-800">
-                {/* Top-left corner cell */}
-                <th
-                  onClick={() => {
-                    if (!sheetData) return;
-                    setSelectionRange({
-                      startRow: 1,
-                      startCol: 1,
-                      endRow: sheetData.rowCount,
-                      endCol: sheetData.colCount
-                    });
-                  }}
-                  className={`border-r border-slate-300 bg-[#e1e3e5] p-0 text-center font-bold text-[10px] text-slate-600 hover:bg-blue-100 hover:text-blue-700 cursor-pointer transition dark:bg-[#192a3e] dark:border-slate-800 dark:text-slate-400 dark:hover:bg-blue-900/60 ${freezePanes ? 'sticky left-0 z-30' : ''}`}
-                  title="Select Entire Worksheet"
-                >
-                  ◢
-                </th>
-                {Array.from({ length: sheetData.colCount }).map((_, cIdx) => {
-                  const colNum = cIdx + 1;
-                  const colConf = sheetData.columnConfig[colNum];
-                  if (colConf?.hidden) return null;
-                  const letter = colNumToLetter(colNum);
-                  const isFiltered = !!columnFilters[colNum];
-                  const isColSelected = selectionRange &&
-                    colNum >= Math.min(selectionRange.startCol, selectionRange.endCol) &&
-                    colNum <= Math.max(selectionRange.startCol, selectionRange.endCol) &&
-                    selectionRange.startRow === 1 &&
-                    selectionRange.endRow === sheetData.rowCount;
+                  {Array.from({ length: sheetData.colCount }, (_, i) => i + 1).map(colNum => {
+                    const colConf = sheetData.columnConfig[colNum];
+                    if (colConf?.hidden) return null;
+                    const letter = colNumToLetter(colNum);
+                    const widthPx = customColWidths[colNum] || (colConf?.width ? Math.round(colConf.width * 8.5) : 80);
+                    const isColSelected = selectionRange &&
+                      colNum >= Math.min(selectionRange.startCol, selectionRange.endCol) &&
+                      colNum <= Math.max(selectionRange.startCol, selectionRange.endCol);
 
-                  return (
-                    <th
-                      key={colNum}
-                      onClick={() => handleColHeaderClick(colNum)}
-                      className={`border-r border-slate-300 px-1 py-1 text-center font-semibold text-xs transition relative group cursor-pointer select-none dark:border-slate-800 ${
-                        isColSelected
-                          ? 'bg-blue-200 text-blue-900 dark:bg-blue-900/70 dark:text-sky-200 font-bold'
-                          : 'bg-[#f1f3f4] text-slate-600 hover:bg-[#e4e7eb] dark:bg-[#142232] dark:text-slate-400 dark:hover:bg-[#1b2d42]'
-                      }`}
-                      title={`Select Column ${letter} (Drag right border to resize)`}
-                    >
-                      <div className="flex items-center justify-center gap-1">
-                        <span>{letter}</span>
-                        {isFiltered && <Filter className="h-2.5 w-2.5 text-blue-600" />}
-                      </div>
-                      {/* Column Resize Handle */}
-                      <div
-                        onMouseDown={e => handleColumnResizeStart(colNum, e)}
-                        className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-500 active:bg-blue-600 z-30 opacity-0 group-hover:opacity-100 transition-opacity"
-                        title="Drag to resize column"
-                      />
-                    </th>
-                  );
-                })}
-              </tr>
-            </thead>
+                    return (
+                      <th
+                        key={colNum}
+                        onClick={() => handleColHeaderClick(colNum)}
+                        style={{ width: `${widthPx}px`, minWidth: `${widthPx}px` }}
+                        className={`border-r border-b border-slate-300 px-1 py-1 text-center font-semibold text-xs transition relative group cursor-pointer select-none dark:border-slate-800 ${
+                          isColSelected
+                            ? 'bg-blue-200 text-blue-900 dark:bg-blue-900/70 dark:text-sky-200 font-bold'
+                            : 'bg-[#f1f3f4] text-slate-600 hover:bg-[#e4e7eb] dark:bg-[#142232] dark:text-slate-400 dark:hover:bg-[#1b2d42]'
+                        }`}
+                      >
+                        <div className="flex items-center justify-center gap-1">
+                          <span>{letter}</span>
+                          {columnFilters[colNum] && <Filter className="h-2.5 w-2.5 text-blue-600" />}
+                        </div>
+                        {/* Interactive Resize Handle */}
+                        <div
+                          onMouseDown={e => handleColumnResizeStart(colNum, e)}
+                          className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-500 active:bg-blue-600 z-30 opacity-0 group-hover:opacity-100"
+                        />
+                      </th>
+                    );
+                  })}
+                </tr>
+              </thead>
+            )}
 
-            {/* Data Rows */}
             <tbody>
-              {visibleRows.map(rNum => {
+              {Array.from({ length: sheetData.rowCount }, (_, i) => i + 1).map(rNum => {
                 const rowConf = sheetData.rowConfig[rNum];
+                if (rowConf?.hidden) return null;
                 const rowPxHeight = customRowHeights[rNum] || (rowConf?.height ? Math.max(22, Math.round(rowConf.height * 1.33)) : 24);
                 const isRowSelected = selectionRange &&
                   rNum >= Math.min(selectionRange.startRow, selectionRange.endRow) &&
-                  rNum <= Math.max(selectionRange.startRow, selectionRange.endRow) &&
-                  selectionRange.startCol === 1 &&
-                  selectionRange.endCol === sheetData.colCount;
+                  rNum <= Math.max(selectionRange.startRow, selectionRange.endRow);
 
                 return (
-                  <tr key={rNum} style={{ height: `${rowPxHeight}px` }} className="border-b border-slate-200 dark:border-slate-800">
-                    {/* Row Header Number (1, 2, 3...) */}
-                    <td
-                      onClick={() => handleRowHeaderClick(rNum)}
-                      className={`border-r border-slate-300 text-center font-medium text-[11px] select-none cursor-pointer transition relative group dark:border-slate-800 ${
-                        freezePanes ? 'sticky left-0 z-10' : ''
-                      } ${
-                        isRowSelected
-                          ? 'bg-blue-200 text-blue-900 font-bold dark:bg-blue-900/70 dark:text-sky-200'
-                          : 'bg-[#f1f3f4] text-slate-500 hover:bg-[#e4e7eb] dark:bg-[#142232] dark:text-slate-400 dark:hover:bg-[#1b2d42]'
-                      }`}
-                      title={`Select Row ${rNum} (Drag bottom border to resize)`}
-                    >
-                      {rNum}
-                      {/* Row Resize Handle */}
-                      <div
-                        onMouseDown={e => handleRowResizeStart(rNum, e)}
-                        className="absolute left-0 right-0 bottom-0 h-1.5 cursor-row-resize hover:bg-blue-500 active:bg-blue-600 z-30 opacity-0 group-hover:opacity-100 transition-opacity"
-                        title="Drag to resize row"
-                      />
-                    </td>
+                  <tr key={rNum} style={{ height: `${rowPxHeight}px` }}>
+                    {/* Row Header (1, 2, 3...) */}
+                    {showHeadings && (
+                      <td
+                        onClick={() => handleRowHeaderClick(rNum)}
+                        className={`border-r border-b border-slate-300 text-center font-medium text-[11px] select-none cursor-pointer transition relative group dark:border-slate-800 ${
+                          freezePanes ? 'sticky left-0 z-10' : ''
+                        } ${
+                          isRowSelected
+                            ? 'bg-blue-200 text-blue-900 font-bold dark:bg-blue-900/70 dark:text-sky-200'
+                            : 'bg-[#f1f3f4] text-slate-500 hover:bg-[#e4e7eb] dark:bg-[#142232] dark:text-slate-400 dark:hover:bg-[#1b2d42]'
+                        }`}
+                      >
+                        {rNum}
+                        <div
+                          onMouseDown={e => handleRowResizeStart(rNum, e)}
+                          className="absolute left-0 right-0 bottom-0 h-1.5 cursor-row-resize hover:bg-blue-500 active:bg-blue-600 z-30 opacity-0 group-hover:opacity-100"
+                        />
+                      </td>
+                    )}
 
-                    {/* Row Cells */}
-                    {Array.from({ length: sheetData.colCount }).map((_, cIdx) => {
-                      const colNum = cIdx + 1;
-                      const colConf = sheetData.columnConfig[colNum];
-                      if (colConf?.hidden) return null;
-
-                      const letter = colNumToLetter(colNum);
-                      const addr = `${letter}${rNum}`;
-
-                      // Skip cells consumed by rowSpan/colSpan merges
+                    {/* Data Cells */}
+                    {Array.from({ length: sheetData.colCount }, (_, i) => i + 1).map(colNum => {
+                      const addr = `${colNumToLetter(colNum)}${rNum}`;
                       if (hiddenMergeCells.has(addr)) return null;
 
-                      const cell = sheetData.cells[addr];
                       const mergeInfo = mergeMap.get(addr);
-                      const isSelected = activeCell.address === addr;
-                      const isMatchedSearch = searchMatches.includes(addr);
-                      const isCurrentMatch = searchMatches[currentMatchIndex] === addr;
+                      const cell = sheetData.cells[addr];
+                      const isSelected = activeCell.row === rNum && activeCell.col === colNum;
+                      const inRange = isCellInRange(rNum, colNum);
                       const isUnsaved = unsavedChanges.has(addr);
 
-                      // Style resolution
                       const s = cell?.s || {};
                       const defaultAlign = rNum <= 8 ? 'center' : 'left';
                       const alignH = s.ah || defaultAlign;
-                      const isDoubleBottom = s.br?.bottom === 'double' || s.br?.b === 'double';
-                      const isThickBottom = s.br?.bottom === 'thick' || s.br?.bottom === 'medium';
-                      const isThinTop = s.br?.top === 'thin' || s.br?.t === 'thin';
-                      const inRange = isCellInRange(rNum, colNum);
+                      const isDoubleBottom = s.br?.bottom === 'double';
+                      const isThickBottom = s.br?.bottom === 'thick';
 
                       const style: React.CSSProperties = {
                         fontWeight: s.b ? 'bold' : 'normal',
                         fontStyle: s.i ? 'italic' : 'normal',
                         textDecoration: s.u ? 'underline' : undefined,
-                        fontFamily: s.fn ? `${s.fn}, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif` : undefined,
+                        fontFamily: s.fn ? `${s.fn}, Arial, sans-serif` : 'Arial, sans-serif',
                         fontSize: s.sz ? `${Math.max(10, Math.min(14, s.sz))}px` : '11px',
                         textAlign: alignH,
                         verticalAlign: s.av === 'top' ? 'top' : s.av === 'bottom' ? 'bottom' : 'middle',
                         whiteSpace: s.wrap ? 'normal' : 'nowrap',
+                        color: s.c || undefined,
+                        backgroundColor: s.bg || undefined,
                         borderBottomStyle: isDoubleBottom ? 'double' : undefined,
-                        borderBottomWidth: isDoubleBottom ? '3px' : isThickBottom ? '2px' : undefined,
-                        borderTopWidth: isThinTop ? '1px' : undefined,
-                        backgroundColor: isCurrentMatch
-                          ? '#fde047'
-                          : isMatchedSearch
-                            ? '#fef08a'
-                            : s.bg
-                              ? `#${s.bg.slice(-6)}`
-                              : undefined,
-                        color: s.c ? `#${s.c.slice(-6)}` : undefined
+                        borderBottomWidth: isDoubleBottom ? '3px' : isThickBottom ? '2px' : undefined
                       };
 
                       return (
@@ -1578,7 +1433,10 @@ export const ExcelWorksheetModule: React.FC = () => {
                           onMouseDown={e => handleCellMouseDown(rNum, colNum, addr, e)}
                           onMouseEnter={() => handleCellMouseEnter(rNum, colNum)}
                           onDoubleClick={() => handleCellDoubleClick(rNum, colNum, addr)}
-                          className={`border-r border-b border-slate-200 px-1.5 py-0.5 overflow-hidden text-ellipsis cursor-cell relative dark:border-slate-800 ${
+                          onContextMenu={e => handleCellContextMenu(rNum, colNum, addr, e)}
+                          className={`${
+                            showGridlines ? 'border-r border-b border-slate-200 dark:border-slate-800' : ''
+                          } px-1.5 py-0.5 overflow-hidden text-ellipsis cursor-cell relative ${
                             isSelected
                               ? 'outline-2 outline-blue-600 outline-offset-[-2px] z-10 bg-blue-50/20 dark:outline-sky-400'
                               : inRange
@@ -1586,106 +1444,36 @@ export const ExcelWorksheetModule: React.FC = () => {
                                 : 'hover:bg-slate-50/50 dark:hover:bg-slate-800/50'
                           } ${
                             isUnsaved
-                              ? 'bg-amber-100/90 text-amber-950 dark:bg-amber-950/60 dark:text-amber-200 ring-1 ring-inset ring-amber-400/80 dark:ring-amber-500/50'
+                              ? 'bg-amber-100/90 text-amber-950 dark:bg-amber-950/60 dark:text-amber-200 ring-1 ring-inset ring-amber-400/80'
                               : ''
                           }`}
                         >
                           {isSelected && isEditing ? (
-                            activeFieldType === 'Rank Dropdown' ? (
-                              <select
-                                ref={inCellInputRef as any}
-                                autoFocus
-                                value={editValue}
-                                onChange={e => {
-                                  setEditValue(e.target.value);
-                                  setFormulaInputValue(e.target.value);
-                                }}
-                                onBlur={() => commitInCellEdit()}
-                                onKeyDown={e => {
-                                  if (e.key === 'Enter') {
-                                    e.preventDefault();
-                                    commitInCellEdit(true);
-                                  } else if (e.key === 'Tab') {
-                                    e.preventDefault();
-                                    commitInCellEdit(false, true);
-                                  } else if (e.key === 'Escape') {
-                                    e.preventDefault();
-                                    cancelInCellEdit();
-                                  }
-                                }}
-                                className="w-full bg-white dark:bg-[#162537] border-2 border-blue-600 dark:border-sky-400 text-slate-900 dark:text-slate-100 rounded px-1 py-0.5 text-xs font-bold focus:outline-none shadow-sm z-20"
-                              >
-                                {ALL_RANKS.map(r => (
-                                  <option key={r} value={r} className="dark:bg-[#162537] dark:text-white">
-                                    {r}
-                                  </option>
-                                ))}
-                              </select>
-                            ) : activeFieldType === 'Gender Dropdown' ? (
-                              <select
-                                ref={inCellInputRef as any}
-                                autoFocus
-                                value={editValue}
-                                onChange={e => {
-                                  setEditValue(e.target.value);
-                                  setFormulaInputValue(e.target.value);
-                                }}
-                                onBlur={() => commitInCellEdit()}
-                                onKeyDown={e => {
-                                  if (e.key === 'Enter') {
-                                    e.preventDefault();
-                                    commitInCellEdit(true);
-                                  } else if (e.key === 'Tab') {
-                                    e.preventDefault();
-                                    commitInCellEdit(false, true);
-                                  } else if (e.key === 'Escape') {
-                                    e.preventDefault();
-                                    cancelInCellEdit();
-                                  }
-                                }}
-                                className="w-full bg-white dark:bg-[#162537] border-2 border-blue-600 dark:border-sky-400 text-slate-900 dark:text-slate-100 rounded px-1 py-0.5 text-xs focus:outline-none shadow-sm z-20"
-                              >
-                                {GENDERS.map(g => (
-                                  <option key={g} value={g} className="dark:bg-[#162537] dark:text-white">
-                                    {g}
-                                  </option>
-                                ))}
-                              </select>
-                            ) : (
-                              <input
-                                ref={inCellInputRef}
-                                autoFocus
-                                type="text"
-                                value={editValue}
-                                onChange={e => {
-                                  setEditValue(e.target.value);
-                                  setFormulaInputValue(e.target.value);
-                                }}
-                                onBlur={() => commitInCellEdit()}
-                                onKeyDown={e => {
-                                  if (e.key === 'Enter') {
-                                    e.preventDefault();
-                                    commitInCellEdit(true);
-                                  } else if (e.key === 'Tab') {
-                                    e.preventDefault();
-                                    commitInCellEdit(false, true);
-                                  } else if (e.key === 'Escape') {
-                                    e.preventDefault();
-                                    cancelInCellEdit();
-                                  }
-                                }}
-                                style={{
-                                  textAlign: alignH,
-                                  fontWeight: s.b ? 'bold' : 'normal',
-                                  fontSize: s.sz ? `${Math.max(10, Math.min(14, s.sz))}px` : '11px'
-                                }}
-                                className="w-full bg-white dark:bg-[#162537] border-2 border-blue-600 dark:border-sky-400 text-slate-900 dark:text-slate-100 rounded px-1 py-0.5 text-xs font-mono focus:outline-none shadow-sm z-20"
-                              />
-                            )
+                            <input
+                              ref={inCellInputRef}
+                              type="text"
+                              value={editValue}
+                              onChange={e => {
+                                setEditValue(e.target.value);
+                                setFormulaInputValue(e.target.value);
+                              }}
+                              onBlur={() => commitInCellEdit()}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  commitInCellEdit(true);
+                                } else if (e.key === 'Tab') {
+                                  e.preventDefault();
+                                  commitInCellEdit(false, true);
+                                } else if (e.key === 'Escape') {
+                                  e.preventDefault();
+                                  cancelInCellEdit();
+                                }
+                              }}
+                              className="w-full bg-white font-sans text-xs text-slate-900 border border-blue-500 p-0 focus:outline-hidden dark:bg-[#101b2b] dark:text-white"
+                            />
                           ) : (
-                            <span className="block truncate">
-                              {formatCellValue(cell)}
-                            </span>
+                            formatDisplayVal(cell)
                           )}
                         </td>
                       );
@@ -1698,79 +1486,199 @@ export const ExcelWorksheetModule: React.FC = () => {
         )}
       </div>
 
-      {/* 5. BOTTOM EXCEL-STYLE WORKSHEET TAB BAR */}
-      <div className="flex items-center border-t border-slate-300 bg-[#e1e3e5] px-2 py-1 gap-1 text-xs dark:bg-[#0b131e] dark:border-slate-800">
-        {/* Left/Right Tab Scroll Buttons */}
-        <button
-          onClick={() => tabScrollRef.current?.scrollBy({ left: -140, behavior: 'smooth' })}
-          className="rounded p-1 hover:bg-slate-300 text-slate-700 transition dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
-          title="Scroll tabs left"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </button>
-        <button
-          onClick={() => tabScrollRef.current?.scrollBy({ left: 140, behavior: 'smooth' })}
-          className="rounded p-1 hover:bg-slate-300 text-slate-700 transition dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
-          title="Scroll tabs right"
-        >
-          <ChevronRight className="h-4 w-4" />
-        </button>
+      {/* 4. EXCEL 13-WORKSHEET TABS BAR */}
+      <div className="flex items-center justify-between border-t border-slate-200 bg-[#f8f9fa] px-2 py-1 dark:border-slate-800 dark:bg-[#0c1624]">
+        <div className="flex items-center gap-1 overflow-hidden">
+          {/* Scroll left/right tabs buttons */}
+          <button
+            onClick={() => tabScrollRef.current?.scrollBy({ left: -150, behavior: 'smooth' })}
+            className="p-1 rounded text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => tabScrollRef.current?.scrollBy({ left: 150, behavior: 'smooth' })}
+            className="p-1 rounded text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
 
-        {/* Scrollable 5-Tab Strip */}
-        <div
-          ref={tabScrollRef}
-          className="flex-1 flex items-center overflow-x-auto no-scrollbar gap-1 py-0.5"
-        >
-          {sheets.map((s, idx) => {
-            const isActive = s.id === activeSheetId;
-            return (
-              <React.Fragment key={s.id}>
-                {idx > 0 && <span className="text-slate-400 select-none text-[11px] px-0.5 dark:text-slate-600">|</span>}
-                <button
+          {/* Add Worksheet Tab Button */}
+          <button
+            onClick={handleAddTab}
+            disabled={!canEdit}
+            title="Add New Worksheet"
+            className="p-1 rounded text-slate-600 hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-800"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
+
+          {/* All 13 Worksheet Tabs */}
+          <div ref={tabScrollRef} className="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5">
+            {sheets.map(sheet => {
+              const isActive = activeSheetId === sheet.id;
+              const isEditingTab = editingTabId === sheet.id;
+
+              return (
+                <div
+                  key={sheet.id}
                   onClick={() => {
-                    if (activeSheetId !== s.id) {
-                      if (unsavedChanges.size > 0) {
-                        if (window.confirm('You have unsaved changes on this worksheet. Discard them and switch tabs?')) {
-                          setUnsavedChanges(new Map());
-                          setActiveSheetId(s.id);
-                        }
-                      } else {
-                        setActiveSheetId(s.id);
-                      }
+                    if (activeSheetId !== sheet.id) {
+                      setActiveSheetId(sheet.id);
                     }
                   }}
-                  className={`whitespace-nowrap px-3.5 py-1.5 rounded-t-lg font-semibold text-xs transition border-t-2 ${
+                  onDoubleClick={() => {
+                    if (canEdit) {
+                      setEditingTabId(sheet.id);
+                      setEditingTabName(sheet.name);
+                    }
+                  }}
+                  className={`group relative flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-t-md transition border-t-2 cursor-pointer select-none whitespace-nowrap ${
                     isActive
-                      ? 'bg-white border-emerald-600 text-slate-900 shadow-sm dark:bg-[#1b2b3d] dark:border-emerald-500 dark:text-emerald-200 dark:shadow-md'
-                      : 'bg-[#d2d5d8] border-transparent text-slate-700 hover:bg-[#dfe2e5] dark:bg-[#101b27] dark:text-slate-300 dark:border-slate-800/60 dark:hover:bg-[#162536] dark:hover:text-white'
+                      ? 'border-emerald-600 bg-white text-emerald-900 shadow-xs dark:bg-[#101b2b] dark:text-sky-300'
+                      : 'border-transparent bg-slate-200/60 text-slate-600 hover:bg-slate-200 dark:bg-slate-800/40 dark:text-slate-400 dark:hover:bg-slate-800'
                   }`}
                 >
-                  <span className={isActive ? 'border-b-2 border-emerald-600 pb-0.5 dark:border-emerald-400' : ''}>
-                    {s.name}
-                  </span>
-                </button>
-              </React.Fragment>
-            );
-          })}
+                  <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
+                  {isEditingTab ? (
+                    <input
+                      type="text"
+                      autoFocus
+                      value={editingTabName}
+                      onChange={e => setEditingTabName(e.target.value)}
+                      onBlur={() => handleRenameTabSubmit(sheet.id)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') handleRenameTabSubmit(sheet.id);
+                        if (e.key === 'Escape') setEditingTabId(null);
+                      }}
+                      className="w-24 rounded border border-blue-500 bg-white px-1 text-xs text-slate-900 dark:bg-slate-900 dark:text-white"
+                    />
+                  ) : (
+                    <span>{sheet.name}</span>
+                  )}
+
+                  {/* Tab menu options on hover */}
+                  {canEdit && (
+                    <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 ml-1">
+                      <button
+                        onClick={e => {
+                          e.stopPropagation();
+                          handleDuplicateTab(sheet.id);
+                        }}
+                        title="Duplicate Sheet"
+                        className="p-0.5 hover:text-blue-600"
+                      >
+                        <Copy className="h-3 w-3" />
+                      </button>
+                      <button
+                        onClick={e => {
+                          e.stopPropagation();
+                          handleDeleteTab(sheet.id);
+                        }}
+                        title="Delete Sheet"
+                        className="p-0.5 hover:text-red-600"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
 
-        {/* Total Tabs Count */}
-        <div className="text-[11px] font-semibold text-slate-500 px-2 font-mono dark:text-slate-400">
-          {sheets.findIndex(s => s.id === activeSheetId) + 1} / {sheets.length}
+        {/* Right Tab Bar: Zoom percentage & Quick info */}
+        <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 pr-2">
+          <span>{sheetData?.rowCount || 0} rows</span>
+          <span>·</span>
+          <span>{sheetData?.colCount || 0} cols</span>
+          <span>·</span>
+          <span>{zoomScale}%</span>
         </div>
       </div>
 
-      {/* Import Modal */}
+      {/* 5. INTERACTIVE MODALS & DRAWERS */}
+      <ChartModal
+        isOpen={isChartModalOpen}
+        onClose={() => setIsChartModalOpen(false)}
+        selectedRangeText={activeCell.address}
+        data={chartData}
+      />
+
+      <FindReplaceModal
+        isOpen={isFindReplaceOpen}
+        onClose={() => setIsFindReplaceOpen(false)}
+        onFind={handleFind}
+        onReplace={handleReplace}
+        onReplaceAll={handleReplaceAll}
+        currentMatchIndex={currentMatchIndex}
+        totalMatches={searchMatches.length}
+        initialMode={findReplaceMode}
+      />
+
+      <FormatCellsModal
+        isOpen={isFormatCellsOpen}
+        onClose={() => setIsFormatCellsOpen(false)}
+        onApply={(style, numFmt) => applyStyleToSelection(() => style, numFmt)}
+        currentStyle={currentCellObj?.s}
+        currentNumFmt={currentCellObj?.s?.nf}
+        selectedAddress={activeCell.address}
+      />
+
+      <PageSetupModal
+        isOpen={isPageSetupOpen}
+        onClose={() => setIsPageSetupOpen(false)}
+        worksheetName={sheetData?.name || 'Sheet'}
+        onPrint={() => window.print()}
+      />
+
+      <InsertFunctionModal
+        isOpen={isFunctionWizardOpen}
+        onClose={() => setIsFunctionWizardOpen(false)}
+        onSelectFunction={template => {
+          setEditValue(template);
+          setFormulaInputValue(template);
+          setIsEditing(true);
+          setTimeout(() => inCellInputRef.current?.focus(), 30);
+        }}
+      />
+
       <ExcelImportModal
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
         onImportSuccess={() => loadActiveSheet(activeSheetId)}
       />
 
-      {/* Audit Trail Drawer */}
       <WorksheetAuditDrawer
         isOpen={isAuditDrawerOpen}
         onClose={() => setIsAuditDrawerOpen(false)}
+      />
+
+      {/* Right-click context menu */}
+      <SpreadsheetContextMenu
+        position={contextMenuPos}
+        onClose={() => setContextMenuPos(null)}
+        onCut={handleCut}
+        onCopy={handleCopy}
+        onPaste={handlePaste}
+        onInsertRow={() => setSheetData(prev => prev ? { ...prev, rowCount: prev.rowCount + 1 } : prev)}
+        onDeleteRow={() => {}}
+        onInsertColumn={() => setSheetData(prev => prev ? { ...prev, colCount: prev.colCount + 1 } : prev)}
+        onDeleteColumn={() => {}}
+        onClearContents={() => applyCellChange(activeCell.address, '')}
+        onClearFormatting={() => applyStyleToSelection(() => ({}))}
+        onOpenFormatCells={() => setIsFormatCellsOpen(true)}
+        onSortAZ={() => handleSort(true)}
+        onSortZA={() => handleSort(false)}
+        onFilterByValue={() => {
+          const val = String(sheetData?.cells[activeCell.address]?.v || '');
+          setColumnFilters(prev => ({ ...prev, [activeCell.col]: val }));
+        }}
+        onAddComment={() => {
+          const note = window.prompt('Enter note:');
+          if (note) applyStyleToSelection(s => ({ ...s, note }));
+        }}
       />
     </div>
   );

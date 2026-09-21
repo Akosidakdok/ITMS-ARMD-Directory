@@ -10,14 +10,22 @@ import {
   calculateDatedif
 } from '../backend/services/worksheetDataService.js';
 
-test('getWorksheetSummaries returns exactly 5 sheets in order', () => {
+test('getWorksheetSummaries returns exactly 13 sheets in order', () => {
   const summaries = getWorksheetSummaries();
-  assert.equal(summaries.length, 5);
-  assert.equal(summaries[0].name, 'Disposition');
-  assert.equal(summaries[1].name, 'Alpha List');
-  assert.equal(summaries[2].name, 'Rank Profile with OSSP');
-  assert.equal(summaries[3].name, 'Updates for ADMO');
-  assert.equal(summaries[4].name, 'ITMS HQ');
+  assert.equal(summaries.length, 13);
+  assert.equal(summaries[0].name, 'DISPO Att (2)');
+  assert.equal(summaries[1].name, 'DISPO Att');
+  assert.equal(summaries[2].name, 'detail Crame based');
+  assert.equal(summaries[3].name, 'itmsHQ');
+  assert.equal(summaries[4].name, 'Disposition');
+  assert.equal(summaries[5].name, 'Alpha List');
+  assert.equal(summaries[6].name, '15 YRS LENGTH OF SERVICE');
+  assert.equal(summaries[7].name, 'Crame-based PCOs');
+  assert.equal(summaries[8].name, 'New Rank Profile');
+  assert.equal(summaries[9].name, 'New Ranked Profile (DPL)');
+  assert.equal(summaries[10].name, 'Rank Profile with OSSP');
+  assert.equal(summaries[11].name, 'Updates for ADMO');
+  assert.equal(summaries[12].name, 'ITMS HQ');
 });
 
 test('calculateDatedif returns expected format', () => {
@@ -54,23 +62,24 @@ test('updateWorksheetCell records edit and audit log', async () => {
   assert.ok(logs.some(l => l.cellAddress === 'E9' && l.newValue === 'ABANILLA-EDITED'));
 });
 
-test('generateExcelExport creates valid 5-sheet Excel workbook', async () => {
+test('generateExcelExport creates valid 13-sheet Excel workbook', async () => {
   const buffer = await generateExcelExport();
   assert.ok(buffer.length > 50000);
 
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.load(buffer);
-  assert.equal(wb.worksheets.length, 5);
-  assert.equal(wb.worksheets[0].name, 'Disposition');
-  assert.equal(wb.worksheets[1].name, 'Alpha List');
-  assert.equal(wb.worksheets[2].name, 'Rank Profile with OSSP');
-  assert.equal(wb.worksheets[3].name, 'Updates for ADMO');
-  assert.equal(wb.worksheets[4].name, 'ITMS HQ');
+  assert.equal(wb.worksheets.length, 13);
+  assert.equal(wb.worksheets[0].name.trim(), 'DISPO Att (2)');
+  assert.equal(wb.worksheets[4].name.trim(), 'Disposition');
+  assert.equal(wb.worksheets[5].name.trim(), 'Alpha List');
+  assert.equal(wb.worksheets[10].name.trim(), 'Rank Profile with OSSP');
+  assert.equal(wb.worksheets[11].name.trim(), 'Updates for ADMO');
+  assert.equal(wb.worksheets[12].name.trim(), 'ITMS HQ');
 });
 
-test('all 5 worksheets have resolved formulas and zero [object Object] cells', () => {
+test('all 13 worksheets have resolved formulas and zero [object Object] cells', () => {
   const summaries = getWorksheetSummaries();
-  assert.equal(summaries.length, 5);
+  assert.equal(summaries.length, 13);
 
   summaries.forEach(s => {
     const detail = getWorksheetDetail(s.id, []);
@@ -131,7 +140,8 @@ test('worksheets dynamically update As of header to current date', () => {
   const expectedHeader = `(As of ${todayFormatted})`;
 
   const summaries = getWorksheetSummaries();
-  summaries.forEach(s => {
+  const sheetsWithAsOf = summaries.filter(s => ['Disposition', 'Alpha List', 'Rank Profile with OSSP', 'Updates for ADMO', 'ITMS HQ'].includes(s.name));
+  sheetsWithAsOf.forEach(s => {
     const detail = getWorksheetDetail(s.id, []);
     // Find any cell matching "As of"
     let foundAsOf = false;

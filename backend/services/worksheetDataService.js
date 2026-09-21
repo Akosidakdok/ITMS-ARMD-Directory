@@ -21,15 +21,23 @@ let cellOverrides = new Map(); // key: "sheetId:address" -> { value, formula, up
 let auditLogs = [];
 
 export const ALLOWED_WORKSHEET_NAMES = [
+  'DISPO Att (2)',
+  'DISPO Att',
+  'detail Crame based',
+  'itmsHQ',
   'Disposition',
   'Alpha List',
+  '15 YRS LENGTH OF SERVICE',
+  'Crame-based PCOs',
+  'New Rank Profile',
+  'New Ranked Profile (DPL)',
   'Rank Profile with OSSP',
   'Updates for ADMO',
   'ITMS HQ'
 ];
 
 /**
- * Load worksheets from disk cache or build from Excel file (restricted to the 5 approved worksheets)
+ * Load worksheets from disk cache or build from Excel file (all 13 worksheets from reference)
  */
 export function getLoadedWorksheets() {
   if (cachedWorksheets) return cachedWorksheets;
@@ -39,12 +47,13 @@ export function getLoadedWorksheets() {
       const data = fs.readFileSync(CACHE_PATH, 'utf8');
       const allSheets = JSON.parse(data);
       cachedWorksheets = ALLOWED_WORKSHEET_NAMES.map((name, index) => {
-        const found = allSheets.find(s => s.name.trim() === name.trim());
+        const found = allSheets.find(s => s.name.trim().toLowerCase() === name.trim().toLowerCase());
         if (!found) {
           throw new Error(`Required worksheet not found in cache: ${name}`);
         }
         return {
           ...found,
+          name: name.trim(),
           order: index + 1,
           legacyOrder: found.order
         };
@@ -688,10 +697,11 @@ export async function generateExcelExport(sheetId = null) {
   }
 
   refWb.worksheets.forEach((refSheet, idx) => {
-    // Only include the 5 approved worksheets
-    if (!ALLOWED_WORKSHEET_NAMES.includes(refSheet.name)) return;
+    // Include all 13 reference worksheets
+    const isAllowed = ALLOWED_WORKSHEET_NAMES.some(n => n.trim().toLowerCase() === refSheet.name.trim().toLowerCase());
+    if (!isAllowed) return;
 
-    const cachedSheet = cachedSheets.find(s => s.name.trim() === refSheet.name.trim());
+    const cachedSheet = cachedSheets.find(s => s.name.trim().toLowerCase() === refSheet.name.trim().toLowerCase());
     const sId = cachedSheet ? cachedSheet.id : `sheet-${idx + 1}`;
     if (sheetId && sheetId !== sId && sheetId !== refSheet.name && targetSheetName !== refSheet.name) return;
 
