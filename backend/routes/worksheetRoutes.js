@@ -13,7 +13,7 @@ import {
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 
-// List all 13 worksheets
+// List all 5 worksheets
 router.get('/', async (req, res) => {
   try {
     const list = getWorksheetSummaries();
@@ -41,7 +41,7 @@ router.get('/export/download', async (req, res) => {
     
     const filename = sheetId 
       ? `PAIS_Worksheet_${sheetId}_${new Date().toISOString().slice(0, 10)}.xlsx`
-      : `PAIS_Full_Disposition_September_7_2026.xlsx`;
+      : `PAIS_Interactive_Worksheets_September_7_2026.xlsx`;
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);

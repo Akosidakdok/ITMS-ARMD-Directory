@@ -22,7 +22,7 @@ const pageTitles: Record<string, string> = {
   '/promotion-evaluation': 'Promotion Evaluation',
   '/reports': 'Reports',
   '/admin-accounts': 'Administrator Accounts',
-  '/excel-integration': 'Excel Integration Workspace'
+  '/excel-integration': 'Interactive Excel Worksheets'
 };
 
 export const Header: React.FC<HeaderProps> = ({ onMenuClick, onSidebarToggle, sidebarCollapsed = false }) => {

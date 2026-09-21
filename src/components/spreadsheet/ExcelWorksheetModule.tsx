@@ -70,13 +70,46 @@ function parseAddress(addr: string): { col: number; row: number; letter: string 
   };
 }
 
+export function formatCellValue(cell: WorksheetCell | undefined | null): string {
+  if (!cell) return '';
+  const val = cell.v;
+  if (val === null || val === undefined) {
+    if (cell.res !== null && cell.res !== undefined) return String(cell.res);
+    return '';
+  }
+  if (typeof val === 'object') {
+    if (val.result !== undefined && val.result !== null) {
+      if (typeof val.result === 'object' && val.result?.error) return String(val.result.error);
+      return String(val.result);
+    }
+    if (val.text !== undefined && val.text !== null) return String(val.text);
+    if (Array.isArray(val.richText)) return val.richText.map((t: any) => t.text || '').join('');
+    if (val.error) return String(val.error);
+    if (cell.res !== null && cell.res !== undefined) return String(cell.res);
+    return '';
+  }
+  return String(val);
+}
+
+export function getFormulaBarDisplay(cell: WorksheetCell | undefined | null): string {
+  if (!cell) return '';
+  if (cell.f) return `=${cell.f}`;
+  const val = cell.v;
+  if (typeof val === 'object' && val !== null) {
+    if (val.formula) return `=${val.formula}`;
+    if (val.sharedFormula) return `=${val.sharedFormula}`;
+    if (val.result !== undefined && val.result !== null) return String(val.result);
+  }
+  return val !== undefined && val !== null ? String(val) : '';
+}
+
 export const ExcelWorksheetModule: React.FC = () => {
   const { role } = useAuthRole();
   const canEdit = role === 'admin' || role === 'superadmin' || role === 'command';
 
   // Worksheets navigation
   const [sheets, setSheets] = useState<WorksheetSummary[]>([]);
-  const [activeSheetId, setActiveSheetId] = useState<string>('sheet-1');
+  const [activeSheetId, setActiveSheetId] = useState<string>('');
   const [sheetData, setSheetData] = useState<WorksheetDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -675,7 +708,7 @@ export const ExcelWorksheetModule: React.FC = () => {
           <button
             onClick={() => handleExport(false)}
             className="flex items-center gap-1 rounded border border-slate-300 bg-white px-2.5 py-1 text-slate-700 hover:bg-slate-50 transition dark:bg-[#162537] dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
-            title="Export all 13 sheets to Excel (.xlsx)"
+            title="Export all 5 sheets to Excel (.xlsx)"
           >
             <Download className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
             <span>Export</span>
@@ -728,7 +761,7 @@ export const ExcelWorksheetModule: React.FC = () => {
             />
           ) : (
             <div className="w-full font-mono text-xs text-slate-700 truncate dark:text-slate-200">
-              {currentCellObj?.f ? `=${currentCellObj.f}` : currentCellObj?.v !== undefined ? String(currentCellObj.v) : ''}
+              {getFormulaBarDisplay(currentCellObj)}
             </div>
           )}
         </div>
@@ -941,7 +974,7 @@ export const ExcelWorksheetModule: React.FC = () => {
                             )
                           ) : (
                             <span className="block truncate">
-                              {cell?.v !== null && cell?.v !== undefined ? String(cell.v) : ''}
+                              {formatCellValue(cell)}
                             </span>
                           )}
                         </td>
@@ -973,36 +1006,40 @@ export const ExcelWorksheetModule: React.FC = () => {
           <ChevronRight className="h-4 w-4" />
         </button>
 
-        {/* Scrollable 13-Tab Strip */}
+        {/* Scrollable 5-Tab Strip */}
         <div
           ref={tabScrollRef}
           className="flex-1 flex items-center overflow-x-auto no-scrollbar gap-1 py-0.5"
         >
-          {sheets.map(s => {
+          {sheets.map((s, idx) => {
             const isActive = s.id === activeSheetId;
             return (
-              <button
-                key={s.id}
-                onClick={() => {
-                  if (activeSheetId !== s.id) {
-                    if (unsavedChanges.size > 0) {
-                      if (window.confirm('You have unsaved changes on this worksheet. Discard them and switch tabs?')) {
-                        setUnsavedChanges(new Map());
+              <React.Fragment key={s.id}>
+                {idx > 0 && <span className="text-slate-400 select-none text-[11px] px-0.5 dark:text-slate-600">|</span>}
+                <button
+                  onClick={() => {
+                    if (activeSheetId !== s.id) {
+                      if (unsavedChanges.size > 0) {
+                        if (window.confirm('You have unsaved changes on this worksheet. Discard them and switch tabs?')) {
+                          setUnsavedChanges(new Map());
+                          setActiveSheetId(s.id);
+                        }
+                      } else {
                         setActiveSheetId(s.id);
                       }
-                    } else {
-                      setActiveSheetId(s.id);
                     }
-                  }
-                }}
-                className={`whitespace-nowrap px-3.5 py-1.5 rounded-t-lg font-semibold text-xs transition border-t-2 ${
-                  isActive
-                    ? 'bg-white border-blue-700 text-blue-900 shadow-sm dark:bg-[#1b2b3d] dark:border-sky-400 dark:text-sky-200 dark:shadow-md'
-                    : 'bg-[#d2d5d8] border-transparent text-slate-700 hover:bg-[#dfe2e5] dark:bg-[#101b27] dark:text-slate-300 dark:border-slate-800/60 dark:hover:bg-[#162536] dark:hover:text-white'
-                }`}
-              >
-                {s.name}
-              </button>
+                  }}
+                  className={`whitespace-nowrap px-3.5 py-1.5 rounded-t-lg font-semibold text-xs transition border-t-2 ${
+                    isActive
+                      ? 'bg-white border-emerald-600 text-slate-900 shadow-sm dark:bg-[#1b2b3d] dark:border-emerald-500 dark:text-emerald-200 dark:shadow-md'
+                      : 'bg-[#d2d5d8] border-transparent text-slate-700 hover:bg-[#dfe2e5] dark:bg-[#101b27] dark:text-slate-300 dark:border-slate-800/60 dark:hover:bg-[#162536] dark:hover:text-white'
+                  }`}
+                >
+                  <span className={isActive ? 'border-b-2 border-emerald-600 pb-0.5 dark:border-emerald-400' : ''}>
+                    {s.name}
+                  </span>
+                </button>
+              </React.Fragment>
             );
           })}
         </div>

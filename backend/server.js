@@ -13,8 +13,6 @@ import awardsRoutes from './routes/awardsRoutes.js';
 import adminUsersRoutes from './routes/adminUsersRoutes.js';
 import promotionEvaluationsRoutes from './routes/promotionEvaluationsRoutes.js';
 import dispositionRoutes from './routes/dispositionRoutes.js';
-import excelTemplatesRoutes from './routes/excelTemplatesRoutes.js';
-import excelImportsRoutes from './routes/excelImportsRoutes.js';
 import worksheetRoutes from './routes/worksheetRoutes.js';
 import {
   authenticateRequest,
@@ -128,8 +126,6 @@ app.use('/api/awards', awardsRoutes);
 app.use('/api/admin-users', adminUsersRoutes);
 app.use('/api/disposition', dispositionRoutes);
 app.use('/api/promotion-evaluations', promotionEvaluationsRoutes);
-app.use('/api/excel/templates', excelTemplatesRoutes);
-app.use('/api/excel/import', excelImportsRoutes);
 app.use('/api/worksheets', worksheetRoutes);
 
 // Global Error Handler

@@ -13,8 +13,16 @@ let cachedWorksheets = null;
 let cellOverrides = new Map(); // key: "sheetId:address" -> { value, formula, updatedBy, updatedAt }
 let auditLogs = [];
 
+export const ALLOWED_WORKSHEET_NAMES = [
+  'Disposition',
+  'Alpha List',
+  'Rank Profile with OSSP',
+  'Updates for ADMO',
+  'ITMS HQ'
+];
+
 /**
- * Load worksheets from disk cache or build from Excel file
+ * Load worksheets from disk cache or build from Excel file (restricted to the 5 approved worksheets)
  */
 export function getLoadedWorksheets() {
   if (cachedWorksheets) return cachedWorksheets;
@@ -22,8 +30,19 @@ export function getLoadedWorksheets() {
   if (fs.existsSync(CACHE_PATH)) {
     try {
       const data = fs.readFileSync(CACHE_PATH, 'utf8');
-      cachedWorksheets = JSON.parse(data);
-      console.log(`[WorksheetDataService] Loaded ${cachedWorksheets.length} worksheets from cache`);
+      const allSheets = JSON.parse(data);
+      cachedWorksheets = ALLOWED_WORKSHEET_NAMES.map((name, index) => {
+        const found = allSheets.find(s => s.name.trim() === name.trim());
+        if (!found) {
+          throw new Error(`Required worksheet not found in cache: ${name}`);
+        }
+        return {
+          ...found,
+          order: index + 1,
+          legacyOrder: found.order
+        };
+      });
+      console.log(`[WorksheetDataService] Loaded ${cachedWorksheets.length} allowed worksheets from cache`);
       return cachedWorksheets;
     } catch (e) {
       console.error('[WorksheetDataService] Failed to read cache, falling back to Excel parsing:', e.message);
@@ -34,7 +53,7 @@ export function getLoadedWorksheets() {
 }
 
 /**
- * Get summary list of all 13 worksheets for tab bar
+ * Get summary list of the 5 allowed worksheets for tab bar
  */
 export function getWorksheetSummaries() {
   const sheets = getLoadedWorksheets();
@@ -108,9 +127,12 @@ export function parseAddress(address) {
 /**
  * Map sheet rows to personnel fields
  */
-function getSheetFieldMapping(sheetOrder, rowNum, colLetter) {
-  // Worksheets 1, 2, 3: DISPO Att (2), DISPO Att, detail Crame based
-  if (sheetOrder >= 1 && sheetOrder <= 3) {
+function getSheetFieldMapping(sheet, rowNum, colLetter) {
+  const name = typeof sheet === 'object' ? sheet.name : '';
+  const order = typeof sheet === 'object' ? sheet.order : sheet;
+
+  // Worksheets 1, 2, 3: legacy DISPO Att (2), DISPO Att, detail Crame based
+  if (typeof order === 'number' && order >= 1 && order <= 3 && name !== 'Disposition' && name !== 'Alpha List') {
     if (rowNum >= 10) {
       const map = {
         B: 'sub_unit',
@@ -127,8 +149,8 @@ function getSheetFieldMapping(sheetOrder, rowNum, colLetter) {
     }
   }
 
-  // Worksheet 4: itmsHQ
-  if (sheetOrder === 4) {
+  // Worksheet 4: legacy itmsHQ
+  if (name === 'itmsHQ' || order === 4) {
     if (rowNum >= 10) {
       const map = {
         B: 'sub_unit',
@@ -143,8 +165,8 @@ function getSheetFieldMapping(sheetOrder, rowNum, colLetter) {
     }
   }
 
-  // Worksheet 5: Disposition
-  if (sheetOrder === 5) {
+  // Disposition
+  if (name === 'Disposition' || order === 5 || (name === '' && order === 1)) {
     if (rowNum >= 10) {
       const map = {
         B: 'sub_unit',
@@ -162,8 +184,8 @@ function getSheetFieldMapping(sheetOrder, rowNum, colLetter) {
     }
   }
 
-  // Worksheet 6: Alpha List
-  if (sheetOrder === 6) {
+  // Alpha List
+  if (name === 'Alpha List' || order === 6 || (name === '' && order === 2)) {
     if (rowNum >= 9) {
       const map = {
         B: 'rank',
@@ -182,42 +204,6 @@ function getSheetFieldMapping(sheetOrder, rowNum, colLetter) {
     }
   }
 
-  // Worksheet 7: 15 YRS LENGTH OF SERVICE
-  if (sheetOrder === 7) {
-    if (rowNum >= 3) {
-      const map = {
-        B: 'rank',
-        C: 'status',
-        D: 'badgeNo',
-        E: 'lastName',
-        F: 'firstName',
-        G: 'middleName',
-        H: 'qualifier',
-        I: 'ageToDate',
-        J: 'birthday',
-        K: 'lengthOfService',
-        L: 'designationDate',
-        M: 'remarks'
-      };
-      return map[colLetter] || null;
-    }
-  }
-
-  // Worksheet 8: Crame-based PCOs
-  if (sheetOrder === 8) {
-    if (rowNum >= 3) {
-      const map = {
-        B: 'sub_unit',
-        C: 'rank',
-        D: 'lastName',
-        E: 'firstName',
-        F: 'middleName',
-        G: 'qualifier'
-      };
-      return map[colLetter] || null;
-    }
-  }
-
   return null;
 }
 
@@ -226,7 +212,13 @@ function getSheetFieldMapping(sheetOrder, rowNum, colLetter) {
  */
 export function getWorksheetDetail(sheetId, personnelList = []) {
   const sheets = getLoadedWorksheets();
-  const sheet = sheets.find(s => s.id === sheetId || s.name === sheetId);
+  let sheet = sheets.find(s => s.id === sheetId || s.name.toLowerCase() === String(sheetId).toLowerCase());
+  if (!sheet && typeof sheetId === 'string' && /^sheet-\d+$/i.test(sheetId)) {
+    const idx = parseInt(sheetId.replace(/sheet-/i, ''), 10) - 1;
+    if (idx >= 0 && idx < sheets.length) {
+      sheet = sheets[idx];
+    }
+  }
   if (!sheet) throw new Error(`Worksheet not found: ${sheetId}`);
 
   // Create deep clone of cells for live presentation
@@ -248,6 +240,23 @@ export function getWorksheetDetail(sheetId, personnelList = []) {
     }
   }
 
+  // Sanitize any remaining object values in outputCells
+  for (const [addr, cell] of Object.entries(outputCells)) {
+    if (cell.v !== null && typeof cell.v === 'object') {
+      if (cell.v.result !== undefined && !(typeof cell.v.result === 'object' && cell.v.result?.error)) {
+        cell.v = cell.v.result;
+      } else if (cell.v.text) {
+        cell.v = String(cell.v.text);
+      } else if (Array.isArray(cell.v.richText)) {
+        cell.v = cell.v.richText.map(t => t.text || '').join('');
+      } else if (cell.v.error) {
+        cell.v = String(cell.v.error);
+      } else {
+        cell.v = cell.res !== null && cell.res !== undefined ? cell.res : '';
+      }
+    }
+  }
+
   // Build name-based and badge-based lookup maps for personnel
   const personnelByName = new Map();
   const personnelByBadge = new Map();
@@ -261,9 +270,9 @@ export function getWorksheetDetail(sheetId, personnelList = []) {
     }
   });
 
-  // Sync Personnel in Worksheets 1–8
-  if (sheet.order >= 1 && sheet.order <= 8) {
-    const startRow = (sheet.order === 6 ? 9 : (sheet.order === 7 || sheet.order === 8 ? 3 : 10));
+  // 1. Sync Personnel in Worksheets (Disposition and Alpha List)
+  if (sheet.name === 'Disposition' || sheet.name === 'Alpha List' || (sheet.order >= 1 && sheet.order <= 8)) {
+    const startRow = (sheet.name === 'Alpha List' || sheet.legacyOrder === 6) ? 9 : 10;
     for (let r = startRow; r <= sheet.rowCount; r++) {
       const lastCell = outputCells[`E${r}`];
       const firstCell = outputCells[`F${r}`];
@@ -272,52 +281,245 @@ export function getWorksheetDetail(sheetId, personnelList = []) {
       const pKey = `${String(lastCell.v).toUpperCase().trim()}|${String(firstCell.v).toUpperCase().trim()}`;
       const person = personnelByName.get(pKey);
       if (person) {
-        // Tag cell row with person's ID
         lastCell.personnelId = person.id;
         firstCell.personnelId = person.id;
+      }
+    }
+  }
 
-        // Dynamic formula recalculations for dates
-        if (sheet.order === 6 || sheet.order === 7) {
-          const bdayCell = outputCells[`J${r}`];
-          const ageCell = outputCells[`I${r}`];
-          if (bdayCell && bdayCell.v && ageCell) {
-            ageCell.v = calculateDatedif(bdayCell.v, '2026-04-30');
-            ageCell.isCalculated = true;
-          }
+  // 2. Alpha List: dynamic Age to Date and Length of Service calculations
+  if (sheet.name === 'Alpha List' || sheet.legacyOrder === 6) {
+    for (let r = 9; r <= sheet.rowCount; r++) {
+      const bdayCell = outputCells[`J${r}`];
+      const ageCell = outputCells[`I${r}`];
+      if (bdayCell && bdayCell.v && ageCell) {
+        const age = calculateDatedif(bdayCell.v, '2026-04-30');
+        if (age) {
+          ageCell.v = age;
+          ageCell.res = age;
+          ageCell.f = `DATEDIF(J${r},DATE(2026,4,30),"y")&" years, "&DATEDIF(J${r},DATE(2026,4,30),"ym")&" month(s), "&DATEDIF(J${r},DATE(2026,4,30),"md")&" day(s)"`;
+          ageCell.isCalculated = true;
+        }
+      }
 
-          const desCell = outputCells[`L${r}`];
-          const servCell = outputCells[`K${r}`];
-          if (desCell && desCell.v && servCell) {
-            servCell.v = calculateDatedif(desCell.v, '2026-04-30');
-            servCell.isCalculated = true;
-          }
+      const desCell = outputCells[`L${r}`];
+      const servCell = outputCells[`K${r}`];
+      if (desCell && desCell.v && servCell) {
+        const serv = calculateDatedif(desCell.v, '2026-04-30');
+        if (serv) {
+          servCell.v = serv;
+          servCell.res = serv;
+          servCell.f = `DATEDIF(L${r},DATE(2026,4,30),"y")&" years, "&DATEDIF(L${r},DATE(2026,4,30),"ym")&" month(s), "&DATEDIF(L${r},DATE(2026,4,30),"md")&" day(s)"`;
+          servCell.isCalculated = true;
         }
       }
     }
   }
 
-  // Live strength synchronization for Rank Profiles (Sheets 9, 10, 11)
-  if (sheet.order >= 9 && sheet.order <= 11) {
+  // 3. Disposition: Full Name Concatenation
+  if (sheet.name === 'Disposition') {
+    for (let r = 10; r <= sheet.rowCount; r++) {
+      const lastCell = outputCells[`E${r}`];
+      const firstCell = outputCells[`F${r}`];
+      const midCell = outputCells[`G${r}`];
+      const pCell = outputCells[`P${r}`];
+
+      if (lastCell?.v && firstCell?.v && pCell) {
+        const l = String(lastCell.v).trim();
+        const f = String(firstCell.v).trim();
+        const m = midCell?.v ? String(midCell.v).trim() : '';
+        pCell.v = [l, f, m].filter(Boolean).join(' ');
+        pCell.res = pCell.v;
+        pCell.f = `CONCATENATE(E${r}," ",F${r}," ",G${r})`;
+        pCell.isCalculated = true;
+      }
+    }
+  }
+
+  // 4. ITMS HQ: Variance Column (E) and Subtotals
+  if (sheet.name === 'ITMS HQ') {
+    for (let r = 10; r <= 45; r++) {
+      const cCell = outputCells[`C${r}`];
+      const dCell = outputCells[`D${r}`];
+      const eCell = outputCells[`E${r}`];
+
+      if (eCell) {
+        eCell.f = `D${r}-C${r}`;
+        const auth = Number(cCell?.v || 0);
+        const act = Number(dCell?.v || 0);
+        eCell.v = act - auth;
+        eCell.res = eCell.v;
+        eCell.isCalculated = true;
+      }
+    }
+
+    // Subtotal rows
+    const subtotalRows = [13, 17, 21, 25, 29, 33, 37, 41];
+    subtotalRows.forEach(subRow => {
+      const startR = subRow - 3;
+      const endR = subRow - 1;
+      let authSum = 0;
+      let actSum = 0;
+      for (let r = startR; r <= endR; r++) {
+        authSum += Number(outputCells[`C${r}`]?.v || 0);
+        actSum += Number(outputCells[`D${r}`]?.v || 0);
+      }
+      if (outputCells[`C${subRow}`]) {
+        outputCells[`C${subRow}`].v = authSum;
+        outputCells[`C${subRow}`].f = `SUM(C${startR}:C${endR})`;
+        outputCells[`C${subRow}`].res = authSum;
+        outputCells[`C${subRow}`].isCalculated = true;
+      }
+      if (outputCells[`D${subRow}`]) {
+        outputCells[`D${subRow}`].v = actSum;
+        outputCells[`D${subRow}`].f = `SUM(D${startR}:D${endR})`;
+        outputCells[`D${subRow}`].res = actSum;
+        outputCells[`D${subRow}`].isCalculated = true;
+      }
+      if (outputCells[`E${subRow}`]) {
+        outputCells[`E${subRow}`].v = actSum - authSum;
+        outputCells[`E${subRow}`].f = `D${subRow}-C${subRow}`;
+        outputCells[`E${subRow}`].res = actSum - authSum;
+        outputCells[`E${subRow}`].isCalculated = true;
+      }
+    });
+
+    // Category Totals
+    const pcoRows = [10, 14, 18, 22, 26, 30, 34, 38];
+    const pncoRows = [11, 15, 19, 23, 27, 31, 35, 39];
+    const nupRows = [12, 16, 20, 24, 28, 32, 36, 40];
+
+    const calcCategory = (targetRow, sourceRows) => {
+      let auth = 0;
+      let act = 0;
+      sourceRows.forEach(r => {
+        auth += Number(outputCells[`C${r}`]?.v || 0);
+        act += Number(outputCells[`D${r}`]?.v || 0);
+      });
+      if (outputCells[`C${targetRow}`]) {
+        outputCells[`C${targetRow}`].v = auth;
+        outputCells[`C${targetRow}`].f = sourceRows.map(r => `C${r}`).join('+');
+        outputCells[`C${targetRow}`].res = auth;
+        outputCells[`C${targetRow}`].isCalculated = true;
+      }
+      if (outputCells[`D${targetRow}`]) {
+        outputCells[`D${targetRow}`].v = act;
+        outputCells[`D${targetRow}`].f = sourceRows.map(r => `D${r}`).join('+');
+        outputCells[`D${targetRow}`].res = act;
+        outputCells[`D${targetRow}`].isCalculated = true;
+      }
+      if (outputCells[`E${targetRow}`]) {
+        outputCells[`E${targetRow}`].v = act - auth;
+        outputCells[`E${targetRow}`].f = `D${targetRow}-C${targetRow}`;
+        outputCells[`E${targetRow}`].res = act - auth;
+        outputCells[`E${targetRow}`].isCalculated = true;
+      }
+    };
+
+    calcCategory(42, pcoRows);
+    calcCategory(43, pncoRows);
+    calcCategory(44, nupRows);
+
+    // Grand Total Row 45
+    const grandAuth = Number(outputCells['C42']?.v || 0) + Number(outputCells['C43']?.v || 0) + Number(outputCells['C44']?.v || 0);
+    const grandAct = Number(outputCells['D42']?.v || 0) + Number(outputCells['D43']?.v || 0) + Number(outputCells['D44']?.v || 0);
+    if (outputCells['C45']) {
+      outputCells['C45'].v = grandAuth;
+      outputCells['C45'].f = 'SUM(C42:C44)';
+      outputCells['C45'].res = grandAuth;
+      outputCells['C45'].isCalculated = true;
+    }
+    if (outputCells['D45']) {
+      outputCells['D45'].v = grandAct;
+      outputCells['D45'].f = 'SUM(D42:D44)';
+      outputCells['D45'].res = grandAct;
+      outputCells['D45'].isCalculated = true;
+    }
+    if (outputCells['E45']) {
+      outputCells['E45'].v = grandAct - grandAuth;
+      outputCells['E45'].f = 'D45-C45';
+      outputCells['E45'].res = grandAct - grandAuth;
+      outputCells['E45'].isCalculated = true;
+    }
+  }
+
+  // 5. Rank Profile with OSSP: Variance and Strength Totals
+  if (sheet.name === 'Rank Profile with OSSP' || sheet.legacyOrder === 11 || (sheet.order >= 9 && sheet.order <= 11)) {
     const rankCounts = {};
     personnelList.forEach(p => {
       const r = (p.rank || '').toUpperCase().trim();
       rankCounts[r] = (rankCounts[r] || 0) + 1;
     });
 
-    // Recalculate Actual Strength and Variances
-    for (let r = 10; r <= 36; r++) {
-      const rankCell = outputCells[`A${r}`];
-      const actualCol = sheet.order === 11 ? 'J' : (sheet.order === 10 ? 'H' : 'I');
-      const authCol = sheet.order === 11 ? 'I' : (sheet.order === 10 ? 'G' : 'H');
-      const varCol = sheet.order === 11 ? 'K' : (sheet.order === 10 ? 'I' : 'J');
+    for (let r = 9; r <= 33; r++) {
+      const bCell = outputCells[`B${r}`];
+      const hCell = outputCells[`H${r}`];
+      const iCell = outputCells[`I${r}`];
+      const jCell = outputCells[`J${r}`];
+      const kCell = outputCells[`K${r}`];
 
-      const varCell = outputCells[`${varCol}${r}`];
-      if (varCell) {
-        const actual = Number(outputCells[`${actualCol}${r}`]?.v || 0);
-        const auth = Number(outputCells[`${authCol}${r}`]?.v || 0);
-        varCell.v = actual - auth;
-        varCell.isCalculated = true;
+      // Update actual strength if live personnel records exist
+      const rankCell = outputCells[`A${r}`];
+      if (rankCell?.v && personnelList.length > 0) {
+        const rName = String(rankCell.v).toUpperCase().trim();
+        if (rankCounts[rName] !== undefined && jCell) {
+          jCell.v = rankCounts[rName];
+          jCell.res = rankCounts[rName];
+        }
       }
+
+      // Column K: Variance = Actual (J) - Total Authorized (I)
+      if (kCell) {
+        const actual = Number(jCell?.v || 0);
+        const auth = Number(iCell?.v || 0);
+        kCell.v = actual - auth;
+        kCell.res = kCell.v;
+        kCell.f = `J${r}-I${r}`;
+        kCell.isCalculated = true;
+      }
+    }
+  }
+
+  // 6. Updates for ADMO: Totals
+  if (sheet.name === 'Updates for ADMO') {
+    [10, 11, 12].forEach(r => {
+      const iCell = outputCells[`I${r}`];
+      const nCell = outputCells[`N${r}`];
+      if (iCell) {
+        let sum = 0;
+        ['E', 'F', 'G', 'H'].forEach(col => {
+          sum += Number(outputCells[`${col}${r}`]?.v || 0);
+        });
+        iCell.v = sum;
+        iCell.res = sum;
+        iCell.f = `SUM(E${r}:H${r})`;
+        iCell.isCalculated = true;
+      }
+      if (nCell) {
+        const c = Number(outputCells[`C${r}`]?.v || 0);
+        const i = Number(outputCells[`I${r}`]?.v || 0);
+        const j = Number(outputCells[`J${r}`]?.v || 0);
+        const l = Number(outputCells[`L${r}`]?.v || 0);
+        nCell.v = c + i + j + l;
+        nCell.res = nCell.v;
+        nCell.f = `C${r}+I${r}+J${r}+L${r}`;
+        nCell.isCalculated = true;
+      }
+    });
+
+    const c13 = Number(outputCells['C10']?.v || 0) + Number(outputCells['C11']?.v || 0) + Number(outputCells['C12']?.v || 0);
+    const i13 = Number(outputCells['I10']?.v || 0) + Number(outputCells['I11']?.v || 0) + Number(outputCells['I12']?.v || 0);
+    const j13 = Number(outputCells['J10']?.v || 0) + Number(outputCells['J11']?.v || 0) + Number(outputCells['J12']?.v || 0);
+    const l13 = Number(outputCells['L10']?.v || 0) + Number(outputCells['L11']?.v || 0) + Number(outputCells['L12']?.v || 0);
+    if (outputCells['C13']) { outputCells['C13'].v = c13; outputCells['C13'].res = c13; outputCells['C13'].isCalculated = true; }
+    if (outputCells['I13']) { outputCells['I13'].v = i13; outputCells['I13'].res = i13; outputCells['I13'].isCalculated = true; }
+    if (outputCells['J13']) { outputCells['J13'].v = j13; outputCells['J13'].res = j13; outputCells['J13'].isCalculated = true; }
+    if (outputCells['L13']) { outputCells['L13'].v = l13; outputCells['L13'].res = l13; outputCells['L13'].isCalculated = true; }
+    if (outputCells['N13']) {
+      outputCells['N13'].v = c13 + i13 + j13 + l13;
+      outputCells['N13'].res = outputCells['N13'].v;
+      outputCells['N13'].f = 'C13+I13+J13+L13';
+      outputCells['N13'].isCalculated = true;
     }
   }
 
@@ -332,12 +534,11 @@ export function getWorksheetDetail(sheetId, personnelList = []) {
  */
 export async function updateWorksheetCell(sheetId, cellUpdate, user, db) {
   const { address, value, oldValue } = cellUpdate;
-  const sheets = getLoadedWorksheets();
-  const sheet = sheets.find(s => s.id === sheetId || s.name === sheetId);
+  const sheet = getWorksheetDetail(sheetId);
   if (!sheet) throw new Error(`Worksheet not found: ${sheetId}`);
 
   const { row, letter, col } = parseAddress(address);
-  const field = getSheetFieldMapping(sheet.order, row, letter);
+  const field = getSheetFieldMapping(sheet, row, letter);
 
   let personnelUpdated = null;
 
@@ -421,9 +622,22 @@ export async function generateExcelExport(sheetId = null) {
   const refWb = new ExcelJS.Workbook();
   await refWb.xlsx.readFile(REFERENCE_PATH);
 
+  let targetSheetName = null;
+  if (sheetId) {
+    try {
+      const target = getWorksheetDetail(sheetId);
+      targetSheetName = target?.name || null;
+    } catch {
+      targetSheetName = sheetId;
+    }
+  }
+
   refWb.worksheets.forEach((refSheet, idx) => {
+    // Only include the 5 approved worksheets
+    if (!ALLOWED_WORKSHEET_NAMES.includes(refSheet.name)) return;
+
     const sId = `sheet-${idx + 1}`;
-    if (sheetId && sheetId !== sId && sheetId !== refSheet.name) return;
+    if (sheetId && sheetId !== sId && sheetId !== refSheet.name && targetSheetName !== refSheet.name) return;
 
     const outSheet = wb.addWorksheet(refSheet.name, {
       views: refSheet.views
