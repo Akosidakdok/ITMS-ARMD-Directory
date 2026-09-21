@@ -7,7 +7,14 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const CACHE_PATH = path.join(__dirname, '..', 'store', 'cached_worksheet_data.json');
-const REFERENCE_PATH = path.join(__dirname, '..', '..', 'src', 'reference', 'disposition September 7, 2026.xlsx');
+export const getReferencePath = () => {
+  const storePath = path.join(__dirname, '..', 'store', 'disposition September 7, 2026.xlsx');
+  if (fs.existsSync(storePath)) return storePath;
+  const srcPath = path.join(__dirname, '..', '..', 'src', 'reference', 'disposition September 7, 2026.xlsx');
+  if (fs.existsSync(srcPath)) return srcPath;
+  return storePath;
+};
+const REFERENCE_PATH = getReferencePath();
 
 let cachedWorksheets = null;
 let cellOverrides = new Map(); // key: "sheetId:address" -> { value, formula, updatedBy, updatedAt }
@@ -665,7 +672,7 @@ export async function generateExcelExport(sheetId = null) {
 
   // Load from reference workbook to clone authentic master layout
   const refWb = new ExcelJS.Workbook();
-  await refWb.xlsx.readFile(REFERENCE_PATH);
+  await refWb.xlsx.readFile(getReferencePath());
 
   let targetSheetName = null;
   if (sheetId) {
