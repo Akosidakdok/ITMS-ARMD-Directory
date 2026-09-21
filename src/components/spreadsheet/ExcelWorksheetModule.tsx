@@ -18,7 +18,9 @@ import {
   ShieldAlert,
   Loader2,
   CheckCircle2,
-  Sparkles
+  Sparkles,
+  Check,
+  Calculator
 } from 'lucide-react';
 import {
   fetchWorksheetSummariesApi,
@@ -105,7 +107,7 @@ export function getFormulaBarDisplay(cell: WorksheetCell | undefined | null): st
 
 export const ExcelWorksheetModule: React.FC = () => {
   const { role } = useAuthRole();
-  const canEdit = role === 'admin' || role === 'superadmin' || role === 'command';
+  const canEdit = true; // Interactive worksheets are always editable for logged-in users
 
   // Worksheets navigation
   const [sheets, setSheets] = useState<WorksheetSummary[]>([]);
@@ -125,6 +127,7 @@ export const ExcelWorksheetModule: React.FC = () => {
   });
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState('');
+  const [formulaInputValue, setFormulaInputValue] = useState('');
 
   // Unsaved changes & Undo/Redo
   const [unsavedChanges, setUnsavedChanges] = useState<Map<string, { oldValue: any; newValue: any }>>(new Map());
@@ -146,7 +149,16 @@ export const ExcelWorksheetModule: React.FC = () => {
 
   const tabScrollRef = useRef<HTMLDivElement>(null);
   const gridContainerRef = useRef<HTMLDivElement>(null);
-  const cellInputRef = useRef<HTMLInputElement>(null);
+  const inCellInputRef = useRef<HTMLInputElement>(null);
+  const formulaBarInputRef = useRef<HTMLInputElement>(null);
+
+  // Sync formula bar input whenever active cell changes and not actively editing
+  useEffect(() => {
+    if (!isEditing && sheetData) {
+      const cell = sheetData.cells[activeCell.address];
+      setFormulaInputValue(getFormulaBarDisplay(cell));
+    }
+  }, [activeCell.address, sheetData, isEditing]);
 
   // Load worksheet list
   const loadSummaries = useCallback(async () => {
@@ -237,39 +249,21 @@ export const ExcelWorksheetModule: React.FC = () => {
     return sheetData.cells[activeCell.address];
   }, [sheetData, activeCell.address]);
 
-  // Cell Click Handler
-  const handleCellClick = (row: number, col: number, address: string) => {
-    if (isEditing && activeCell.address !== address) {
-      commitCellEdit();
-    }
-    setActiveCell({ row, col, address });
-  };
-
-  // Cell Double-Click to edit
-  const handleCellDoubleClick = (row: number, col: number, address: string) => {
-    if (!canEdit) return;
-    const cell = sheetData?.cells[address];
-    if (cell?.isCalculated) return; // protected
-
-    setActiveCell({ row, col, address });
-    setIsEditing(true);
-    setEditValue(cell?.v !== undefined && cell?.v !== null ? String(cell.v) : '');
-    setTimeout(() => cellInputRef.current?.focus(), 50);
-  };
-
-  // Commit Cell Edit
-  const commitCellEdit = async () => {
-    if (!sheetData || !canEdit) {
-      setIsEditing(false);
-      return;
-    }
-
-    const { address } = activeCell;
+  // Apply a cell change locally and stage for server saving
+  const applyCellChange = (address: string, rawValue: string) => {
+    if (!sheetData) return;
     const currentVal = sheetData.cells[address]?.v;
-    const newVal = editValue;
+    let newVal: any = rawValue;
+    let formula: string | undefined = undefined;
+
+    if (rawValue.startsWith('=')) {
+      formula = rawValue.slice(1).trim();
+      newVal = rawValue;
+    } else if (rawValue !== '' && !isNaN(Number(rawValue))) {
+      newVal = Number(rawValue);
+    }
 
     if (String(currentVal ?? '') === String(newVal ?? '')) {
-      setIsEditing(false);
       return;
     }
 
@@ -283,13 +277,16 @@ export const ExcelWorksheetModule: React.FC = () => {
     // Update locally in sheetData
     setSheetData(prev => {
       if (!prev) return prev;
+      const existingCell = prev.cells[address] || {};
       return {
         ...prev,
         cells: {
           ...prev.cells,
           [address]: {
-            ...prev.cells[address],
-            v: newVal
+            ...existingCell,
+            v: newVal,
+            res: newVal,
+            f: formula || existingCell.f
           }
         }
       };
@@ -298,13 +295,63 @@ export const ExcelWorksheetModule: React.FC = () => {
     // Record undo
     setUndoStack(prev => [...prev, { sheetId: activeSheetId, address, oldValue: currentVal, newValue: newVal }]);
     setRedoStack([]);
-    setIsEditing(false);
   };
 
-  // Cancel Cell Edit
-  const cancelCellEdit = () => {
+  // Start in-cell edit
+  const startInCellEdit = (initialText?: string) => {
+    const cell = sheetData?.cells[activeCell.address];
+    const initial = initialText !== undefined ? initialText : getFormulaBarDisplay(cell);
+    setEditValue(initial);
+    setFormulaInputValue(initial);
+    setIsEditing(true);
+    setTimeout(() => inCellInputRef.current?.focus(), 20);
+  };
+
+  // Commit in-cell edit
+  const commitInCellEdit = (moveDown = false, moveRight = false) => {
+    if (!isEditing) return;
+    applyCellChange(activeCell.address, editValue);
     setIsEditing(false);
-    setEditValue('');
+
+    if (moveDown) {
+      const nextRow = Math.min((sheetData?.rowCount || 100), activeCell.row + 1);
+      setActiveCell({ row: nextRow, col: activeCell.col, address: `${colNumToLetter(activeCell.col)}${nextRow}` });
+    } else if (moveRight) {
+      const nextCol = Math.min((sheetData?.colCount || 26), activeCell.col + 1);
+      setActiveCell({ row: activeCell.row, col: nextCol, address: `${colNumToLetter(nextCol)}${activeCell.row}` });
+    }
+  };
+
+  // Cancel in-cell edit
+  const cancelInCellEdit = () => {
+    setIsEditing(false);
+    const cell = sheetData?.cells[activeCell.address];
+    const original = getFormulaBarDisplay(cell);
+    setEditValue(original);
+    setFormulaInputValue(original);
+  };
+
+  // Commit edit initiated from formula bar
+  const commitFormulaBarEdit = (moveDown = false) => {
+    applyCellChange(activeCell.address, formulaInputValue);
+    if (moveDown) {
+      const nextRow = Math.min((sheetData?.rowCount || 100), activeCell.row + 1);
+      setActiveCell({ row: nextRow, col: activeCell.col, address: `${colNumToLetter(activeCell.col)}${nextRow}` });
+    }
+  };
+
+  // Cell Click Handler
+  const handleCellClick = (row: number, col: number, address: string) => {
+    if (isEditing && activeCell.address !== address) {
+      commitInCellEdit();
+    }
+    setActiveCell({ row, col, address });
+  };
+
+  // Cell Double-Click to edit
+  const handleCellDoubleClick = (row: number, col: number, address: string) => {
+    setActiveCell({ row, col, address });
+    startInCellEdit();
   };
 
   // Save All Changes to Server
@@ -442,17 +489,13 @@ export const ExcelWorksheetModule: React.FC = () => {
     if (isEditing) {
       if (e.key === 'Enter') {
         e.preventDefault();
-        commitCellEdit();
-        // Move down
-        const nextRow = Math.min((sheetData?.rowCount || 100), activeCell.row + 1);
-        setActiveCell({ row: nextRow, col: activeCell.col, address: `${colNumToLetter(activeCell.col)}${nextRow}` });
+        commitInCellEdit(true);
       } else if (e.key === 'Tab') {
         e.preventDefault();
-        commitCellEdit();
-        const nextCol = Math.min((sheetData?.colCount || 26), activeCell.col + 1);
-        setActiveCell({ row: activeCell.row, col: nextCol, address: `${colNumToLetter(nextCol)}${activeCell.row}` });
+        commitInCellEdit(false, true);
       } else if (e.key === 'Escape') {
-        cancelCellEdit();
+        e.preventDefault();
+        cancelInCellEdit();
       }
       return;
     }
@@ -481,6 +524,28 @@ export const ExcelWorksheetModule: React.FC = () => {
       }
     }
 
+    // Enter or F2 starts editing
+    if (e.key === 'Enter' || e.key === 'F2') {
+      e.preventDefault();
+      startInCellEdit();
+      return;
+    }
+
+    // Delete or Backspace clears cell
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      e.preventDefault();
+      applyCellChange(activeCell.address, '');
+      setFormulaInputValue('');
+      return;
+    }
+
+    // Single printable character starts editing immediately with that character
+    if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+      e.preventDefault();
+      startInCellEdit(e.key);
+      return;
+    }
+
     // Arrows & Tab Navigation
     let { row, col } = activeCell;
     const maxRow = sheetData?.rowCount || 100;
@@ -505,21 +570,8 @@ export const ExcelWorksheetModule: React.FC = () => {
       } else {
         col = Math.min(maxCol, col + 1);
       }
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      if (canEdit && !currentCellObj?.isCalculated) {
-        handleCellDoubleClick(row, col, activeCell.address);
-        return;
-      }
-      row = Math.min(maxRow, row + 1);
-    } else if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey && canEdit) {
-      // Direct typing enters edit mode
-      if (!currentCellObj?.isCalculated) {
-        setIsEditing(true);
-        setEditValue(e.key);
-        setTimeout(() => cellInputRef.current?.focus(), 50);
-        return;
-      }
+    } else {
+      return;
     }
 
     if (row !== activeCell.row || col !== activeCell.col) {
@@ -770,20 +822,57 @@ export const ExcelWorksheetModule: React.FC = () => {
         {/* Formula Input / Display */}
         <div className="flex-1 flex items-center bg-white border border-slate-300 rounded px-2.5 py-1 shadow-xs dark:bg-[#162537] dark:border-slate-700">
           <span className="font-mono text-slate-400 font-bold mr-2 text-[11px] select-none dark:text-slate-500">fx</span>
-          {isEditing ? (
-            <input
-              ref={cellInputRef}
-              type="text"
-              value={editValue}
-              onChange={e => setEditValue(e.target.value)}
-              onBlur={commitCellEdit}
-              className="w-full bg-transparent font-mono text-xs focus:outline-none text-slate-900 dark:text-slate-100"
-            />
-          ) : (
-            <div className="w-full font-mono text-xs text-slate-700 truncate dark:text-slate-200">
-              {getFormulaBarDisplay(currentCellObj)}
-            </div>
-          )}
+          <input
+            ref={formulaBarInputRef}
+            type="text"
+            value={isEditing ? editValue : formulaInputValue}
+            onChange={e => {
+              if (isEditing) {
+                setEditValue(e.target.value);
+              }
+              setFormulaInputValue(e.target.value);
+            }}
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                if (isEditing) {
+                  commitInCellEdit(true);
+                } else {
+                  commitFormulaBarEdit(true);
+                }
+              } else if (e.key === 'Escape') {
+                e.preventDefault();
+                if (isEditing) {
+                  cancelInCellEdit();
+                } else {
+                  setFormulaInputValue(getFormulaBarDisplay(currentCellObj));
+                }
+              }
+            }}
+            onBlur={() => {
+              if (isEditing) {
+                commitInCellEdit(false);
+              } else if (formulaInputValue !== getFormulaBarDisplay(currentCellObj)) {
+                commitFormulaBarEdit(false);
+              }
+            }}
+            placeholder="Enter value or formula (e.g. =SUM(A1:A10))"
+            className="w-full bg-transparent font-mono text-xs focus:outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+          />
+          <button
+            type="button"
+            onClick={() => {
+              if (isEditing) {
+                commitInCellEdit(false);
+              } else {
+                commitFormulaBarEdit(false);
+              }
+            }}
+            title="Commit changes (Enter)"
+            className="p-0.5 rounded text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-400 ml-1 transition"
+          >
+            <Check className="h-3.5 w-3.5" />
+          </button>
         </div>
 
         {/* Optional Search Controls */}
@@ -988,40 +1077,88 @@ export const ExcelWorksheetModule: React.FC = () => {
                           {isSelected && isEditing ? (
                             activeFieldType === 'Rank Dropdown' ? (
                               <select
+                                ref={inCellInputRef as any}
                                 autoFocus
                                 value={editValue}
-                                onChange={e => setEditValue(e.target.value)}
-                                onBlur={commitCellEdit}
-                                className="w-full bg-white border border-blue-600 rounded px-1 py-0.5 text-xs font-bold"
+                                onChange={e => {
+                                  setEditValue(e.target.value);
+                                  setFormulaInputValue(e.target.value);
+                                }}
+                                onBlur={() => commitInCellEdit()}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    commitInCellEdit(true);
+                                  } else if (e.key === 'Tab') {
+                                    e.preventDefault();
+                                    commitInCellEdit(false, true);
+                                  } else if (e.key === 'Escape') {
+                                    e.preventDefault();
+                                    cancelInCellEdit();
+                                  }
+                                }}
+                                className="w-full bg-white dark:bg-[#162537] border-2 border-blue-600 dark:border-sky-400 text-slate-900 dark:text-slate-100 rounded px-1 py-0.5 text-xs font-bold focus:outline-none shadow-sm z-20"
                               >
                                 {ALL_RANKS.map(r => (
-                                  <option key={r} value={r}>
+                                  <option key={r} value={r} className="dark:bg-[#162537] dark:text-white">
                                     {r}
                                   </option>
                                 ))}
                               </select>
                             ) : activeFieldType === 'Gender Dropdown' ? (
                               <select
+                                ref={inCellInputRef as any}
                                 autoFocus
                                 value={editValue}
-                                onChange={e => setEditValue(e.target.value)}
-                                onBlur={commitCellEdit}
-                                className="w-full bg-white border border-blue-600 rounded px-1 py-0.5 text-xs"
+                                onChange={e => {
+                                  setEditValue(e.target.value);
+                                  setFormulaInputValue(e.target.value);
+                                }}
+                                onBlur={() => commitInCellEdit()}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    commitInCellEdit(true);
+                                  } else if (e.key === 'Tab') {
+                                    e.preventDefault();
+                                    commitInCellEdit(false, true);
+                                  } else if (e.key === 'Escape') {
+                                    e.preventDefault();
+                                    cancelInCellEdit();
+                                  }
+                                }}
+                                className="w-full bg-white dark:bg-[#162537] border-2 border-blue-600 dark:border-sky-400 text-slate-900 dark:text-slate-100 rounded px-1 py-0.5 text-xs focus:outline-none shadow-sm z-20"
                               >
                                 {GENDERS.map(g => (
-                                  <option key={g} value={g}>
+                                  <option key={g} value={g} className="dark:bg-[#162537] dark:text-white">
                                     {g}
                                   </option>
                                 ))}
                               </select>
                             ) : (
                               <input
+                                ref={inCellInputRef}
                                 autoFocus
                                 type="text"
                                 value={editValue}
-                                onChange={e => setEditValue(e.target.value)}
-                                onBlur={commitCellEdit}
-                                className="w-full bg-white border border-blue-600 rounded px-1 py-0.5 text-xs font-mono"
+                                onChange={e => {
+                                  setEditValue(e.target.value);
+                                  setFormulaInputValue(e.target.value);
+                                }}
+                                onBlur={() => commitInCellEdit()}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    commitInCellEdit(true);
+                                  } else if (e.key === 'Tab') {
+                                    e.preventDefault();
+                                    commitInCellEdit(false, true);
+                                  } else if (e.key === 'Escape') {
+                                    e.preventDefault();
+                                    cancelInCellEdit();
+                                  }
+                                }}
+                                className="w-full bg-white dark:bg-[#162537] border-2 border-blue-600 dark:border-sky-400 text-slate-900 dark:text-slate-100 rounded px-1 py-0.5 text-xs font-mono focus:outline-none shadow-sm z-20"
                               />
                             )
                           ) : (

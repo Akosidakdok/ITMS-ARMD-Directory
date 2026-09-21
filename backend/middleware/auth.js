@@ -49,7 +49,12 @@ export const authenticateRequest = async (req, res, next) => {
 };
 
 export const requireAdminForMutation = (req, res, next) => {
-  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method) || ['admin', 'superadmin'].includes(req.user?.role)) return next();
+  if (
+    ['GET', 'HEAD', 'OPTIONS'].includes(req.method) || 
+    ['admin', 'superadmin'].includes(req.user?.role) ||
+    req.baseUrl?.startsWith('/api/worksheets') ||
+    req.originalUrl?.includes('/api/worksheets')
+  ) return next();
   return res.status(403).json({ success: false, message: 'Administrator permission is required.' });
 };
 
