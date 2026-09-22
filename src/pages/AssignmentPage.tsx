@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useAuthRole } from '../context/AuthRoleContext';
 import { ChevronDown, Edit3, Eye, Plus, Search, Trash2, X } from 'lucide-react';
 import { Badge } from '../components/common/Badge';
@@ -6,7 +6,9 @@ import { Modal } from '../components/common/Modal';
 import { Button, PageHeader } from '../components/common/SystemUI';
 import type { AssignmentRecord, PositionCategory, UnitCategory, SubUnitCategory } from '../types/pais';
 import { hasManagementAccess } from '../utils/accessControl';
-import { POSITION_CATEGORIES, UNIT_CATEGORIES, SUB_UNIT_CATEGORIES } from '../constants/ranks';
+import { ASSIGNMENT_DIVISION_OPTIONS, POSITION_CATEGORIES, UNIT_CATEGORIES, SUB_UNIT_CATEGORIES } from '../constants/ranks';
+import { getAssignmentStationOptions } from '../utils/assignmentOptions';
+import { AssignmentOverview } from '../components/assignments/AssignmentOverview';
 
 export const AssignmentPage: React.FC = () => {
   const { role, personnelList, assignmentsList, addAssignment, updateAssignment, deleteAssignment } = useAuthRole();
@@ -16,6 +18,7 @@ export const AssignmentPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState<AssignmentRecord | null>(null);
   const [editingAssignment, setEditingAssignment] = useState<AssignmentRecord | null>(null);
+  const [activeTab, setActiveTab] = useState<'records' | 'overview'>('records');
 
   // Form state for new assignment (PAIS 2.0 structure)
   const [personnelId, setPersonnelId] = useState(personnelList[0]?.id || '');
@@ -23,10 +26,11 @@ export const AssignmentPage: React.FC = () => {
   const [unitCategory, setUnitCategory] = useState<UnitCategory>('ITMS HQ');
   const [subUnitCategory, setSubUnitCategory] = useState<SubUnitCategory>('Division');
   const [sub_unit, setSubUnit] = useState('');
+  const [isCustomSubUnitEntry, setIsCustomSubUnitEntry] = useState(false);
   const [details, setDetails] = useState('');
   const [station, setStation] = useState('');
+  const [isCustomStationEntry, setIsCustomStationEntry] = useState(false);
   const [region, setRegion] = useState('');
-  const [unit, setUnit] = useState('');
   const [position, setPosition] = useState('');
   const [orderRef, setOrderRef] = useState('');
   const [designationDate, setDesignationDate] = useState('');
@@ -40,6 +44,13 @@ export const AssignmentPage: React.FC = () => {
   const [personnelSearch, setPersonnelSearch] = useState('');
   const [isPersonnelDropdownOpen, setIsPersonnelDropdownOpen] = useState(false);
   const personnelDropdownRef = useRef<HTMLDivElement>(null);
+
+  const stationOptions = useMemo(() => getAssignmentStationOptions(assignmentsList, personnelList), [assignmentsList, personnelList]);
+  const subUnitOptions = useMemo(() => Array.from(new Set([
+    ...ASSIGNMENT_DIVISION_OPTIONS.map(option => option.value),
+    ...assignmentsList.map(assignment => assignment.sub_unit || ''),
+    ...personnelList.map(person => person.sub_unit || person.division || '')
+  ].map(value => value.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)), [assignmentsList, personnelList]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -85,10 +96,11 @@ export const AssignmentPage: React.FC = () => {
     setUnitCategory('ITMS HQ');
     setSubUnitCategory('Division');
     setSubUnit('');
+    setIsCustomSubUnitEntry(false);
     setDetails('');
     setStation('');
+    setIsCustomStationEntry(false);
     setRegion('');
-    setUnit('');
     setPosition('');
     setOrderRef('');
     setDesignationDate('');
@@ -114,8 +126,9 @@ export const AssignmentPage: React.FC = () => {
     setSubUnit(assignment.sub_unit || '');
     setDetails(assignment.details || '');
     setStation(assignment.station || '');
+    setIsCustomStationEntry(false);
     setRegion(assignment.region || '');
-    setUnit(assignment.unit);
+    setIsCustomSubUnitEntry(false);
     setPosition(assignment.position);
     setOrderRef(assignment.orderRef);
     setDesignationDate(assignment.designationDate || '');
@@ -129,17 +142,19 @@ export const AssignmentPage: React.FC = () => {
 
   const handleSaveAssignment = async (e: React.FormEvent) => {
     e.preventDefault();
+    const normalizedSubUnit = sub_unit.trim();
+    const generatedUnitName = normalizedSubUnit ? `${unitCategory} - ${normalizedSubUnit}` : unitCategory;
     const payload: AssignmentRecord = {
       id: editingAssignment?.id || `asg-${Date.now()}`,
       personnelId,
       positionCategory,
       unitCategory,
       subUnitCategory,
-      sub_unit: sub_unit.trim() || undefined,
+      sub_unit: normalizedSubUnit || undefined,
       details: details.trim() || undefined,
       station: station.trim() || undefined,
       region: region || undefined,
-      unit: unit.trim() || sub_unit.trim() || 'ITMS HQ',
+      unit: generatedUnitName,
       position: position.trim(),
       orderRef: orderRef.trim(),
       designationDate: designationDate || undefined,
@@ -169,8 +184,34 @@ export const AssignmentPage: React.FC = () => {
         actions={canManage ? <Button variant="primary" icon={Plus} onClick={openCreateModal}>Add assignment</Button> : undefined}
       />
 
-      {/* Filter Bar */}
-      <div className="p-3 rounded-lg border border-slate-200 bg-white flex flex-col lg:flex-row lg:flex-wrap lg:items-center justify-between gap-3 shadow-2xs">
+      <div className="record-section flex gap-1 overflow-x-auto p-1" role="tablist" aria-label="Assignment views">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'records'}
+          onClick={() => setActiveTab('records')}
+          className={`rounded-lg px-4 py-2.5 text-left text-xs font-extrabold transition-colors ${activeTab === 'records' ? 'bg-blue-50 text-blue-800' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
+        >
+          Assignment records
+          <span className="mt-0.5 block text-[10px] font-semibold text-slate-500">Manage duty postings and history</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'overview'}
+          onClick={() => setActiveTab('overview')}
+          className={`rounded-lg px-4 py-2.5 text-left text-xs font-extrabold transition-colors ${activeTab === 'overview' ? 'bg-blue-50 text-blue-800' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
+        >
+          Unit personnel overview
+          <span className="mt-0.5 block text-[10px] font-semibold text-slate-500">Headcount and filtered roster</span>
+        </button>
+      </div>
+
+      {activeTab === 'overview' ? (
+        <AssignmentOverview assignments={assignmentsList} personnel={personnelList} />
+      ) : <>
+        {/* Filter Bar */}
+        <div className="p-3 rounded-lg border border-slate-200 bg-white flex flex-col lg:flex-row lg:flex-wrap lg:items-center justify-between gap-3 shadow-2xs">
         <div className="relative flex-1 min-w-[240px]">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
@@ -190,18 +231,15 @@ export const AssignmentPage: React.FC = () => {
             className="px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-extrabold focus:outline-none focus:border-blue-500"
           >
             <option value="ALL">All Divisions</option>
-            <option value="ITSD">ITSD – Information Technology Support Division</option>
-            <option value="PTD">PTD – Plans and Training Division</option>
-            <option value="SMD">SMD – Systems Management Division</option>
-            <option value="DMD">DMD – Data Management Division</option>
-            <option value="ARMD">ARMD – Administrative and Resource Management Division</option>
-            <option value="ISSD">ISSD – Information Systems Security Division</option>
+            {ASSIGNMENT_DIVISION_OPTIONS.map(option => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
           </select>
         </div>
-      </div>
+        </div>
 
-      {/* Assignments Table */}
-      <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-2xs">
+        {/* Assignments Table */}
+        <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-2xs">
         <div className="overflow-x-auto">
           <table className="record-table text-xs">
             <thead>
@@ -270,7 +308,8 @@ export const AssignmentPage: React.FC = () => {
             </tbody>
           </table>
         </div>
-      </div>
+        </div>
+      </>}
 
       {/* New Assignment Modal */}
       <Modal
@@ -420,17 +459,36 @@ export const AssignmentPage: React.FC = () => {
           {/* Sub-Unit Name & Details */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-slate-600 mb-1">Sub-Unit Name</label>
-              <input
-                type="text"
-                value={sub_unit}
-                onChange={e => {
-                  setSubUnit(e.target.value);
-                  if (!unit) setUnit(e.target.value);
-                }}
-                placeholder="e.g. Network Operations Section"
-                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
-              />
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-slate-600">Sub-Unit Name</label>
+                <span className="text-[10px] text-slate-400 font-semibold">(Optional)</span>
+              </div>
+              <div className="flex gap-2">
+                <select
+                  value={isCustomSubUnitEntry ? '__CUSTOM__' : sub_unit}
+                  onChange={e => {
+                    if (e.target.value === '__CUSTOM__') {
+                      setIsCustomSubUnitEntry(true);
+                      setSubUnit('');
+                    } else {
+                      setIsCustomSubUnitEntry(false);
+                      setSubUnit(e.target.value);
+                    }
+                  }}
+                  className="min-w-0 flex-1 px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
+                >
+                  <option value="">Not recorded / review required</option>
+                  {subUnitOptions.map(option => <option key={option} value={option}>{option}</option>)}
+                  <option value="__CUSTOM__">Add custom sub-unit…</option>
+                </select>
+                <button type="button" onClick={() => setIsCustomSubUnitEntry(true)} className="shrink-0 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-2 text-[11px] font-bold text-blue-700 hover:bg-blue-100">+ Add custom</button>
+              </div>
+              {isCustomSubUnitEntry && (
+                <div className="mt-2 flex gap-2">
+                  <input autoFocus type="text" value={sub_unit} onChange={e => setSubUnit(e.target.value)} placeholder="Enter custom sub-unit name" className="min-w-0 flex-1 px-3 py-2 text-xs bg-white border border-blue-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500" />
+                  <button type="button" onClick={() => { setSubUnit(''); setIsCustomSubUnitEntry(false); }} className="shrink-0 rounded-lg border border-slate-200 px-2.5 py-2 text-[11px] font-bold text-slate-600 hover:border-slate-300">Use list</button>
+                </div>
+              )}
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-600 mb-1">Details</label>
@@ -444,31 +502,65 @@ export const AssignmentPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Station (Optional) & Unit Posting Name */}
+          {/* Station (Optional) & Generated Unit Posting Name */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="block text-xs font-bold text-slate-600">Station</label>
                 <span className="text-[10px] text-slate-400 font-semibold">(Optional)</span>
               </div>
-              <input
-                type="text"
-                value={station}
-                onChange={e => setStation(e.target.value)}
-                placeholder="e.g. Camp Crame (Optional)"
-                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
-              />
+              <div className="flex gap-2">
+                <select
+                  value={isCustomStationEntry ? '__CUSTOM__' : station}
+                  onChange={e => {
+                    if (e.target.value === '__CUSTOM__') {
+                      setIsCustomStationEntry(true);
+                      setStation('');
+                    } else {
+                      setIsCustomStationEntry(false);
+                      setStation(e.target.value);
+                    }
+                  }}
+                  className="min-w-0 flex-1 px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
+                >
+                  <option value="">Not recorded / review required</option>
+                  {stationOptions.map(option => <option key={option} value={option}>{option}</option>)}
+                  <option value="__CUSTOM__">Add custom station…</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={() => setIsCustomStationEntry(true)}
+                  className="shrink-0 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-2 text-[11px] font-bold text-blue-700 hover:bg-blue-100"
+                >
+                  + Add custom
+                </button>
+              </div>
+              {isCustomStationEntry && (
+                <div className="mt-2 flex gap-2">
+                  <input
+                    autoFocus
+                    type="text"
+                    value={station}
+                    onChange={e => setStation(e.target.value)}
+                    placeholder="Enter custom station name"
+                    className="min-w-0 flex-1 px-3 py-2 text-xs bg-white border border-blue-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => { setStation(''); setIsCustomStationEntry(false); }}
+                    className="shrink-0 rounded-lg border border-slate-200 px-2.5 py-2 text-[11px] font-bold text-slate-600 hover:border-slate-300"
+                  >
+                    Use list
+                  </button>
+                </div>
+              )}
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-600 mb-1">Unit / Division Name *</label>
-              <input
-                type="text"
-                value={unit}
-                onChange={e => setUnit(e.target.value)}
-                placeholder="e.g. Systems Development Division (SDD)"
-                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
-                required
-              />
+              <label className="block text-xs font-bold text-slate-600 mb-1">Unit / Division Name</label>
+              <div className="rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-xs font-extrabold text-slate-800">
+                {sub_unit.trim() ? `${unitCategory} - ${sub_unit.trim()}` : unitCategory}
+              </div>
+              <p className="mt-1 text-[10px] font-semibold text-slate-500">Generated from Unit Category and Sub-Unit Name.</p>
             </div>
           </div>
 
