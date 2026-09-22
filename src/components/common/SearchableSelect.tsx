@@ -1,4 +1,6 @@
-import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import type { FC, KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { Check, ChevronDown, Search, X } from 'lucide-react';
 
 export interface SearchableSelectOption {
@@ -18,7 +20,7 @@ interface SearchableSelectProps {
   error?: string;
 }
 
-export const SearchableSelect: React.FC<SearchableSelectProps> = ({
+export const SearchableSelect: FC<SearchableSelectProps> = ({
   label,
   value,
   options,
@@ -32,19 +34,55 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const controlId = useId();
   const listboxId = useId();
   const errorId = useId();
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number; width: number; listMaxHeight: number; opensAbove: boolean } | null>(null);
   const selected = options.find(option => option.value === value);
 
   useEffect(() => {
     const closeOnOutsideClick = (event: MouseEvent) => {
-      if (!containerRef.current?.contains(event.target as Node)) setIsOpen(false);
+      const target = event.target as Node;
+      if (!containerRef.current?.contains(target) && !menuRef.current?.contains(target)) setIsOpen(false);
     };
     document.addEventListener('mousedown', closeOnOutsideClick);
     return () => document.removeEventListener('mousedown', closeOnOutsideClick);
   }, []);
+
+  const updateMenuPosition = () => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const spacing = 8;
+    const searchAreaHeight = 58;
+    const spaceBelow = window.innerHeight - rect.bottom - spacing;
+    const spaceAbove = rect.top - spacing;
+    const opensAbove = spaceBelow < 260 && spaceAbove > spaceBelow;
+    const listMaxHeight = Math.max(120, Math.min(280, (opensAbove ? spaceAbove : spaceBelow) - searchAreaHeight));
+    setMenuPosition({
+      left: Math.min(Math.max(spacing, rect.left), Math.max(spacing, window.innerWidth - rect.width - spacing)),
+      width: rect.width,
+      top: opensAbove ? rect.top - 4 : rect.bottom + 4,
+      listMaxHeight,
+      opensAbove
+    });
+  };
+
+  useLayoutEffect(() => {
+    if (!isOpen) {
+      setMenuPosition(null);
+      return;
+    }
+    updateMenuPosition();
+    const handleViewportChange = () => updateMenuPosition();
+    window.addEventListener('resize', handleViewportChange);
+    window.addEventListener('scroll', handleViewportChange, true);
+    return () => {
+      window.removeEventListener('resize', handleViewportChange);
+      window.removeEventListener('scroll', handleViewportChange, true);
+    };
+  }, [isOpen]);
 
   const filteredOptions = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -72,7 +110,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
     setIsOpen(false);
   };
 
-  const handleListKeyDown = (event: React.KeyboardEvent) => {
+  const handleListKeyDown = (event: ReactKeyboardEvent) => {
     if (event.key === 'Escape') {
       event.preventDefault();
       setIsOpen(false);
@@ -137,8 +175,12 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
       </div>
       {error && <p id={errorId} className="mt-1 text-[11px] text-rose-600">{error}</p>}
 
-      {isOpen && (
-        <div className="absolute z-50 mt-1 w-full overflow-hidden rounded-md border border-slate-300 bg-white shadow-xl">
+      {isOpen && menuPosition && typeof document !== 'undefined' && createPortal(
+        <div
+          ref={menuRef}
+          className={`fixed z-[1000] overflow-hidden rounded-md border border-slate-300 bg-white shadow-xl ${menuPosition.opensAbove ? '-translate-y-full' : ''}`}
+          style={{ top: menuPosition.top, left: menuPosition.left, width: menuPosition.width }}
+        >
           <div className="p-2 border-b border-slate-100">
             <div className="relative">
               <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -154,7 +196,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
               />
             </div>
           </div>
-          <div id={listboxId} role="listbox" className="max-h-56 overflow-y-auto p-1.5">
+          <div id={listboxId} role="listbox" className="overflow-y-auto p-1.5" style={{ maxHeight: menuPosition.listMaxHeight }}>
             {filteredOptions.length === 0 ? (
               <p className="px-3 py-5 text-center text-xs text-slate-500">No matching option found.</p>
             ) : filteredOptions.map((option, index) => (
@@ -169,16 +211,17 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
                 className={`flex w-full items-center justify-between gap-3 rounded px-3 py-2 text-left ${activeIndex === index ? 'bg-blue-50' : 'hover:bg-blue-50'}`}
               >
                 <span className="min-w-0">
-                  <span className="block text-xs font-semibold text-slate-900 truncate">{option.label}</span>
+                  <span className="block break-words text-xs font-semibold text-slate-900">{option.label}</span>
                   {option.description && (
-                    <span className="block text-[10px] text-slate-500 truncate">{option.description}</span>
+                    <span className="block break-words text-[10px] text-slate-500">{option.description}</span>
                   )}
                 </span>
                 {option.value === value && <Check className="w-4 h-4 text-blue-600 shrink-0" />}
               </button>
             ))}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

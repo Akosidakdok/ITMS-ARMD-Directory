@@ -31,6 +31,13 @@ import {
   createOrderApi,
   updateOrderApi,
   deleteOrderApi,
+  transitionOrderStatusApi,
+  restoreOrderStatusApi,
+  fetchOrderStatusHistoryApi,
+  uploadOrderDocumentApi,
+  getOrderDocumentApi,
+  previewOrderDocumentApi,
+  deleteOrderDocumentApi,
   fetchAssignments,
   createAssignmentApi,
   updateAssignmentApi,
@@ -62,7 +69,8 @@ import {
   verifySessionApi,
   clearAuthSession
 } from '../services/api';
-import type { AuthenticatedUser, BackendHealthStatus, BulkPersonnelImportResult, BulkUpsertResult } from '../services/api';
+import type { AuthenticatedUser, BackendHealthStatus, BulkPersonnelImportResult, BulkUpsertResult, OrderDocumentLink, OrderDocumentPreview, OrderStatusHistoryRecord } from '../services/api';
+import type { OrderDocumentStatus } from '../constants/orders';
 import type { PersonnelImportRow } from '../utils/personnelCsv';
 
 interface AuthRoleContextType {
@@ -104,6 +112,13 @@ interface AuthRoleContextType {
   addOrder: (order: OrderRecord) => Promise<OrderRecord>;
   updateOrder: (order: OrderRecord) => Promise<OrderRecord>;
   deleteOrder: (id: string) => Promise<void>;
+  transitionOrderStatus: (id: string, status: OrderDocumentStatus, reason?: string) => Promise<OrderRecord>;
+  restoreOrderStatus: (id: string, reason?: string) => Promise<OrderRecord>;
+  fetchOrderStatusHistory: (id: string) => Promise<OrderStatusHistoryRecord[]>;
+  uploadOrderDocument: (id: string, file: File) => Promise<OrderRecord>;
+  getOrderDocument: (id: string) => Promise<OrderDocumentLink>;
+  previewOrderDocument: (id: string) => Promise<OrderDocumentPreview>;
+  deleteOrderDocument: (id: string) => Promise<OrderRecord>;
 
   addAssignment: (assignment: AssignmentRecord) => Promise<AssignmentRecord>;
   updateAssignment: (assignment: AssignmentRecord) => Promise<AssignmentRecord>;
@@ -386,6 +401,62 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const deleteOrder = async (id: string) => {
     if (backendConnected) await deleteOrderApi(id);
     setOrdersList(prev => prev.filter(item => item.id !== id));
+  };
+
+  const transitionOrderStatus = async (id: string, nextStatus: OrderDocumentStatus, reason = '') => {
+    if (backendConnected) {
+      const updated = await transitionOrderStatusApi(id, nextStatus, reason);
+      setOrdersList(prev => prev.map(order => order.id === updated.id ? updated : order));
+      return updated;
+    }
+    const existing = ordersList.find(order => order.id === id);
+    if (!existing) throw new Error('Order not found.');
+    const updated = { ...existing, documentStatus: nextStatus, status: nextStatus };
+    setOrdersList(prev => prev.map(order => order.id === id ? updated : order));
+    return updated;
+  };
+
+  const restoreOrderStatus = async (id: string, reason = '') => {
+    if (backendConnected) {
+      const updated = await restoreOrderStatusApi(id, reason);
+      setOrdersList(prev => prev.map(order => order.id === updated.id ? updated : order));
+      return updated;
+    }
+    const existing = ordersList.find(order => order.id === id);
+    if (!existing) throw new Error('Order not found.');
+    if ((existing.documentStatus || existing.status) !== 'Revoked') throw new Error('Only revoked orders can be restored.');
+    const updated = { ...existing, documentStatus: 'For Approval' as const, status: 'For Approval' };
+    setOrdersList(prev => prev.map(order => order.id === id ? updated : order));
+    return updated;
+  };
+
+  const fetchOrderStatusHistory = async (id: string) => {
+    if (backendConnected) return fetchOrderStatusHistoryApi(id);
+    return [];
+  };
+
+  const uploadOrderDocument = async (id: string, file: File) => {
+    if (!backendConnected) throw new Error('The backend is offline. Document upload requires an active server connection.');
+    const updated = await uploadOrderDocumentApi(id, file);
+    setOrdersList(prev => prev.map(order => order.id === updated.id ? updated : order));
+    return updated;
+  };
+
+  const getOrderDocument = async (id: string) => {
+    if (!backendConnected) throw new Error('The backend is offline. Document retrieval requires an active server connection.');
+    return getOrderDocumentApi(id);
+  };
+
+  const previewOrderDocument = async (id: string) => {
+    if (!backendConnected) throw new Error('The backend is offline. Document preview requires an active server connection.');
+    return previewOrderDocumentApi(id);
+  };
+
+  const deleteOrderDocument = async (id: string) => {
+    if (!backendConnected) throw new Error('The backend is offline. Document removal requires an active server connection.');
+    const updated = await deleteOrderDocumentApi(id);
+    setOrdersList(prev => prev.map(order => order.id === updated.id ? updated : order));
+    return updated;
   };
 
   // Assignment Mutations
@@ -708,6 +779,13 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         addOrder,
         updateOrder,
         deleteOrder,
+        transitionOrderStatus,
+        restoreOrderStatus,
+        fetchOrderStatusHistory,
+        uploadOrderDocument,
+        getOrderDocument,
+        previewOrderDocument,
+        deleteOrderDocument,
         addAssignment,
         updateAssignment,
         deleteAssignment,

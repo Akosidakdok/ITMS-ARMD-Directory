@@ -12,6 +12,7 @@ import type {
   PersonnelImportIssue,
   PersonnelImportRow
 } from '../utils/personnelCsv';
+import type { OrderDocumentStatus } from '../constants/orders';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '');
 const BULK_IMPORT_BATCH_SIZE = 250;
@@ -246,6 +247,91 @@ export const updateOrderApi = async (order: OrderRecord): Promise<OrderRecord> =
 export const deleteOrderApi = async (id: string): Promise<void> => {
   const res = await apiFetch(`${API_BASE_URL}/orders/${id}`, { method: 'DELETE' });
   if (!res.ok) throw new Error('Failed to delete order');
+};
+
+export interface OrderStatusHistoryRecord {
+  id: string;
+  orderId: string;
+  fromStatus?: string | null;
+  toStatus: string;
+  reason?: string | null;
+  changedBy?: string | null;
+  changedAt: string;
+}
+
+export const transitionOrderStatusApi = async (
+  id: string,
+  status: OrderDocumentStatus,
+  reason = ''
+): Promise<OrderRecord> => {
+  const res = await apiFetch(`${API_BASE_URL}/orders/${id}/status`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status, reason })
+  });
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(json?.message || json?.error || 'Failed to change order status');
+  return json.data;
+};
+
+export const restoreOrderStatusApi = async (id: string, reason = ''): Promise<OrderRecord> => {
+  const res = await apiFetch(`${API_BASE_URL}/orders/${id}/restore`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason })
+  });
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(json?.message || json?.error || 'Failed to restore revoked order');
+  return json.data;
+};
+
+export const fetchOrderStatusHistoryApi = async (id: string): Promise<OrderStatusHistoryRecord[]> => {
+  const res = await apiFetch(`${API_BASE_URL}/orders/${id}/history`);
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(json?.message || json?.error || 'Failed to load order history');
+  return json.data || [];
+};
+
+export interface OrderDocumentLink {
+  url: string;
+  fileName?: string;
+  expiresIn: number;
+}
+
+export interface OrderDocumentPreview {
+  fileName?: string;
+  html: string;
+  messages?: Array<{ type?: string; message?: string }>;
+}
+
+export const uploadOrderDocumentApi = async (id: string, file: File): Promise<OrderRecord> => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await apiFetch(`${API_BASE_URL}/orders/${id}/file`, { method: 'POST', body: formData });
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(json?.message || json?.error || 'Failed to upload order document');
+  return json.data;
+};
+
+export const getOrderDocumentApi = async (id: string): Promise<OrderDocumentLink> => {
+  const res = await apiFetch(`${API_BASE_URL}/orders/${id}/file`);
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(json?.message || json?.error || 'Failed to retrieve order document');
+  return json.data;
+};
+
+export const previewOrderDocumentApi = async (id: string): Promise<OrderDocumentPreview> => {
+  const res = await apiFetch(`${API_BASE_URL}/orders/${id}/preview`);
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(json?.message || json?.error || 'Failed to preview order document');
+  return json.data;
+};
+
+export const deleteOrderDocumentApi = async (id: string): Promise<OrderRecord> => {
+  const res = await apiFetch(`${API_BASE_URL}/orders/${id}/file`, { method: 'DELETE' });
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(json?.message || json?.error || 'Failed to remove order document');
+  return json.data;
 };
 
 // ================= AWARDS API =================

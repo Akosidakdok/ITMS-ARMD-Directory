@@ -429,6 +429,35 @@
   box-shadow: inset 3px 0 var(--pais-navy-700);
 }
 
+.order-document-preview {
+  color: #1f2937;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 0.95rem;
+  line-height: 1.7;
+}
+
+.order-document-preview h1,
+.order-document-preview h2,
+.order-document-preview h3 {
+  margin: 1.25rem 0 0.5rem;
+  color: #111827;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.order-document-preview h1 { font-size: 1.5rem; }
+.order-document-preview h2 { font-size: 1.25rem; }
+.order-document-preview h3 { font-size: 1.1rem; }
+.order-document-preview p { margin: 0 0 0.8rem; }
+.order-document-preview ul,
+.order-document-preview ol { margin: 0.5rem 0 1rem 1.5rem; }
+.order-document-preview ul { list-style: disc; }
+.order-document-preview ol { list-style: decimal; }
+.order-document-preview table { width: 100%; margin: 1rem 0; border-collapse: collapse; }
+.order-document-preview th,
+.order-document-preview td { border: 1px solid #cbd5e1; padding: 0.45rem 0.6rem; text-align: left; }
+.order-document-preview th { background: #f1f5f9; font-weight: 700; }
+
 .record-field-label {
   display: block;
   margin-bottom: 0.3rem;

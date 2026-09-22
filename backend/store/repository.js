@@ -17,6 +17,8 @@ import {
   INITIAL_LEAVE,
   INITIAL_AWARDS
 } from './initialData.js';
+import { buildOrderNumber, extractOrderSequence, getOrderYear } from '../utils/orderNumber.js';
+import { assertOrderStatusTransition, normalizeOrderStatus, ORDER_LOCKED_STATUSES } from '../utils/orderWorkflow.js';
 
 const PCO_RANKS_BACKEND = new Set([
   'PBGEN', 'PCOL', 'PLTCOL', 'PMAJ', 'PCPT', 'PLT',
@@ -50,6 +52,8 @@ class PAISRepository {
     this.inMemoryEducation = [...INITIAL_EDUCATION];
     this.inMemoryPromotions = [...INITIAL_PROMOTIONS];
     this.inMemoryOrders = [...INITIAL_ORDERS];
+    this.inMemoryOrderSequences = new Map();
+    this.inMemoryOrderStatusHistory = [];
     this.inMemoryTraining = [...INITIAL_TRAINING];
     this.inMemoryLeave = [...INITIAL_LEAVE];
     this.inMemoryAwards = [...INITIAL_AWARDS];
@@ -308,6 +312,32 @@ class PAISRepository {
   }
 
   // ================= ORDERS CRUD =================
+  async nextOrderNumber({ series, purposeCode, issuedDate }) {
+    const year = getOrderYear(issuedDate);
+
+    if (this.isSupabaseConnected()) {
+      const { data, error } = await supabase.rpc('next_itms_order_sequence', {
+        p_year: year,
+        p_series: series
+      });
+      if (error) {
+        throw new Error(`Order-number sequence generation failed: ${error.message}`);
+      }
+      return buildOrderNumber({ series, purposeCode, year, sequence: Number(data) });
+    }
+
+    const sequenceKey = `${year}:${series}`;
+    const existingMax = this.inMemoryOrders.reduce((max, order) => {
+      const parsed = extractOrderSequence(order.orderNumber);
+      return parsed && parsed.year === year && parsed.series === series
+        ? Math.max(max, parsed.sequence)
+        : max;
+    }, 0);
+    const next = Math.max(this.inMemoryOrderSequences.get(sequenceKey) || 0, existingMax) + 1;
+    this.inMemoryOrderSequences.set(sequenceKey, next);
+    return buildOrderNumber({ series, purposeCode, year, sequence: next });
+  }
+
   async getOrders() {
     if (this.isSupabaseConnected()) {
       try {
@@ -329,9 +359,16 @@ class PAISRepository {
   }
 
   async createOrder(data) {
+    const orderNumber = data.series && data.purposeCode && data.issuedDate
+      ? await this.nextOrderNumber(data)
+      : data.orderNumber;
+    if (!orderNumber) {
+      throw new Error('Order number could not be generated. Series, purpose code, and issued date are required.');
+    }
     const newRecord = {
       id: data.id || `ord-${Date.now()}`,
-      ...data
+      ...data,
+      orderNumber
     };
 
     if (this.isSupabaseConnected()) {
@@ -346,6 +383,16 @@ class PAISRepository {
   }
 
   async updateOrder(id, data) {
+    const existing = await this.getOrderById(id);
+    if (!existing) return null;
+    const currentStatus = normalizeOrderStatus(existing);
+    if (ORDER_LOCKED_STATUSES.includes(currentStatus)) {
+      throw new Error(`Orders in ${currentStatus} status are locked and must be changed through the workflow.`);
+    }
+    const requestedStatus = data.documentStatus || data.status;
+    if (requestedStatus && normalizeOrderStatus(requestedStatus) !== currentStatus) {
+      throw new Error('Order status changes must use the workflow action endpoint.');
+    }
     if (this.isSupabaseConnected()) {
       try {
         const { data: updated, error } = await supabase.from('orders').update(data).eq('id', id).select().single();
@@ -371,6 +418,176 @@ class PAISRepository {
     if (index === -1) return false;
     this.inMemoryOrders.splice(index, 1);
     return true;
+  }
+
+  async restoreRevokedOrder(id, { actor = 'system', reason = '' } = {}) {
+    const existing = await this.getOrderById(id);
+    if (!existing) return null;
+
+    const fromStatus = normalizeOrderStatus(existing);
+    if (fromStatus !== 'Revoked') {
+      throw new Error('Only revoked orders can be restored.');
+    }
+
+    const history = await this.getOrderStatusHistory(id);
+    const revokeEvent = history.find(event =>
+      event.toStatus === 'Revoked' &&
+      ['Draft', 'For Approval', 'Signed', 'Released'].includes(event.fromStatus)
+    );
+    const targetStatus = revokeEvent?.fromStatus || 'For Approval';
+    const changedAt = new Date().toISOString();
+    const statusUpdate = {
+      documentStatus: targetStatus,
+      status: targetStatus,
+      updatedAt: changedAt
+    };
+
+    if (this.isSupabaseConnected()) {
+      const { data, error } = await supabase
+        .from('orders')
+        .update(statusUpdate)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error || !data) throw new Error(`Order restore failed: ${error?.message || 'Order not found'}`);
+
+      const { error: historyError } = await supabase.from('order_status_history').insert([{
+        id: `osh-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        orderId: id,
+        fromStatus,
+        toStatus: targetStatus,
+        reason: String(reason || '').trim() || 'Restored after revocation correction',
+        changedBy: actor,
+        changedAt
+      }]);
+      if (historyError) throw new Error(`Order status history insert failed: ${historyError.message}`);
+      return data;
+    }
+
+    const index = this.inMemoryOrders.findIndex(order => order.id === id);
+    if (index === -1) return null;
+    this.inMemoryOrders[index] = { ...this.inMemoryOrders[index], ...statusUpdate };
+    this.inMemoryOrderStatusHistory.push({
+      id: `osh-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      orderId: id,
+      fromStatus,
+      toStatus: targetStatus,
+      reason: String(reason || '').trim() || 'Restored after revocation correction',
+      changedBy: actor,
+      changedAt
+    });
+    return this.inMemoryOrders[index];
+  }
+
+  async attachOrderDocument(id, metadata) {
+    const existing = await this.getOrderById(id);
+    if (!existing) return null;
+    const update = { ...metadata, updatedAt: new Date().toISOString() };
+    if (supabase) {
+      const { data, error } = await supabase.from('orders').update(update).eq('id', id).select().single();
+      if (error || !data) throw new Error(`Order document metadata update failed: ${error?.message || 'Order not found'}`);
+      return data;
+    }
+    const index = this.inMemoryOrders.findIndex(order => order.id === id);
+    if (index === -1) return null;
+    this.inMemoryOrders[index] = { ...this.inMemoryOrders[index], ...update };
+    return this.inMemoryOrders[index];
+  }
+
+  async clearOrderDocument(id) {
+    const existing = await this.getOrderById(id);
+    if (!existing) return null;
+    const update = {
+      fileName: null,
+      fileMimeType: null,
+      fileSize: null,
+      storagePath: null,
+      updatedAt: new Date().toISOString()
+    };
+    if (supabase) {
+      const { data, error } = await supabase.from('orders').update(update).eq('id', id).select().single();
+      if (error || !data) throw new Error(`Order document metadata removal failed: ${error?.message || 'Order not found'}`);
+      return data;
+    }
+    const index = this.inMemoryOrders.findIndex(order => order.id === id);
+    if (index === -1) return null;
+    this.inMemoryOrders[index] = { ...this.inMemoryOrders[index], ...update };
+    return this.inMemoryOrders[index];
+  }
+
+  async getOrderStatusHistory(orderId) {
+    if (this.isSupabaseConnected()) {
+      const { data, error } = await supabase
+        .from('order_status_history')
+        .select('*')
+        .eq('orderId', orderId)
+        .order('changedAt', { ascending: false });
+      if (error) throw new Error(`Order status history lookup failed: ${error.message}`);
+      return data || [];
+    }
+    return this.inMemoryOrderStatusHistory
+      .filter(item => item.orderId === orderId)
+      .sort((a, b) => String(b.changedAt).localeCompare(String(a.changedAt)));
+  }
+
+  async transitionOrderStatus(id, toStatus, { actor = 'system', reason = '' } = {}) {
+    const existing = await this.getOrderById(id);
+    if (!existing) return null;
+
+    const fromStatus = normalizeOrderStatus(existing);
+    assertOrderStatusTransition(fromStatus, toStatus);
+    const changedAt = new Date().toISOString();
+    const statusUpdate = {
+      documentStatus: toStatus,
+      status: toStatus,
+      updatedAt: changedAt
+    };
+    if (toStatus === 'Signed') {
+      statusUpdate.signedAt = changedAt;
+      statusUpdate.signedBy = actor;
+    }
+    if (toStatus === 'Released') {
+      statusUpdate.releasedAt = changedAt;
+      statusUpdate.releasedBy = actor;
+    }
+
+    let updated;
+    if (this.isSupabaseConnected()) {
+      const { data, error } = await supabase
+        .from('orders')
+        .update(statusUpdate)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error || !data) throw new Error(`Order status update failed: ${error?.message || 'Order not found'}`);
+      updated = data;
+
+      const { error: historyError } = await supabase.from('order_status_history').insert([{
+        id: `osh-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        orderId: id,
+        fromStatus,
+        toStatus,
+        reason: String(reason || '').trim() || null,
+        changedBy: actor,
+        changedAt
+      }]);
+      if (historyError) throw new Error(`Order status history insert failed: ${historyError.message}`);
+      return updated;
+    }
+
+    const index = this.inMemoryOrders.findIndex(order => order.id === id);
+    if (index === -1) return null;
+    this.inMemoryOrders[index] = { ...this.inMemoryOrders[index], ...statusUpdate };
+    this.inMemoryOrderStatusHistory.push({
+      id: `osh-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      orderId: id,
+      fromStatus,
+      toStatus,
+      reason: String(reason || '').trim() || null,
+      changedBy: actor,
+      changedAt
+    });
+    return this.inMemoryOrders[index];
   }
 
   // ================= AWARDS CRUD =================
