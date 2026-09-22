@@ -1,49 +1,67 @@
-export const ORDER_SERIES_OPTIONS = [
-  { value: 'GO', label: 'GO — General Order' },
-  { value: 'SO', label: 'SO — Special Order' },
-  { value: 'LO', label: 'LO — Letter Order' }
-] as const;
+import catalog from '../../shared/orderCatalog.json';
 
-export type OrderSeries = typeof ORDER_SERIES_OPTIONS[number]['value'];
+export type OrderSeries = 'GO' | 'SO' | 'LO';
+export type OrderPurposeCode =
+  | 'DES' | 'TDS' | 'DO' | 'DOX' | 'TR' | 'RA' | 'UA'
+  | 'CSC' | 'LV' | 'AW' | 'CCS' | 'AO' | 'PR' | 'PA'
+  | 'RG' | 'LP' | 'RCA' | 'SP' | 'AWOL' | 'CN' | 'CHAPS';
+export type OrderDocumentStatus = 'Draft' | 'For Approval' | 'Signed' | 'Released' | 'Archived' | 'Revoked';
+export type OrderPurposeFieldType = 'text' | 'textarea' | 'date' | 'date-range' | 'select' | 'personnel' | 'unit' | 'number';
+export type OrderPersonnelRoleCode =
+  | 'affected' | 'recipient' | 'driver' | 'recommending' | 'relieved'
+  | 'replacement' | 'appointing' | 'witness' | 'other';
 
-export const ORDER_PURPOSE_OPTIONS = [
-  { value: 'DES', label: 'DES — Designation' },
-  { value: 'TDS', label: 'TDS — Termination of Designation' },
-  { value: 'DO', label: 'DO — Detail' },
-  { value: 'DOX', label: 'DOX — Extension of Detail' },
-  { value: 'TR', label: 'TR — Travel' },
-  { value: 'RA', label: 'RA — Sub-unit Reassignment' },
-  { value: 'UA', label: 'UA — Unit Reassignment' },
-  { value: 'CSC', label: 'CSC — Combination of Service' },
-  { value: 'LV', label: 'LV — Leave' },
-  { value: 'AW', label: 'AW — Award' },
-  { value: 'CCS', label: 'CCS — Change of Civil Status' },
-  { value: 'AO', label: 'AO — Assignment Order' },
-  { value: 'PR', label: 'PR — Promotion' },
-  { value: 'PA', label: 'PA — Appointment' },
-  { value: 'RG', label: 'RG — Resignation' },
-  { value: 'LP', label: 'LP — Longevity Pay' },
-  { value: 'RCA', label: 'RCA — Replacement Clothing Allowance' },
-  { value: 'SP', label: 'SP — Specialist Pay' },
-  { value: 'AWOL', label: 'AWOL — Absent Without Leave' },
-  { value: 'CN', label: 'CN — Change Name' },
-  { value: 'CHAPS', label: 'CHAPS — Change in Appointed Status' }
-] as const;
+export interface OrderPurposeFieldDefinition {
+  key: string;
+  label: string;
+  type: OrderPurposeFieldType;
+  required: boolean;
+}
 
-export type OrderPurposeCode = typeof ORDER_PURPOSE_OPTIONS[number]['value'];
+export interface OrderPersonnelRoleDefinition {
+  code: OrderPersonnelRoleCode;
+  label: string;
+  multiple: boolean;
+  required: boolean;
+}
 
-export const ORDER_DOCUMENT_STATUS_OPTIONS = [
-  { value: 'Draft', label: 'Draft' },
-  { value: 'For Approval', label: 'For Approval' },
-  { value: 'Signed', label: 'Signed' },
-  { value: 'Released', label: 'Released' },
-  { value: 'Archived', label: 'Archived' },
-  { value: 'Revoked', label: 'Revoked' }
-] as const;
+export interface OrderPurposeDefinition {
+  value: OrderPurposeCode;
+  label: string;
+  templateKey: string;
+  narrativeKey: string;
+  fields: OrderPurposeFieldDefinition[];
+  personnelRoles: OrderPersonnelRoleDefinition[];
+}
 
-export type OrderDocumentStatus = typeof ORDER_DOCUMENT_STATUS_OPTIONS[number]['value'];
+export const ORDER_SERIES_OPTIONS = catalog.series as Array<{
+  readonly value: OrderSeries;
+  readonly label: string;
+  readonly heading: string;
+}>;
+
+export const ORDER_PURPOSE_OPTIONS = catalog.purposes.map(purpose => ({
+  value: purpose.value as OrderPurposeCode,
+  label: purpose.label
+})) as Array<{ readonly value: OrderPurposeCode; readonly label: string }>;
+
+export const ORDER_DOCUMENT_STATUS_OPTIONS = catalog.statuses as Array<{
+  readonly value: OrderDocumentStatus;
+  readonly label: string;
+}>;
+
+export const ORDER_PURPOSE_DEFINITIONS = catalog.purposes as OrderPurposeDefinition[];
+export const ORDER_SERIES_HEADINGS = Object.fromEntries(
+  catalog.series.map(series => [series.value, series.heading])
+) as Record<OrderSeries, string>;
 
 export const LEGACY_ORDER_STATUS_OPTIONS = ['Active', 'Pending'] as const;
 
 export const getOrderPurposeLabel = (code?: string) =>
   ORDER_PURPOSE_OPTIONS.find(option => option.value === code)?.label || code || 'Unclassified';
+
+export const getOrderPurposeDefinition = (code?: string) =>
+  ORDER_PURPOSE_DEFINITIONS.find(definition => definition.value === code);
+
+export const getOrderSeriesHeading = (series: string) =>
+  ORDER_SERIES_HEADINGS[series as OrderSeries] || 'ADMINISTRATIVE ORDERS';

@@ -1,0 +1,243 @@
+{
+  "series": [
+    { "value": "GO", "label": "GO — General Order", "heading": "GENERAL ORDERS" },
+    { "value": "SO", "label": "SO — Special Order", "heading": "SPECIAL ORDERS" },
+    { "value": "LO", "label": "LO — Letter Order", "heading": "LETTER ORDERS" }
+  ],
+  "statuses": [
+    { "value": "Draft", "label": "Draft" },
+    { "value": "For Approval", "label": "For Approval" },
+    { "value": "Signed", "label": "Signed" },
+    { "value": "Released", "label": "Released" },
+    { "value": "Archived", "label": "Archived" },
+    { "value": "Revoked", "label": "Revoked" }
+  ],
+  "purposes": [
+    {
+      "value": "DES",
+      "label": "DES — Designation",
+      "templateKey": "personnel-status",
+      "narrativeKey": "designation",
+      "fields": [
+        { "key": "designation", "label": "Designation", "type": "text", "required": true },
+        { "key": "assignedUnit", "label": "Assigned unit", "type": "unit", "required": true }
+      ],
+      "personnelRoles": [{ "code": "affected", "label": "Personnel being designated", "multiple": true, "required": true }]
+    },
+    {
+      "value": "TDS",
+      "label": "TDS — Termination of Designation",
+      "templateKey": "personnel-status",
+      "narrativeKey": "termination-of-designation",
+      "fields": [{ "key": "reason", "label": "Reason for termination", "type": "textarea", "required": true }],
+      "personnelRoles": [{ "code": "affected", "label": "Personnel whose designation ends", "multiple": true, "required": true }]
+    },
+    {
+      "value": "DO",
+      "label": "DO — Detail",
+      "templateKey": "detail",
+      "narrativeKey": "detail",
+      "fields": [
+        { "key": "detailLocation", "label": "Detail location", "type": "unit", "required": true },
+        { "key": "detailStartDate", "label": "Detail start date", "type": "date", "required": true },
+        { "key": "detailEndDate", "label": "Detail end date", "type": "date", "required": false }
+      ],
+      "personnelRoles": [{ "code": "affected", "label": "Personnel being detailed", "multiple": true, "required": true }]
+    },
+    {
+      "value": "DOX",
+      "label": "DOX — Extension of Detail",
+      "templateKey": "detail",
+      "narrativeKey": "detail-extension",
+      "fields": [
+        { "key": "originalDetailOrder", "label": "Original detail order", "type": "text", "required": true },
+        { "key": "extensionEndDate", "label": "Extension end date", "type": "date", "required": true },
+        { "key": "reason", "label": "Reason for extension", "type": "textarea", "required": true }
+      ],
+      "personnelRoles": [{ "code": "affected", "label": "Personnel whose detail is extended", "multiple": true, "required": true }]
+    },
+    {
+      "value": "TR",
+      "label": "TR — Travel",
+      "templateKey": "travel",
+      "narrativeKey": "travel",
+      "fields": [
+        { "key": "destinations", "label": "Destination(s)", "type": "textarea", "required": true },
+        { "key": "travelStartDate", "label": "Travel start date", "type": "date", "required": true },
+        { "key": "travelEndDate", "label": "Travel end date", "type": "date", "required": true },
+        { "key": "activity", "label": "Travel activity or purpose", "type": "textarea", "required": true }
+      ],
+      "personnelRoles": [
+        { "code": "affected", "label": "Travelling personnel", "multiple": true, "required": true },
+        { "code": "driver", "label": "Driver", "multiple": false, "required": false }
+      ]
+    },
+    {
+      "value": "RA",
+      "label": "RA — Sub-unit Reassignment",
+      "templateKey": "reassignment",
+      "narrativeKey": "sub-unit-reassignment",
+      "fields": [
+        { "key": "fromSubUnit", "label": "Current sub-unit", "type": "unit", "required": true },
+        { "key": "toSubUnit", "label": "New sub-unit", "type": "unit", "required": true },
+        { "key": "reason", "label": "Reason for reassignment", "type": "textarea", "required": false }
+      ],
+      "personnelRoles": [{ "code": "affected", "label": "Personnel being reassigned", "multiple": true, "required": true }]
+    },
+    {
+      "value": "UA",
+      "label": "UA — Unit Reassignment",
+      "templateKey": "reassignment",
+      "narrativeKey": "unit-reassignment",
+      "fields": [
+        { "key": "fromUnit", "label": "Current unit", "type": "unit", "required": true },
+        { "key": "toUnit", "label": "New unit", "type": "unit", "required": true },
+        { "key": "reason", "label": "Reason for reassignment", "type": "textarea", "required": false }
+      ],
+      "personnelRoles": [{ "code": "affected", "label": "Personnel being reassigned", "multiple": true, "required": true }]
+    },
+    {
+      "value": "CSC",
+      "label": "CSC — Combination of Service",
+      "templateKey": "personnel-status",
+      "narrativeKey": "combination-of-service",
+      "fields": [{ "key": "combinationDetails", "label": "Combination details", "type": "textarea", "required": true }],
+      "personnelRoles": [{ "code": "affected", "label": "Personnel affected", "multiple": true, "required": true }]
+    },
+    {
+      "value": "LV",
+      "label": "LV — Leave",
+      "templateKey": "leave",
+      "narrativeKey": "leave",
+      "fields": [
+        { "key": "leaveType", "label": "Leave type", "type": "select", "required": true },
+        { "key": "leaveStartDate", "label": "Leave start date", "type": "date", "required": true },
+        { "key": "leaveEndDate", "label": "Leave end date", "type": "date", "required": true }
+      ],
+      "personnelRoles": [{ "code": "affected", "label": "Personnel taking leave", "multiple": false, "required": true }]
+    },
+    {
+      "value": "AW",
+      "label": "AW — Award",
+      "templateKey": "award",
+      "narrativeKey": "award",
+      "fields": [
+        { "key": "awardTitle", "label": "Award title", "type": "text", "required": true },
+        { "key": "citation", "label": "Citation", "type": "textarea", "required": true }
+      ],
+      "personnelRoles": [{ "code": "recipient", "label": "Award recipient", "multiple": true, "required": true }]
+    },
+    {
+      "value": "CCS",
+      "label": "CCS — Change of Civil Status",
+      "templateKey": "personnel-status",
+      "narrativeKey": "change-of-civil-status",
+      "fields": [
+        { "key": "previousCivilStatus", "label": "Previous civil status", "type": "text", "required": true },
+        { "key": "newCivilStatus", "label": "New civil status", "type": "text", "required": true }
+      ],
+      "personnelRoles": [{ "code": "affected", "label": "Personnel affected", "multiple": false, "required": true }]
+    },
+    {
+      "value": "AO",
+      "label": "AO — Assignment Order",
+      "templateKey": "assignment",
+      "narrativeKey": "assignment",
+      "fields": [
+        { "key": "assignedUnit", "label": "Assigned unit", "type": "unit", "required": true },
+        { "key": "position", "label": "Position or assignment", "type": "text", "required": true }
+      ],
+      "personnelRoles": [{ "code": "affected", "label": "Personnel being assigned", "multiple": true, "required": true }]
+    },
+    {
+      "value": "PR",
+      "label": "PR — Promotion",
+      "templateKey": "career-action",
+      "narrativeKey": "promotion",
+      "fields": [
+        { "key": "rankFrom", "label": "Current rank", "type": "text", "required": true },
+        { "key": "rankTo", "label": "New rank", "type": "text", "required": true }
+      ],
+      "personnelRoles": [{ "code": "affected", "label": "Personnel being promoted", "multiple": true, "required": true }]
+    },
+    {
+      "value": "PA",
+      "label": "PA — Appointment",
+      "templateKey": "career-action",
+      "narrativeKey": "appointment",
+      "fields": [{ "key": "appointmentPosition", "label": "Appointment position", "type": "text", "required": true }],
+      "personnelRoles": [{ "code": "affected", "label": "Appointee", "multiple": true, "required": true }]
+    },
+    {
+      "value": "RG",
+      "label": "RG — Resignation",
+      "templateKey": "separation",
+      "narrativeKey": "resignation",
+      "fields": [
+        { "key": "resignationDate", "label": "Resignation date", "type": "date", "required": true },
+        { "key": "reason", "label": "Reason", "type": "textarea", "required": true }
+      ],
+      "personnelRoles": [{ "code": "affected", "label": "Personnel resigning", "multiple": false, "required": true }]
+    },
+    {
+      "value": "LP",
+      "label": "LP — Longevity Pay",
+      "templateKey": "benefit",
+      "narrativeKey": "longevity-pay",
+      "fields": [{ "key": "eligibilityBasis", "label": "Eligibility basis", "type": "textarea", "required": true }],
+      "personnelRoles": [{ "code": "affected", "label": "Personnel receiving longevity pay", "multiple": true, "required": true }]
+    },
+    {
+      "value": "RCA",
+      "label": "RCA — Replacement Clothing Allowance",
+      "templateKey": "benefit",
+      "narrativeKey": "replacement-clothing-allowance",
+      "fields": [{ "key": "eligibilityBasis", "label": "Eligibility basis", "type": "textarea", "required": true }],
+      "personnelRoles": [{ "code": "affected", "label": "Personnel receiving allowance", "multiple": true, "required": true }]
+    },
+    {
+      "value": "SP",
+      "label": "SP — Specialist Pay",
+      "templateKey": "benefit",
+      "narrativeKey": "specialist-pay",
+      "fields": [
+        { "key": "specialty", "label": "Specialty", "type": "text", "required": true },
+        { "key": "eligibilityBasis", "label": "Eligibility basis", "type": "textarea", "required": true }
+      ],
+      "personnelRoles": [{ "code": "affected", "label": "Personnel receiving specialist pay", "multiple": true, "required": true }]
+    },
+    {
+      "value": "AWOL",
+      "label": "AWOL — Absent Without Leave",
+      "templateKey": "separation",
+      "narrativeKey": "absent-without-leave",
+      "fields": [
+        { "key": "absenceStartDate", "label": "Absence start date", "type": "date", "required": true },
+        { "key": "lastKnownDuty", "label": "Last known duty or location", "type": "text", "required": true }
+      ],
+      "personnelRoles": [{ "code": "affected", "label": "Personnel recorded AWOL", "multiple": false, "required": true }]
+    },
+    {
+      "value": "CN",
+      "label": "CN — Change Name",
+      "templateKey": "personnel-status",
+      "narrativeKey": "change-name",
+      "fields": [
+        { "key": "previousName", "label": "Previous name", "type": "text", "required": true },
+        { "key": "newName", "label": "New name", "type": "text", "required": true }
+      ],
+      "personnelRoles": [{ "code": "affected", "label": "Personnel affected", "multiple": false, "required": true }]
+    },
+    {
+      "value": "CHAPS",
+      "label": "CHAPS — Change in Appointed Status",
+      "templateKey": "personnel-status",
+      "narrativeKey": "change-appointed-status",
+      "fields": [
+        { "key": "previousAppointedStatus", "label": "Previous appointed status", "type": "text", "required": true },
+        { "key": "newAppointedStatus", "label": "New appointed status", "type": "text", "required": true }
+      ],
+      "personnelRoles": [{ "code": "affected", "label": "Personnel affected", "multiple": true, "required": true }]
+    }
+  ]
+}

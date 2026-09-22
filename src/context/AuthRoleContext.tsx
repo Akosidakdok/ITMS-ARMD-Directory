@@ -38,6 +38,12 @@ import {
   getOrderDocumentApi,
   previewOrderDocumentApi,
   deleteOrderDocumentApi,
+  generateOrderDocumentApi,
+  getGeneratedOrderDocumentApi,
+  previewGeneratedOrderDocumentApi,
+  uploadSignedOrderDocumentApi,
+  getSignedOrderDocumentApi,
+  deleteSignedOrderDocumentApi,
   fetchAssignments,
   createAssignmentApi,
   updateAssignmentApi,
@@ -69,7 +75,7 @@ import {
   verifySessionApi,
   clearAuthSession
 } from '../services/api';
-import type { AuthenticatedUser, BackendHealthStatus, BulkPersonnelImportResult, BulkUpsertResult, OrderDocumentLink, OrderDocumentPreview, OrderStatusHistoryRecord } from '../services/api';
+import type { AuthenticatedUser, BackendHealthStatus, BulkPersonnelImportResult, BulkUpsertResult, OrderDocumentLink, OrderDocumentPreview, OrderStatusHistoryRecord, SignedOrderDocumentLink } from '../services/api';
 import type { OrderDocumentStatus } from '../constants/orders';
 import type { PersonnelImportRow } from '../utils/personnelCsv';
 
@@ -116,9 +122,15 @@ interface AuthRoleContextType {
   restoreOrderStatus: (id: string, reason?: string) => Promise<OrderRecord>;
   fetchOrderStatusHistory: (id: string) => Promise<OrderStatusHistoryRecord[]>;
   uploadOrderDocument: (id: string, file: File) => Promise<OrderRecord>;
-  getOrderDocument: (id: string) => Promise<OrderDocumentLink>;
+  getOrderDocument: (id: string, download?: boolean) => Promise<OrderDocumentLink>;
   previewOrderDocument: (id: string) => Promise<OrderDocumentPreview>;
   deleteOrderDocument: (id: string) => Promise<OrderRecord>;
+  generateOrderDocument: (id: string) => Promise<OrderRecord>;
+  getGeneratedOrderDocument: (id: string, download?: boolean) => Promise<OrderDocumentLink>;
+  previewGeneratedOrderDocument: (id: string) => Promise<OrderDocumentPreview>;
+  uploadSignedOrderDocument: (id: string, file: File) => Promise<OrderRecord>;
+  getSignedOrderDocument: (id: string, download?: boolean) => Promise<SignedOrderDocumentLink>;
+  deleteSignedOrderDocument: (id: string) => Promise<OrderRecord>;
 
   addAssignment: (assignment: AssignmentRecord) => Promise<AssignmentRecord>;
   updateAssignment: (assignment: AssignmentRecord) => Promise<AssignmentRecord>;
@@ -442,9 +454,9 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return updated;
   };
 
-  const getOrderDocument = async (id: string) => {
+  const getOrderDocument = async (id: string, download = false) => {
     if (!backendConnected) throw new Error('The backend is offline. Document retrieval requires an active server connection.');
-    return getOrderDocumentApi(id);
+    return getOrderDocumentApi(id, download);
   };
 
   const previewOrderDocument = async (id: string) => {
@@ -455,6 +467,42 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const deleteOrderDocument = async (id: string) => {
     if (!backendConnected) throw new Error('The backend is offline. Document removal requires an active server connection.');
     const updated = await deleteOrderDocumentApi(id);
+    setOrdersList(prev => prev.map(order => order.id === updated.id ? updated : order));
+    return updated;
+  };
+
+  const generateOrderDocument = async (id: string) => {
+    if (!backendConnected) throw new Error('The backend is offline. Order document generation requires an active server connection.');
+    const updated = await generateOrderDocumentApi(id);
+    setOrdersList(prev => prev.map(order => order.id === updated.id ? updated : order));
+    return updated;
+  };
+
+  const getGeneratedOrderDocument = async (id: string, download = false) => {
+    if (!backendConnected) throw new Error('The backend is offline. Generated document retrieval requires an active server connection.');
+    return getGeneratedOrderDocumentApi(id, download);
+  };
+
+  const previewGeneratedOrderDocument = async (id: string) => {
+    if (!backendConnected) throw new Error('The backend is offline. Generated document preview requires an active server connection.');
+    return previewGeneratedOrderDocumentApi(id);
+  };
+
+  const uploadSignedOrderDocument = async (id: string, file: File) => {
+    if (!backendConnected) throw new Error('The backend is offline. Signed scan upload requires an active server connection.');
+    const updated = await uploadSignedOrderDocumentApi(id, file);
+    setOrdersList(prev => prev.map(order => order.id === updated.id ? updated : order));
+    return updated;
+  };
+
+  const getSignedOrderDocument = async (id: string, download = false) => {
+    if (!backendConnected) throw new Error('The backend is offline. Signed scan retrieval requires an active server connection.');
+    return getSignedOrderDocumentApi(id, download);
+  };
+
+  const deleteSignedOrderDocument = async (id: string) => {
+    if (!backendConnected) throw new Error('The backend is offline. Signed scan removal requires an active server connection.');
+    const updated = await deleteSignedOrderDocumentApi(id);
     setOrdersList(prev => prev.map(order => order.id === updated.id ? updated : order));
     return updated;
   };
@@ -786,6 +834,12 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         getOrderDocument,
         previewOrderDocument,
         deleteOrderDocument,
+        generateOrderDocument,
+        getGeneratedOrderDocument,
+        previewGeneratedOrderDocument,
+        uploadSignedOrderDocument,
+        getSignedOrderDocument,
+        deleteSignedOrderDocument,
         addAssignment,
         updateAssignment,
         deleteAssignment,

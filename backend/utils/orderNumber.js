@@ -1,9 +1,6 @@
-export const ORDER_SERIES_CODES = new Set(['GO', 'SO', 'LO']);
+import { ORDER_PURPOSE_CODES, ORDER_SERIES_CODES } from './orderCatalog.js';
 
-export const ORDER_PURPOSE_CODES = new Set([
-  'DES', 'TDS', 'DO', 'DOX', 'TR', 'RA', 'UA', 'CSC', 'LV', 'AW',
-  'CCS', 'AO', 'PR', 'PA', 'RG', 'LP', 'RCA', 'SP', 'AWOL', 'CN', 'CHAPS'
-]);
+export { ORDER_PURPOSE_CODES, ORDER_SERIES_CODES };
 
 export function getOrderYear(issuedDate) {
   const match = String(issuedDate || '').match(/^(\d{4})-/);

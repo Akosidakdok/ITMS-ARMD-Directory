@@ -14,6 +14,7 @@ import {
   Loader2,
   Plus,
   RotateCcw,
+  RefreshCw,
   Search,
   Trash2,
   Upload,
@@ -32,6 +33,7 @@ import { OperationalSummary, PageHeader } from '../components/common/SystemUI';
 import { useAuthRole } from '../context/AuthRoleContext';
 import { hasManagementAccess } from '../utils/accessControl';
 import type { AwardRecord, LeaveRecord, OrderRecord } from '../types/pais';
+import { LEAVE_TYPES } from '../data/leaveTypes';
 import type { OrderStatusHistoryRecord } from '../services/api';
 import {
   getOrderPurposeLabel,
@@ -39,7 +41,9 @@ import {
   ORDER_DOCUMENT_STATUS_OPTIONS,
   ORDER_PURPOSE_OPTIONS,
   ORDER_SERIES_OPTIONS,
+  getOrderPurposeDefinition,
   type OrderDocumentStatus,
+  type OrderPersonnelRoleCode,
   type OrderPurposeCode,
   type OrderSeries,
 } from '../constants/orders';
@@ -58,6 +62,8 @@ const normalizedOrderStatus = (order: OrderRecord): OrderDocumentStatus => {
   if (value === 'Pending') return 'For Approval';
   return 'Draft';
 };
+
+const hasGeneratedOrderDocument = (order: OrderRecord) => Boolean(order.generatedDocument?.storagePath);
 
 const legacySeriesFromOrder = (order: OrderRecord): OrderSeries => order.series || 'SO';
 const legacyPurposeFromOrder = (order: OrderRecord): OrderPurposeCode => {
@@ -159,6 +165,7 @@ const ModalShell = ({
 export const OrdersPage = () => {
   const {
     role,
+    backendConnected,
     personnelList,
     ordersList,
     awardsList,
@@ -173,6 +180,12 @@ export const OrdersPage = () => {
     getOrderDocument,
     previewOrderDocument,
     deleteOrderDocument,
+    generateOrderDocument,
+    getGeneratedOrderDocument,
+    previewGeneratedOrderDocument,
+    uploadSignedOrderDocument,
+    getSignedOrderDocument,
+    deleteSignedOrderDocument,
     createAward,
     updateAward,
     deleteAward,
@@ -197,6 +210,7 @@ export const OrdersPage = () => {
   const [selectedLeave, setSelectedLeave] = useState<LeaveRecord | null>(null);
   const [documentPreview, setDocumentPreview] = useState<{ order: OrderRecord; html: string } | null>(null);
   const [loadingDocumentPreview, setLoadingDocumentPreview] = useState(false);
+  const [regeneratingDocument, setRegeneratingDocument] = useState(false);
   const [revokeDialogOpen, setRevokeDialogOpen] = useState(false);
   const [revokeReason, setRevokeReason] = useState('');
   const [submittingRevoke, setSubmittingRevoke] = useState(false);
@@ -237,12 +251,15 @@ export const OrdersPage = () => {
   const [signatoryTitle, setSignatoryTitle] = useState('Director, ITMS');
   const [affectedPersonnelCount, setAffectedPersonnelCount] = useState(1);
   const [selectedPersonnelIds, setSelectedPersonnelIds] = useState<string[]>([]);
+  const [personnelRoleAssignments, setPersonnelRoleAssignments] = useState<Record<string, OrderPersonnelRoleCode>>({});
   const [personnelSearch, setPersonnelSearch] = useState('');
   const [description, setDescription] = useState('');
+  const [purposeData, setPurposeData] = useState<Record<string, string>>({});
   const [orderError, setOrderError] = useState('');
   const [savingOrder, setSavingOrder] = useState(false);
-  const [orderFile, setOrderFile] = useState<File | null>(null);
+  // Legacy DOCX actions remain available internally for compatibility with old records.
   const [uploadingOrderFile, setUploadingOrderFile] = useState(false);
+  const [uploadingSignedDocument, setUploadingSignedDocument] = useState(false);
   const [orderMode, setOrderMode] = useState<AdministrativeOrderMode>('default');
   const [orderWizardStep, setOrderWizardStep] = useState(1);
   const today = new Date();
@@ -253,10 +270,19 @@ export const OrdersPage = () => {
 
   const selectedOrderStatus = selectedOrder ? normalizedOrderStatus(selectedOrder) : null;
   const revokedReturnStatus = orderHistory.find(event => event.toStatus === 'Revoked' && event.fromStatus)?.fromStatus || 'For Approval';
+  const purposeDefinition = getOrderPurposeDefinition(purposeCode);
+  const defaultPersonnelRole = purposeDefinition?.personnelRoles[0]?.code || 'affected';
+  const unitOptions = useMemo(() => Array.from(new Set(personnelList.flatMap(person => [person.sub_unit, person.division, person.unitCategory].filter(Boolean) as string[]))).sort().map(value => ({ value, label: value })), [personnelList]);
+  const renderPurposeField = (field: NonNullable<typeof purposeDefinition>['fields'][number]) => {
+    const value = purposeData[field.key] || '';
+    const fieldClass = 'w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100';
+    if (field.type === 'textarea') return <label key={field.key} className="md:col-span-2"><span className="mb-1.5 block text-sm font-medium text-slate-700">{field.label}{field.required && ' *'}</span><textarea required={field.required} value={value} onChange={event => updatePurposeField(field.key, event.target.value)} rows={4} className={fieldClass} /></label>;
+    if (field.type === 'select') return <label key={field.key}><span className="mb-1.5 block text-sm font-medium text-slate-700">{field.label}{field.required && ' *'}</span><select required={field.required} value={value} onChange={event => updatePurposeField(field.key, event.target.value)} className={fieldClass}><option value="">Select {field.label.toLowerCase()}</option>{(field.key === 'leaveType' ? LEAVE_TYPES : []).map(option => <option key={option} value={option}>{option}</option>)}</select></label>;
+    if (field.type === 'unit') return <label key={field.key}><span className="mb-1.5 block text-sm font-medium text-slate-700">{field.label}{field.required && ' *'}</span><input required={field.required} list={`order-units-${field.key}`} value={value} onChange={event => updatePurposeField(field.key, event.target.value)} placeholder="Select or enter a unit" className={fieldClass} /><datalist id={`order-units-${field.key}`}>{unitOptions.map(option => <option key={option.value} value={option.value} />)}</datalist></label>;
+    return <label key={field.key}><span className="mb-1.5 block text-sm font-medium text-slate-700">{field.label}{field.required && ' *'}</span><input required={field.required} type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'} value={value} onChange={event => updatePurposeField(field.key, event.target.value)} className={fieldClass} /></label>;
+  };
   const editingOrderLocked = !!editingOrder && LOCKED_ORDER_STATUSES.has(status);
-  const isUploadOrderMode = orderMode !== 'default';
-  const isCustomUploadMode = orderMode === 'upload-custom';
-  const requiresFullMetadata = orderMode !== 'upload';
+  const requiresFullMetadata = true;
 
   useEffect(() => {
     let active = true;
@@ -297,9 +323,7 @@ export const OrdersPage = () => {
 
   const generatedOrderNumberPreview = issuedDate
     ? `ITMS-${orderSeries}-${purposeCode}-${issuedDate.slice(0, 4)}-####`
-    : orderFile
-      ? `ITMS-${orderSeries}-${purposeCode}-${new Date().getFullYear()}-####`
-      : 'Select an issued date to preview the order number';
+    : 'Select an issued date to preview the order number';
 
   const calendarLeaves = leaveList;
 
@@ -316,11 +340,11 @@ export const OrdersPage = () => {
     setSignatoryTitle('Director, ITMS');
     setAffectedPersonnelCount(1);
     setSelectedPersonnelIds([]);
+    setPersonnelRoleAssignments({});
     setPersonnelSearch('');
     setDescription('');
+    setPurposeData({});
     setOrderError('');
-    setOrderFile(null);
-    setUploadingOrderFile(false);
     setOrderMode('default');
     setOrderWizardStep(1);
   };
@@ -339,7 +363,12 @@ export const OrdersPage = () => {
     setSignatoryTitle(order.signatoryTitle || 'Director, ITMS');
     setAffectedPersonnelCount(order.affectedPersonnelCount || order.personnelIds?.length || 1);
     setSelectedPersonnelIds(order.personnelIds || []);
+    setPersonnelRoleAssignments(Object.fromEntries(
+      (order.personnelInvolvement || order.personnelIds?.map((personnelId, index) => ({ personnelId, role: 'affected' as const, sequence: index + 1 })) || [])
+        .map(involvement => [involvement.personnelId, involvement.role])
+    ));
     setDescription(order.description || '');
+    setPurposeData(Object.fromEntries(Object.entries(order.purposeData || {}).map(([key, value]) => [key, Array.isArray(value) ? value.join(', ') : String(value ?? '')])));
     setOrderMode('default');
     setOrderWizardStep(1);
     setOrderFormOpen(true);
@@ -351,6 +380,14 @@ export const OrdersPage = () => {
         ? prev.filter(id => id !== personnelId)
         : [...prev, personnelId]
     ));
+    setPersonnelRoleAssignments(previous => {
+      if (previous[personnelId]) {
+        const next = { ...previous };
+        delete next[personnelId];
+        return next;
+      }
+      return { ...previous, [personnelId]: defaultPersonnelRole };
+    });
   };
 
   const toggleAllFilteredPersonnel = () => {
@@ -360,34 +397,57 @@ export const OrdersPage = () => {
       ? previous.filter(id => !filteredIds.includes(id))
       : Array.from(new Set([...previous, ...filteredIds]))
     );
+    setPersonnelRoleAssignments(previous => {
+      const next = { ...previous };
+      if (allSelected) {
+        filteredIds.forEach(id => delete next[id]);
+      } else {
+        filteredIds.forEach(id => { if (!next[id]) next[id] = defaultPersonnelRole; });
+      }
+      return next;
+    });
   };
 
-  const selectOrderFile = (file?: File) => {
-    if (!file) return;
-    if (!file.name.toLowerCase().endsWith('.docx')) {
-      setOrderError('Only Microsoft Word .docx files are accepted.');
-      return;
-    }
-    if (file.size > 25 * 1024 * 1024) {
-      setOrderError('The DOCX file must be 25 MB or smaller.');
-      return;
-    }
-    setOrderError('');
-    setOrderFile(file);
+  const updateOrderPurpose = (value: string) => {
+    const nextPurpose = value as OrderPurposeCode;
+    const nextDefinition = getOrderPurposeDefinition(nextPurpose);
+    const fallbackRole = nextDefinition?.personnelRoles[0]?.code || 'affected';
+    setPurposeCode(nextPurpose);
+    setPurposeData(previous => Object.fromEntries(
+      (nextDefinition?.fields || []).map(field => [field.key, previous[field.key] || ''])
+    ));
+    setPersonnelRoleAssignments(previous => Object.fromEntries(
+      Object.keys(previous).map(personnelId => {
+        const currentRole = previous[personnelId];
+        const roleStillAllowed = nextDefinition?.personnelRoles.some(role => role.code === currentRole);
+        return [personnelId, roleStillAllowed ? currentRole : fallbackRole];
+      })
+    ));
+  };
+
+  const updatePurposeField = (key: string, value: string) => {
+    setPurposeData(previous => ({ ...previous, [key]: value }));
   };
 
   const validateOrderWizardStep = () => {
     setOrderError('');
-    if (orderWizardStep === 1 && isUploadOrderMode && !orderFile) {
-      setOrderError('Choose a DOCX document to continue.');
+    if (orderWizardStep === 1 && (!orderSeries || !purposeCode)) {
+      setOrderError('Choose an order series and purpose to continue.');
       return false;
     }
-    if (orderWizardStep === 2 && requiresFullMetadata && (!subject.trim() || !issuedDate || !effectiveDate)) {
-      setOrderError(isCustomUploadMode ? 'Subject, issued date, and effective date are required for custom details.' : 'Subject, issued date, and effective date are required.');
+    if (orderWizardStep === 2 && (!subject.trim() || !issuedDate || !effectiveDate)) {
+      setOrderError('Subject, issued date, and effective date are required.');
       return false;
     }
-    if (orderWizardStep === 3 && requiresFullMetadata && (!signatory.trim() || !signatoryTitle.trim() || (!editingOrder && selectedPersonnelIds.length === 0))) {
-      setOrderError(isCustomUploadMode ? 'Select personnel and complete the signatory details.' : 'Select at least one personnel record and complete the signatory details.');
+    if (orderWizardStep === 3) {
+      const missingFields = purposeDefinition?.fields.filter(field => field.required && !String(purposeData[field.key] || '').trim()) || [];
+      if (missingFields.length) {
+        setOrderError(`Complete the required purpose details: ${missingFields.map(field => field.label).join(', ')}.`);
+        return false;
+      }
+    }
+    if (orderWizardStep === 4 && (!signatory.trim() || !signatoryTitle.trim() || (!editingOrder && selectedPersonnelIds.length === 0))) {
+      setOrderError('Select at least one personnel record and complete the signatory details.');
       return false;
     }
     return true;
@@ -395,7 +455,7 @@ export const OrdersPage = () => {
 
   const submitOrderWizard = (event: FormEvent) => {
     event.preventDefault();
-    if (orderWizardStep < 3) {
+    if (orderWizardStep < 4) {
       if (validateOrderWizardStep()) setOrderWizardStep(previous => previous + 1);
       return;
     }
@@ -457,6 +517,8 @@ export const OrdersPage = () => {
         row.source.series || '',
         row.source.purposeCode || '',
         row.source.fileName || '',
+        row.source.generatedDocument?.fileName || '',
+        row.source.signedDocument?.fileName || '',
         row.source.createdBy || ''
       );
       const matchesSearch = !query || searchableValues
@@ -480,7 +542,15 @@ export const OrdersPage = () => {
       const matchesOrderNumber = !orderNumberFilter || orderNumber.toLowerCase().includes(orderNumberFilter.trim().toLowerCase());
       const matchesSeries = !seriesFilter || order.series === seriesFilter;
       const matchesPurpose = !purposeFilter || order.purposeCode === purposeFilter;
-      const matchesFile = !fileFilter || (fileFilter === 'with' ? !!order.fileName : !order.fileName);
+      const hasGenerated = hasGeneratedOrderDocument(order);
+      const hasSigned = !!order.signedDocument?.storagePath;
+      const matchesFile = !fileFilter
+        || (fileFilter === 'generated' && hasGenerated)
+        || (fileFilter === 'signed' && hasSigned)
+        || (fileFilter === 'both' && hasGenerated && hasSigned)
+        || (fileFilter === 'missing-signed' && !hasSigned)
+        || (fileFilter === 'missing-generated' && !hasGenerated)
+        || (fileFilter === 'none' && !hasGenerated && !hasSigned);
       const matchesCreatedBy = !createdByFilter || order.createdBy === createdByFilter;
       const matchesEffectiveFrom = !effectiveDateFrom || effective >= effectiveDateFrom;
       const matchesEffectiveTo = !effectiveDateTo || effective <= effectiveDateTo;
@@ -527,20 +597,14 @@ export const OrdersPage = () => {
       setOrderError('Signed, released, archived, and revoked orders are locked. Use the workflow actions to change status.');
       return;
     }
-    const uploadOnlyFlow = orderMode === 'upload';
-    const requiresFullMetadata = orderMode !== 'upload';
+    const requiresFullMetadata = true;
     const fallbackIssuedDate = new Date().toISOString().slice(0, 10);
-    const savedIssuedDate = issuedDate || (uploadOnlyFlow ? fallbackIssuedDate : '');
+    const savedIssuedDate = issuedDate || fallbackIssuedDate;
     const savedEffectiveDate = effectiveDate || savedIssuedDate;
-    const fileSubject = orderFile?.name.replace(/\.docx$/i, '').replace(/[_-]+/g, ' ').trim();
-    const savedSubject = subject.trim() || fileSubject || `${getOrderPurposeLabel(purposeCode)} order`;
+    const savedSubject = subject.trim() || `${getOrderPurposeLabel(purposeCode)} order`;
     const missingPersonnelIds = selectedPersonnelIds.filter(id => !personnelNames.has(id));
-    if (isUploadOrderMode && !orderFile) {
-      setOrderError('Choose a DOCX document before saving this upload order.');
-      return;
-    }
     if (requiresFullMetadata && (!subject.trim() || !issuedDate || !effectiveDate || !signatory.trim() || !signatoryTitle.trim())) {
-      setOrderError(isCustomUploadMode ? 'Complete the required custom metadata before saving.' : 'Complete all required administrative order fields.');
+      setOrderError('Complete all required administrative order fields.');
       return;
     }
     if (missingPersonnelIds.length) {
@@ -549,6 +613,17 @@ export const OrdersPage = () => {
     }
     if (requiresFullMetadata && !editingOrder && selectedPersonnelIds.length === 0) {
       setOrderError('Select at least one personnel record for a new administrative order.');
+      return;
+    }
+    const personnelInvolvement = selectedPersonnelIds.map((personnelId, index) => ({
+      personnelId,
+      role: personnelRoleAssignments[personnelId] || defaultPersonnelRole,
+      sequence: index + 1
+    }));
+    const requiredPersonnelRoles = purposeDefinition?.personnelRoles.filter(role => role.required) || [];
+    const missingPersonnelRoles = requiredPersonnelRoles.filter(role => !personnelInvolvement.some(entry => entry.role === role.code));
+    if (selectedPersonnelIds.length && missingPersonnelRoles.length) {
+      setOrderError(`Select personnel for: ${missingPersonnelRoles.map(role => role.label).join(', ')}.`);
       return;
     }
     if (savedEffectiveDate && savedIssuedDate && savedEffectiveDate < savedIssuedDate) {
@@ -561,6 +636,7 @@ export const OrdersPage = () => {
       const payload: OrderRecord = {
         id: editingOrder?.id || crypto.randomUUID(),
         personnelIds: selectedPersonnelIds,
+        ...(personnelInvolvement.length ? { personnelInvolvement } : {}),
         ...(editingOrder?.orderNumber ? { orderNumber: editingOrder.orderNumber } : {}),
         series: orderSeries,
         purposeCode,
@@ -573,28 +649,52 @@ export const OrdersPage = () => {
         signatoryTitle: signatoryTitle.trim(),
         affectedPersonnelCount: selectedPersonnelIds.length || affectedPersonnelCount,
         description: description.trim(),
+        purposeData,
         status,
         documentStatus: status,
       };
       const savedOrder = editingOrder ? await updateOrder(payload) : await addOrder(payload);
-      if (orderFile) {
-        setUploadingOrderFile(true);
-        await uploadOrderDocument(savedOrder.id, orderFile);
+      if (!backendConnected) {
+        setSelectedOrder(savedOrder);
+        setOrderFormOpen(false);
+        resetOrderForm();
+        setToast({
+          type: 'success',
+          message: editingOrder
+            ? 'Administrative order updated for this session. Reconnect to persist it and generate the unsigned document.'
+            : 'Administrative order saved for this session. Reconnect to persist it and generate the unsigned document.'
+        });
+        return;
       }
+
+      let generatedOrder: OrderRecord;
+      try {
+        generatedOrder = await generateOrderDocument(savedOrder.id);
+      } catch (error) {
+        setSelectedOrder(savedOrder);
+        setOrderFormOpen(false);
+        resetOrderForm();
+        setToast({
+          type: 'error',
+          message: `Administrative order ${editingOrder ? 'updated' : 'saved'}, but document generation failed. You can retry from the order details. ${error instanceof Error ? error.message : ''}`.trim()
+        });
+        return;
+      }
+
+      setSelectedOrder(generatedOrder);
       setOrderFormOpen(false);
       resetOrderForm();
-      setToast({ type: 'success', message: editingOrder ? 'Administrative order updated successfully.' : 'Administrative order saved successfully.' });
+      setToast({ type: 'success', message: editingOrder ? 'Administrative order updated and document regenerated.' : 'Administrative order saved and document generated.' });
     } catch (error) {
       setOrderError(error instanceof Error ? error.message : 'Unable to save the order.');
     } finally {
       setSavingOrder(false);
-      setUploadingOrderFile(false);
     }
   };
 
-  const openOrderDocument = async (order: OrderRecord) => {
+  const openOrderDocument = async (order: OrderRecord, download = false) => {
     try {
-      const link = await getOrderDocument(order.id);
+      const link = hasGeneratedOrderDocument(order) ? await getGeneratedOrderDocument(order.id, download) : await getOrderDocument(order.id, download);
       window.open(link.url, '_blank', 'noopener,noreferrer');
     } catch (error) {
       setToast({ type: 'error', message: error instanceof Error ? error.message : 'Unable to open the order document.' });
@@ -604,7 +704,7 @@ export const OrdersPage = () => {
   const viewOrderDocument = async (order: OrderRecord) => {
     setLoadingDocumentPreview(true);
     try {
-      const preview = await previewOrderDocument(order.id);
+      const preview = hasGeneratedOrderDocument(order) ? await previewGeneratedOrderDocument(order.id) : await previewOrderDocument(order.id);
       setDocumentPreview({ order, html: DOMPurify.sanitize(preview.html) });
     } catch (error) {
       setToast({ type: 'error', message: error instanceof Error ? error.message : 'Unable to preview the order document.' });
@@ -644,6 +744,63 @@ export const OrdersPage = () => {
       setToast({ type: 'error', message: error instanceof Error ? error.message : 'Unable to replace the order document.' });
     } finally {
       setUploadingOrderFile(false);
+    }
+  };
+
+  const openSignedOrderDocument = async (order: OrderRecord, download = false) => {
+    try {
+      const link = await getSignedOrderDocument(order.id, download);
+      window.open(link.url, '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      setToast({ type: 'error', message: error instanceof Error ? error.message : 'Unable to open the signed order scan.' });
+    }
+  };
+
+  const regenerateSelectedOrderDocument = async (order: OrderRecord) => {
+    if (!canEdit || LOCKED_ORDER_STATUSES.has(normalizedOrderStatus(order))) return;
+    setRegeneratingDocument(true);
+    try {
+      const updated = await generateOrderDocument(order.id);
+      setSelectedOrder(updated);
+      setToast({ type: 'success', message: 'Generated order document regenerated successfully.' });
+    } catch (error) {
+      setToast({ type: 'error', message: error instanceof Error ? error.message : 'Unable to regenerate the order document.' });
+    } finally {
+      setRegeneratingDocument(false);
+    }
+  };
+
+  const replaceSignedOrderDocument = async (file?: File) => {
+    if (!selectedOrder || !file) return;
+    if (!canEdit || LOCKED_ORDER_STATUSES.has(selectedOrderStatus || '')) return;
+    const accepted = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!accepted.includes(file.type) || !/\.(jpe?g|png|webp)$/i.test(file.name)) {
+      setToast({ type: 'error', message: 'Signed order scans must be JPEG, PNG, or WEBP images.' });
+      return;
+    }
+    if (file.size > 25 * 1024 * 1024) {
+      setToast({ type: 'error', message: 'The signed order scan must be 25 MB or smaller.' });
+      return;
+    }
+    setUploadingSignedDocument(true);
+    try {
+      const updated = await uploadSignedOrderDocument(selectedOrder.id, file);
+      setSelectedOrder(updated);
+      setToast({ type: 'success', message: updated.signedDocument?.version && updated.signedDocument.version > 1 ? 'Signed order scan replaced successfully.' : 'Signed order scan uploaded successfully.' });
+    } catch (error) {
+      setToast({ type: 'error', message: error instanceof Error ? error.message : 'Unable to upload the signed order scan.' });
+    } finally {
+      setUploadingSignedDocument(false);
+    }
+  };
+
+  const removeSignedOrderDocument = async (order: OrderRecord) => {
+    try {
+      const updated = await deleteSignedOrderDocument(order.id);
+      setSelectedOrder(updated);
+      setToast({ type: 'success', message: 'Signed order scan removed.' });
+    } catch (error) {
+      setToast({ type: 'error', message: error instanceof Error ? error.message : 'Unable to remove the signed order scan.' });
     }
   };
 
@@ -758,7 +915,9 @@ export const OrdersPage = () => {
   const stats = [
     { label: 'All records', value: rows.length, icon: ClipboardList },
     { label: 'Administrative orders', value: ordersList.length, icon: FileText },
-    { label: 'Orders with DOCX', value: ordersList.filter(order => !!order.fileName).length, icon: Upload },
+    { label: 'Generated orders', value: ordersList.filter(hasGeneratedOrderDocument).length, icon: FileText },
+    { label: 'Signed scans', value: ordersList.filter(order => !!order.signedDocument?.storagePath).length, icon: Upload },
+    { label: 'Missing signed scan', value: ordersList.filter(order => !order.signedDocument?.storagePath && !['Archived', 'Revoked'].includes(normalizedOrderStatus(order))).length, icon: Upload },
     { label: 'Awards', value: awardsList.length, icon: Award },
     { label: 'Scheduled leaves', value: calendarLeaves.length, icon: CalendarDays },
   ];
@@ -888,7 +1047,14 @@ export const OrdersPage = () => {
                   </label>
                   <SearchableSelect label="Series" value={seriesFilter} onChange={setSeriesFilter} placeholder="All series" options={ORDER_SERIES_OPTIONS.map(option => ({ value: option.value, label: option.label }))} />
                   <SearchableSelect label="Purpose code" value={purposeFilter} onChange={setPurposeFilter} placeholder="All purposes" options={ORDER_PURPOSE_OPTIONS.map(option => ({ value: option.value, label: option.label }))} />
-                  <SearchableSelect label="Document availability" value={fileFilter} onChange={setFileFilter} placeholder="All documents" options={[{ value: 'with', label: 'Has DOCX document' }, { value: 'without', label: 'No DOCX document' }]} />
+                  <SearchableSelect label="Document availability" value={fileFilter} onChange={setFileFilter} placeholder="All document states" options={[
+                    { value: 'generated', label: 'Has generated order' },
+                    { value: 'signed', label: 'Has signed scan' },
+                    { value: 'both', label: 'Has generated order and signed scan' },
+                    { value: 'missing-signed', label: 'Missing signed scan' },
+                    { value: 'missing-generated', label: 'Missing generated order' },
+                    { value: 'none', label: 'Missing both documents' }
+                  ]} />
                   <SearchableSelect label="Created by" value={createdByFilter} onChange={setCreatedByFilter} placeholder="All creators" options={Array.from(new Set(ordersList.map(order => order.createdBy).filter(Boolean) as string[])).sort().map(value => ({ value, label: value }))} />
                   <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Effective from</span><input type="date" value={effectiveDateFrom} onChange={event => setEffectiveDateFrom(event.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
                   <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Effective to</span><input type="date" value={effectiveDateTo} onChange={event => setEffectiveDateTo(event.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
@@ -939,7 +1105,16 @@ export const OrdersPage = () => {
                       </td>
                       <td className="px-5 py-4 text-xs text-slate-600">
                         {row.kind === 'order' ? (
-                          <div className="space-y-1"><p className={row.source.fileName ? 'font-semibold text-teal-700' : 'text-slate-400'}>{row.source.fileName ? 'DOCX attached' : 'No DOCX'}</p>{row.source.signedAt && <p>Signed: {formatDate(row.source.signedAt)}</p>}{row.source.releasedAt && <p>Released: {formatDate(row.source.releasedAt)}</p>}</div>
+                          <div className="space-y-1.5">
+                            <div className="flex flex-wrap gap-1.5">
+                              {hasGeneratedOrderDocument(row.source) && <span className="rounded-full bg-teal-50 px-2 py-0.5 font-semibold text-teal-700">Generated</span>}
+                              {row.source.fileName && <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-600">Legacy DOCX</span>}
+                              {row.source.signedDocument?.storagePath && <span className="rounded-full bg-blue-50 px-2 py-0.5 font-semibold text-blue-700">Signed scan</span>}
+                              {!hasGeneratedOrderDocument(row.source) && !row.source.fileName && <span className="text-slate-400">No generated order</span>}
+                              {!row.source.signedDocument?.storagePath && <span className="text-amber-700">Missing signed scan</span>}
+                            </div>
+                            {row.source.signedAt && <p>Signed: {formatDate(row.source.signedAt)}</p>}{row.source.releasedAt && <p>Released: {formatDate(row.source.releasedAt)}</p>}
+                          </div>
                         ) : '—'}
                       </td>
                       <td><span className="status-marker text-slate-700">{row.status}</span></td>
@@ -1006,20 +1181,20 @@ export const OrdersPage = () => {
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Step {orderWizardStep} of 3</p>
-                  <p className="mt-1 text-sm font-bold text-slate-900">{orderWizardStep === 1 ? 'Classify and attach the document' : orderWizardStep === 2 ? 'Complete order details' : 'Add personnel and signatory details'}</p>
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Step {orderWizardStep} of 4</p>
+                  <p className="mt-1 text-sm font-bold text-slate-900">{orderWizardStep === 1 ? 'Choose series and purpose' : orderWizardStep === 2 ? 'Complete common order details' : orderWizardStep === 3 ? 'Enter purpose-specific details' : 'Add personnel and review'}</p>
                 </div>
-                {!editingOrder && <span className="w-fit rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 ring-1 ring-slate-200">{orderMode === 'default' ? 'Default' : orderMode === 'upload' ? 'Upload document' : 'Upload + custom'}</span>}
+                {!editingOrder && <span className="w-fit rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 ring-1 ring-slate-200">{backendConnected ? 'Generated order' : 'Session-only save'}</span>}
               </div>
-              <div className="mt-4 grid grid-cols-3 gap-2">
-                {['Classification', 'Order details', 'People & signatory'].map((label, index) => <div key={label} className={`h-1.5 rounded-full ${index + 1 <= orderWizardStep ? 'bg-teal-600' : 'bg-slate-200'}`} title={label} />)}
+              <div className="mt-4 grid grid-cols-4 gap-2">
+                {['Classification', 'Order details', 'Purpose details', 'People & review'].map((label, index) => <div key={label} className={`h-1.5 rounded-full ${index + 1 <= orderWizardStep ? 'bg-teal-600' : 'bg-slate-200'}`} title={label} />)}
               </div>
             </div>
             <fieldset disabled={editingOrderLocked} className="grid gap-4 md:grid-cols-2 disabled:opacity-75">
               {orderWizardStep === 1 && <>
               <div className="md:col-span-2 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
-                <p className="font-semibold">{orderMode === 'default' ? 'Create the order record from scratch.' : orderMode === 'upload' ? 'Register an existing DOCX with only its classification.' : 'Register an existing DOCX and add searchable custom details in the next steps.'}</p>
-                <p className="mt-1 text-xs text-blue-700">Series and purpose are required for every administrative order.</p>
+                <p className="font-semibold">Create an unsigned order document from the selected series, purpose, personnel, and order details.</p>
+                <p className="mt-1 text-xs text-blue-700">The official order number is allocated when you save. {backendConnected ? 'The DOCX is generated automatically after the order record is created.' : 'The order can be reviewed in this session, but persistence and DOCX generation require a backend connection.'}</p>
               </div>
               <label>
                 <span className="mb-1.5 block text-sm font-medium text-slate-700">Order number</span>
@@ -1028,29 +1203,16 @@ export const OrdersPage = () => {
                 </div>
                 <span className="mt-1 block text-xs text-slate-500">Generated automatically when the new order is saved.</span>
               </label>
-              <SearchableSelect label="Order series *" value={orderSeries} onChange={(value: string) => setOrderSeries(value as OrderSeries)} options={ORDER_SERIES_OPTIONS.map(option => ({ value: option.value, label: option.label }))} />
-              <SearchableSelect label="Order purpose *" value={purposeCode} onChange={(value: string) => setPurposeCode(value as OrderPurposeCode)} options={ORDER_PURPOSE_OPTIONS.map(option => ({ value: option.value, label: option.label }))} />
-              {isUploadOrderMode && <div className="md:col-span-2 rounded-xl border border-dashed border-blue-200 bg-white p-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-slate-800">DOCX document <span className="text-rose-600">*</span></p>
-                    <p className="mt-1 text-xs text-slate-500">Required for this registration path. DOCX only, maximum 25 MB.</p>
-                    {orderFile && <p className="mt-2 truncate text-xs font-semibold text-blue-700">Selected: {orderFile.name}</p>}
-                  </div>
-                  <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-blue-300 bg-blue-50 px-4 py-2.5 text-xs font-semibold text-blue-700 hover:bg-blue-100">
-                    <Upload size={15} /> {orderFile ? 'Change DOCX' : 'Choose DOCX'}
-                    <input type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" className="sr-only" onChange={event => selectOrderFile(event.target.files?.[0])} />
-                  </label>
-                </div>
-              </div>}
+              <SearchableSelect label="Order series *" value={orderSeries} disabled={!!editingOrder} onChange={(value: string) => setOrderSeries(value as OrderSeries)} options={ORDER_SERIES_OPTIONS.map(option => ({ value: option.value, label: option.label }))} />
+              <SearchableSelect label="Order purpose *" value={purposeCode} disabled={!!editingOrder} onChange={updateOrderPurpose} options={ORDER_PURPOSE_OPTIONS.map(option => ({ value: option.value, label: option.label }))} />
               </>}
               {orderWizardStep === 2 && <>
               {requiresFullMetadata ? <>
-              <label className="md:col-span-2"><span className="mb-1.5 block text-sm font-medium text-slate-700">Subject {requiresFullMetadata && '*'}</span><textarea required={requiresFullMetadata} value={subject} onChange={(e) => setSubject(e.target.value)} rows={3} placeholder={isUploadOrderMode ? 'Optional for upload-only; defaults to the filename.' : undefined} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
+              <label className="md:col-span-2"><span className="mb-1.5 block text-sm font-medium text-slate-700">Subject {requiresFullMetadata && '*'}</span><textarea required={requiresFullMetadata} value={subject} onChange={(e) => setSubject(e.target.value)} rows={3} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
               <label>
                 <span className="mb-1 block text-sm font-medium text-slate-700">Designation Date / Date Order Issued {requiresFullMetadata && '*'}</span>
                 <span className="mb-1.5 block text-xs text-slate-500">Displayed in upper-right header of Order</span>
-                <input required={requiresFullMetadata} type="date" value={issuedDate} onChange={(e) => setIssuedDate(e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" />
+                <input required={requiresFullMetadata} disabled={!!editingOrder} type="date" value={issuedDate} onChange={(e) => setIssuedDate(e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500" />
               </label>
               <label>
                 <span className="mb-1 block text-sm font-medium text-slate-700">Effective Date of Designation {requiresFullMetadata && '*'}</span>
@@ -1066,6 +1228,13 @@ export const OrdersPage = () => {
               <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Affected personnel count</span><div className="rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm font-bold text-slate-800">{selectedPersonnelIds.length || affectedPersonnelCount}</div><span className="mt-1 block text-xs text-slate-500">Automatically derived from selected personnel.</span></label>
               </>}
               {orderWizardStep === 3 && <>
+              <div className="md:col-span-2 rounded-xl border border-teal-100 bg-teal-50 p-4">
+                <p className="text-sm font-semibold text-teal-950">{purposeDefinition?.label || 'Purpose details'}</p>
+                <p className="mt-1 text-xs text-teal-800">These fields become part of the generated order and are validated for the selected purpose.</p>
+              </div>
+              {(purposeDefinition?.fields || []).map(renderPurposeField)}
+              </>}
+              {orderWizardStep === 4 && <>
               <div className="md:col-span-2">
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <span className="text-sm font-medium text-slate-700">Personnel involved</span>
@@ -1079,11 +1248,31 @@ export const OrdersPage = () => {
                   <button type="button" onClick={toggleAllFilteredPersonnel} className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
                     {filteredPersonnel.length > 0 && filteredPersonnel.every(person => selectedPersonnelIds.includes(person.id)) ? 'Clear visible' : 'Select visible'}
                   </button>
-                  <button type="button" onClick={() => setSelectedPersonnelIds([])} className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Clear all</button>
+                  <button type="button" onClick={() => { setSelectedPersonnelIds([]); setPersonnelRoleAssignments({}); }} className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Clear all</button>
                 </div>
                 {selectedPersonnel.length > 0 && (
                   <div className="mb-2 flex flex-wrap gap-1.5 rounded-xl border border-blue-100 bg-blue-50 p-2">
                     {selectedPersonnel.map(person => person && <span key={person.id} className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-blue-800 ring-1 ring-blue-200">{person.rank} {person.lastName}<button type="button" onClick={() => toggleOrderPersonnel(person.id)} aria-label={`Remove ${person.fullName}`} className="font-bold text-blue-500 hover:text-blue-800">×</button></span>)}
+                  </div>
+                )}
+                {selectedPersonnel.length > 0 && (
+                  <div className="mb-2 space-y-2 rounded-xl border border-slate-200 bg-white p-3">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wide text-slate-600">Personnel roles</p>
+                      <p className="mt-1 text-xs text-slate-500">Assign each selected person a role for this {purposeDefinition?.label || 'order'}.</p>
+                    </div>
+                    {selectedPersonnel.map(person => {
+                      if (!person) return null;
+                      const roleOptions = purposeDefinition?.personnelRoles || [{ code: 'affected' as const, label: 'Personnel involved', multiple: true, required: true }];
+                      return (
+                        <div key={`role-${person.id}`} className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                          <span className="min-w-0 truncate text-xs font-semibold text-slate-800">{person.rank} {person.fullName}</span>
+                          <select value={personnelRoleAssignments[person.id] || defaultPersonnelRole} onChange={event => setPersonnelRoleAssignments(previous => ({ ...previous, [person.id]: event.target.value as OrderPersonnelRoleCode }))} className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-xs text-slate-700 outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100 sm:w-64">
+                            {roleOptions.map(role => <option key={role.code} value={role.code}>{role.label}{role.required ? ' *' : ''}</option>)}
+                          </select>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
                 <div className="max-h-52 overflow-y-auto rounded-xl border border-slate-300 bg-slate-50 p-2">
@@ -1104,30 +1293,19 @@ export const OrdersPage = () => {
               </div>
               <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Signatory {requiresFullMetadata && '*'}</span><input required={requiresFullMetadata} value={signatory} onChange={(e) => setSignatory(e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
               <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Signatory title {requiresFullMetadata && '*'}</span><input required={requiresFullMetadata} value={signatoryTitle} onChange={(e) => setSignatoryTitle(e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
-              <div className="md:col-span-2 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="flex items-center gap-2 text-sm font-semibold text-slate-800"><FileText size={16} /> Source DOCX document</p>
-                    <p className="mt-1 text-xs text-slate-500">{isUploadOrderMode ? 'Selected document for this upload path.' : 'Optional. DOCX only, maximum 25 MB.'} Replacements update the current document.</p>
-                    {(editingOrder?.fileName || orderFile) && <p className="mt-2 text-xs font-semibold text-teal-700">{orderFile ? `Ready to upload: ${orderFile.name}` : `Current file: ${editingOrder?.fileName}`}</p>}
-                  </div>
-                  <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100">
-                    <Upload size={15} /> Choose DOCX
-                    <input type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" className="sr-only" onChange={event => selectOrderFile(event.target.files?.[0])} />
-                  </label>
-                </div>
-                {orderFile && <button type="button" onClick={() => setOrderFile(null)} className="mt-2 text-xs font-semibold text-rose-700 hover:underline">Clear selected file</button>}
-              </div>
+              {editingOrder?.fileName && <div className="md:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-600">
+                This record contains a legacy DOCX attachment. It remains available from the order details view; new changes use the generated order document workflow.
+              </div>}
               <label className="md:col-span-2"><span className="mb-1.5 block text-sm font-medium text-slate-700">Directives and particulars</span><textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
               </>}
             </fieldset>
             <div className="sticky bottom-0 z-10 flex flex-col-reverse gap-2 border-t border-slate-200 bg-white pt-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                {orderWizardStep > 1 && <button type="button" onClick={() => { setOrderError(''); setOrderWizardStep(previous => previous - 1); }} disabled={savingOrder || uploadingOrderFile} className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:w-auto">Back</button>}
+                {orderWizardStep > 1 && <button type="button" onClick={() => { setOrderError(''); setOrderWizardStep(previous => previous - 1); }} disabled={savingOrder} className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:w-auto">Back</button>}
               </div>
               <div className="flex flex-col-reverse gap-2 sm:flex-row">
               <button type="button" onClick={() => { setOrderFormOpen(false); resetOrderForm(); }} disabled={savingOrder} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700">Cancel</button>
-              {!editingOrderLocked && <button type="submit" disabled={savingOrder || uploadingOrderFile} className="inline-flex items-center justify-center gap-2 rounded-xl bg-teal-700 px-5 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">{uploadingOrderFile ? <Loader2 size={16} className="animate-spin" /> : null}{uploadingOrderFile ? 'Uploading...' : savingOrder ? 'Saving...' : orderWizardStep < 3 ? 'Continue' : editingOrder ? 'Update order' : 'Save order'}</button>}
+              {!editingOrderLocked && <button type="submit" disabled={savingOrder} className="inline-flex items-center justify-center gap-2 rounded-xl bg-teal-700 px-5 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">{savingOrder ? (backendConnected ? 'Saving and generating...' : 'Saving locally...') : orderWizardStep < 4 ? 'Continue' : backendConnected ? editingOrder ? 'Update and regenerate' : 'Save and generate' : editingOrder ? 'Update locally' : 'Save locally'}</button>}
               </div>
             </div>
           </form>
@@ -1145,7 +1323,34 @@ export const OrdersPage = () => {
             <Detail label="Affected personnel" value={selectedOrder.personnelIds?.length ? selectedOrder.personnelIds.map(id => personnelNames.get(id) || 'Unknown personnel').join('\n') : String(selectedOrder.affectedPersonnelCount || 1)} />
             <Detail label="Signatory" value={[selectedOrder.signatory, selectedOrder.signatoryTitle].filter(Boolean).join(' - ')} />
             {selectedOrder.description && <div className="sm:col-span-2"><Detail label="Directives and particulars" value={selectedOrder.description} /></div>}
-            <div className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <div className="sm:col-span-2 grid gap-4 lg:grid-cols-2">
+              <div className="rounded-xl border border-teal-200 bg-teal-50 p-4">
+                <p className="flex items-center gap-2 text-sm font-semibold text-teal-950"><FileText size={16} /> Generated unsigned order</p>
+                <p className="mt-1 text-xs text-teal-800">System-generated DOCX prepared for printing and wet signature.</p>
+                {hasGeneratedOrderDocument(selectedOrder) ? <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => viewOrderDocument(selectedOrder)} disabled={loadingDocumentPreview} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-teal-300 bg-white px-3 py-2 text-xs font-semibold text-teal-700 hover:bg-teal-100 disabled:opacity-60"><Eye size={15} /> {loadingDocumentPreview ? 'Loading...' : 'View'}</button>
+                  <button type="button" onClick={() => openOrderDocument(selectedOrder, true)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-teal-300 bg-white px-3 py-2 text-xs font-semibold text-teal-700 hover:bg-teal-100"><Download size={15} /> Download</button>
+                  {canEdit && !LOCKED_ORDER_STATUSES.has(selectedOrderStatus || '') && <button type="button" onClick={() => void regenerateSelectedOrderDocument(selectedOrder)} disabled={regeneratingDocument} className="col-span-2 inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-teal-300 bg-white px-3 py-2 text-xs font-semibold text-teal-700 hover:bg-teal-100 disabled:opacity-60"><RefreshCw size={15} className={regeneratingDocument ? 'animate-spin' : ''} /> {regeneratingDocument ? 'Regenerating...' : 'Regenerate document'}</button>}
+                </div> : <div className="mt-3 rounded-lg border border-dashed border-teal-300 bg-white p-3 text-xs text-teal-800">
+                  <p>No generated document is available.</p>
+                  {canEdit && backendConnected && !LOCKED_ORDER_STATUSES.has(selectedOrderStatus || '') && <button type="button" onClick={() => void regenerateSelectedOrderDocument(selectedOrder)} disabled={regeneratingDocument} className="mt-3 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-teal-300 bg-white px-3 py-2 text-xs font-semibold text-teal-700 hover:bg-teal-100 disabled:opacity-60"><RefreshCw size={15} className={regeneratingDocument ? 'animate-spin' : ''} /> {regeneratingDocument ? 'Generating...' : 'Generate document'}</button>}
+                </div>}
+              </div>
+              <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+                <p className="flex items-center gap-2 text-sm font-semibold text-blue-950"><Upload size={16} /> Signed order scan</p>
+                <p className="mt-1 text-xs text-blue-800">Scanned image of the physically wet-signed order. JPEG, PNG, or WEBP.</p>
+                {selectedOrder.signedDocument ? <>
+                  <p className="mt-3 truncate text-xs font-semibold text-slate-800" title={selectedOrder.signedDocument.fileName}>{selectedOrder.signedDocument.fileName} · v{selectedOrder.signedDocument.version}</p>
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <button type="button" onClick={() => openSignedOrderDocument(selectedOrder)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-blue-300 bg-white px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100"><Eye size={15} /> View</button>
+                    <button type="button" onClick={() => openSignedOrderDocument(selectedOrder, true)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-blue-300 bg-white px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100"><Download size={15} /> Download</button>
+                    {canEdit && !LOCKED_ORDER_STATUSES.has(selectedOrderStatus || '') && <label className={`col-span-2 inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border border-blue-300 bg-white px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100 ${uploadingSignedDocument ? 'pointer-events-none opacity-60' : ''}`}><Upload size={15} /> {uploadingSignedDocument ? 'Replacing...' : 'Replace scan'}<input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" disabled={uploadingSignedDocument} onChange={event => { void replaceSignedOrderDocument(event.target.files?.[0]); event.currentTarget.value = ''; }} /></label>}
+                    {canEdit && !LOCKED_ORDER_STATUSES.has(selectedOrderStatus || '') && <button type="button" onClick={() => void removeSignedOrderDocument(selectedOrder)} className="col-span-2 inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-rose-300 bg-white px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50"><Trash2 size={15} /> Remove scan</button>}
+                  </div>
+                </> : <div className="mt-3 rounded-lg border border-dashed border-blue-300 bg-white p-3"><p className="text-xs text-blue-800">No signed scan uploaded. A scan is required before marking this order Signed.</p>{canEdit && !LOCKED_ORDER_STATUSES.has(selectedOrderStatus || '') && <label className={`mt-3 inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border border-blue-300 bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 ${uploadingSignedDocument ? 'pointer-events-none opacity-60' : ''}`}><Upload size={15} /> {uploadingSignedDocument ? 'Uploading...' : 'Upload signed scan'}<input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" disabled={uploadingSignedDocument} onChange={event => { void replaceSignedOrderDocument(event.target.files?.[0]); event.currentTarget.value = ''; }} /></label>}</div>}
+              </div>
+            </div>
+            {selectedOrder.fileName && <div className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
               <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="flex items-center gap-2 text-sm font-semibold text-slate-900"><FileText size={16} className="text-slate-500" /> Source document</p>
@@ -1161,18 +1366,17 @@ export const OrdersPage = () => {
                   </div>
                   <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
                     <button type="button" onClick={() => viewOrderDocument(selectedOrder)} disabled={loadingDocumentPreview} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-teal-300 bg-white px-3 py-2 text-xs font-semibold text-teal-700 transition hover:bg-teal-50 disabled:cursor-not-allowed disabled:opacity-60"><Eye size={15} /> {loadingDocumentPreview ? 'Loading...' : 'View'}</button>
-                    <button type="button" onClick={() => openOrderDocument(selectedOrder)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"><Download size={15} /> Download</button>
-                    {canEdit && !LOCKED_ORDER_STATUSES.has(selectedOrderStatus || '') && <label className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-blue-300 bg-blue-50 px-3 py-2 text-center text-xs font-semibold text-blue-700 transition hover:bg-blue-100 ${uploadingOrderFile ? 'pointer-events-none opacity-60' : 'cursor-pointer'}`}><Upload size={15} /> {uploadingOrderFile ? 'Updating...' : 'Replace'}<input type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" className="sr-only" disabled={uploadingOrderFile} onChange={event => { void replaceOrderDocument(event.target.files?.[0]); event.currentTarget.value = ''; }} /></label>}
-                    {canEdit && !LOCKED_ORDER_STATUSES.has(selectedOrderStatus || '') && <button type="button" onClick={() => removeOrderDocument(selectedOrder)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-rose-300 bg-white px-3 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-50"><Trash2 size={15} /> Remove</button>}
+                    <button type="button" onClick={() => openOrderDocument(selectedOrder, true)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"><Download size={15} /> Download</button>
+                    <span className="col-span-2 text-[11px] text-slate-500">Legacy DOCX is read-only. Use the generated order and signed scan sections for current document actions.</span>
                   </div>
                 </div>
               ) : (
                 <div className="mt-4 flex flex-col gap-3 rounded-lg border border-dashed border-slate-300 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-xs text-slate-500">No DOCX document uploaded yet.</p>
-                  {canEdit && !LOCKED_ORDER_STATUSES.has(selectedOrderStatus || '') && <label className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-blue-300 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 ${uploadingOrderFile ? 'pointer-events-none opacity-60' : 'cursor-pointer'}`}><Upload size={15} /> {uploadingOrderFile ? 'Uploading...' : 'Upload DOCX'}<input type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" className="sr-only" disabled={uploadingOrderFile} onChange={event => { void replaceOrderDocument(event.target.files?.[0]); event.currentTarget.value = ''; }} /></label>}
+                  <p className="text-xs text-slate-500">No generated order is recorded for this legacy document.</p>
                 </div>
               )}
-            </div>
+            </div>}
             <div className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div>
@@ -1195,7 +1399,7 @@ export const OrdersPage = () => {
             {canEdit && (
               <div className="sm:col-span-2 flex justify-end gap-2 border-t border-slate-200 pt-4">
                 {selectedOrderStatus === 'Draft' && <button type="button" onClick={() => transitionSelectedOrder('For Approval')} className="inline-flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-amber-700">Submit for approval</button>}
-                {selectedOrderStatus === 'For Approval' && <button type="button" onClick={() => transitionSelectedOrder('Signed')} className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-800">Mark signed</button>}
+                {selectedOrderStatus === 'For Approval' && <button type="button" onClick={() => transitionSelectedOrder('Signed')} disabled={!selectedOrder.signedDocument} title={selectedOrder.signedDocument ? 'Mark this order as signed' : 'Upload the signed order scan first'} className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50">Mark signed</button>}
                 {selectedOrderStatus === 'Signed' && <button type="button" onClick={() => transitionSelectedOrder('Released')} className="inline-flex items-center gap-2 rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-800">Release order</button>}
                 {selectedOrderStatus === 'Released' && <button type="button" onClick={() => transitionSelectedOrder('Archived')} className="inline-flex items-center gap-2 rounded-xl bg-slate-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">Archive order</button>}
                 {['For Approval', 'Signed', 'Released'].includes(selectedOrderStatus || '') && <button type="button" onClick={() => transitionSelectedOrder('Revoked')} className="inline-flex items-center gap-2 rounded-xl border border-rose-300 px-4 py-2.5 text-sm font-semibold text-rose-700 hover:bg-rose-50">Revoke</button>}

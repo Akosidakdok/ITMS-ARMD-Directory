@@ -313,8 +313,8 @@ export const uploadOrderDocumentApi = async (id: string, file: File): Promise<Or
   return json.data;
 };
 
-export const getOrderDocumentApi = async (id: string): Promise<OrderDocumentLink> => {
-  const res = await apiFetch(`${API_BASE_URL}/orders/${id}/file`);
+export const getOrderDocumentApi = async (id: string, download = false): Promise<OrderDocumentLink> => {
+  const res = await apiFetch(`${API_BASE_URL}/orders/${id}/file${download ? '?download=1' : ''}`);
   const json = await res.json().catch(() => null);
   if (!res.ok) throw new Error(json?.message || json?.error || 'Failed to retrieve order document');
   return json.data;
@@ -331,6 +331,58 @@ export const deleteOrderDocumentApi = async (id: string): Promise<OrderRecord> =
   const res = await apiFetch(`${API_BASE_URL}/orders/${id}/file`, { method: 'DELETE' });
   const json = await res.json().catch(() => null);
   if (!res.ok) throw new Error(json?.message || json?.error || 'Failed to remove order document');
+  return json.data;
+};
+
+export const generateOrderDocumentApi = async (id: string): Promise<OrderRecord> => {
+  const res = await apiFetch(`${API_BASE_URL}/orders/${id}/generated-document/regenerate`, { method: 'POST' });
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(json?.message || json?.error || 'Failed to generate order document');
+  return json.data;
+};
+
+export const getGeneratedOrderDocumentApi = async (id: string, download = false): Promise<OrderDocumentLink> => {
+  const res = await apiFetch(`${API_BASE_URL}/orders/${id}/generated-document${download ? '?download=1' : ''}`);
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(json?.message || json?.error || 'Failed to retrieve generated order document');
+  return json.data;
+};
+
+export const previewGeneratedOrderDocumentApi = async (id: string): Promise<OrderDocumentPreview> => {
+  const res = await apiFetch(`${API_BASE_URL}/orders/${id}/generated-document/preview`);
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(json?.message || json?.error || 'Failed to preview generated order document');
+  return json.data;
+};
+
+export interface SignedOrderDocumentLink extends OrderDocumentLink {
+  fileMimeType?: string;
+  fileSize?: number;
+  version?: number;
+  uploadedAt?: string;
+  uploadedBy?: string;
+}
+
+export const uploadSignedOrderDocumentApi = async (id: string, file: File): Promise<OrderRecord> => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await apiFetch(`${API_BASE_URL}/orders/${id}/signed-file`, { method: 'POST', body: formData });
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(json?.message || json?.error || 'Failed to upload signed order scan');
+  return json.data;
+};
+
+export const getSignedOrderDocumentApi = async (id: string, download = false): Promise<SignedOrderDocumentLink> => {
+  const res = await apiFetch(`${API_BASE_URL}/orders/${id}/signed-file${download ? '?download=1' : ''}`);
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(json?.message || json?.error || 'Failed to retrieve signed order scan');
+  return json.data;
+};
+
+export const deleteSignedOrderDocumentApi = async (id: string): Promise<OrderRecord> => {
+  const res = await apiFetch(`${API_BASE_URL}/orders/${id}/signed-file`, { method: 'DELETE' });
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(json?.message || json?.error || 'Failed to remove signed order scan');
   return json.data;
 };
 
