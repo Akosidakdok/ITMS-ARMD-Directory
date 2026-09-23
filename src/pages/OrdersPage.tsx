@@ -90,6 +90,11 @@ const formatDate = (value?: string) => {
 const formatDateRange = (start: string, end?: string) =>
   !end || end === start ? formatDate(start) : `${formatDate(start)} – ${formatDate(end)}`;
 
+const formatOrderReference = (reference: string) => {
+  const match = reference.match(/^ITMS-[A-Z]+-[A-Z0-9]+-(\d{4}-\d+)$/);
+  return match ? match[1] : reference;
+};
+
 const ModalShell = ({
   title,
   eyebrow,
@@ -1078,55 +1083,63 @@ export const OrdersPage = () => {
               <table className="record-table min-w-[980px]">
                 <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
                   <tr>
-                    <th className="px-5 py-3">Reference</th>
-                    <th className="px-5 py-3">Record type</th>
-                    <th className="px-5 py-3">Title / purpose</th>
+                    <th className="px-5 py-3">Order</th>
+                    <th className="px-5 py-3">Order details</th>
                     <th className="px-5 py-3">Personnel</th>
                     <th className="px-5 py-3">Dates</th>
-                    <th className="px-5 py-3">Document</th>
+                    <th className="px-5 py-3">Documents</th>
                     <th className="px-5 py-3">Status</th>
                     <th className="px-5 py-3 text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filteredRows.map((row) => (
-                    <tr key={`${row.kind}-${row.id}`} className="transition hover:bg-slate-50/80">
-                      <td className="font-mono font-semibold text-blue-800">{row.reference}</td>
-                      <td className="px-5 py-4">
-                        <p className="font-medium text-slate-900">{row.recordType}</p>
-                        <p className="text-xs text-slate-500">{row.subtype}</p>
+                    <tr key={`${row.kind}-${row.id}`} className="transition hover:bg-blue-50/40">
+                      <td className="px-5 py-4 align-top">
+                        <p className="font-mono text-sm font-bold tracking-tight text-blue-800" title={row.reference}>
+                          {row.kind === 'order' ? formatOrderReference(row.reference) : row.reference}
+                        </p>
+                        {row.kind === 'order' && <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">{row.source.series || 'Order'}</p>}
                       </td>
-                      <td className="max-w-xs px-5 py-4 text-sm text-slate-700">{row.title}</td>
-                      <td className="px-5 py-4 text-sm text-slate-700">{row.personnel}</td>
-                      <td className="px-5 py-4 text-sm text-slate-700">
+                      <td className="px-5 py-4">
+                        <p className="font-semibold leading-5 text-slate-900">{row.title}</p>
+                        <p className="mt-1 text-xs leading-4 text-slate-500">{row.kind === 'order' ? row.subtype : `${row.recordType} · ${row.subtype}`}</p>
+                      </td>
+                      <td className="max-w-[220px] px-5 py-4 align-top text-sm text-slate-700">
+                        <p className="line-clamp-2 leading-5">{row.personnel.split(',')[0]}</p>
+                        {row.kind === 'order' && (row.source.personnelIds?.length || row.source.affectedPersonnelCount || 1) > 1 && (
+                          <p className="mt-1 text-xs font-semibold text-blue-700">+ {(row.source.personnelIds?.length || row.source.affectedPersonnelCount || 1) - 1} more</p>
+                        )}
+                      </td>
+                      <td className="px-5 py-4 align-top text-sm text-slate-700">
                         {row.kind === 'leave' ? formatDateRange(row.source.startDate, row.source.endDate) : row.kind === 'order' ? (
-                          <div className="space-y-1"><p>Issued: {formatDate(row.source.issuedDate)}</p><p className="text-xs text-slate-500">Effective: {formatDate(row.source.effectiveDate)}</p></div>
+                          <div className="space-y-1.5 whitespace-nowrap"><p><span className="mr-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">Issued</span>{formatDate(row.source.issuedDate)}</p><p className="text-xs text-slate-500"><span className="mr-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">Effective</span>{formatDate(row.source.effectiveDate)}</p></div>
                         ) : formatDate(row.date)}
                       </td>
-                      <td className="px-5 py-4 text-xs text-slate-600">
+                      <td className="px-5 py-4 align-top text-xs text-slate-600">
                         {row.kind === 'order' ? (
                           <div className="space-y-1.5">
                             <div className="flex flex-wrap gap-1.5">
-                              {hasGeneratedOrderDocument(row.source) && <span className="rounded-full bg-teal-50 px-2 py-0.5 font-semibold text-teal-700">Generated</span>}
-                              {row.source.fileName && <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-600">Legacy DOCX</span>}
-                              {row.source.signedDocument?.storagePath && <span className="rounded-full bg-blue-50 px-2 py-0.5 font-semibold text-blue-700">Signed scan</span>}
+                              {hasGeneratedOrderDocument(row.source) && <span className="rounded-full bg-teal-50 px-2 py-1 font-semibold text-teal-700">Generated</span>}
+                              {row.source.fileName && <span className="rounded-full bg-slate-100 px-2 py-1 font-semibold text-slate-600">Legacy DOCX</span>}
+                              {row.source.signedDocument?.storagePath && <span className="rounded-full bg-blue-50 px-2 py-1 font-semibold text-blue-700">Signed scan</span>}
                               {!hasGeneratedOrderDocument(row.source) && !row.source.fileName && <span className="text-slate-400">No generated order</span>}
-                              {!row.source.signedDocument?.storagePath && <span className="text-amber-700">Missing signed scan</span>}
                             </div>
+                            {!row.source.signedDocument?.storagePath && <p className="font-medium text-amber-700">Missing signed scan</p>}
                             {row.source.signedAt && <p>Signed: {formatDate(row.source.signedAt)}</p>}{row.source.releasedAt && <p>Released: {formatDate(row.source.releasedAt)}</p>}
                           </div>
                         ) : '—'}
                       </td>
-                      <td><span className="status-marker text-slate-700">{row.status}</span></td>
-                      <td className="px-5 py-4 text-right">
-                        <button type="button" onClick={() => openRecord(row)} aria-label={`View ${row.reference}`} className="inline-flex items-center gap-1.5 rounded border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:border-blue-600 hover:text-blue-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
+                      <td className="px-5 py-4 align-top"><span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700"><span className="h-1.5 w-1.5 rounded-full bg-slate-500" />{row.status}</span></td>
+                      <td className="px-5 py-4 text-right align-top">
+                        <button type="button" onClick={() => openRecord(row)} aria-label={`View ${row.reference}`} className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-white px-3.5 py-2 text-xs font-semibold text-blue-800 shadow-sm hover:border-blue-500 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
                           <Eye size={15} /> View
                         </button>
                       </td>
                     </tr>
                   ))}
                   {!filteredRows.length && (
-                    <tr><td colSpan={8} className="px-5 py-16 text-center text-sm text-slate-500">No records match the selected filters.</td></tr>
+                    <tr><td colSpan={7} className="px-5 py-16 text-center text-sm text-slate-500">No records match the selected filters.</td></tr>
                   )}
                 </tbody>
               </table>

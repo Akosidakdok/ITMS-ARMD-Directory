@@ -42,6 +42,11 @@ const textParagraph = (text, options = {}) => paragraph([run(text, options.runOp
 const blankParagraph = () => paragraph([]);
 
 const safeText = value => String(value ?? '').trim();
+export const formatDocumentOrderNumber = orderNumber => {
+  const value = safeText(orderNumber);
+  const parts = value.split('-');
+  return parts.length >= 2 ? parts.slice(-2).join('-') : value;
+};
 const formatDate = value => {
   if (!value) return '';
   const date = new Date(`${String(value).slice(0, 10)}T00:00:00`);
@@ -197,7 +202,7 @@ export const generateOrderDocx = async order => {
     }),
     blankParagraph(),
     textParagraph(heading, { runOptions: { bold: true } }),
-    textParagraph(`NUMBER ${safeText(order.orderNumber || order.orderNo || order.id)}`, { runOptions: { bold: true } }),
+    textParagraph(`NUMBER ${formatDocumentOrderNumber(order.orderNumber || order.orderNo || order.id)}`, { runOptions: { bold: true } }),
     blankParagraph(),
     textParagraph(`SUBJECT    :  ${subject}`, { runOptions: { bold: true } }),
     blankParagraph(),

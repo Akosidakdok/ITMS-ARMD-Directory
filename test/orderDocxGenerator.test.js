@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import mammoth from 'mammoth';
-import { generateOrderDocx } from '../backend/services/orderDocxGenerator.js';
+import { formatDocumentOrderNumber, generateOrderDocx } from '../backend/services/orderDocxGenerator.js';
 import { isDocxZip } from '../backend/services/orderDocumentStorage.js';
 
 test('generates a reference-based DOCX with order and personnel content', async () => {
@@ -30,10 +30,16 @@ test('generates a reference-based DOCX with order and personnel content', async 
   assert.equal(manifest.personnelSnapshot.length, 2);
 
   const converted = await mammoth.convertToHtml({ buffer });
-  assert.match(converted.value, /ITMS-SO-TR-2026-0001/);
+  assert.match(converted.value, /NUMBER 2026-0001/);
+  assert.doesNotMatch(converted.value, /NUMBER ITMS-SO-TR-2026-0001/);
   assert.match(converted.value, /OFFICIAL TRAVEL/i);
   assert.match(converted.value, /JUAN DELA CRUZ/);
   assert.match(converted.value, /MARIA SANTOS/);
+});
+
+test('formats document order numbers using only year and sequence', () => {
+  assert.equal(formatDocumentOrderNumber('ITMS-GO-RCA-2026-0003'), '2026-0003');
+  assert.equal(formatDocumentOrderNumber('legacy-number'), 'legacy-number');
 });
 
 test('renders non-Travel purpose details in the generated document', async () => {
