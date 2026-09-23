@@ -81,9 +81,19 @@ const legacyPurposeFromOrder = (order: OrderRecord): OrderPurposeCode => {
 
 const formatDate = (value?: string) => {
   if (!value) return '—';
-  const parsed = new Date(`${value.slice(0, 10)}T00:00:00`);
+  const clean = String(value).trim();
+  if (!clean) return '—';
+  const match = clean.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) {
+    const year = Number(match[1]);
+    const month = Number(match[2]) - 1;
+    const day = Number(match[3]);
+    const d = new Date(year, month, day);
+    return d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+  const parsed = new Date(clean);
   return Number.isNaN(parsed.getTime())
-    ? value
+    ? clean
     : parsed.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
@@ -244,6 +254,8 @@ export const OrdersPage = () => {
   const [signedDateTo, setSignedDateTo] = useState('');
   const [releasedDateFrom, setReleasedDateFrom] = useState('');
   const [releasedDateTo, setReleasedDateTo] = useState('');
+  const [orderPage, setOrderPage] = useState(1);
+  const [orderPageSize, setOrderPageSize] = useState(10);
 
   const [orderNumber, setOrderNumber] = useState('');
   const [orderSeries, setOrderSeries] = useState<OrderSeries>('SO');
@@ -478,8 +490,17 @@ export const OrdersPage = () => {
         : order.orderType || order.type || 'Administrative Order',
       title: order.subject,
       personnel: order.personnelIds?.length
-        ? order.personnelIds.map(id => personnelNames.get(id) || 'Unknown personnel').join(', ')
-        : `${order.affectedPersonnelCount || 1} personnel`,
+        ? order.personnelIds.map(id => {
+            if (personnelNames.has(id)) return personnelNames.get(id);
+            const snapshotEntry = order.personnelSnapshot?.find(s => s.personnelId === id);
+            if (snapshotEntry) {
+              return `${snapshotEntry.rank || ''} ${snapshotEntry.fullName || ''}`.trim();
+            }
+            return 'Unknown personnel';
+          }).join(', ')
+        : (order.personnelSnapshot?.length
+            ? order.personnelSnapshot.map(s => `${s.rank || ''} ${s.fullName || ''}`.trim()).join(', ')
+            : `${order.affectedPersonnelCount || 1} personnel`),
       date: order.issuedDate || order.effectiveDate || '',
       status: order.documentStatus || order.status || 'Active',
       source: order,
@@ -569,6 +590,12 @@ export const OrdersPage = () => {
     });
   }, [rows, search, recordType, subtypeFilter, personnelFilter, statusFilter, orderNumberFilter, seriesFilter, purposeFilter, fileFilter, createdByFilter, dateFrom, dateTo, effectiveDateFrom, effectiveDateTo, signedDateFrom, signedDateTo, releasedDateFrom, releasedDateTo]);
 
+  const totalOrderPages = Math.max(1, Math.ceil(filteredRows.length / orderPageSize));
+  const paginatedOrderRows = useMemo(() => {
+    const start = (orderPage - 1) * orderPageSize;
+    return filteredRows.slice(start, start + orderPageSize);
+  }, [filteredRows, orderPage, orderPageSize]);
+
   const resetFilters = () => {
     setSearch('');
     setRecordType('');
@@ -588,6 +615,7 @@ export const OrdersPage = () => {
     setSignedDateTo('');
     setReleasedDateFrom('');
     setReleasedDateTo('');
+    setOrderPage(1);
   };
 
   const openRecord = (row: DashboardRecord) => {
@@ -1093,7 +1121,7 @@ export const OrdersPage = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filteredRows.map((row) => (
+                  {paginatedOrderRows.map((row) => (
                     <tr key={`${row.kind}-${row.id}`} className="transition hover:bg-blue-50/40">
                       <td className="px-5 py-4 align-top">
                         <p className="font-mono text-sm font-bold tracking-tight text-blue-800" title={row.reference}>
@@ -1138,11 +1166,52 @@ export const OrdersPage = () => {
                       </td>
                     </tr>
                   ))}
-                  {!filteredRows.length && (
+                  {!paginatedOrderRows.length && (
                     <tr><td colSpan={7} className="px-5 py-16 text-center text-sm text-slate-500">No records match the selected filters.</td></tr>
                   )}
                 </tbody>
               </table>
+            </div>
+
+            {/* Pagination Controls */}
+            <div className="border-t border-slate-200 bg-slate-50 px-5 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600 font-semibold">
+              <div>
+                Showing <span className="font-bold text-slate-900">{filteredRows.length ? (orderPage - 1) * orderPageSize + 1 : 0}</span> to <span className="font-bold text-slate-900">{Math.min(orderPage * orderPageSize, filteredRows.length)}</span> of <span className="font-bold text-slate-900">{filteredRows.length}</span> records
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5">
+                  <span>Per page:</span>
+                  <select
+                    value={orderPageSize}
+                    onChange={(e) => { setOrderPageSize(Number(e.target.value)); setOrderPage(1); }}
+                    className="px-2 py-1 text-xs bg-white border border-slate-300 rounded font-bold text-slate-900 focus:outline-none"
+                  >
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    disabled={orderPage <= 1}
+                    onClick={() => setOrderPage(prev => Math.max(prev - 1, 1))}
+                    className="px-2.5 py-1 rounded border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed font-bold"
+                  >
+                    Prev
+                  </button>
+                  <span className="px-2 font-bold text-slate-800">Page {orderPage} of {totalOrderPages}</span>
+                  <button
+                    type="button"
+                    disabled={orderPage >= totalOrderPages}
+                    onClick={() => setOrderPage(prev => Math.min(prev + 1, totalOrderPages))}
+                    className="px-2.5 py-1 rounded border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed font-bold"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
             </div>
           </section>
         </>

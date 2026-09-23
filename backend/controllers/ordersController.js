@@ -155,7 +155,7 @@ export const updateOrder = async (req, res) => {
 export const deleteOrder = async (req, res) => {
   try {
     const order = await db.getOrderById(req.params.id);
-    if (!order) {
+    if (!order || order.isDeleted) {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
     const currentStatus = normalizeOrderStatus(order);
@@ -169,7 +169,6 @@ export const deleteOrder = async (req, res) => {
     if (!success) {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
-    if (order.storagePath) await removeOrderDocument(order.storagePath).catch(() => {});
     res.json({
       success: true,
       message: 'Order deleted successfully'
@@ -189,7 +188,7 @@ export const restoreOrder = async (req, res) => {
     const status = normalizeOrderStatus(restored);
     res.json({ success: true, message: `Order restored to ${status}.`, data: restored });
   } catch (error) {
-    const isWorkflowError = /Only revoked|restore/i.test(error.message);
+    const isWorkflowError = /Only revoked|restore|deleted/i.test(error.message);
     res.status(isWorkflowError ? 409 : 500).json({ success: false, message: error.message, error: error.message });
   }
 };

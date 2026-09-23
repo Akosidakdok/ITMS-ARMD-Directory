@@ -509,28 +509,136 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   // Assignment Mutations
   const addAssignment = async (assignment: AssignmentRecord) => {
+    let created = assignment;
     if (backendConnected) {
-      const created = await createAssignmentApi(assignment);
-      setAssignmentsList(prev => [created, ...prev]);
-      return created;
+      created = await createAssignmentApi(assignment);
     }
-    setAssignmentsList(prev => [assignment, ...prev]);
-    return assignment;
+    const isCurrent = created.status === 'Current';
+    const isMain = created.positionCategory !== 'In Addition/Concurrent';
+
+    setAssignmentsList(prev => {
+      let next = [created, ...prev];
+      if (isCurrent && isMain) {
+        next = next.map(item => {
+          if (item.id !== created.id && item.personnelId === created.personnelId && item.status === 'Current' && item.positionCategory !== 'In Addition/Concurrent') {
+            return {
+              ...item,
+              status: 'Completed',
+              endDate: item.endDate || created.startDate || created.effectiveDate || new Date().toISOString().slice(0, 10)
+            };
+          }
+          return item;
+        });
+      }
+      return next;
+    });
+
+    if (isCurrent) {
+      setPersonnelList(prev => prev.map(p => {
+        if (p.id === created.personnelId) {
+          return {
+            ...p,
+            positionCategory: created.positionCategory || 'Main',
+            unitCategory: created.unitCategory || 'ITMS HQ',
+            subUnitCategory: created.subUnitCategory || 'Division',
+            sub_unit: created.sub_unit || '',
+            division: created.sub_unit || '',
+            station: created.station || '',
+            details: created.details || '',
+            detail: created.details || '',
+            designation: created.position,
+            designationDate: created.designationDate || '',
+            effectiveDate: created.effectiveDate || created.startDate || ''
+          };
+        }
+        return p;
+      }));
+    }
+    return created;
   };
 
   const updateAssignment = async (assignment: AssignmentRecord) => {
+    let updated = assignment;
     if (backendConnected) {
-      const updated = await updateAssignmentApi(assignment);
-      setAssignmentsList(prev => prev.map(item => item.id === updated.id ? updated : item));
-      return updated;
+      updated = await updateAssignmentApi(assignment);
     }
-    setAssignmentsList(prev => prev.map(item => item.id === assignment.id ? assignment : item));
-    return assignment;
+    const isCurrent = updated.status === 'Current';
+    const isMain = updated.positionCategory !== 'In Addition/Concurrent';
+
+    setAssignmentsList(prev => {
+      let next = prev.map(item => item.id === updated.id ? updated : item);
+      if (isCurrent && isMain) {
+        next = next.map(item => {
+          if (item.id !== updated.id && item.personnelId === updated.personnelId && item.status === 'Current' && item.positionCategory !== 'In Addition/Concurrent') {
+            return {
+              ...item,
+              status: 'Completed',
+              endDate: item.endDate || updated.startDate || updated.effectiveDate || new Date().toISOString().slice(0, 10)
+            };
+          }
+          return item;
+        });
+      }
+      return next;
+    });
+
+    if (isCurrent) {
+      setPersonnelList(prev => prev.map(p => {
+        if (p.id === updated.personnelId) {
+          return {
+            ...p,
+            positionCategory: updated.positionCategory || 'Main',
+            unitCategory: updated.unitCategory || 'ITMS HQ',
+            subUnitCategory: updated.subUnitCategory || 'Division',
+            sub_unit: updated.sub_unit || '',
+            division: updated.sub_unit || '',
+            station: updated.station || '',
+            details: updated.details || '',
+            detail: updated.details || '',
+            designation: updated.position,
+            designationDate: updated.designationDate || '',
+            effectiveDate: updated.effectiveDate || updated.startDate || ''
+          };
+        }
+        return p;
+      }));
+    }
+    return updated;
   };
 
   const deleteAssignment = async (id: string) => {
+    const target = assignmentsList.find(a => a.id === id);
     if (backendConnected) await deleteAssignmentApi(id);
-    setAssignmentsList(prev => prev.filter(item => item.id !== id));
+    const remaining = assignmentsList.filter(item => item.id !== id);
+    setAssignmentsList(remaining);
+
+    if (target && target.status === 'Current') {
+      const otherActive = remaining.find(a => a.personnelId === target.personnelId && a.status === 'Current');
+      const fallback = otherActive || remaining
+        .filter(a => a.personnelId === target.personnelId)
+        .sort((a, b) => (b.effectiveDate || b.startDate || '').localeCompare(a.effectiveDate || a.startDate || ''))[0];
+      if (fallback) {
+        setPersonnelList(prev => prev.map(p => {
+          if (p.id === target.personnelId) {
+            return {
+              ...p,
+              positionCategory: fallback.positionCategory || 'Main',
+              unitCategory: fallback.unitCategory || 'ITMS HQ',
+              subUnitCategory: fallback.subUnitCategory || 'Division',
+              sub_unit: fallback.sub_unit || '',
+              division: fallback.sub_unit || '',
+              station: fallback.station || '',
+              details: fallback.details || '',
+              detail: fallback.details || '',
+              designation: fallback.position,
+              designationDate: fallback.designationDate || '',
+              effectiveDate: fallback.effectiveDate || fallback.startDate || ''
+            };
+          }
+          return p;
+        }));
+      }
+    }
   };
 
   // Education Mutations

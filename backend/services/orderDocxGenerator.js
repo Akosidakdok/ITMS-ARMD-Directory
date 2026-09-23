@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import crypto from 'node:crypto';
 import {
   AlignmentType,
   BorderStyle,
@@ -170,6 +171,27 @@ const buildSignatureTable = order => {
   ];
 };
 
+export const computeOrderSourceHash = order => {
+  const canonical = {
+    orderNumber: order.orderNumber || order.orderNo || order.id || '',
+    series: order.series || '',
+    purposeCode: order.purposeCode || '',
+    subject: safeText(order.subject),
+    signatory: safeText(order.signatory),
+    issuedDate: order.issuedDate || '',
+    effectiveDate: order.effectiveDate || '',
+    personnelSnapshot: getPersonnel(order).map(p => ({
+      personnelId: p.personnelId,
+      role: p.role,
+      sequence: p.sequence,
+      rank: p.rank,
+      fullName: p.fullName
+    })),
+    purposeData: order.purposeData || {}
+  };
+  return crypto.createHash('sha256').update(JSON.stringify(canonical)).digest('hex');
+};
+
 export const buildOrderGenerationManifest = order => ({
   templateKey: ORDER_TEMPLATE_KEY,
   templateVersion: ORDER_TEMPLATE_VERSION,
@@ -177,7 +199,8 @@ export const buildOrderGenerationManifest = order => ({
   generatedBy: order.generatedBy || order.updatedBy || order.createdBy || 'system',
   orderNumber: order.orderNumber || order.orderNo || order.id,
   personnelSnapshot: getPersonnel(order),
-  sourceDataHash: undefined
+  personnelCount: getPersonnel(order).length,
+  sourceDataHash: computeOrderSourceHash(order)
 });
 
 export const generateOrderDocx = async order => {
@@ -209,7 +232,12 @@ export const generateOrderDocx = async order => {
     textParagraph(getNarrative(order), { alignment: AlignmentType.JUSTIFIED, indent: { firstLine: 720 } }),
     ...getPurposeDetails(order).flatMap(detail => [textParagraph(detail, { indent: { left: 720 } })]),
     blankParagraph(),
-    ...personnel.map(person => textParagraph(`${person.rank || ''} ${person.fullName || ''}`.trim(), { indent: { left: 1701 } })),
+    ...personnel.filter(p => p.role !== 'driver').map((person, idx) => {
+      const seq = personnel.length > 1 ? `${idx + 1}. ` : '';
+      const roleStr = person.role && person.role !== 'affected' ? ` (${roleLabel(person.role)})` : '';
+      const unitStr = person.unit ? ` - ${person.unit}` : '';
+      return textParagraph(`${seq}${person.rank || ''} ${person.fullName || ''}${unitStr}${roleStr}`.trim(), { indent: { left: 1701 } });
+    }),
     ...personnel.filter(person => person.role === 'driver').map(person => textParagraph(`Driver: ${person.rank || ''} ${person.fullName || ''}`.trim(), { indent: { left: 1701 } })),
     blankParagraph(),
     ...buildSignatureTable(order)
