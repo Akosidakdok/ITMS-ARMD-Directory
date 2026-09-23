@@ -36,68 +36,93 @@ export const DEFAULT_TEMPLATES: TemplatePreset[] = [
     category: 'Orders',
     pageSize: 'A4',
     orientation: 'portrait',
-    marginTop: 25.4,
-    marginBottom: 25.4,
+    marginTop: 22.5,
+    marginBottom: 8.8,
     marginLeft: 25.4,
-    marginRight: 25.4,
+    marginRight: 23.4,
     html: `
-      <div style="text-align: center; margin-bottom: 24px;">
-        <p style="margin: 0; font-size: 9pt; text-transform: uppercase;">Republic of the Philippines</p>
-        <p style="margin: 0; font-size: 9pt; font-weight: bold; text-transform: uppercase;">National Police Commission</p>
-        <p style="margin: 0; font-size: 10pt; font-weight: bold; text-transform: uppercase;">PHILIPPINE NATIONAL POLICE</p>
-        <p style="margin: 0; font-size: 10pt; font-weight: bold;">INFORMATION TECHNOLOGY MANAGEMENT SERVICE</p>
-        <p style="margin: 0; font-size: 8.5pt; color: #475569;">Camp BGen Rafael T Crame, Quezon City</p>
-      </div>
-      <div style="display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 10pt;">
-        <div>
-          <p style="margin: 0; font-weight: bold;">ORDER NUMBER: {{order.order_number}}</p>
-          <p style="margin: 0; font-size: 9pt; color: #475569;">Series: {{order.series}}</p>
-        </div>
-        <div style="text-align: right;">
-          <p style="margin: 0;">Date: {{order.issued_date}}</p>
-          <p style="margin: 0; font-size: 9pt; color: #475569;">Effective: {{order.effective_date}}</p>
-        </div>
-      </div>
-      <div style="text-align: center; margin: 24px 0 16px 0;">
-        <h2 style="margin: 0; font-size: 13pt; font-weight: bold; letter-spacing: 1px; text-transform: uppercase;">
-          {{order.order_type}}
-        </h2>
-        <p style="margin: 4px 0 0 0; font-size: 10pt; font-weight: bold; text-transform: uppercase;">
-          SUBJECT: {{order.subject}}
-        </p>
-      </div>
-      <p style="text-align: justify; text-indent: 36px; margin-bottom: 16px;">
-        Pursuant to the provisions of PNP administrative directives, the following official actions are hereby announced for immediate compliance:
-      </p>
-      <p style="text-align: justify; margin-bottom: 16px;">
-        {{order.details}}
-      </p>
-      <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 9.5pt;">
-        <thead>
-          <tr style="background-color: #f1f5f9;">
-            <th style="border: 1px solid #94a3b8; padding: 6px; text-align: left;">Rank & Name</th>
-            <th style="border: 1px solid #94a3b8; padding: 6px; width: 100px; text-align: center;">Badge No.</th>
-            <th style="border: 1px solid #94a3b8; padding: 6px; text-align: left;">Designation</th>
-            <th style="border: 1px solid #94a3b8; padding: 6px; text-align: left;">Sub-Unit</th>
-          </tr>
-        </thead>
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 18px; border: none;">
         <tbody>
-          <tr>
-            <td style="border: 1px solid #94a3b8; padding: 6px;">{{personnel.rank}} {{personnel.full_name}}</td>
-            <td style="border: 1px solid #94a3b8; padding: 6px; text-align: center;">{{personnel.serial_number}}</td>
-            <td style="border: 1px solid #94a3b8; padding: 6px;">{{personnel.designation}}</td>
-            <td style="border: 1px solid #94a3b8; padding: 6px;">{{personnel.sub_unit}}</td>
+          <tr style="border: none;">
+            <td style="width: 17%; text-align: center; vertical-align: middle; border: none; padding: 0;">
+              <span style="font-size: 10pt; font-weight: bold;">[PNP SEAL]</span>
+            </td>
+            <td style="width: 66%; text-align: center; vertical-align: middle; border: none; padding: 0;">
+              <p style="margin: 0; font-size: 10pt; line-height: 1.15;">Republic of the Philippines</p>
+              <p style="margin: 0; font-size: 10pt; line-height: 1.15;">NATIONAL POLICE COMMISSION</p>
+              <p style="margin: 0; font-size: 11pt; font-weight: bold; line-height: 1.15;">PHILIPPINE NATIONAL POLICE</p>
+              <p style="margin: 0; font-size: 11pt; font-weight: bold; line-height: 1.15;">INFORMATION TECHNOLOGY MANAGEMENT SERVICE</p>
+              <p style="margin: 0; font-size: 10pt; line-height: 1.15;">Camp BGen Rafael T. Crame, Quezon City</p>
+            </td>
+            <td style="width: 17%; text-align: center; vertical-align: middle; border: none; padding: 0;">
+              <span style="font-size: 10pt; font-weight: bold;">[ITMS SEAL]</span>
+            </td>
           </tr>
         </tbody>
       </table>
-      <p style="text-align: justify; text-indent: 36px; margin-top: 20px; margin-bottom: 40px;">
-        All concerned personnel shall report to their designated units or comply with the stipulated directives immediately upon the effectivity of this Order. Official records shall be updated accordingly.
+
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 14px; border: none;">
+        <tbody>
+          <tr style="border: none;">
+            <td style="text-align: left; vertical-align: top; border: none; padding: 0; font-weight: bold; font-size: 12pt;">
+              ITMS
+            </td>
+            <td style="text-align: right; vertical-align: top; border: none; padding: 0; font-size: 12pt;">
+              {{order.issued_date}}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style="margin-bottom: 14px;">
+        <p style="margin: 0; font-weight: bold; font-size: 12pt; text-transform: uppercase;">{{order.order_type}}</p>
+        <p style="margin: 0; font-weight: bold; font-size: 12pt;">NUMBER {{order.order_number}}</p>
+      </div>
+
+      <div style="margin-bottom: 14px;">
+        <p style="margin: 0; font-weight: bold; font-size: 12pt;">SUBJECT&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;&nbsp;{{order.subject}}</p>
+      </div>
+
+      <p style="margin: 0 0 12px 0; text-align: justify; text-indent: 36pt; font-size: 12pt; line-height: 1.2;">
+        {{order.details}}
       </p>
-      <div style="margin-top: 48px; display: flex; justify-content: flex-end;">
-        <div style="text-align: center; min-width: 240px;">
-          <p style="margin: 0; font-weight: bold; text-decoration: underline; text-transform: uppercase;">{{order.signatory}}</p>
-          <p style="margin: 2px 0 0 0; font-size: 9pt;">{{order.signatory_title}}</p>
-        </div>
+
+      <div style="margin-bottom: 16px;">
+        <p style="margin: 0; padding-left: 85px; font-size: 12pt; line-height: 1.2;">1. {{personnel.rank}} {{personnel.full_name}} - {{personnel.sub_unit}}</p>
+      </div>
+
+      <div style="text-align: center; margin: 18px 0 16px 0;">
+        <p style="margin: 0; font-weight: bold; font-size: 12pt;">BY COMMAND OF POLICE BRIGADIER GENERAL PALGUE:</p>
+      </div>
+
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 18px; border: none;">
+        <tbody>
+          <tr style="border: none;">
+            <td style="width: 45%; vertical-align: top; border: none; padding: 0; font-size: 12pt;">
+              <p style="margin: 0;">OFFICIAL:</p>
+            </td>
+            <td style="width: 10%; border: none; padding: 0;"></td>
+            <td style="width: 45%; vertical-align: top; border: none; padding: 0; font-size: 12pt;">
+              <p style="margin: 0; font-weight: bold; font-style: italic;">{{order.signatory}}</p>
+              <p style="margin: 0;">Police Brigadier General</p>
+              <p style="margin: 0;">{{order.signatory_title}}</p>
+            </td>
+          </tr>
+          <tr style="border: none;">
+            <td style="border: none; padding: 0;"></td>
+            <td style="border: none; padding: 0;"></td>
+            <td style="vertical-align: top; border: none; padding: 18px 0 0 0; font-size: 12pt;">
+              <p style="margin: 0; font-weight: bold; font-style: italic;">VICTORIO M DELA PEÑA, JR</p>
+              <p style="margin: 0;">Police Colonel</p>
+              <p style="margin: 0;">Chief, Administrative and Resource Management Division</p>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style="margin-top: 14px;">
+        <p style="margin: 0; font-size: 12pt;">DISTRIBUTION:</p>
+        <p style="margin: 0; font-size: 12pt; padding-left: 48px;">&ldquo;C&rdquo;</p>
       </div>
     `
   },

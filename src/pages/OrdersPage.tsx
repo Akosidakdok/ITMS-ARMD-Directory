@@ -26,6 +26,12 @@ import { AdministrativeOrderModeModal, type AdministrativeOrderMode } from '../c
 import { DocumentTemplatePanel } from '../components/orders/DocumentTemplatePanel';
 import { DocumentEditorModule } from '../components/document/DocumentEditorModule';
 import { DocumentErrorBoundary } from '../components/document/DocumentErrorBoundary';
+import { DocumentPageSheet } from '../components/document/canvas/DocumentPageSheet';
+import {
+  buildCanonicalOrderDocumentHtml,
+  CANONICAL_DOCUMENT_CONFIG
+} from '../components/document/utils/sharedOrderDocument';
+import { exportToDocx } from '../components/document/utils/docxExporter';
 import { fetchOrderDocumentForEditApi, saveOrderDocumentFromEditorApi } from '../services/documentsApi';
 import { LeaveCalendar } from '../components/orders/LeaveCalendar';
 import { LeaveCalendarForm } from '../components/orders/LeaveCalendarForm';
@@ -256,7 +262,7 @@ export const OrdersPage = () => {
     setLoadingOrderEditor(true);
     try {
       const data = await fetchOrderDocumentForEditApi(order.id);
-      if (data?.document) {
+      if (data?.document && typeof data.document.content_html === 'string' && data.document.content_html.includes('pais-order-document-root')) {
         setOrderEditingInDocumentEditor({ order, document: data.document });
         setLoadingOrderEditor(false);
         return;
@@ -265,89 +271,7 @@ export const OrdersPage = () => {
       console.warn('Could not read existing local order document:', e);
     }
 
-    const personnelSnapshotList = order.personnelSnapshot && order.personnelSnapshot.length > 0
-      ? order.personnelSnapshot
-      : (order.personnelIds || []).map((id, idx) => ({
-          fullName: personnelNames.get(id) || `Personnel #${idx + 1}`,
-          rank: '',
-          badgeNo: '',
-          designation: '',
-          unit: ''
-        }));
-
-    const rows = personnelSnapshotList.map((p, idx) => `
-      <tr>
-        <td style="border: 1px solid #94a3b8; padding: 6px 10px; text-align: center;">${idx + 1}</td>
-        <td style="border: 1px solid #94a3b8; padding: 6px 10px;">${p.rank ? `${p.rank} ` : ''}${p.fullName || ''}</td>
-        <td style="border: 1px solid #94a3b8; padding: 6px 10px; text-align: center;">${p.badgeNo || ''}</td>
-        <td style="border: 1px solid #94a3b8; padding: 6px 10px;">${p.designation || ''}</td>
-        <td style="border: 1px solid #94a3b8; padding: 6px 10px;">${p.unit || ''}</td>
-      </tr>
-    `).join('');
-
-    const initialHtml = `
-      <div style="font-family: Arial, sans-serif; font-size: 11pt; line-height: 1.5; color: #0f172a;">
-        <div style="text-align: center; margin-bottom: 24px;">
-          <p style="margin: 0; font-size: 9pt; text-transform: uppercase;">Republic of the Philippines</p>
-          <p style="margin: 0; font-size: 9pt; font-weight: bold; text-transform: uppercase;">National Police Commission</p>
-          <p style="margin: 0; font-size: 10pt; font-weight: bold; text-transform: uppercase;">PHILIPPINE NATIONAL POLICE</p>
-          <p style="margin: 0; font-size: 10pt; font-weight: bold;">INFORMATION TECHNOLOGY MANAGEMENT SERVICE</p>
-          <p style="margin: 0; font-size: 8pt; color: #475569;">Camp BGen Rafael T Crame, Quezon City</p>
-        </div>
-        <div style="display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 10pt;">
-          <div>
-            <p style="margin: 0; font-weight: bold;">ORDER NUMBER: ${order.orderNumber || order.orderNo || 'UNNUMBERED'}</p>
-            <p style="margin: 0; font-size: 9pt; color: #475569;">Series: ${order.series || 'SO'}</p>
-          </div>
-          <div style="text-align: right;">
-            <p style="margin: 0;">Date: ${formatDate(order.issuedDate)}</p>
-            <p style="margin: 0; font-size: 9pt; color: #475569;">Effective: ${formatDate(order.effectiveDate)}</p>
-          </div>
-        </div>
-        <div style="text-align: center; margin: 24px 0 16px 0;">
-          <h2 style="margin: 0; font-size: 13pt; font-weight: bold; letter-spacing: 1px; text-transform: uppercase;">
-            ${order.orderType ? order.orderType.toUpperCase() : 'ADMINISTRATIVE ORDER'}
-          </h2>
-          <p style="margin: 4px 0 0 0; font-size: 10pt; font-weight: bold; text-transform: uppercase; color: #1e293b;">
-            SUBJECT: ${order.subject || 'ADMINISTRATIVE DIRECTIVE'}
-          </p>
-        </div>
-        <p style="text-align: justify; text-indent: 36px; margin-bottom: 16px;">
-          Pursuant to the provisions of PNP rules and existing administrative regulations, the following official actions and designations are hereby announced and directed for compliance:
-        </p>
-        <p style="text-align: justify; margin-bottom: 16px;">
-          ${order.description || 'The personnel listed herein are covered by this administrative order in accordance with standard directives.'}
-        </p>
-        ${personnelSnapshotList.length > 0 ? `
-          <div style="margin: 20px 0;">
-            <p style="font-weight: bold; margin-bottom: 8px;">AFFECTED PERSONNEL:</p>
-            <table style="width: 100%; border-collapse: collapse; font-size: 9.5pt;">
-              <thead>
-                <tr style="background-color: #f1f5f9;">
-                  <th style="border: 1px solid #94a3b8; padding: 6px; width: 40px; text-align: center;">#</th>
-                  <th style="border: 1px solid #94a3b8; padding: 6px; text-align: left;">Rank & Name</th>
-                  <th style="border: 1px solid #94a3b8; padding: 6px; width: 90px; text-align: center;">Badge No.</th>
-                  <th style="border: 1px solid #94a3b8; padding: 6px; text-align: left;">Designation / Details</th>
-                  <th style="border: 1px solid #94a3b8; padding: 6px; text-align: left;">Unit / Office</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${rows}
-              </tbody>
-            </table>
-          </div>
-        ` : ''}
-        <p style="text-align: justify; text-indent: 36px; margin-top: 20px; margin-bottom: 40px;">
-          All concerned personnel shall report to their designated units or comply with the stipulated directives immediately upon the effectivity of this Order. Official records shall be updated accordingly.
-        </p>
-        <div style="margin-top: 48px; display: flex; justify-content: flex-end;">
-          <div style="text-align: center; min-width: 240px;">
-            <p style="margin: 0; font-weight: bold; text-decoration: underline; text-transform: uppercase;">${order.signatory || 'PBGEN BENJAMIN H ACORDA'}</p>
-            <p style="margin: 2px 0 0 0; font-size: 9pt;">${order.signatoryTitle || 'Director, ITMS'}</p>
-          </div>
-        </div>
-      </div>
-    `;
+    const initialHtml = buildCanonicalOrderDocumentHtml(order, { personnelMap: personnelNames });
 
     const localDoc: DocumentRecord = {
       id: `doc-order-${order.id}`,
@@ -357,12 +281,12 @@ export const OrdersPage = () => {
       content_html: initialHtml,
       status: 'Draft',
       version: 1,
-      page_size: 'A4',
-      orientation: 'portrait',
-      margin_top: 25.4,
-      margin_bottom: 25.4,
-      margin_left: 25.4,
-      margin_right: 25.4,
+      page_size: CANONICAL_DOCUMENT_CONFIG.pageSize,
+      orientation: CANONICAL_DOCUMENT_CONFIG.orientation,
+      margin_top: CANONICAL_DOCUMENT_CONFIG.marginTop,
+      margin_bottom: CANONICAL_DOCUMENT_CONFIG.marginBottom,
+      margin_left: CANONICAL_DOCUMENT_CONFIG.marginLeft,
+      margin_right: CANONICAL_DOCUMENT_CONFIG.marginRight,
       order_id: order.id,
       personnel_ids: order.personnelIds || [],
       created_at: new Date().toISOString(),
@@ -896,10 +820,60 @@ export const OrdersPage = () => {
 
   const openOrderDocument = async (order: OrderRecord, download = false) => {
     try {
-      const link = hasGeneratedOrderDocument(order) ? await getGeneratedOrderDocument(order.id, download) : await getOrderDocument(order.id, download);
-      window.open(link.url, '_blank', 'noopener,noreferrer');
+      // 1. Check if a local edited document exists
+      try {
+        const raw = localStorage.getItem('pais.local_order_documents.v1');
+        if (raw) {
+          const map = JSON.parse(raw);
+          if (map[order.id]?.content_html) {
+            await exportToDocx(map[order.id].content_html, {
+              title: order.orderNumber || order.orderNo || order.id || 'Order_Document',
+              pageSize: CANONICAL_DOCUMENT_CONFIG.pageSize,
+              orientation: CANONICAL_DOCUMENT_CONFIG.orientation,
+              marginTop: CANONICAL_DOCUMENT_CONFIG.marginTop,
+              marginBottom: CANONICAL_DOCUMENT_CONFIG.marginBottom,
+              marginLeft: CANONICAL_DOCUMENT_CONFIG.marginLeft,
+              marginRight: CANONICAL_DOCUMENT_CONFIG.marginRight,
+              headerText: CANONICAL_DOCUMENT_CONFIG.headerText,
+              footerText: CANONICAL_DOCUMENT_CONFIG.footerText
+            });
+            setToast({ type: 'success', message: 'Order document downloaded successfully.' });
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn('Local order document export notice:', e);
+      }
+
+      // 2. If backend connected, try backend link
+      if (backendConnected && hasGeneratedOrderDocument(order)) {
+        try {
+          const link = await getGeneratedOrderDocument(order.id, download);
+          if (link?.url) {
+            window.open(link.url, '_blank', 'noopener,noreferrer');
+            return;
+          }
+        } catch (serverErr) {
+          console.warn('Backend download failed, falling back to local canonical generator:', serverErr);
+        }
+      }
+
+      // 3. Fallback / offline: Export canonical order document directly to DOCX
+      const canonicalHtml = buildCanonicalOrderDocumentHtml(order, { personnelMap: personnelNames });
+      await exportToDocx(canonicalHtml, {
+        title: order.orderNumber || order.orderNo || order.id || 'Order_Document',
+        pageSize: CANONICAL_DOCUMENT_CONFIG.pageSize,
+        orientation: CANONICAL_DOCUMENT_CONFIG.orientation,
+        marginTop: CANONICAL_DOCUMENT_CONFIG.marginTop,
+        marginBottom: CANONICAL_DOCUMENT_CONFIG.marginBottom,
+        marginLeft: CANONICAL_DOCUMENT_CONFIG.marginLeft,
+        marginRight: CANONICAL_DOCUMENT_CONFIG.marginRight,
+        headerText: CANONICAL_DOCUMENT_CONFIG.headerText,
+        footerText: CANONICAL_DOCUMENT_CONFIG.footerText
+      });
+      setToast({ type: 'success', message: 'Order document downloaded successfully.' });
     } catch (error) {
-      setToast({ type: 'error', message: error instanceof Error ? error.message : 'Unable to open the order document.' });
+      setToast({ type: 'error', message: error instanceof Error ? error.message : 'Unable to open or download the order document.' });
     }
   };
 
@@ -910,7 +884,7 @@ export const OrdersPage = () => {
         const raw = localStorage.getItem('pais.local_order_documents.v1');
         if (raw) {
           const map = JSON.parse(raw);
-          if (map[order.id]?.content_html) {
+          if (map[order.id]?.content_html && typeof map[order.id].content_html === 'string' && map[order.id].content_html.includes('pais-order-document-root')) {
             setDocumentPreview({ order, html: DOMPurify.sanitize(map[order.id].content_html) });
             setLoadingDocumentPreview(false);
             return;
@@ -918,8 +892,9 @@ export const OrdersPage = () => {
         }
       } catch {}
 
-      const preview = hasGeneratedOrderDocument(order) ? await previewGeneratedOrderDocument(order.id) : await previewOrderDocument(order.id);
-      setDocumentPreview({ order, html: DOMPurify.sanitize(preview.html) });
+      // Canonical document matching source of truth
+      const canonicalHtml = buildCanonicalOrderDocumentHtml(order, { personnelMap: personnelNames });
+      setDocumentPreview({ order, html: DOMPurify.sanitize(canonicalHtml) });
     } catch (error) {
       setToast({ type: 'error', message: error instanceof Error ? error.message : 'Unable to preview the order document.' });
     } finally {
@@ -1805,17 +1780,20 @@ export const OrdersPage = () => {
       </Modal>
 
       {documentPreview && (
-        <ModalShell
-          title={documentPreview.order.fileName || 'Order document preview'}
-          eyebrow="DOCX preview"
-          onClose={() => setDocumentPreview(null)}
-          maxWidth="max-w-5xl"
-        >
-          <div className="border-b border-slate-200 bg-slate-50 px-6 py-3 text-xs text-slate-600">
-            Preview generated from the uploaded Word document. Download the original file for full Word formatting.
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex flex-col p-2 sm:p-4">
+          <div className="flex-1 bg-white dark:bg-[#070d18] rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+            <DocumentPageSheet
+              htmlContent={documentPreview.html}
+              title={documentPreview.order.orderNumber || documentPreview.order.orderNo || 'Administrative Order'}
+              onClose={() => setDocumentPreview(null)}
+              onEdit={canEdit && !LOCKED_ORDER_STATUSES.has(normalizedOrderStatus(documentPreview.order)) ? () => {
+                const ord = documentPreview.order;
+                setDocumentPreview(null);
+                void handleEditOrderInDocumentEditor(ord);
+              } : undefined}
+            />
           </div>
-          <article className="order-document-preview m-4 min-h-[420px] rounded-lg border border-slate-200 bg-white p-6 shadow-inner sm:m-6 sm:p-10" dangerouslySetInnerHTML={{ __html: documentPreview.html }} />
-        </ModalShell>
+        </div>
       )}
 
       {selectedAward && (

@@ -3,16 +3,19 @@ import { useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
-import { Table } from '@tiptap/extension-table';
-import { TableRow } from '@tiptap/extension-table-row';
-import { TableCell } from '@tiptap/extension-table-cell';
-import { TableHeader } from '@tiptap/extension-table-header';
-import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
 import Highlight from '@tiptap/extension-highlight';
 import { TextStyle } from '@tiptap/extension-text-style';
 import Color from '@tiptap/extension-color';
 
+import {
+  CustomParagraph,
+  CustomTable,
+  CustomTableRow,
+  CustomTableCell,
+  CustomTableHeader,
+  CustomImage
+} from './extensions/CustomDocumentExtensions';
 import { PaisFieldNode } from './extensions/PaisFieldNode';
 import { PageBreakNode } from './extensions/PageBreakNode';
 import { DocumentRibbon } from './ribbon/DocumentRibbon';
@@ -30,6 +33,7 @@ import { exportToDocx } from './utils/docxExporter';
 import { exportToPdf } from './utils/pdfExporter';
 import { DEFAULT_TEMPLATES, TemplatePreset } from './utils/defaultTemplates';
 import { resolvePaisFieldValue, resolveAllPaisFieldsInHtml, PaisFieldDefinition } from './utils/paisFieldResolver';
+import { CANONICAL_DOCUMENT_CONFIG } from './utils/sharedOrderDocument';
 import type { DocumentRecord, DocumentVersion } from '../../services/documentsApi';
 import type { Personnel } from '../../types/pais';
 import './documentEditor.css';
@@ -81,12 +85,12 @@ export const DocumentEditorModule: React.FC<DocumentEditorModuleProps> = ({
 
   // Layout State
   const [layout, setLayout] = useState<PageLayoutConfig>({
-    pageSize: (initialDocument?.page_size as any) || 'A4',
-    orientation: initialDocument?.orientation || 'portrait',
-    marginTop: initialDocument?.margin_top ?? 25.4,
-    marginBottom: initialDocument?.margin_bottom ?? 25.4,
-    marginLeft: initialDocument?.margin_left ?? 25.4,
-    marginRight: initialDocument?.margin_right ?? 25.4,
+    pageSize: (initialDocument?.page_size as any) || CANONICAL_DOCUMENT_CONFIG.pageSize,
+    orientation: initialDocument?.orientation || CANONICAL_DOCUMENT_CONFIG.orientation,
+    marginTop: initialDocument?.margin_top ?? CANONICAL_DOCUMENT_CONFIG.marginTop,
+    marginBottom: initialDocument?.margin_bottom ?? CANONICAL_DOCUMENT_CONFIG.marginBottom,
+    marginLeft: initialDocument?.margin_left ?? CANONICAL_DOCUMENT_CONFIG.marginLeft,
+    marginRight: initialDocument?.margin_right ?? CANONICAL_DOCUMENT_CONFIG.marginRight,
     columns: 1
   });
 
@@ -143,19 +147,21 @@ export const DocumentEditorModule: React.FC<DocumentEditorModuleProps> = ({
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
-        heading: { levels: [1, 2, 3] }
+        heading: { levels: [1, 2, 3] },
+        paragraph: false
       }),
+      CustomParagraph,
       Underline,
       TextAlign.configure({
         types: ['heading', 'paragraph']
       }),
-      Table.configure({
+      CustomTable.configure({
         resizable: true
       }),
-      TableRow,
-      TableHeader,
-      TableCell,
-      Image.configure({
+      CustomTableRow,
+      CustomTableHeader,
+      CustomTableCell,
+      CustomImage.configure({
         inline: true,
         allowBase64: true
       }),
@@ -499,7 +505,8 @@ export const DocumentEditorModule: React.FC<DocumentEditorModuleProps> = ({
         zoom={zoom}
         showRuler={showRuler}
         canvasRef={canvasRef}
-        headerText={associatedOrder?.orderNumber ? `ORDER NO. ${associatedOrder.orderNumber}` : undefined}
+        headerText={CANONICAL_DOCUMENT_CONFIG.headerText}
+        footerText={CANONICAL_DOCUMENT_CONFIG.footerText}
       />
 
       {/* Status Bar */}

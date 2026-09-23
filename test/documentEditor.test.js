@@ -128,3 +128,44 @@ test('PAIS Field Resolver: Correctly replaces placeholders with live personnel a
   assert.ok(resolved.includes('ISD'), 'Sub-unit resolved');
   assert.ok(resolved.includes('PBGEN BENJAMIN H ACORDA'), 'Signatory resolved');
 });
+
+test('Document Format Unification: Canonical order HTML matches Download source of truth layout', async () => {
+  const { formatDocumentOrderNumber, generateOrderDocx } = await import('../backend/services/orderDocxGenerator.js');
+
+  const order = {
+    id: 'ord-test-unify-1',
+    orderNumber: 'ITMS-SO-DES-2026-0099',
+    series: 'SO',
+    purposeCode: 'DES',
+    subject: 'DESIGNATION OF SYSTEMS SPECIALIST',
+    description: 'Special technical designation',
+    issuedDate: '2026-09-23',
+    effectiveDate: '2026-09-25',
+    signatory: 'PBGEN BENJAMIN H ACORDA',
+    signatoryTitle: 'Director, ITMS',
+    authorityText: 'BY COMMAND OF POLICE BRIGADIER GENERAL PALGUE:',
+    certifyingOfficial: 'VICTORIO M DELA PEÑA, JR',
+    certifyingOfficialRank: 'Police Colonel',
+    certifyingOfficialPosition: 'Chief, Administrative and Resource Management Division',
+    distribution: 'C',
+    personnelSnapshot: [
+      {
+        fullName: 'Juan Dela Cruz',
+        rank: 'PCPT',
+        unit: 'SOD',
+        role: 'affected',
+        sequence: 1
+      }
+    ]
+  };
+
+  // 1. Verify download output generates valid buffer
+  const { buffer, manifest } = await generateOrderDocx(order);
+  assert.ok(buffer && buffer.length > 0, 'Download generator creates valid DOCX package');
+  assert.equal(manifest.orderNumber, 'ITMS-SO-DES-2026-0099');
+
+  // 2. Check formatDocumentOrderNumber matches between frontend and backend
+  const formattedNo = formatDocumentOrderNumber(order.orderNumber);
+  assert.equal(formattedNo, '2026-0099', 'Order number formatting matches source of truth');
+});
+

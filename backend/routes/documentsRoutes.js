@@ -21,11 +21,16 @@ const generateAdministrativeOrderHtml = order => {
   const orderNum = order.orderNumber || order.orderNo || `ITMS-${order.series || 'SO'}-${order.purposeCode || 'GEN'}-${new Date().getFullYear()}-0001`;
   const formattedOrderNum = formatDocumentOrderNumber(orderNum);
   const issuedDate = formatDate(order.issuedDate || order.date || new Date().toISOString().slice(0, 10));
-  const effectiveDate = formatDate(order.effectiveDate || order.issuedDate);
+  const seriesHeading = order.seriesHeading || (order.series === 'GO' ? 'GENERAL ORDERS' : order.series === 'LO' ? 'LETTER ORDERS' : 'ADMINISTRATIVE ORDERS');
   const subject = escapeHtml(order.subject || getOrderPurposeLabel(order.purposeCode) || 'ADMINISTRATIVE ORDER');
-  const description = escapeHtml(order.description || order.details || 'The personnel listed herein are covered by this administrative order in accordance with standard service directives.');
+  const description = escapeHtml(order.description || order.details || 'The following-named personnel of this Service are hereby covered by this administrative order:');
   const signatory = escapeHtml(order.signatory || 'PBGEN BENJAMIN H ACORDA');
   const signatoryTitle = escapeHtml(order.signatoryTitle || 'Director, ITMS');
+  const authorityText = escapeHtml(order.authorityText || 'BY COMMAND OF POLICE BRIGADIER GENERAL PALGUE:');
+  const certifyingName = escapeHtml(order.certifyingOfficial || 'VICTORIO M DELA PEÑA, JR');
+  const certifyingRank = escapeHtml(order.certifyingOfficialRank || 'Police Colonel');
+  const certifyingPosition = escapeHtml(order.certifyingOfficialPosition || 'Chief, Administrative and Resource Management Division');
+  const distribution = escapeHtml(order.distribution || 'C');
 
   const personnelList = (order.personnelSnapshot || []).length > 0
     ? order.personnelSnapshot
@@ -37,86 +42,94 @@ const generateAdministrativeOrderHtml = order => {
         unit: ''
       }));
 
-  let personnelTableRows = '';
-  if (personnelList.length > 0) {
-    personnelTableRows = personnelList.map((p, idx) => `
-      <tr>
-        <td style="border: 1px solid #94a3b8; padding: 6px 10px; text-align: center;">${idx + 1}</td>
-        <td style="border: 1px solid #94a3b8; padding: 6px 10px;">${escapeHtml(p.rank || '')} ${escapeHtml(p.fullName || '')}</td>
-        <td style="border: 1px solid #94a3b8; padding: 6px 10px; text-align: center;">${escapeHtml(p.badgeNo || '')}</td>
-        <td style="border: 1px solid #94a3b8; padding: 6px 10px;">${escapeHtml(p.designation || p.details || '')}</td>
-        <td style="border: 1px solid #94a3b8; padding: 6px 10px;">${escapeHtml(p.unit || p.sub_unit || '')}</td>
-      </tr>
-    `).join('');
-  }
+  const nonDrivers = personnelList.filter(p => p.role !== 'driver');
+  const drivers = personnelList.filter(p => p.role === 'driver');
+
+  const personnelItems = nonDrivers.map((p, idx) => {
+    const seq = nonDrivers.length > 1 ? `${idx + 1}. ` : '';
+    const unitStr = p.unit ? ` - ${escapeHtml(p.unit)}` : '';
+    const rankName = `${p.rank ? `${escapeHtml(p.rank)} ` : ''}${escapeHtml(p.fullName || '')}`.trim();
+    return `<p style="margin: 0; padding-left: 85px; font-size: 12pt; line-height: 1.2;">${seq}${rankName}${unitStr}</p>`;
+  }).join('\n');
+
+  const driverItems = drivers.map(p => {
+    const rankName = `${p.rank ? `${escapeHtml(p.rank)} ` : ''}${escapeHtml(p.fullName || '')}`.trim();
+    return `<p style="margin: 0; padding-left: 85px; font-size: 12pt; line-height: 1.2;">Driver: ${rankName}</p>`;
+  }).join('\n');
 
   return `
-    <div style="font-family: Arial, sans-serif; font-size: 11pt; line-height: 1.5; color: #0f172a;">
-      <div style="text-align: center; margin-bottom: 24px;">
-        <p style="margin: 0; font-size: 9pt; text-transform: uppercase;">Republic of the Philippines</p>
-        <p style="margin: 0; font-size: 9pt; font-weight: bold; text-transform: uppercase;">National Police Commission</p>
-        <p style="margin: 0; font-size: 10pt; font-weight: bold; text-transform: uppercase;">PHILIPPINE NATIONAL POLICE</p>
-        <p style="margin: 0; font-size: 10pt; font-weight: bold;">INFORMATION TECHNOLOGY MANAGEMENT SERVICE</p>
-        <p style="margin: 0; font-size: 8pt; color: #475569;">Camp BGen Rafael T Crame, Quezon City</p>
+    <div class="pais-order-document-root" style="font-family: Arial, Helvetica, sans-serif; font-size: 12pt; line-height: 1.15; color: #000000; box-sizing: border-box;">
+      <div style="text-align: center; margin-bottom: 18px;">
+        <p style="margin: 0; font-size: 10pt; line-height: 1.15;">Republic of the Philippines</p>
+        <p style="margin: 0; font-size: 10pt; line-height: 1.15;">NATIONAL POLICE COMMISSION</p>
+        <p style="margin: 0; font-size: 11pt; font-weight: bold; line-height: 1.15;">PHILIPPINE NATIONAL POLICE</p>
+        <p style="margin: 0; font-size: 11pt; font-weight: bold; line-height: 1.15;">INFORMATION TECHNOLOGY MANAGEMENT SERVICE</p>
+        <p style="margin: 0; font-size: 10pt; line-height: 1.15;">Camp BGen Rafael T. Crame, Quezon City</p>
       </div>
 
-      <div style="display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 10pt;">
-        <div>
-          <p style="margin: 0; font-weight: bold;">ORDER NUMBER: ${escapeHtml(formattedOrderNum)}</p>
-          <p style="margin: 0; font-size: 9pt; color: #475569;">Series: ${escapeHtml(order.series || 'SO')}</p>
-        </div>
-        <div style="text-align: right;">
-          <p style="margin: 0;">Date: ${escapeHtml(issuedDate)}</p>
-          <p style="margin: 0; font-size: 9pt; color: #475569;">Effective: ${escapeHtml(effectiveDate)}</p>
-        </div>
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 14px; border: none;">
+        <tbody>
+          <tr style="border: none;">
+            <td style="text-align: left; vertical-align: top; border: none; padding: 0; font-weight: bold; font-size: 12pt;">
+              ITMS
+            </td>
+            <td style="text-align: right; vertical-align: top; border: none; padding: 0; font-size: 12pt;">
+              ${escapeHtml(issuedDate)}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style="margin-bottom: 14px;">
+        <p style="margin: 0; font-weight: bold; font-size: 12pt; text-transform: uppercase;">${escapeHtml(seriesHeading)}</p>
+        <p style="margin: 0; font-weight: bold; font-size: 12pt;">NUMBER ${escapeHtml(formattedOrderNum)}</p>
       </div>
 
-      <div style="text-align: center; margin: 24px 0 16px 0;">
-        <h2 style="margin: 0; font-size: 13pt; font-weight: bold; letter-spacing: 1px; text-transform: uppercase;">
-          ${order.orderType ? escapeHtml(order.orderType).toUpperCase() : 'ADMINISTRATIVE ORDER'}
-        </h2>
-        <p style="margin: 4px 0 0 0; font-size: 10pt; font-weight: bold; text-transform: uppercase; color: #1e293b;">
-          SUBJECT: ${subject}
-        </p>
+      <div style="margin-bottom: 14px;">
+        <p style="margin: 0; font-weight: bold; font-size: 12pt;">SUBJECT&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;&nbsp;${subject}</p>
       </div>
 
-      <p style="text-align: justify; text-indent: 36px; margin-bottom: 16px;">
-        Pursuant to the provisions of PNP rules and existing administrative regulations, the following official actions and designations are hereby announced and directed for compliance:
-      </p>
-
-      <p style="text-align: justify; margin-bottom: 16px;">
+      <p style="margin: 0 0 12px 0; text-align: justify; text-indent: 36pt; font-size: 12pt; line-height: 1.2;">
         ${description}
       </p>
 
-      ${personnelList.length > 0 ? `
-        <div style="margin: 20px 0;">
-          <p style="font-weight: bold; margin-bottom: 8px;">AFFECTED PERSONNEL:</p>
-          <table style="width: 100%; border-collapse: collapse; font-size: 9.5pt;">
-            <thead>
-              <tr style="background-color: #f1f5f9;">
-                <th style="border: 1px solid #94a3b8; padding: 6px; width: 40px; text-align: center;">#</th>
-                <th style="border: 1px solid #94a3b8; padding: 6px; text-align: left;">Rank & Name</th>
-                <th style="border: 1px solid #94a3b8; padding: 6px; width: 90px; text-align: center;">Badge No.</th>
-                <th style="border: 1px solid #94a3b8; padding: 6px; text-align: left;">Designation / Details</th>
-                <th style="border: 1px solid #94a3b8; padding: 6px; text-align: left;">Unit / Office</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${personnelTableRows}
-            </tbody>
-          </table>
-        </div>
-      ` : ''}
+      <div style="margin-bottom: 16px;">
+        ${personnelItems}
+        ${driverItems}
+      </div>
 
-      <p style="text-align: justify; text-indent: 36px; margin-top: 20px; margin-bottom: 40px;">
-        All concerned personnel shall report to their designated units or comply with the stipulated directives immediately upon the effectivity of this Order. Official records shall be updated accordingly.
-      </p>
+      <div style="text-align: center; margin: 18px 0 16px 0;">
+        <p style="margin: 0; font-weight: bold; font-size: 12pt;">${authorityText}</p>
+      </div>
 
-      <div style="margin-top: 48px; display: flex; justify-content: flex-end;">
-        <div style="text-align: center; min-width: 240px;">
-          <p style="margin: 0; font-weight: bold; text-decoration: underline; text-transform: uppercase;">${signatory}</p>
-          <p style="margin: 2px 0 0 0; font-size: 9pt;">${signatoryTitle}</p>
-        </div>
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 18px; border: none;">
+        <tbody>
+          <tr style="border: none;">
+            <td style="width: 45%; vertical-align: top; border: none; padding: 0; font-size: 12pt;">
+              <p style="margin: 0;">OFFICIAL:</p>
+            </td>
+            <td style="width: 10%; border: none; padding: 0;"></td>
+            <td style="width: 45%; vertical-align: top; border: none; padding: 0; font-size: 12pt;">
+              <p style="margin: 0; font-weight: bold; font-style: italic;">${signatory}</p>
+              <p style="margin: 0;">Police Brigadier General</p>
+              <p style="margin: 0;">${signatoryTitle}</p>
+            </td>
+          </tr>
+          <tr style="border: none;">
+            <td style="border: none; padding: 0;"></td>
+            <td style="border: none; padding: 0;"></td>
+            <td style="vertical-align: top; border: none; padding: 18px 0 0 0; font-size: 12pt;">
+              <p style="margin: 0; font-weight: bold; font-style: italic;">${certifyingName}</p>
+              <p style="margin: 0;">${certifyingRank}</p>
+              <p style="margin: 0;">${certifyingPosition}</p>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style="margin-top: 14px;">
+        <p style="margin: 0; font-size: 12pt;">DISTRIBUTION:</p>
+        <p style="margin: 0; font-size: 12pt; padding-left: 48px;">&ldquo;${distribution}&rdquo;</p>
       </div>
     </div>
   `;

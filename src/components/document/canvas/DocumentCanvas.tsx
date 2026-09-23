@@ -2,6 +2,7 @@ import React from 'react';
 import { EditorContent, type Editor } from '@tiptap/react';
 import { PageLayoutConfig } from '../ribbon/RibbonLayoutTab';
 import { PageRuler } from './PageRuler';
+import { CANONICAL_DOCUMENT_CONFIG } from '../utils/sharedOrderDocument';
 
 interface DocumentCanvasProps {
   editor: Editor | null;
@@ -66,17 +67,29 @@ export const DocumentCanvas: React.FC<DocumentCanvasProps> = ({
             width: `${pageWidthMm}mm`,
             minHeight: `${pageHeightMm}mm`,
             paddingTop: `${layout.marginTop}mm`,
+            paddingRight: `${layout.marginRight}mm`,
             paddingBottom: `${layout.marginBottom}mm`,
             paddingLeft: `${layout.marginLeft}mm`,
-            paddingRight: `${layout.marginRight}mm`,
-            boxSizing: 'border-box'
+            boxSizing: 'border-box',
+            fontFamily: CANONICAL_DOCUMENT_CONFIG.fontFamily,
+            fontSize: CANONICAL_DOCUMENT_CONFIG.bodyFontSize,
+            lineHeight: CANONICAL_DOCUMENT_CONFIG.lineHeight
           }}
         >
-          {/* Optional Running Header */}
+          {/* Running Header: RESTRICTED */}
           {headerText && (
-            <div className="absolute top-4 left-8 right-8 text-[9pt] text-slate-400 border-b border-slate-200 pb-1 flex justify-between select-none">
-              <span>{headerText}</span>
-              <span>PAIS 2.0 Document</span>
+            <div
+              className="absolute left-0 right-0 text-center select-none"
+              style={{
+                top: `${CANONICAL_DOCUMENT_CONFIG.headerMargin}mm`,
+                fontFamily: 'Arial, Helvetica, sans-serif',
+                fontSize: '10pt',
+                fontWeight: 'normal',
+                color: '#000000',
+                textDecoration: 'underline'
+              }}
+            >
+              {headerText}
             </div>
           )}
 
@@ -92,11 +105,22 @@ export const DocumentCanvas: React.FC<DocumentCanvasProps> = ({
             <EditorContent editor={editor} />
           </div>
 
-          {/* Optional Running Footer with Page Numbers */}
-          <div className="absolute bottom-4 left-8 right-8 text-[9pt] text-slate-400 border-t border-slate-200 pt-1 flex justify-between select-none">
-            <span>{footerText || 'Confidential · Official PNP-ITMS Document'}</span>
-            <span>Page 1</span>
-          </div>
+          {/* Running Footer: RESTRICTED */}
+          {footerText && (
+            <div
+              className="absolute left-0 right-0 text-center select-none"
+              style={{
+                bottom: `${CANONICAL_DOCUMENT_CONFIG.footerMargin}mm`,
+                fontFamily: 'Arial, Helvetica, sans-serif',
+                fontSize: '10pt',
+                fontWeight: 'normal',
+                color: '#000000',
+                textDecoration: 'underline'
+              }}
+            >
+              {footerText}
+            </div>
+          )}
         </div>
       </div>
     </div>

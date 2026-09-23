@@ -1,41 +1,41 @@
-/* PAIS 2.0 Document Editor Styling */
+/* PAIS 2.0 Document Editor & True A4 Formatting */
 
 .document-prose-content .ProseMirror {
   outline: none;
-  font-family: Arial, sans-serif;
-  font-size: 11pt;
-  line-height: 1.5;
-  color: #0f172a;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 12pt;
+  line-height: 1.15;
+  color: #000000;
   min-height: 200px;
 }
 
 .document-prose-content .ProseMirror p {
   margin-top: 0;
-  margin-bottom: 0.75em;
+  margin-bottom: 0.5em;
 }
 
 .document-prose-content .ProseMirror h1 {
-  font-size: 18pt;
-  font-weight: bold;
-  margin-top: 1em;
-  margin-bottom: 0.5em;
-  color: #0f172a;
-}
-
-.document-prose-content .ProseMirror h2 {
   font-size: 14pt;
   font-weight: bold;
   margin-top: 0.8em;
   margin-bottom: 0.4em;
-  color: #0f172a;
+  color: #000000;
+}
+
+.document-prose-content .ProseMirror h2 {
+  font-size: 13pt;
+  font-weight: bold;
+  margin-top: 0.6em;
+  margin-bottom: 0.3em;
+  color: #000000;
 }
 
 .document-prose-content .ProseMirror h3 {
   font-size: 12pt;
   font-weight: bold;
-  margin-top: 0.6em;
-  margin-bottom: 0.3em;
-  color: #0f172a;
+  margin-top: 0.5em;
+  margin-bottom: 0.25em;
+  color: #000000;
 }
 
 .document-prose-content .ProseMirror blockquote {
@@ -44,40 +44,84 @@
   margin-left: 0;
   margin-right: 0;
   font-style: italic;
-  color: #475569;
+  color: #334155;
 }
 
 .document-prose-content .ProseMirror ul {
   list-style-type: disc;
   padding-left: 1.5rem;
-  margin-top: 0.5em;
-  margin-bottom: 0.5em;
+  margin-top: 0.4em;
+  margin-bottom: 0.4em;
 }
 
 .document-prose-content .ProseMirror ol {
   list-style-type: decimal;
   padding-left: 1.5rem;
-  margin-top: 0.5em;
-  margin-bottom: 0.5em;
+  margin-top: 0.4em;
+  margin-bottom: 0.4em;
 }
 
-.document-prose-content .ProseMirror table {
+/* Document Tables */
+.document-prose-content .ProseMirror table,
+.pais-canonical-document-content table {
   width: 100%;
   border-collapse: collapse;
-  margin: 1em 0;
-  table-layout: fixed;
+  margin: 0.8em 0;
+}
+
+.document-prose-content .ProseMirror table.pais-borderless-table,
+.pais-canonical-document-content table.pais-borderless-table {
+  margin: 0 0 14px 0;
+  border: none !important;
+}
+
+.document-prose-content .ProseMirror table.pais-letterhead-table,
+.pais-canonical-document-content table.pais-letterhead-table {
+  margin-bottom: 18px !important;
+}
+
+.document-prose-content .ProseMirror table.pais-officedate-table,
+.pais-canonical-document-content table.pais-officedate-table {
+  margin-bottom: 14px !important;
+}
+
+.document-prose-content .ProseMirror table.pais-signatory-table,
+.pais-canonical-document-content table.pais-signatory-table {
+  margin-bottom: 18px !important;
 }
 
 .document-prose-content .ProseMirror th,
-.document-prose-content .ProseMirror td {
-  border: 1px solid #94a3b8;
-  padding: 6px 10px;
-  vertical-align: top;
+.document-prose-content .ProseMirror td,
+.pais-canonical-document-content th,
+.pais-canonical-document-content td {
   box-sizing: border-box;
-  position: relative;
+  vertical-align: top;
 }
 
-.document-prose-content .ProseMirror th {
+/* Bordered data tables (when borders are used) */
+.document-prose-content .ProseMirror table:not(.pais-borderless-table):not([style*="border: none"]) th,
+.document-prose-content .ProseMirror table:not(.pais-borderless-table):not([style*="border: none"]) td,
+.pais-canonical-document-content table:not(.pais-borderless-table):not([style*="border: none"]) th,
+.pais-canonical-document-content table:not(.pais-borderless-table):not([style*="border: none"]) td {
+  border: 1px solid #94a3b8;
+  padding: 6px 10px;
+}
+
+/* Borderless tables (letterhead, office date, signatories) */
+.document-prose-content .ProseMirror table.pais-borderless-table th,
+.document-prose-content .ProseMirror table.pais-borderless-table td,
+.pais-canonical-document-content table.pais-borderless-table th,
+.pais-canonical-document-content table.pais-borderless-table td {
+  border: none !important;
+}
+
+.document-prose-content .ProseMirror td.pais-borderless-cell,
+.pais-canonical-document-content td.pais-borderless-cell {
+  padding: 0 !important;
+}
+
+.document-prose-content .ProseMirror th,
+.pais-canonical-document-content th {
   font-weight: bold;
   background-color: #f1f5f9;
   text-align: left;
@@ -86,13 +130,80 @@
 .document-prose-content .ProseMirror hr {
   border: none;
   border-top: 1.5px solid #cbd5e1;
-  margin: 1.5em 0;
+  margin: 1.2em 0;
 }
 
-.document-prose-content .ProseMirror img {
+.document-prose-content .ProseMirror img,
+.pais-canonical-document-content img {
   max-width: 100%;
   height: auto;
-  border-radius: 4px;
+}
+
+.document-prose-content .ProseMirror img.pais-logo-img,
+.pais-canonical-document-content img.pais-logo-img {
+  max-width: none !important;
+  object-fit: contain !important;
+  display: inline-block !important;
+}
+
+/* Canonical Document Typography & Spacing Overrides */
+.document-prose-content .ProseMirror p.pais-compact-p,
+.pais-canonical-document-content p.pais-compact-p {
+  margin: 0 !important;
+}
+
+.document-prose-content .ProseMirror p.pais-heading-p,
+.pais-canonical-document-content p.pais-heading-p,
+.document-prose-content .ProseMirror p.pais-subject-p,
+.pais-canonical-document-content p.pais-subject-p {
+  margin: 0 !important;
+  font-weight: bold !important;
+  font-size: 12pt !important;
+}
+
+.document-prose-content .ProseMirror p.pais-narrative-p,
+.pais-canonical-document-content p.pais-narrative-p {
+  margin: 0 0 12px 0 !important;
+  text-align: justify !important;
+  text-indent: 36pt !important;
+  font-size: 12pt !important;
+  line-height: 1.2 !important;
+}
+
+.document-prose-content .ProseMirror p.pais-detail-p,
+.pais-canonical-document-content p.pais-detail-p {
+  margin: 0 !important;
+  padding-left: 36pt !important;
+  font-size: 12pt !important;
+  line-height: 1.2 !important;
+}
+
+.document-prose-content .ProseMirror p.pais-personnel-item,
+.pais-canonical-document-content p.pais-personnel-item {
+  margin: 0 !important;
+  padding-left: 85px !important;
+  font-size: 12pt !important;
+  line-height: 1.2 !important;
+}
+
+.document-prose-content .ProseMirror .pais-authority-container,
+.pais-canonical-document-content .pais-authority-container {
+  text-align: center;
+  margin: 18px 0 16px 0;
+}
+
+.document-prose-content .ProseMirror p.pais-authority-p,
+.pais-canonical-document-content p.pais-authority-p {
+  margin: 0 !important;
+  font-weight: bold !important;
+  font-size: 12pt !important;
+}
+
+.document-prose-content .ProseMirror p.pais-distribution-p,
+.pais-canonical-document-content p.pais-distribution-p {
+  margin: 0 !important;
+  padding-left: 48px !important;
+  font-size: 12pt !important;
 }
 
 .document-prose-content .ProseMirror a {
@@ -100,17 +211,25 @@
   text-decoration: underline;
 }
 
-/* Print Specifics */
+/* Print Specifics matching exact A4 physical sheet */
+@page {
+  size: A4 portrait;
+  margin: 0;
+}
+
 @media print {
   body {
     background: #ffffff !important;
     margin: 0 !important;
     padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
   .no-print,
   nav,
   header,
   aside,
+  button,
   .authenticated-shell > div:first-child {
     display: none !important;
   }
@@ -118,7 +237,7 @@
     box-shadow: none !important;
     border: none !important;
     margin: 0 !important;
-    padding: 20mm !important;
-    width: 100% !important;
+    width: 210mm !important;
+    min-height: 297mm !important;
   }
 }
