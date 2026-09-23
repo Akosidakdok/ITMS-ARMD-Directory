@@ -229,10 +229,16 @@ export const fetchOrders = async (): Promise<OrderRecord[]> => {
 };
 
 export const createOrderApi = async (order: OrderRecord): Promise<OrderRecord> => {
+  const issueYear = new Date(order.issuedDate || Date.now()).getFullYear() || new Date().getFullYear();
+  const fallbackOrderNumber = order.orderNumber || `${order.series || 'AO'}-${order.purposeCode || 'GEN'}-${issueYear}-${String(Math.floor(1000 + Math.random() * 9000))}`;
+  const payload = {
+    ...order,
+    orderNumber: fallbackOrderNumber
+  };
   const res = await apiFetch(`${API_BASE_URL}/orders`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(order)
+    body: JSON.stringify(payload)
   });
   const json = await res.json().catch(() => null);
   if (!res.ok) throw new Error(json?.message || json?.error || 'Failed to create order');

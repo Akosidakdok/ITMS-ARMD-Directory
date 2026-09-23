@@ -759,11 +759,15 @@ export const OrdersPage = () => {
     setSavingOrder(true);
     setOrderError('');
     try {
+      const issueYear = new Date(savedIssuedDate || Date.now()).getFullYear() || new Date().getFullYear();
+      const fallbackSeq = String(Math.floor(1000 + Math.random() * 9000));
+      const fallbackOrderNumber = `${orderSeries}-${purposeCode}-${issueYear}-${fallbackSeq}`;
+
       const payload: OrderRecord = {
         id: editingOrder?.id || crypto.randomUUID(),
         personnelIds: selectedPersonnelIds,
         ...(personnelInvolvement.length ? { personnelInvolvement } : {}),
-        ...(editingOrder?.orderNumber ? { orderNumber: editingOrder.orderNumber } : {}),
+        orderNumber: editingOrder?.orderNumber || fallbackOrderNumber,
         series: orderSeries,
         purposeCode,
         purposeLabel: getOrderPurposeLabel(purposeCode),
