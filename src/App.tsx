@@ -17,6 +17,7 @@ const loadPromotionPage = () => import('./pages/PromotionPage');
 const loadManagementPage = () => import('./pages/ManagementPage');
 const loadAdminAccountsPage = () => import('./pages/AdminAccountsPage');
 const loadExcelIntegrationPage = () => import('./pages/ExcelIntegrationPage');
+const loadDocumentsPage = () => import('./pages/DocumentsPage');
 
 const DashboardPage = lazy(() => loadDashboardPage().then(module => ({ default: module.DashboardPage })));
 const PersonnelPage = lazy(() => loadPersonnelPage().then(module => ({ default: module.PersonnelPage })));
@@ -28,6 +29,7 @@ const PromotionPage = lazy(() => loadPromotionPage().then(module => ({ default: 
 const ManagementPage = lazy(() => loadManagementPage().then(module => ({ default: module.ManagementPage })));
 const AdminAccountsPage = lazy(() => loadAdminAccountsPage().then(module => ({ default: module.AdminAccountsPage })));
 const ExcelIntegrationPage = lazy(() => loadExcelIntegrationPage().then(module => ({ default: module.ExcelIntegrationPage })));
+const DocumentsPage = lazy(() => loadDocumentsPage().then(module => ({ default: module.DocumentsPage })));
 
 const routeLoaders: Record<string, () => Promise<unknown>> = {
   '/': loadDashboardPage,
@@ -39,7 +41,8 @@ const routeLoaders: Record<string, () => Promise<unknown>> = {
   '/promotion': loadPromotionPage,
   '/management': loadManagementPage,
   '/admin-accounts': loadAdminAccountsPage,
-  '/excel-integration': loadExcelIntegrationPage
+  '/excel-integration': loadExcelIntegrationPage,
+  '/documents': loadDocumentsPage
 };
 
 const AuthenticatedApplication: React.FC = () => {
@@ -108,6 +111,7 @@ const AuthenticatedApplication: React.FC = () => {
                   <Route path="management" element={<ManagementPage />} />
                   <Route path="admin-accounts" element={<AdminAccountsPage />} />
                   <Route path="excel-integration" element={<ExcelIntegrationPage />} />
+                  <Route path="documents" element={<DocumentsPage />} />
                   <Route path="*" element={<DashboardPage />} />
                 </Route>
               </Routes>

@@ -8,6 +8,7 @@ import {
   Download,
   Edit3,
   Eye,
+  FilePenLine,
   FilePlus2,
   FileText,
   Filter,
@@ -23,6 +24,9 @@ import {
 import { AwardForm } from '../components/orders/AwardForm';
 import { AdministrativeOrderModeModal, type AdministrativeOrderMode } from '../components/orders/AdministrativeOrderModeModal';
 import { DocumentTemplatePanel } from '../components/orders/DocumentTemplatePanel';
+import { DocumentEditorModule } from '../components/document/DocumentEditorModule';
+import { DocumentErrorBoundary } from '../components/document/DocumentErrorBoundary';
+import { fetchOrderDocumentForEditApi, saveOrderDocumentFromEditorApi } from '../services/documentsApi';
 import { LeaveCalendar } from '../components/orders/LeaveCalendar';
 import { LeaveCalendarForm } from '../components/orders/LeaveCalendarForm';
 import { OrderTypeSelectorModal } from '../components/orders/OrderTypeSelectorModal';
@@ -63,7 +67,17 @@ const normalizedOrderStatus = (order: OrderRecord): OrderDocumentStatus => {
   return 'Draft';
 };
 
-const hasGeneratedOrderDocument = (order: OrderRecord) => Boolean(order.generatedDocument?.storagePath);
+const hasGeneratedOrderDocument = (order: OrderRecord) => {
+  if (Boolean(order.generatedDocument?.storagePath)) return true;
+  try {
+    const raw = localStorage.getItem('pais.local_order_documents.v1');
+    if (raw) {
+      const map = JSON.parse(raw);
+      if (map[order.id]) return true;
+    }
+  } catch {}
+  return false;
+};
 
 const legacySeriesFromOrder = (order: OrderRecord): OrderSeries => order.series || 'SO';
 const legacyPurposeFromOrder = (order: OrderRecord): OrderPurposeCode => {
@@ -235,6 +249,161 @@ export const OrdersPage = () => {
   const [deleteTarget, setDeleteTarget] = useState<{ kind: 'order' | 'award' | 'leave'; id: string; label: string } | null>(null);
   const [submittingDelete, setSubmittingDelete] = useState(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [orderEditingInDocumentEditor, setOrderEditingInDocumentEditor] = useState<{ order: OrderRecord; document: any } | null>(null);
+  const [loadingOrderEditor, setLoadingOrderEditor] = useState(false);
+
+  const handleEditOrderInDocumentEditor = async (order: OrderRecord) => {
+    setLoadingOrderEditor(true);
+    try {
+      const data = await fetchOrderDocumentForEditApi(order.id);
+      if (data?.document) {
+        setOrderEditingInDocumentEditor({ order, document: data.document });
+        setLoadingOrderEditor(false);
+        return;
+      }
+    } catch (e) {
+      console.warn('Could not read existing local order document:', e);
+    }
+
+    const personnelSnapshotList = order.personnelSnapshot && order.personnelSnapshot.length > 0
+      ? order.personnelSnapshot
+      : (order.personnelIds || []).map((id, idx) => ({
+          fullName: personnelNames.get(id) || `Personnel #${idx + 1}`,
+          rank: '',
+          badgeNo: '',
+          designation: '',
+          unit: ''
+        }));
+
+    const rows = personnelSnapshotList.map((p, idx) => `
+      <tr>
+        <td style="border: 1px solid #94a3b8; padding: 6px 10px; text-align: center;">${idx + 1}</td>
+        <td style="border: 1px solid #94a3b8; padding: 6px 10px;">${p.rank ? `${p.rank} ` : ''}${p.fullName || ''}</td>
+        <td style="border: 1px solid #94a3b8; padding: 6px 10px; text-align: center;">${p.badgeNo || ''}</td>
+        <td style="border: 1px solid #94a3b8; padding: 6px 10px;">${p.designation || ''}</td>
+        <td style="border: 1px solid #94a3b8; padding: 6px 10px;">${p.unit || ''}</td>
+      </tr>
+    `).join('');
+
+    const initialHtml = `
+      <div style="font-family: Arial, sans-serif; font-size: 11pt; line-height: 1.5; color: #0f172a;">
+        <div style="text-align: center; margin-bottom: 24px;">
+          <p style="margin: 0; font-size: 9pt; text-transform: uppercase;">Republic of the Philippines</p>
+          <p style="margin: 0; font-size: 9pt; font-weight: bold; text-transform: uppercase;">National Police Commission</p>
+          <p style="margin: 0; font-size: 10pt; font-weight: bold; text-transform: uppercase;">PHILIPPINE NATIONAL POLICE</p>
+          <p style="margin: 0; font-size: 10pt; font-weight: bold;">INFORMATION TECHNOLOGY MANAGEMENT SERVICE</p>
+          <p style="margin: 0; font-size: 8pt; color: #475569;">Camp BGen Rafael T Crame, Quezon City</p>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 10pt;">
+          <div>
+            <p style="margin: 0; font-weight: bold;">ORDER NUMBER: ${order.orderNumber || order.orderNo || 'UNNUMBERED'}</p>
+            <p style="margin: 0; font-size: 9pt; color: #475569;">Series: ${order.series || 'SO'}</p>
+          </div>
+          <div style="text-align: right;">
+            <p style="margin: 0;">Date: ${formatDate(order.issuedDate)}</p>
+            <p style="margin: 0; font-size: 9pt; color: #475569;">Effective: ${formatDate(order.effectiveDate)}</p>
+          </div>
+        </div>
+        <div style="text-align: center; margin: 24px 0 16px 0;">
+          <h2 style="margin: 0; font-size: 13pt; font-weight: bold; letter-spacing: 1px; text-transform: uppercase;">
+            ${order.orderType ? order.orderType.toUpperCase() : 'ADMINISTRATIVE ORDER'}
+          </h2>
+          <p style="margin: 4px 0 0 0; font-size: 10pt; font-weight: bold; text-transform: uppercase; color: #1e293b;">
+            SUBJECT: ${order.subject || 'ADMINISTRATIVE DIRECTIVE'}
+          </p>
+        </div>
+        <p style="text-align: justify; text-indent: 36px; margin-bottom: 16px;">
+          Pursuant to the provisions of PNP rules and existing administrative regulations, the following official actions and designations are hereby announced and directed for compliance:
+        </p>
+        <p style="text-align: justify; margin-bottom: 16px;">
+          ${order.description || 'The personnel listed herein are covered by this administrative order in accordance with standard directives.'}
+        </p>
+        ${personnelSnapshotList.length > 0 ? `
+          <div style="margin: 20px 0;">
+            <p style="font-weight: bold; margin-bottom: 8px;">AFFECTED PERSONNEL:</p>
+            <table style="width: 100%; border-collapse: collapse; font-size: 9.5pt;">
+              <thead>
+                <tr style="background-color: #f1f5f9;">
+                  <th style="border: 1px solid #94a3b8; padding: 6px; width: 40px; text-align: center;">#</th>
+                  <th style="border: 1px solid #94a3b8; padding: 6px; text-align: left;">Rank & Name</th>
+                  <th style="border: 1px solid #94a3b8; padding: 6px; width: 90px; text-align: center;">Badge No.</th>
+                  <th style="border: 1px solid #94a3b8; padding: 6px; text-align: left;">Designation / Details</th>
+                  <th style="border: 1px solid #94a3b8; padding: 6px; text-align: left;">Unit / Office</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rows}
+              </tbody>
+            </table>
+          </div>
+        ` : ''}
+        <p style="text-align: justify; text-indent: 36px; margin-top: 20px; margin-bottom: 40px;">
+          All concerned personnel shall report to their designated units or comply with the stipulated directives immediately upon the effectivity of this Order. Official records shall be updated accordingly.
+        </p>
+        <div style="margin-top: 48px; display: flex; justify-content: flex-end;">
+          <div style="text-align: center; min-width: 240px;">
+            <p style="margin: 0; font-weight: bold; text-decoration: underline; text-transform: uppercase;">${order.signatory || 'PBGEN BENJAMIN H ACORDA'}</p>
+            <p style="margin: 2px 0 0 0; font-size: 9pt;">${order.signatoryTitle || 'Director, ITMS'}</p>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const localDoc: DocumentRecord = {
+      id: `doc-order-${order.id}`,
+      title: `${order.orderNumber || order.orderNo || 'Order'} - ${order.subject || 'Document'}`,
+      description: order.subject || order.description || 'Administrative Order Document',
+      document_type: order.orderType || 'Administrative Order',
+      content_html: initialHtml,
+      status: 'Draft',
+      version: 1,
+      page_size: 'A4',
+      orientation: 'portrait',
+      margin_top: 25.4,
+      margin_bottom: 25.4,
+      margin_left: 25.4,
+      margin_right: 25.4,
+      order_id: order.id,
+      personnel_ids: order.personnelIds || [],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    setOrderEditingInDocumentEditor({ order, document: localDoc });
+    setLoadingOrderEditor(false);
+  };
+
+  const handleSaveOrderFromDocumentEditor = async (payload: {
+    id?: string;
+    title: string;
+    content_json: any;
+    content_html: string;
+    change_summary?: string;
+  }) => {
+    if (!orderEditingInDocumentEditor) return;
+    try {
+      const result = await saveOrderDocumentFromEditorApi(orderEditingInDocumentEditor.order.id, payload);
+      setOrderEditingInDocumentEditor({
+        order: orderEditingInDocumentEditor.order,
+        document: result.document
+      });
+      setToast({ type: 'success', message: 'Order document saved locally. Order remains unsigned.' });
+      return result.document;
+    } catch (error) {
+      console.warn('Local save notice:', error);
+      const fallbackDoc = {
+        ...orderEditingInDocumentEditor.document,
+        ...payload,
+        updated_at: new Date().toISOString()
+      };
+      setOrderEditingInDocumentEditor({
+        order: orderEditingInDocumentEditor.order,
+        document: fallbackDoc
+      });
+      setToast({ type: 'success', message: 'Order document saved locally. Order remains unsigned.' });
+      return fallbackDoc;
+    }
+  };
 
   const [search, setSearch] = useState('');
   const [recordType, setRecordType] = useState('');
@@ -737,6 +906,18 @@ export const OrdersPage = () => {
   const viewOrderDocument = async (order: OrderRecord) => {
     setLoadingDocumentPreview(true);
     try {
+      try {
+        const raw = localStorage.getItem('pais.local_order_documents.v1');
+        if (raw) {
+          const map = JSON.parse(raw);
+          if (map[order.id]?.content_html) {
+            setDocumentPreview({ order, html: DOMPurify.sanitize(map[order.id].content_html) });
+            setLoadingDocumentPreview(false);
+            return;
+          }
+        }
+      } catch {}
+
       const preview = hasGeneratedOrderDocument(order) ? await previewGeneratedOrderDocument(order.id) : await previewOrderDocument(order.id);
       setDocumentPreview({ order, html: DOMPurify.sanitize(preview.html) });
     } catch (error) {
@@ -1409,14 +1590,67 @@ export const OrdersPage = () => {
               <div className="rounded-xl border border-teal-200 bg-teal-50 p-4">
                 <p className="flex items-center gap-2 text-sm font-semibold text-teal-950"><FileText size={16} /> Generated unsigned order</p>
                 <p className="mt-1 text-xs text-teal-800">System-generated DOCX prepared for printing and wet signature.</p>
-                {hasGeneratedOrderDocument(selectedOrder) ? <div className="mt-3 grid grid-cols-2 gap-2">
-                  <button type="button" onClick={() => viewOrderDocument(selectedOrder)} disabled={loadingDocumentPreview} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-teal-300 bg-white px-3 py-2 text-xs font-semibold text-teal-700 hover:bg-teal-100 disabled:opacity-60"><Eye size={15} /> {loadingDocumentPreview ? 'Loading...' : 'View'}</button>
-                  <button type="button" onClick={() => openOrderDocument(selectedOrder, true)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-teal-300 bg-white px-3 py-2 text-xs font-semibold text-teal-700 hover:bg-teal-100"><Download size={15} /> Download</button>
-                  {canEdit && !LOCKED_ORDER_STATUSES.has(selectedOrderStatus || '') && <button type="button" onClick={() => void regenerateSelectedOrderDocument(selectedOrder)} disabled={regeneratingDocument} className="col-span-2 inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-teal-300 bg-white px-3 py-2 text-xs font-semibold text-teal-700 hover:bg-teal-100 disabled:opacity-60"><RefreshCw size={15} className={regeneratingDocument ? 'animate-spin' : ''} /> {regeneratingDocument ? 'Regenerating...' : 'Regenerate document'}</button>}
-                </div> : <div className="mt-3 rounded-lg border border-dashed border-teal-300 bg-white p-3 text-xs text-teal-800">
-                  <p>No generated document is available.</p>
-                  {canEdit && backendConnected && !LOCKED_ORDER_STATUSES.has(selectedOrderStatus || '') && <button type="button" onClick={() => void regenerateSelectedOrderDocument(selectedOrder)} disabled={regeneratingDocument} className="mt-3 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-teal-300 bg-white px-3 py-2 text-xs font-semibold text-teal-700 hover:bg-teal-100 disabled:opacity-60"><RefreshCw size={15} className={regeneratingDocument ? 'animate-spin' : ''} /> {regeneratingDocument ? 'Generating...' : 'Generate document'}</button>}
-                </div>}
+                {hasGeneratedOrderDocument(selectedOrder) ? (
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => viewOrderDocument(selectedOrder)}
+                      disabled={loadingDocumentPreview}
+                      className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-teal-300 bg-white px-3 py-2 text-xs font-semibold text-teal-700 hover:bg-teal-100 disabled:opacity-60"
+                    >
+                      <Eye size={15} /> {loadingDocumentPreview ? 'Loading...' : 'View'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openOrderDocument(selectedOrder, true)}
+                      className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-teal-300 bg-white px-3 py-2 text-xs font-semibold text-teal-700 hover:bg-teal-100"
+                    >
+                      <Download size={15} /> Download
+                    </button>
+                    {canEdit && !LOCKED_ORDER_STATUSES.has(selectedOrderStatus || '') && (
+                      <button
+                        type="button"
+                        onClick={() => void regenerateSelectedOrderDocument(selectedOrder)}
+                        disabled={regeneratingDocument}
+                        className="col-span-2 inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-teal-300 bg-white px-3 py-2 text-xs font-semibold text-teal-700 hover:bg-teal-100 disabled:opacity-60"
+                      >
+                        <RefreshCw size={15} className={regeneratingDocument ? 'animate-spin' : ''} /> {regeneratingDocument ? 'Regenerating...' : 'Regenerate document'}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => void handleEditOrderInDocumentEditor(selectedOrder)}
+                      disabled={loadingOrderEditor}
+                      className="col-span-2 inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-xs font-semibold text-teal-900 hover:bg-teal-100 disabled:opacity-60"
+                    >
+                      <FilePenLine size={15} /> {loadingOrderEditor ? 'Opening...' : 'Edit in Document Editor'}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="mt-3 rounded-lg border border-dashed border-teal-300 bg-white p-3 text-xs text-teal-800">
+                    <p>No generated document is available.</p>
+                    <div className="mt-3 flex flex-col gap-2">
+                      <button
+                        type="button"
+                        onClick={() => void handleEditOrderInDocumentEditor(selectedOrder)}
+                        disabled={loadingOrderEditor}
+                        className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-teal-300 bg-teal-600 px-3 py-2 text-xs font-semibold text-white hover:bg-teal-700 disabled:opacity-60"
+                      >
+                        <FilePenLine size={15} /> {loadingOrderEditor ? 'Opening...' : 'Edit in Document Editor'}
+                      </button>
+                      {canEdit && backendConnected && !LOCKED_ORDER_STATUSES.has(selectedOrderStatus || '') && (
+                        <button
+                          type="button"
+                          onClick={() => void regenerateSelectedOrderDocument(selectedOrder)}
+                          disabled={regeneratingDocument}
+                          className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-teal-300 bg-white px-3 py-2 text-xs font-semibold text-teal-700 hover:bg-teal-100 disabled:opacity-60"
+                        >
+                          <RefreshCw size={15} className={regeneratingDocument ? 'animate-spin' : ''} /> {regeneratingDocument ? 'Generating...' : 'Generate document'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
                 <p className="flex items-center gap-2 text-sm font-semibold text-blue-950"><Upload size={16} /> Signed order scan</p>
@@ -1632,6 +1866,27 @@ export const OrdersPage = () => {
             )}
           </div>
         </ModalShell>
+      )}
+
+      {orderEditingInDocumentEditor && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex flex-col p-2 sm:p-4">
+          <div className="flex-1 bg-white dark:bg-[#070d18] rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+            <DocumentErrorBoundary onClose={() => setOrderEditingInDocumentEditor(null)}>
+              <DocumentEditorModule
+                initialDocument={orderEditingInDocumentEditor.document}
+                associatedOrder={orderEditingInDocumentEditor.order}
+                personnelList={personnelList}
+                onSave={handleSaveOrderFromDocumentEditor}
+                onClose={() => {
+                  setOrderEditingInDocumentEditor(null);
+                  if (selectedOrder) {
+                    viewOrderDocument(selectedOrder);
+                  }
+                }}
+              />
+            </DocumentErrorBoundary>
+          </div>
+        </div>
       )}
 
       {toast && <NotificationToast type={toast.type} message={toast.message} onClose={() => setToast(null)} />}

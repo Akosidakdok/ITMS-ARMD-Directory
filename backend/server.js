@@ -13,6 +13,7 @@ import awardsRoutes from './routes/awardsRoutes.js';
 import adminUsersRoutes from './routes/adminUsersRoutes.js';
 import dispositionRoutes from './routes/dispositionRoutes.js';
 import worksheetRoutes from './routes/worksheetRoutes.js';
+import documentsRoutes from './routes/documentsRoutes.js';
 import {
   authenticateRequest,
   isAuthConfigured,
@@ -127,6 +128,7 @@ app.use('/api/awards', awardsRoutes);
 app.use('/api/admin-users', adminUsersRoutes);
 app.use('/api/disposition', dispositionRoutes);
 app.use('/api/worksheets', worksheetRoutes);
+app.use('/api/documents', documentsRoutes);
 
 // Global Error Handler
 app.use((err, req, res, next) => {

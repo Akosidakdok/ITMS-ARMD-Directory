@@ -51,7 +51,8 @@ const navigationGroups: NavigationGroup[] = [
     label: 'Reporting',
     items: [
       { label: 'Reports', path: '/reports', icon: FileSpreadsheet },
-      { label: 'Excel Worksheets', path: '/excel-integration', icon: FileSpreadsheet }
+      { label: 'Excel Worksheets', path: '/excel-integration', icon: FileSpreadsheet },
+      { label: 'Document Editor', path: '/documents', icon: FileText }
     ]
   },
   {

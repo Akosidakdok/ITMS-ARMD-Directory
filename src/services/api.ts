@@ -14,9 +14,9 @@ import type {
 } from '../utils/personnelCsv';
 import type { OrderDocumentStatus } from '../constants/orders';
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '');
+export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '');
 const BULK_IMPORT_BATCH_SIZE = 250;
-const AUTH_TOKEN_KEY = 'pais.auth.token';
+export const AUTH_TOKEN_KEY = 'pais.auth.token';
 
 export interface AuthenticatedUser {
   username: string;
@@ -24,9 +24,15 @@ export interface AuthenticatedUser {
   role: 'superadmin' | 'admin' | 'view_only';
 }
 
-const getStoredToken = () => typeof window === 'undefined' ? '' : window.localStorage.getItem(AUTH_TOKEN_KEY) || '';
+export const getStoredToken = () => {
+  if (typeof window === 'undefined') return '';
+  return window.localStorage.getItem(AUTH_TOKEN_KEY) ||
+         window.sessionStorage.getItem(AUTH_TOKEN_KEY) ||
+         window.localStorage.getItem('auth_token') ||
+         window.sessionStorage.getItem('auth_token') || '';
+};
 
-const apiFetch = (input: RequestInfo | URL, init: RequestInit = {}) => {
+export const apiFetch = (input: RequestInfo | URL, init: RequestInit = {}) => {
   const headers = new Headers(init.headers);
   const token = getStoredToken();
   if (token) headers.set('Authorization', `Bearer ${token}`);

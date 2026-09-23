@@ -58,6 +58,9 @@ class PAISRepository {
     this.inMemoryLeave = [...INITIAL_LEAVE];
     this.inMemoryAwards = [...INITIAL_AWARDS];
     this.inMemoryAuthorizedStrengths = [];
+    this.inMemoryDocuments = [];
+    this.inMemoryDocumentTemplates = [];
+    this.inMemoryDocumentVersions = [];
   }
 
   isSupabaseConnected() {
@@ -1374,6 +1377,289 @@ class PAISRepository {
       else this.inMemoryAuthorizedStrengths[index] = { ...this.inMemoryAuthorizedStrengths[index], ...record };
     });
     return normalized;
+  }
+
+  // ================= DOCUMENT MODULE CRUD =================
+  async getAllDocuments(filters = {}) {
+    const { type, status, orderId, search, archived = false } = filters;
+    if (this.isSupabaseConnected()) {
+      try {
+        let query = supabase.from('documents').select('*');
+        if (archived) query = query.not('archived_at', 'is', null);
+        else query = query.is('archived_at', null);
+        if (type) query = query.eq('document_type', type);
+        if (status) query = query.eq('status', status);
+        if (orderId) query = query.eq('order_id', orderId);
+        query = query.order('updated_at', { ascending: false });
+        const { data, error } = await query;
+        if (!error && Array.isArray(data)) return data;
+      } catch (error) {
+        console.warn('Supabase documents lookup fallback to in-memory:', error.message);
+      }
+    }
+    return this.inMemoryDocuments.filter(doc => {
+      if (archived && !doc.archived_at) return false;
+      if (!archived && doc.archived_at) return false;
+      if (type && doc.document_type !== type) return false;
+      if (status && doc.status !== status) return false;
+      if (orderId && doc.order_id !== orderId) return false;
+      if (search) {
+        const s = search.toLowerCase();
+        const matchTitle = (doc.title || '').toLowerCase().includes(s);
+        const matchDesc = (doc.description || '').toLowerCase().includes(s);
+        if (!matchTitle && !matchDesc) return false;
+      }
+      return true;
+    }).sort((a, b) => new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime());
+  }
+
+  async getDocumentById(id) {
+    if (!id) return null;
+    if (this.isSupabaseConnected()) {
+      try {
+        const { data, error } = await supabase.from('documents').select('*').eq('id', id).maybeSingle();
+        if (!error && data) return data;
+      } catch (error) {
+        console.warn('Supabase document by id lookup fallback:', error.message);
+      }
+    }
+    return this.inMemoryDocuments.find(d => d.id === id) || null;
+  }
+
+  async getDocumentByOrderId(orderId) {
+    if (!orderId) return null;
+    if (this.isSupabaseConnected()) {
+      try {
+        const { data, error } = await supabase.from('documents').select('*').eq('order_id', orderId).order('updated_at', { ascending: false }).limit(1).maybeSingle();
+        if (!error && data) return data;
+      } catch (error) {
+        console.warn('Supabase document by orderId lookup fallback:', error.message);
+      }
+    }
+    return this.inMemoryDocuments.find(d => d.order_id === orderId) || null;
+  }
+
+  async createDocument(docData) {
+    const id = docData.id || `doc-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const now = new Date().toISOString();
+    const newDoc = {
+      id,
+      title: docData.title || 'Untitled Document',
+      description: docData.description || '',
+      document_type: docData.document_type || 'Administrative Order',
+      content_json: docData.content_json || {},
+      content_html: docData.content_html || '',
+      template_id: docData.template_id || null,
+      owner_id: docData.owner_id || null,
+      status: docData.status || 'Draft',
+      version: 1,
+      page_size: docData.page_size || 'A4',
+      orientation: docData.orientation || 'portrait',
+      margin_top: docData.margin_top ?? 25.4,
+      margin_bottom: docData.margin_bottom ?? 25.4,
+      margin_left: docData.margin_left ?? 25.4,
+      margin_right: docData.margin_right ?? 25.4,
+      order_id: docData.order_id || null,
+      personnel_ids: Array.isArray(docData.personnel_ids) ? docData.personnel_ids : [],
+      created_by: docData.created_by || 'System User',
+      updated_by: docData.updated_by || 'System User',
+      created_at: now,
+      updated_at: now,
+      archived_at: null
+    };
+
+    if (this.isSupabaseConnected()) {
+      try {
+        const { data, error } = await supabase.from('documents').insert([newDoc]).select().single();
+        if (!error && data) {
+          await this.createDocumentVersion(id, {
+            version_number: 1,
+            content_json: newDoc.content_json,
+            content_html: newDoc.content_html,
+            created_by: newDoc.created_by,
+            change_summary: 'Initial document creation'
+          });
+          return data;
+        }
+      } catch (error) {
+        console.warn('Supabase insert document failed, fallback to memory:', error.message);
+      }
+    }
+
+    this.inMemoryDocuments.push(newDoc);
+    await this.createDocumentVersion(id, {
+      version_number: 1,
+      content_json: newDoc.content_json,
+      content_html: newDoc.content_html,
+      created_by: newDoc.created_by,
+      change_summary: 'Initial document creation'
+    });
+    return newDoc;
+  }
+
+  async updateDocument(id, updates = {}) {
+    const existing = await this.getDocumentById(id);
+    if (!existing) return null;
+    const now = new Date().toISOString();
+    const newVersion = (existing.version || 1) + (updates.incrementVersion ? 1 : 0);
+    const docUpdate = {
+      ...updates,
+      version: newVersion,
+      updated_at: now
+    };
+    delete docUpdate.incrementVersion;
+    delete docUpdate.change_summary;
+
+    if (this.isSupabaseConnected()) {
+      try {
+        const { data, error } = await supabase.from('documents').update(docUpdate).eq('id', id).select().single();
+        if (!error && data) {
+          if (updates.incrementVersion || updates.change_summary) {
+            await this.createDocumentVersion(id, {
+              version_number: newVersion,
+              content_json: data.content_json,
+              content_html: data.content_html,
+              created_by: data.updated_by,
+              change_summary: updates.change_summary || `Version ${newVersion}`
+            });
+          }
+          return data;
+        }
+      } catch (error) {
+        console.warn('Supabase update document fallback:', error.message);
+      }
+    }
+
+    const index = this.inMemoryDocuments.findIndex(d => d.id === id);
+    if (index === -1) return null;
+    this.inMemoryDocuments[index] = { ...this.inMemoryDocuments[index], ...docUpdate };
+    if (updates.incrementVersion || updates.change_summary) {
+      await this.createDocumentVersion(id, {
+        version_number: newVersion,
+        content_json: this.inMemoryDocuments[index].content_json,
+        content_html: this.inMemoryDocuments[index].content_html,
+        created_by: this.inMemoryDocuments[index].updated_by,
+        change_summary: updates.change_summary || `Version ${newVersion}`
+      });
+    }
+    return this.inMemoryDocuments[index];
+  }
+
+  async deleteDocument(id, hard = false) {
+    if (hard) {
+      if (this.isSupabaseConnected()) {
+        try {
+          await supabase.from('document_versions').delete().eq('document_id', id);
+          await supabase.from('documents').delete().eq('id', id);
+          return true;
+        } catch (e) {
+          console.warn('Hard delete document fallback:', e.message);
+        }
+      }
+      this.inMemoryDocuments = this.inMemoryDocuments.filter(d => d.id !== id);
+      this.inMemoryDocumentVersions = this.inMemoryDocumentVersions.filter(v => v.document_id !== id);
+      return true;
+    }
+    return this.updateDocument(id, { archived_at: new Date().toISOString(), status: 'Archived' });
+  }
+
+  async getDocumentVersions(documentId) {
+    if (this.isSupabaseConnected()) {
+      try {
+        const { data, error } = await supabase.from('document_versions').select('*').eq('document_id', documentId).order('version_number', { ascending: false });
+        if (!error && Array.isArray(data)) return data;
+      } catch (error) {
+        console.warn('Supabase getDocumentVersions fallback:', error.message);
+      }
+    }
+    return this.inMemoryDocumentVersions
+      .filter(v => v.document_id === documentId)
+      .sort((a, b) => b.version_number - a.version_number);
+  }
+
+  async createDocumentVersion(documentId, versionData) {
+    const id = `ver-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const newVersion = {
+      id,
+      document_id: documentId,
+      version_number: versionData.version_number || 1,
+      content_json: versionData.content_json || {},
+      content_html: versionData.content_html || '',
+      created_by: versionData.created_by || 'System',
+      created_at: new Date().toISOString(),
+      change_summary: versionData.change_summary || ''
+    };
+    if (this.isSupabaseConnected()) {
+      try {
+        await supabase.from('document_versions').insert([newVersion]);
+        return newVersion;
+      } catch (e) {
+        console.warn('Supabase createDocumentVersion fallback:', e.message);
+      }
+    }
+    this.inMemoryDocumentVersions.push(newVersion);
+    return newVersion;
+  }
+
+  async restoreDocumentVersion(documentId, versionNumber, actor = 'System') {
+    const versions = await this.getDocumentVersions(documentId);
+    const target = versions.find(v => v.version_number === Number(versionNumber));
+    if (!target) throw new Error(`Version ${versionNumber} not found.`);
+    return this.updateDocument(documentId, {
+      content_json: target.content_json,
+      content_html: target.content_html,
+      updated_by: actor,
+      incrementVersion: true,
+      change_summary: `Restored from Version ${versionNumber}`
+    });
+  }
+
+  // ================= DOCUMENT TEMPLATES =================
+  async getAllDocumentTemplates() {
+    if (this.isSupabaseConnected()) {
+      try {
+        const { data, error } = await supabase.from('document_templates').select('*').eq('is_active', true).order('name');
+        if (!error && Array.isArray(data) && data.length > 0) return data;
+      } catch (error) {
+        console.warn('Supabase templates fallback:', error.message);
+      }
+    }
+    return this.inMemoryDocumentTemplates.filter(t => t.is_active);
+  }
+
+  async saveDocumentTemplate(templateData) {
+    const id = templateData.id || `tmpl-${Date.now()}`;
+    const now = new Date().toISOString();
+    const record = {
+      id,
+      name: templateData.name,
+      description: templateData.description || '',
+      document_type: templateData.document_type || 'Administrative Order',
+      content_json: templateData.content_json || {},
+      content_html: templateData.content_html || '',
+      is_active: templateData.is_active ?? true,
+      page_size: templateData.page_size || 'A4',
+      orientation: templateData.orientation || 'portrait',
+      margin_top: templateData.margin_top ?? 25.4,
+      margin_bottom: templateData.margin_bottom ?? 25.4,
+      margin_left: templateData.margin_left ?? 25.4,
+      margin_right: templateData.margin_right ?? 25.4,
+      created_by: templateData.created_by || 'System',
+      created_at: now,
+      updated_at: now
+    };
+    if (this.isSupabaseConnected()) {
+      try {
+        const { data, error } = await supabase.from('document_templates').upsert([record]).select().single();
+        if (!error && data) return data;
+      } catch (e) {
+        console.warn('Supabase save template fallback:', e.message);
+      }
+    }
+    const idx = this.inMemoryDocumentTemplates.findIndex(t => t.id === id);
+    if (idx === -1) this.inMemoryDocumentTemplates.push(record);
+    else this.inMemoryDocumentTemplates[idx] = { ...this.inMemoryDocumentTemplates[idx], ...record };
+    return record;
   }
 }
 
