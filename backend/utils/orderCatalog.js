@@ -8,6 +8,9 @@ export const ORDER_DOCUMENT_STATUS_CODES = new Set(catalog.statuses.map(option =
 export const getOrderPurposeDefinition = purposeCode =>
   catalog.purposes.find(purpose => purpose.value === purposeCode) || null;
 
+export const getOrderPurposeLabel = purposeCode =>
+  getOrderPurposeDefinition(purposeCode)?.label || purposeCode || '';
+
 const hasValue = value => {
   if (Array.isArray(value)) return value.length > 0;
   return value !== undefined && value !== null && String(value).trim().length > 0;
