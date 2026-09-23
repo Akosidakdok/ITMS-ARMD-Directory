@@ -17,6 +17,8 @@ import {
   INITIAL_LEAVE,
   INITIAL_AWARDS
 } from './initialData.js';
+import { buildOrderNumber, extractOrderSequence, getOrderYear } from '../utils/orderNumber.js';
+import { assertOrderStatusTransition, normalizeOrderStatus, ORDER_LOCKED_STATUSES } from '../utils/orderWorkflow.js';
 
 const PCO_RANKS_BACKEND = new Set([
   'PBGEN', 'PCOL', 'PLTCOL', 'PMAJ', 'PCPT', 'PLT',
@@ -50,6 +52,8 @@ class PAISRepository {
     this.inMemoryEducation = [...INITIAL_EDUCATION];
     this.inMemoryPromotions = [...INITIAL_PROMOTIONS];
     this.inMemoryOrders = [...INITIAL_ORDERS];
+    this.inMemoryOrderSequences = new Map();
+    this.inMemoryOrderStatusHistory = [];
     this.inMemoryTraining = [...INITIAL_TRAINING];
     this.inMemoryLeave = [...INITIAL_LEAVE];
     this.inMemoryAwards = [...INITIAL_AWARDS];
@@ -191,7 +195,7 @@ class PAISRepository {
   async createPersonnel(data) {
     const payload = this.sanitizePersonnelPayload(data);
     const newRecord = {
-      id: payload.id || `pnp-${Date.now()}`,
+      id: payload.id || `pnp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       ...payload
     };
 
@@ -220,7 +224,8 @@ class PAISRepository {
       if (error) throw new Error(`Personnel insert failed: ${error.message}`);
       return this.normalizePersonnelRecord({ ...newRecord, ...inserted });
     }
-    throw new Error('Supabase is unavailable. Personnel records were not changed.');
+    this.inMemoryPersonnel.unshift(newRecord);
+    return this.normalizePersonnelRecord(newRecord);
   }
 
   async createPersonnelBulk(records) {
@@ -295,7 +300,12 @@ class PAISRepository {
       if (error) throw new Error(`Personnel update failed: ${error.message}`);
       return this.normalizePersonnelRecord({ ...payload, ...updated });
     }
-    throw new Error('Supabase is unavailable. Personnel records were not changed.');
+    const index = this.inMemoryPersonnel.findIndex(p => p.id === id);
+    if (index !== -1) {
+      this.inMemoryPersonnel[index] = { ...this.inMemoryPersonnel[index], ...payload };
+      return this.normalizePersonnelRecord(this.inMemoryPersonnel[index]);
+    }
+    return null;
   }
 
   async deletePersonnel(id) {
@@ -304,18 +314,47 @@ class PAISRepository {
       if (error) throw new Error(`Personnel delete failed: ${error.message}`);
       return Array.isArray(deleted) && deleted.length > 0;
     }
-    throw new Error('Supabase is unavailable. Personnel records were not changed.');
+    const index = this.inMemoryPersonnel.findIndex(p => p.id === id);
+    if (index === -1) return false;
+    this.inMemoryPersonnel.splice(index, 1);
+    return true;
   }
 
   // ================= ORDERS CRUD =================
+  async nextOrderNumber({ series, purposeCode, issuedDate }) {
+    const year = getOrderYear(issuedDate);
+
+    if (this.isSupabaseConnected()) {
+      const { data, error } = await supabase.rpc('next_itms_order_sequence', {
+        p_year: year,
+        p_series: series
+      });
+      if (error) {
+        throw new Error(`Order-number sequence generation failed: ${error.message}`);
+      }
+      return buildOrderNumber({ series, purposeCode, year, sequence: Number(data) });
+    }
+
+    const sequenceKey = `${year}:${series}`;
+    const existingMax = this.inMemoryOrders.reduce((max, order) => {
+      const parsed = extractOrderSequence(order.orderNumber);
+      return parsed && parsed.year === year && parsed.series === series
+        ? Math.max(max, parsed.sequence)
+        : max;
+    }, 0);
+    const next = Math.max(this.inMemoryOrderSequences.get(sequenceKey) || 0, existingMax) + 1;
+    this.inMemoryOrderSequences.set(sequenceKey, next);
+    return buildOrderNumber({ series, purposeCode, year, sequence: next });
+  }
+
   async getOrders() {
     if (this.isSupabaseConnected()) {
       try {
         const { data, error } = await supabase.from('orders').select('*');
-        if (!error && Array.isArray(data)) return data;
+        if (!error && Array.isArray(data)) return data.filter(o => !o.isDeleted);
       } catch (e) {}
     }
-    return [...this.inMemoryOrders];
+    return this.inMemoryOrders.filter(o => !o.isDeleted);
   }
 
   async getOrderById(id) {
@@ -329,9 +368,16 @@ class PAISRepository {
   }
 
   async createOrder(data) {
+    const orderNumber = data.series && data.purposeCode && data.issuedDate
+      ? await this.nextOrderNumber(data)
+      : data.orderNumber;
+    if (!orderNumber) {
+      throw new Error('Order number could not be generated. Series, purpose code, and issued date are required.');
+    }
     const newRecord = {
-      id: data.id || `ord-${Date.now()}`,
-      ...data
+      id: data.id || `ord-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      ...data,
+      orderNumber
     };
 
     if (this.isSupabaseConnected()) {
@@ -346,6 +392,25 @@ class PAISRepository {
   }
 
   async updateOrder(id, data) {
+    const existing = await this.getOrderById(id);
+    if (!existing) return null;
+    const currentStatus = normalizeOrderStatus(existing);
+    if (ORDER_LOCKED_STATUSES.includes(currentStatus)) {
+      throw new Error(`Orders in ${currentStatus} status are locked and must be changed through the workflow.`);
+    }
+    const requestedStatus = data.documentStatus || data.status;
+    if (requestedStatus && normalizeOrderStatus(requestedStatus) !== currentStatus) {
+      throw new Error('Order status changes must use the workflow action endpoint.');
+    }
+    const requestedOrderNumber = data.orderNumber || data.orderNo;
+    if (existing.orderNumber && requestedOrderNumber && requestedOrderNumber !== existing.orderNumber) {
+      throw new Error('Order number is generated by the system and cannot be changed.');
+    }
+    for (const key of ['series', 'purposeCode', 'issuedDate']) {
+      if (existing[key] !== undefined && data[key] !== undefined && data[key] !== existing[key]) {
+        throw new Error(`Order ${key} cannot be changed after number allocation.`);
+      }
+    }
     if (this.isSupabaseConnected()) {
       try {
         const { data: updated, error } = await supabase.from('orders').update(data).eq('id', id).select().single();
@@ -360,17 +425,238 @@ class PAISRepository {
   }
 
   async deleteOrder(id) {
+    const existing = await this.getOrderById(id);
+    if (!existing) return false;
+    const deletedAt = new Date().toISOString();
+    const update = { isDeleted: true, deletedAt };
+
     if (this.isSupabaseConnected()) {
       try {
-        const { error } = await supabase.from('orders').delete().eq('id', id);
-        if (!error) return true;
+        const { data, error } = await supabase.from('orders').update(update).eq('id', id).select().single();
+        if (!error && data) return true;
       } catch (e) {}
     }
 
     const index = this.inMemoryOrders.findIndex(o => o.id === id);
     if (index === -1) return false;
-    this.inMemoryOrders.splice(index, 1);
+    this.inMemoryOrders[index] = { ...this.inMemoryOrders[index], ...update };
     return true;
+  }
+
+  async restoreRevokedOrder(id, { actor = 'system', reason = '' } = {}) {
+    const existing = await this.getOrderById(id);
+    if (!existing) return null;
+
+    const isSoftDeleted = Boolean(existing.isDeleted);
+    const fromStatus = normalizeOrderStatus(existing);
+    if (!isSoftDeleted && fromStatus !== 'Revoked') {
+      throw new Error('Only revoked or deleted orders can be restored.');
+    }
+
+    const history = await this.getOrderStatusHistory(id);
+    const revokeEvent = history.find(event =>
+      event.toStatus === 'Revoked' &&
+      ['Draft', 'For Approval', 'Signed', 'Released'].includes(event.fromStatus)
+    );
+    const targetStatus = revokeEvent?.fromStatus || (fromStatus === 'Revoked' ? 'For Approval' : fromStatus);
+    const changedAt = new Date().toISOString();
+    const statusUpdate = {
+      isDeleted: false,
+      deletedAt: null,
+      documentStatus: targetStatus,
+      status: targetStatus,
+      updatedAt: changedAt
+    };
+
+    if (this.isSupabaseConnected()) {
+      const { data, error } = await supabase
+        .from('orders')
+        .update(statusUpdate)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error || !data) throw new Error(`Order restore failed: ${error?.message || 'Order not found'}`);
+
+      const { error: historyError } = await supabase.from('order_status_history').insert([{
+        id: `osh-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        orderId: id,
+        fromStatus,
+        toStatus: targetStatus,
+        reason: String(reason || '').trim() || 'Restored after revocation correction',
+        changedBy: actor,
+        changedAt
+      }]);
+      if (historyError) throw new Error(`Order status history insert failed: ${historyError.message}`);
+      return data;
+    }
+
+    const index = this.inMemoryOrders.findIndex(order => order.id === id);
+    if (index === -1) return null;
+    this.inMemoryOrders[index] = { ...this.inMemoryOrders[index], ...statusUpdate };
+    this.inMemoryOrderStatusHistory.push({
+      id: `osh-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      orderId: id,
+      fromStatus,
+      toStatus: targetStatus,
+      reason: String(reason || '').trim() || 'Restored after revocation correction',
+      changedBy: actor,
+      changedAt
+    });
+    return this.inMemoryOrders[index];
+  }
+
+  async attachOrderDocument(id, metadata) {
+    const existing = await this.getOrderById(id);
+    if (!existing) return null;
+    const update = { ...metadata, updatedAt: new Date().toISOString() };
+    if (supabase) {
+      const { data, error } = await supabase.from('orders').update(update).eq('id', id).select().single();
+      if (error || !data) throw new Error(`Order document metadata update failed: ${error?.message || 'Order not found'}`);
+      return data;
+    }
+    const index = this.inMemoryOrders.findIndex(order => order.id === id);
+    if (index === -1) return null;
+    this.inMemoryOrders[index] = { ...this.inMemoryOrders[index], ...update };
+    return this.inMemoryOrders[index];
+  }
+
+  async attachGeneratedOrderDocument(id, metadata) {
+    const existing = await this.getOrderById(id);
+    if (!existing) return null;
+    const update = {
+      generatedDocument: metadata.generatedDocument || null,
+      generationManifest: metadata.generationManifest || null,
+      templateKey: metadata.templateKey || null,
+      templateVersion: metadata.templateVersion || null,
+      updatedAt: new Date().toISOString()
+    };
+    if (supabase) {
+      const { data, error } = await supabase.from('orders').update(update).eq('id', id).select().single();
+      if (error || !data) throw new Error(`Generated order document metadata update failed: ${error?.message || 'Order not found'}`);
+      return data;
+    }
+    const index = this.inMemoryOrders.findIndex(order => order.id === id);
+    if (index === -1) return null;
+    this.inMemoryOrders[index] = { ...this.inMemoryOrders[index], ...update };
+    return this.inMemoryOrders[index];
+  }
+
+  async attachSignedOrderDocument(id, metadata) {
+    const existing = await this.getOrderById(id);
+    if (!existing) return null;
+    const update = { signedDocument: metadata.signedDocument || null, updatedAt: new Date().toISOString() };
+    if (supabase) {
+      const { data, error } = await supabase.from('orders').update(update).eq('id', id).select().single();
+      if (error || !data) throw new Error(`Signed order document metadata update failed: ${error?.message || 'Order not found'}`);
+      return data;
+    }
+    const index = this.inMemoryOrders.findIndex(order => order.id === id);
+    if (index === -1) return null;
+    this.inMemoryOrders[index] = { ...this.inMemoryOrders[index], ...update };
+    return this.inMemoryOrders[index];
+  }
+
+  async clearSignedOrderDocument(id) {
+    return this.attachSignedOrderDocument(id, { signedDocument: null });
+  }
+
+  async clearOrderDocument(id) {
+    const existing = await this.getOrderById(id);
+    if (!existing) return null;
+    const update = {
+      fileName: null,
+      fileMimeType: null,
+      fileSize: null,
+      storagePath: null,
+      updatedAt: new Date().toISOString()
+    };
+    if (supabase) {
+      const { data, error } = await supabase.from('orders').update(update).eq('id', id).select().single();
+      if (error || !data) throw new Error(`Order document metadata removal failed: ${error?.message || 'Order not found'}`);
+      return data;
+    }
+    const index = this.inMemoryOrders.findIndex(order => order.id === id);
+    if (index === -1) return null;
+    this.inMemoryOrders[index] = { ...this.inMemoryOrders[index], ...update };
+    return this.inMemoryOrders[index];
+  }
+
+  async getOrderStatusHistory(orderId) {
+    if (this.isSupabaseConnected()) {
+      const { data, error } = await supabase
+        .from('order_status_history')
+        .select('*')
+        .eq('orderId', orderId)
+        .order('changedAt', { ascending: false });
+      if (error) throw new Error(`Order status history lookup failed: ${error.message}`);
+      return data || [];
+    }
+    return this.inMemoryOrderStatusHistory
+      .filter(item => item.orderId === orderId)
+      .sort((a, b) => String(b.changedAt).localeCompare(String(a.changedAt)));
+  }
+
+  async transitionOrderStatus(id, toStatus, { actor = 'system', reason = '' } = {}) {
+    const existing = await this.getOrderById(id);
+    if (!existing) return null;
+
+    const fromStatus = normalizeOrderStatus(existing);
+    assertOrderStatusTransition(fromStatus, toStatus);
+    if (toStatus === 'Signed' && !existing.signedDocument?.storagePath) {
+      throw new Error('A scanned signed order image must be uploaded before the order can be marked Signed.');
+    }
+    const changedAt = new Date().toISOString();
+    const statusUpdate = {
+      documentStatus: toStatus,
+      status: toStatus,
+      updatedAt: changedAt
+    };
+    if (toStatus === 'Signed') {
+      statusUpdate.signedAt = changedAt;
+      statusUpdate.signedBy = actor;
+    }
+    if (toStatus === 'Released') {
+      statusUpdate.releasedAt = changedAt;
+      statusUpdate.releasedBy = actor;
+    }
+
+    let updated;
+    if (this.isSupabaseConnected()) {
+      const { data, error } = await supabase
+        .from('orders')
+        .update(statusUpdate)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error || !data) throw new Error(`Order status update failed: ${error?.message || 'Order not found'}`);
+      updated = data;
+
+      const { error: historyError } = await supabase.from('order_status_history').insert([{
+        id: `osh-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        orderId: id,
+        fromStatus,
+        toStatus,
+        reason: String(reason || '').trim() || null,
+        changedBy: actor,
+        changedAt
+      }]);
+      if (historyError) throw new Error(`Order status history insert failed: ${historyError.message}`);
+      return updated;
+    }
+
+    const index = this.inMemoryOrders.findIndex(order => order.id === id);
+    if (index === -1) return null;
+    this.inMemoryOrders[index] = { ...this.inMemoryOrders[index], ...statusUpdate };
+    this.inMemoryOrderStatusHistory.push({
+      id: `osh-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      orderId: id,
+      fromStatus,
+      toStatus,
+      reason: String(reason || '').trim() || null,
+      changedBy: actor,
+      changedAt
+    });
+    return this.inMemoryOrders[index];
   }
 
   // ================= AWARDS CRUD =================
@@ -465,54 +751,169 @@ class PAISRepository {
     return [...this.inMemoryAssignments];
   }
 
+  async getAssignmentById(id) {
+    if (this.isSupabaseConnected()) {
+      try {
+        const { data, error } = await supabase.from('assignments').select('*').eq('id', id).single();
+        if (!error && data) return data;
+      } catch (e) {}
+    }
+    return this.inMemoryAssignments.find(a => a.id === id) || null;
+  }
+
+  async syncPersonnelFromAssignment(assignment, isDeleted = false) {
+    if (!assignment?.personnelId) return;
+    const personnelId = assignment.personnelId;
+
+    if (isDeleted || assignment.status !== 'Current') {
+      const all = await this.getAssignments(personnelId);
+      const remainingCurrent = all.find(a => a.id !== assignment.id && a.status === 'Current');
+      if (remainingCurrent) {
+        await this.syncPersonnelFromAssignment(remainingCurrent, false);
+      } else {
+        const mostRecent = all
+          .filter(a => a.id !== assignment.id)
+          .sort((a, b) => (b.effectiveDate || b.startDate || '').localeCompare(a.effectiveDate || a.startDate || ''))[0];
+        if (mostRecent) {
+          const updates = {
+            positionCategory: mostRecent.positionCategory || 'Main',
+            unitCategory: mostRecent.unitCategory || 'ITMS HQ',
+            subUnitCategory: mostRecent.subUnitCategory || 'Division',
+            sub_unit: mostRecent.sub_unit || '',
+            division: mostRecent.sub_unit || '',
+            station: mostRecent.station || '',
+            details: mostRecent.details || '',
+            detail: mostRecent.details || '',
+            designation: mostRecent.position || '',
+            designationDate: mostRecent.designationDate || '',
+            effectiveDate: mostRecent.effectiveDate || mostRecent.startDate || ''
+          };
+          await this.updatePersonnel(personnelId, updates).catch(() => {});
+        }
+      }
+      return;
+    }
+
+    const updates = {
+      positionCategory: assignment.positionCategory || 'Main',
+      unitCategory: assignment.unitCategory || 'ITMS HQ',
+      subUnitCategory: assignment.subUnitCategory || 'Division',
+      sub_unit: assignment.sub_unit || '',
+      division: assignment.sub_unit || '',
+      station: assignment.station || '',
+      details: assignment.details || '',
+      detail: assignment.details || '',
+      designation: assignment.position || '',
+      designationDate: assignment.designationDate || '',
+      effectiveDate: assignment.effectiveDate || assignment.startDate || ''
+    };
+    await this.updatePersonnel(personnelId, updates).catch(() => {});
+  }
+
   async createAssignment(data) {
+    const isCurrent = (data.status || 'Current') === 'Current';
+    const isMain = !data.positionCategory || data.positionCategory === 'Main';
+
+    if (isCurrent && isMain && data.personnelId) {
+      const priorAssignments = await this.getAssignments(data.personnelId);
+      for (const prior of priorAssignments) {
+        if (prior.status === 'Current' && (!prior.positionCategory || prior.positionCategory === 'Main')) {
+          const endDate = prior.endDate || data.startDate || data.effectiveDate || new Date().toISOString().slice(0, 10);
+          await this.updateAssignment(prior.id, { status: 'Completed', endDate }, false);
+        }
+      }
+    }
+
     const newRecord = {
-      id: data.id || `asg-${Date.now()}`,
+      id: data.id || `asg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      status: data.status || 'Current',
+      positionCategory: data.positionCategory || 'Main',
+      unitCategory: data.unitCategory || 'ITMS HQ',
+      subUnitCategory: data.subUnitCategory || 'Division',
       ...data
     };
 
+    let inserted = null;
     if (this.isSupabaseConnected()) {
       try {
-        const { data: inserted, error } = await supabase.from('assignments').insert([newRecord]).select().single();
-        if (!error && inserted) return inserted;
+        const { data: res, error } = await supabase.from('assignments').insert([newRecord]).select().single();
+        if (!error && res) inserted = res;
       } catch (e) {}
     }
 
-    this.inMemoryAssignments.unshift(newRecord);
-    return newRecord;
+    if (!inserted) {
+      this.inMemoryAssignments.unshift(newRecord);
+      inserted = newRecord;
+    }
+
+    if (isCurrent) {
+      await this.syncPersonnelFromAssignment(inserted);
+    }
+    return inserted;
   }
 
-  async updateAssignment(id, data) {
+  async updateAssignment(id, data, shouldSync = true) {
+    const existing = await this.getAssignmentById(id);
+    const personnelId = data.personnelId || existing?.personnelId;
+    const isCurrent = (data.status || existing?.status) === 'Current';
+    const isMain = (data.positionCategory || existing?.positionCategory || 'Main') === 'Main';
+
+    if (shouldSync && isCurrent && isMain && personnelId) {
+      const priorAssignments = await this.getAssignments(personnelId);
+      for (const prior of priorAssignments) {
+        if (prior.id !== id && prior.status === 'Current' && (!prior.positionCategory || prior.positionCategory === 'Main')) {
+          const endDate = prior.endDate || data.startDate || data.effectiveDate || new Date().toISOString().slice(0, 10);
+          await this.updateAssignment(prior.id, { status: 'Completed', endDate }, false);
+        }
+      }
+    }
+
+    let updated = null;
     if (this.isSupabaseConnected()) {
       try {
-        const { data: updated, error } = await supabase
+        const { data: res, error } = await supabase
           .from('assignments')
           .update(data)
           .eq('id', id)
           .select()
           .single();
-        if (!error && updated) return updated;
+        if (!error && res) updated = res;
       } catch (e) {}
     }
 
-    const index = this.inMemoryAssignments.findIndex(a => a.id === id);
-    if (index === -1) return null;
-    this.inMemoryAssignments[index] = { ...this.inMemoryAssignments[index], ...data, id };
-    return this.inMemoryAssignments[index];
+    if (!updated) {
+      const index = this.inMemoryAssignments.findIndex(a => a.id === id);
+      if (index === -1) return null;
+      this.inMemoryAssignments[index] = { ...this.inMemoryAssignments[index], ...data, id };
+      updated = this.inMemoryAssignments[index];
+    }
+
+    if (shouldSync && updated) {
+      await this.syncPersonnelFromAssignment(updated);
+    }
+    return updated;
   }
 
   async deleteAssignment(id) {
+    const existing = await this.getAssignmentById(id);
+    let deleted = false;
     if (this.isSupabaseConnected()) {
       try {
         const { error } = await supabase.from('assignments').delete().eq('id', id);
-        if (!error) return true;
+        if (!error) deleted = true;
       } catch (e) {}
     }
 
     const index = this.inMemoryAssignments.findIndex(a => a.id === id);
-    if (index === -1) return false;
-    this.inMemoryAssignments.splice(index, 1);
-    return true;
+    if (index !== -1) {
+      this.inMemoryAssignments.splice(index, 1);
+      deleted = true;
+    }
+
+    if (deleted && existing) {
+      await this.syncPersonnelFromAssignment(existing, true);
+    }
+    return deleted;
   }
 
   // ================= EDUCATION CRUD =================
@@ -672,7 +1073,7 @@ class PAISRepository {
 
   async createPromotion(data) {
     const newRecord = {
-      id: data.id || `prm-${Date.now()}`,
+      id: data.id || `prm-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       ...data
     };
 

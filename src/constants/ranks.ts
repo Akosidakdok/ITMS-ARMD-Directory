@@ -148,6 +148,29 @@ export const SUB_UNIT_CATEGORIES = [
 ] as const;
 export type SubUnitCategoryValue = typeof SUB_UNIT_CATEGORIES[number];
 
+/** Shared division options used by assignment filters and assignment forms. */
+export const ASSIGNMENT_DIVISION_OPTIONS = [
+  { value: 'ITSD', label: 'ITSD – Information Technology Support Division' },
+  { value: 'PTD', label: 'PTD – Plans and Training Division' },
+  { value: 'SMD', label: 'SMD – Systems Management Division' },
+  { value: 'DMD', label: 'DMD – Data Management Division' },
+  { value: 'ARMD', label: 'ARMD – Administrative and Resource Management Division' },
+  { value: 'ISSD', label: 'ISSD – Information Systems Security Division' }
+] as const;
+
+export const ASSIGNMENT_REGIONS = ['Luzon', 'Visayas', 'Mindanao'] as const;
+
+/** Common PNP/ITMS duty stations. Existing saved stations are added at runtime. */
+export const ASSIGNMENT_STATION_OPTIONS = [
+  'Camp BGen Rafael T. Crame',
+  'Camp Bagong Diwa',
+  'Camp General Vicente Lim',
+  'Camp Sergio Osmeña Jr.',
+  'Camp General Simeon Ola',
+  'Camp General Alejo Santos',
+  'Camp Brigadier General Leandro Mendoza'
+] as const;
+
 export function getPcoRanks(): RankAbbr[] {
   return PCO_DISPLAY_RANKS.map(r => r.code);
 }

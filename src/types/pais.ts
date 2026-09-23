@@ -128,6 +128,9 @@ export interface OrderRecord {
   personnelIds?: string[];
   orderNo?: string;
   orderNumber?: string;
+  series?: import('../constants/orders').OrderSeries;
+  purposeCode?: import('../constants/orders').OrderPurposeCode | string;
+  purposeLabel?: string;
   subject: string;
   description?: string;
   issuer?: string;
@@ -138,10 +141,76 @@ export interface OrderRecord {
   signatory?: string;
   signatoryTitle?: string;
   affectedPersonnelCount?: number;
+  personnelInvolvement?: OrderPersonnelInvolvement[];
+  personnelSnapshot?: OrderPersonnelSnapshot[];
+  purposeData?: Record<string, unknown>;
+  generatedDocument?: GeneratedDocumentMetadata;
+  signedDocument?: SignedDocumentMetadata;
+  generationManifest?: OrderGenerationManifest;
   status?: 'Active' | 'Archived' | 'Revoked' | string;
+  documentStatus?: import('../constants/orders').OrderDocumentStatus | string;
+  fileName?: string;
+  fileMimeType?: string;
+  fileSize?: number;
+  storagePath?: string;
+  documentVersion?: number;
+  documentUploadedAt?: string;
+  signedAt?: string;
+  signedBy?: string;
+  releasedAt?: string;
+  releasedBy?: string;
+  createdBy?: string;
+  updatedBy?: string;
   downloadUrl?: string;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface OrderPersonnelInvolvement {
+  personnelId: string;
+  role: import('../constants/orders').OrderPersonnelRoleCode;
+  sequence: number;
+  remarks?: string;
+}
+
+export interface OrderPersonnelSnapshot extends OrderPersonnelInvolvement {
+  rank: string;
+  fullName: string;
+  badgeNo?: string;
+  unit?: string;
+  designation?: string;
+}
+
+export interface GeneratedDocumentMetadata {
+  fileName: string;
+  fileMimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' | string;
+  fileSize?: number;
+  storagePath: string;
+  version: number;
+  templateKey?: string;
+  templateVersion?: string;
+  generatedAt?: string;
+  generatedBy?: string;
+}
+
+export interface SignedDocumentMetadata {
+  fileName: string;
+  fileMimeType: 'image/jpeg' | 'image/png' | 'image/webp' | string;
+  fileSize: number;
+  storagePath: string;
+  version: number;
+  uploadedAt?: string;
+  uploadedBy?: string;
+}
+
+export interface OrderGenerationManifest {
+  templateKey: string;
+  templateVersion: string;
+  generatedAt: string;
+  generatedBy?: string;
+  orderNumber: string;
+  personnelSnapshot: OrderPersonnelSnapshot[];
+  sourceDataHash?: string;
 }
 
 export type AwardOrderType = 'General Order' | 'Special Order' | 'Letter Order';

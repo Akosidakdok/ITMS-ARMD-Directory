@@ -14,9 +14,21 @@ export const getAllAssignments = async (req, res) => {
   }
 };
 
+export const getAssignmentById = async (req, res) => {
+  try {
+    const assignment = await db.getAssignmentById(req.params.id);
+    if (!assignment) {
+      return res.status(404).json({ success: false, message: 'Assignment record not found' });
+    }
+    res.json({ success: true, data: assignment });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
 export const createAssignment = async (req, res) => {
   try {
-    const { personnelId, unit, position, orderRef, startDate } = req.body;
+    const { personnelId, unit, position } = req.body;
     if (!personnelId || !unit || !position) {
       return res.status(400).json({
         success: false,
@@ -37,11 +49,11 @@ export const createAssignment = async (req, res) => {
 
 export const updateAssignment = async (req, res) => {
   try {
-    const { personnelId, unit, position, orderRef, startDate } = req.body;
-    if (!personnelId || !unit || !position || !orderRef || !startDate) {
+    const { personnelId, unit, position } = req.body;
+    if (!personnelId || !unit || !position) {
       return res.status(400).json({
         success: false,
-        message: 'Missing required fields: personnelId, unit, position, orderRef, startDate are required'
+        message: 'Missing required fields: personnelId, unit, position are required'
       });
     }
 

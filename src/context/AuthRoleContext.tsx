@@ -31,6 +31,19 @@ import {
   createOrderApi,
   updateOrderApi,
   deleteOrderApi,
+  transitionOrderStatusApi,
+  restoreOrderStatusApi,
+  fetchOrderStatusHistoryApi,
+  uploadOrderDocumentApi,
+  getOrderDocumentApi,
+  previewOrderDocumentApi,
+  deleteOrderDocumentApi,
+  generateOrderDocumentApi,
+  getGeneratedOrderDocumentApi,
+  previewGeneratedOrderDocumentApi,
+  uploadSignedOrderDocumentApi,
+  getSignedOrderDocumentApi,
+  deleteSignedOrderDocumentApi,
   fetchAssignments,
   createAssignmentApi,
   updateAssignmentApi,
@@ -62,7 +75,8 @@ import {
   verifySessionApi,
   clearAuthSession
 } from '../services/api';
-import type { AuthenticatedUser, BackendHealthStatus, BulkPersonnelImportResult, BulkUpsertResult } from '../services/api';
+import type { AuthenticatedUser, BackendHealthStatus, BulkPersonnelImportResult, BulkUpsertResult, OrderDocumentLink, OrderDocumentPreview, OrderStatusHistoryRecord, SignedOrderDocumentLink } from '../services/api';
+import type { OrderDocumentStatus } from '../constants/orders';
 import type { PersonnelImportRow } from '../utils/personnelCsv';
 
 interface AuthRoleContextType {
@@ -104,6 +118,19 @@ interface AuthRoleContextType {
   addOrder: (order: OrderRecord) => Promise<OrderRecord>;
   updateOrder: (order: OrderRecord) => Promise<OrderRecord>;
   deleteOrder: (id: string) => Promise<void>;
+  transitionOrderStatus: (id: string, status: OrderDocumentStatus, reason?: string) => Promise<OrderRecord>;
+  restoreOrderStatus: (id: string, reason?: string) => Promise<OrderRecord>;
+  fetchOrderStatusHistory: (id: string) => Promise<OrderStatusHistoryRecord[]>;
+  uploadOrderDocument: (id: string, file: File) => Promise<OrderRecord>;
+  getOrderDocument: (id: string, download?: boolean) => Promise<OrderDocumentLink>;
+  previewOrderDocument: (id: string) => Promise<OrderDocumentPreview>;
+  deleteOrderDocument: (id: string) => Promise<OrderRecord>;
+  generateOrderDocument: (id: string) => Promise<OrderRecord>;
+  getGeneratedOrderDocument: (id: string, download?: boolean) => Promise<OrderDocumentLink>;
+  previewGeneratedOrderDocument: (id: string) => Promise<OrderDocumentPreview>;
+  uploadSignedOrderDocument: (id: string, file: File) => Promise<OrderRecord>;
+  getSignedOrderDocument: (id: string, download?: boolean) => Promise<SignedOrderDocumentLink>;
+  deleteSignedOrderDocument: (id: string) => Promise<OrderRecord>;
 
   addAssignment: (assignment: AssignmentRecord) => Promise<AssignmentRecord>;
   updateAssignment: (assignment: AssignmentRecord) => Promise<AssignmentRecord>;
@@ -388,30 +415,230 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setOrdersList(prev => prev.filter(item => item.id !== id));
   };
 
+  const transitionOrderStatus = async (id: string, nextStatus: OrderDocumentStatus, reason = '') => {
+    if (backendConnected) {
+      const updated = await transitionOrderStatusApi(id, nextStatus, reason);
+      setOrdersList(prev => prev.map(order => order.id === updated.id ? updated : order));
+      return updated;
+    }
+    const existing = ordersList.find(order => order.id === id);
+    if (!existing) throw new Error('Order not found.');
+    const updated = { ...existing, documentStatus: nextStatus, status: nextStatus };
+    setOrdersList(prev => prev.map(order => order.id === id ? updated : order));
+    return updated;
+  };
+
+  const restoreOrderStatus = async (id: string, reason = '') => {
+    if (backendConnected) {
+      const updated = await restoreOrderStatusApi(id, reason);
+      setOrdersList(prev => prev.map(order => order.id === updated.id ? updated : order));
+      return updated;
+    }
+    const existing = ordersList.find(order => order.id === id);
+    if (!existing) throw new Error('Order not found.');
+    if ((existing.documentStatus || existing.status) !== 'Revoked') throw new Error('Only revoked orders can be restored.');
+    const updated = { ...existing, documentStatus: 'For Approval' as const, status: 'For Approval' };
+    setOrdersList(prev => prev.map(order => order.id === id ? updated : order));
+    return updated;
+  };
+
+  const fetchOrderStatusHistory = async (id: string) => {
+    if (backendConnected) return fetchOrderStatusHistoryApi(id);
+    return [];
+  };
+
+  const uploadOrderDocument = async (id: string, file: File) => {
+    if (!backendConnected) throw new Error('The backend is offline. Document upload requires an active server connection.');
+    const updated = await uploadOrderDocumentApi(id, file);
+    setOrdersList(prev => prev.map(order => order.id === updated.id ? updated : order));
+    return updated;
+  };
+
+  const getOrderDocument = async (id: string, download = false) => {
+    if (!backendConnected) throw new Error('The backend is offline. Document retrieval requires an active server connection.');
+    return getOrderDocumentApi(id, download);
+  };
+
+  const previewOrderDocument = async (id: string) => {
+    if (!backendConnected) throw new Error('The backend is offline. Document preview requires an active server connection.');
+    return previewOrderDocumentApi(id);
+  };
+
+  const deleteOrderDocument = async (id: string) => {
+    if (!backendConnected) throw new Error('The backend is offline. Document removal requires an active server connection.');
+    const updated = await deleteOrderDocumentApi(id);
+    setOrdersList(prev => prev.map(order => order.id === updated.id ? updated : order));
+    return updated;
+  };
+
+  const generateOrderDocument = async (id: string) => {
+    if (!backendConnected) throw new Error('The backend is offline. Order document generation requires an active server connection.');
+    const updated = await generateOrderDocumentApi(id);
+    setOrdersList(prev => prev.map(order => order.id === updated.id ? updated : order));
+    return updated;
+  };
+
+  const getGeneratedOrderDocument = async (id: string, download = false) => {
+    if (!backendConnected) throw new Error('The backend is offline. Generated document retrieval requires an active server connection.');
+    return getGeneratedOrderDocumentApi(id, download);
+  };
+
+  const previewGeneratedOrderDocument = async (id: string) => {
+    if (!backendConnected) throw new Error('The backend is offline. Generated document preview requires an active server connection.');
+    return previewGeneratedOrderDocumentApi(id);
+  };
+
+  const uploadSignedOrderDocument = async (id: string, file: File) => {
+    if (!backendConnected) throw new Error('The backend is offline. Signed scan upload requires an active server connection.');
+    const updated = await uploadSignedOrderDocumentApi(id, file);
+    setOrdersList(prev => prev.map(order => order.id === updated.id ? updated : order));
+    return updated;
+  };
+
+  const getSignedOrderDocument = async (id: string, download = false) => {
+    if (!backendConnected) throw new Error('The backend is offline. Signed scan retrieval requires an active server connection.');
+    return getSignedOrderDocumentApi(id, download);
+  };
+
+  const deleteSignedOrderDocument = async (id: string) => {
+    if (!backendConnected) throw new Error('The backend is offline. Signed scan removal requires an active server connection.');
+    const updated = await deleteSignedOrderDocumentApi(id);
+    setOrdersList(prev => prev.map(order => order.id === updated.id ? updated : order));
+    return updated;
+  };
+
   // Assignment Mutations
   const addAssignment = async (assignment: AssignmentRecord) => {
+    let created = assignment;
     if (backendConnected) {
-      const created = await createAssignmentApi(assignment);
-      setAssignmentsList(prev => [created, ...prev]);
-      return created;
+      created = await createAssignmentApi(assignment);
     }
-    setAssignmentsList(prev => [assignment, ...prev]);
-    return assignment;
+    const isCurrent = created.status === 'Current';
+    const isMain = created.positionCategory !== 'In Addition/Concurrent';
+
+    setAssignmentsList(prev => {
+      let next = [created, ...prev];
+      if (isCurrent && isMain) {
+        next = next.map(item => {
+          if (item.id !== created.id && item.personnelId === created.personnelId && item.status === 'Current' && item.positionCategory !== 'In Addition/Concurrent') {
+            return {
+              ...item,
+              status: 'Completed',
+              endDate: item.endDate || created.startDate || created.effectiveDate || new Date().toISOString().slice(0, 10)
+            };
+          }
+          return item;
+        });
+      }
+      return next;
+    });
+
+    if (isCurrent) {
+      setPersonnelList(prev => prev.map(p => {
+        if (p.id === created.personnelId) {
+          return {
+            ...p,
+            positionCategory: created.positionCategory || 'Main',
+            unitCategory: created.unitCategory || 'ITMS HQ',
+            subUnitCategory: created.subUnitCategory || 'Division',
+            sub_unit: created.sub_unit || '',
+            division: created.sub_unit || '',
+            station: created.station || '',
+            details: created.details || '',
+            detail: created.details || '',
+            designation: created.position,
+            designationDate: created.designationDate || '',
+            effectiveDate: created.effectiveDate || created.startDate || ''
+          };
+        }
+        return p;
+      }));
+    }
+    return created;
   };
 
   const updateAssignment = async (assignment: AssignmentRecord) => {
+    let updated = assignment;
     if (backendConnected) {
-      const updated = await updateAssignmentApi(assignment);
-      setAssignmentsList(prev => prev.map(item => item.id === updated.id ? updated : item));
-      return updated;
+      updated = await updateAssignmentApi(assignment);
     }
-    setAssignmentsList(prev => prev.map(item => item.id === assignment.id ? assignment : item));
-    return assignment;
+    const isCurrent = updated.status === 'Current';
+    const isMain = updated.positionCategory !== 'In Addition/Concurrent';
+
+    setAssignmentsList(prev => {
+      let next = prev.map(item => item.id === updated.id ? updated : item);
+      if (isCurrent && isMain) {
+        next = next.map(item => {
+          if (item.id !== updated.id && item.personnelId === updated.personnelId && item.status === 'Current' && item.positionCategory !== 'In Addition/Concurrent') {
+            return {
+              ...item,
+              status: 'Completed',
+              endDate: item.endDate || updated.startDate || updated.effectiveDate || new Date().toISOString().slice(0, 10)
+            };
+          }
+          return item;
+        });
+      }
+      return next;
+    });
+
+    if (isCurrent) {
+      setPersonnelList(prev => prev.map(p => {
+        if (p.id === updated.personnelId) {
+          return {
+            ...p,
+            positionCategory: updated.positionCategory || 'Main',
+            unitCategory: updated.unitCategory || 'ITMS HQ',
+            subUnitCategory: updated.subUnitCategory || 'Division',
+            sub_unit: updated.sub_unit || '',
+            division: updated.sub_unit || '',
+            station: updated.station || '',
+            details: updated.details || '',
+            detail: updated.details || '',
+            designation: updated.position,
+            designationDate: updated.designationDate || '',
+            effectiveDate: updated.effectiveDate || updated.startDate || ''
+          };
+        }
+        return p;
+      }));
+    }
+    return updated;
   };
 
   const deleteAssignment = async (id: string) => {
+    const target = assignmentsList.find(a => a.id === id);
     if (backendConnected) await deleteAssignmentApi(id);
-    setAssignmentsList(prev => prev.filter(item => item.id !== id));
+    const remaining = assignmentsList.filter(item => item.id !== id);
+    setAssignmentsList(remaining);
+
+    if (target && target.status === 'Current') {
+      const otherActive = remaining.find(a => a.personnelId === target.personnelId && a.status === 'Current');
+      const fallback = otherActive || remaining
+        .filter(a => a.personnelId === target.personnelId)
+        .sort((a, b) => (b.effectiveDate || b.startDate || '').localeCompare(a.effectiveDate || a.startDate || ''))[0];
+      if (fallback) {
+        setPersonnelList(prev => prev.map(p => {
+          if (p.id === target.personnelId) {
+            return {
+              ...p,
+              positionCategory: fallback.positionCategory || 'Main',
+              unitCategory: fallback.unitCategory || 'ITMS HQ',
+              subUnitCategory: fallback.subUnitCategory || 'Division',
+              sub_unit: fallback.sub_unit || '',
+              division: fallback.sub_unit || '',
+              station: fallback.station || '',
+              details: fallback.details || '',
+              detail: fallback.details || '',
+              designation: fallback.position,
+              designationDate: fallback.designationDate || '',
+              effectiveDate: fallback.effectiveDate || fallback.startDate || ''
+            };
+          }
+          return p;
+        }));
+      }
+    }
   };
 
   // Education Mutations
@@ -708,6 +935,19 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         addOrder,
         updateOrder,
         deleteOrder,
+        transitionOrderStatus,
+        restoreOrderStatus,
+        fetchOrderStatusHistory,
+        uploadOrderDocument,
+        getOrderDocument,
+        previewOrderDocument,
+        deleteOrderDocument,
+        generateOrderDocument,
+        getGeneratedOrderDocument,
+        previewGeneratedOrderDocument,
+        uploadSignedOrderDocument,
+        getSignedOrderDocument,
+        deleteSignedOrderDocument,
         addAssignment,
         updateAssignment,
         deleteAssignment,
