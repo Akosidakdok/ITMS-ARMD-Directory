@@ -169,12 +169,15 @@ export const deleteOrder = async (req, res) => {
     if (!success) {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
+    if (order.storagePath) await removeOrderDocument(order.storagePath).catch(() => {});
+    if (order.generatedDocument?.storagePath) await removeOrderDocument(order.generatedDocument.storagePath).catch(() => {});
+    if (order.signedDocument?.storagePath) await removeOrderDocument(order.signedDocument.storagePath).catch(() => {});
     res.json({
       success: true,
       message: 'Order deleted successfully'
     });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, message: error.message, error: error.message });
   }
 };
 

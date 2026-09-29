@@ -438,6 +438,18 @@ class PAISRepository {
         const { data, error } = await supabase.from('orders').update(update).eq('id', id).select().single();
         if (!error && data) return true;
       } catch (e) {}
+
+      // Fallback: If soft-delete columns (isDeleted/deletedAt) are not present in Supabase,
+      // perform a hard delete and remove associated order status history
+      try {
+        const { error: delError } = await supabase.from('orders').delete().eq('id', id);
+        if (!delError) {
+          try {
+            await supabase.from('order_status_history').delete().eq('orderId', id);
+          } catch (ignored) {}
+          return true;
+        }
+      } catch (e) {}
     }
 
     const index = this.inMemoryOrders.findIndex(o => o.id === id);
@@ -464,20 +476,38 @@ class PAISRepository {
     const targetStatus = revokeEvent?.fromStatus || (fromStatus === 'Revoked' ? 'For Approval' : fromStatus);
     const changedAt = new Date().toISOString();
     const statusUpdate = {
-      isDeleted: false,
-      deletedAt: null,
       documentStatus: targetStatus,
       status: targetStatus,
       updatedAt: changedAt
     };
+    if (existing.isDeleted !== undefined) {
+      statusUpdate.isDeleted = false;
+      statusUpdate.deletedAt = null;
+    }
 
     if (this.isSupabaseConnected()) {
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('orders')
         .update(statusUpdate)
         .eq('id', id)
         .select()
         .single();
+
+      if (error && error.code === 'PGRST204' && (statusUpdate.isDeleted !== undefined || statusUpdate.deletedAt !== undefined)) {
+        const retryUpdate = {
+          documentStatus: targetStatus,
+          status: targetStatus,
+          updatedAt: changedAt
+        };
+        const retryResult = await supabase
+          .from('orders')
+          .update(retryUpdate)
+          .eq('id', id)
+          .select()
+          .single();
+        data = retryResult.data;
+        error = retryResult.error;
+      }
       if (error || !data) throw new Error(`Order restore failed: ${error?.message || 'Order not found'}`);
 
       const { error: historyError } = await supabase.from('order_status_history').insert([{

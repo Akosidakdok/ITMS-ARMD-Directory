@@ -251,14 +251,15 @@ export const updateOrderApi = async (order: OrderRecord): Promise<OrderRecord> =
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(order)
   });
-  if (!res.ok) throw new Error('Failed to update order');
-  const json = await res.json();
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(json?.message || json?.error || 'Failed to update order');
   return json.data;
 };
 
 export const deleteOrderApi = async (id: string): Promise<void> => {
   const res = await apiFetch(`${API_BASE_URL}/orders/${id}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error('Failed to delete order');
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(json?.message || json?.error || 'Failed to delete order');
 };
 
 export interface OrderStatusHistoryRecord {
