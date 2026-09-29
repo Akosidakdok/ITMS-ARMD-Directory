@@ -1,5 +1,6 @@
 import React, { useEffect, useId, useRef } from 'react';
 import { X } from 'lucide-react';
+import { useBodyScrollLock } from '../../utils/useBodyScrollLock';
 
 interface ModalProps {
   isOpen: boolean;
@@ -32,6 +33,8 @@ export const Modal: React.FC<ModalProps> = ({
     onCloseRef.current = onClose;
   });
 
+  useBodyScrollLock(isOpen);
+
   useEffect(() => {
     if (!isOpen) return;
 
@@ -55,8 +58,6 @@ export const Modal: React.FC<ModalProps> = ({
     };
 
     returnFocusRef.current = document.activeElement as HTMLElement | null;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
     window.addEventListener('keydown', handleKeyDown);
 
     window.requestAnimationFrame(() => {
@@ -67,7 +68,6 @@ export const Modal: React.FC<ModalProps> = ({
     });
 
     return () => {
-      document.body.style.overflow = previousOverflow;
       window.removeEventListener('keydown', handleKeyDown);
       returnFocusRef.current?.focus();
     };
