@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import pnpLogo from '../../assets/pnp-logo-transparent.png';
+import { useBodyScrollLock } from '../../utils/useBodyScrollLock';
 import './AppLoadingScreen.css';
 
 interface AppLoadingScreenProps {
@@ -23,6 +24,8 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
   const progressRef = useRef(2);
   const startedAtRef = useRef(Date.now());
   const wasActiveRef = useRef(false);
+
+  useBodyScrollLock(mounted);
 
   useEffect(() => {
     if (active && !wasActiveRef.current) {
@@ -73,15 +76,6 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
     const unmountTimer = window.setTimeout(() => setMounted(false), variant === 'prelogin' ? 600 : 180);
     return () => window.clearTimeout(unmountTimer);
   }, [exiting, variant]);
-
-  useEffect(() => {
-    if (!mounted) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [mounted]);
 
   if (!mounted) return null;
 

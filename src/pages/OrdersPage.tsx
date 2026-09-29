@@ -42,6 +42,7 @@ import { SearchableSelect } from '../components/common/SearchableSelect';
 import { OperationalSummary, PageHeader } from '../components/common/SystemUI';
 import { useAuthRole } from '../context/AuthRoleContext';
 import { hasManagementAccess } from '../utils/accessControl';
+import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 import type { AwardRecord, LeaveRecord, OrderRecord } from '../types/pais';
 import { LEAVE_TYPES } from '../data/leaveTypes';
 import type { OrderStatusHistoryRecord } from '../services/api';
@@ -146,9 +147,9 @@ const ModalShell = ({
     onCloseRef.current = onClose;
   }, [onClose]);
 
+  useBodyScrollLock(true);
+
   useEffect(() => {
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault();
@@ -174,7 +175,6 @@ const ModalShell = ({
       (initialFocus || dialogRef.current)?.focus();
     });
     return () => {
-      document.body.style.overflow = previousOverflow;
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
@@ -1083,6 +1083,11 @@ export const OrdersPage = () => {
   };
 
   const removeRecord = async (kind: 'order' | 'award' | 'leave', id: string, label: string) => {
+    // The confirmation is a separate modal. Close the details modal first so
+    // deleting never leaves two scroll-locking overlays mounted together.
+    if (kind === 'order') setSelectedOrder(null);
+    if (kind === 'award') setSelectedAward(null);
+    if (kind === 'leave') setSelectedLeave(null);
     setDeleteTarget({ kind, id, label });
   };
 
