@@ -158,6 +158,31 @@ export const ASSIGNMENT_DIVISION_OPTIONS = [
   { value: 'ISSD', label: 'ISSD – Information Systems Security Division' }
 ] as const;
 
+export interface OfficeDivisionOption {
+  value: string;
+  label: string;
+  name: string;
+}
+
+/** Official ITMS Offices and Divisions */
+export const OFFICE_DIVISION_OPTIONS: readonly OfficeDivisionOption[] = [
+  { value: 'OD', label: 'OD – Office of the Director', name: 'Office of the Director' },
+  { value: 'ODDA', label: 'ODDA – Office of the Deputy Director for Administration', name: 'Office of the Deputy Director for Administration' },
+  { value: 'ODDO', label: 'ODDO – Office of the Deputy Director for Operations', name: 'Office of the Deputy Director for Operations' },
+  { value: 'ODDIT', label: 'ODDIT – Office of the Deputy Director for IT Matters', name: 'Office of the Deputy Director for IT Matters' },
+  { value: 'OCS', label: 'OCS – Office of the Chief of Staff', name: 'Office of the Chief of Staff' },
+  { value: 'ARMD', label: 'ARMD – Administrative and Resource Management Division', name: 'Administrative and Resource Management Division' },
+  { value: 'DMD', label: 'DMD – Data Management Division', name: 'Data Management Division' },
+  { value: 'ISSD', label: 'ISSD – Information Systems Security Division', name: 'Information Systems Security Division' },
+  { value: 'ITSD', label: 'ITSD – Information Technology Support Division', name: 'Information Technology Support Division' },
+  { value: 'ITPMD', label: 'ITPMD – Information Technology Project Management Division', name: 'Information Technology Project Management Division' },
+  { value: 'PTD', label: 'PTD – Plans and Training Division', name: 'Plans and Training Division' },
+  { value: 'SMD', label: 'SMD – Systems Management Division', name: 'Systems Management Division' },
+  { value: 'PIO', label: 'PIO – Public Information Office', name: 'Public Information Office' },
+  { value: 'PSMU', label: 'PSMU – Police Strategy Management Unit', name: 'Police Strategy Management Unit' },
+  { value: 'SLO', label: 'SLO – Senior Liaison Office', name: 'Senior Liaison Office' }
+] as const;
+
 export const ASSIGNMENT_REGIONS = ['Luzon', 'Visayas', 'Mindanao'] as const;
 
 /** Common PNP/ITMS duty stations. Existing saved stations are added at runtime. */

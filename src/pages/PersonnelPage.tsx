@@ -14,6 +14,7 @@ import {
   UNIT_CATEGORIES, 
   POSITION_CATEGORIES, 
   SUB_UNIT_CATEGORIES, 
+  OFFICE_DIVISION_OPTIONS,
   getPcoRanks, 
   getPncoRanks, 
   getRankCategory,
@@ -197,7 +198,7 @@ export const PersonnelPage: React.FC = () => {
   const [searchBadgeNo, setSearchBadgeNo] = useState('');
   const [searchRank, setSearchRank] = useState('Please select');
   const [searchRankCategory, setSearchRankCategory] = useState('Please select');
-  const [searchUnitCategory, setSearchUnitCategory] = useState('Please select');
+  const [searchOfficeDivision, setSearchOfficeDivision] = useState('Please select');
   const [searchUnit, setSearchUnit] = useState('');
   const [searchSubUnit, setSearchSubUnit] = useState('');
   const [searchStation, setSearchStation] = useState('');
@@ -383,6 +384,32 @@ export const PersonnelPage: React.FC = () => {
     }
   };
 
+  // Memoized choices for Office / Division filter (Standard options + any distinct values from records)
+  const officeDivisionChoices = useMemo(() => {
+    const knownValues = new Set(OFFICE_DIVISION_OPTIONS.map(o => o.value.toUpperCase()));
+    const knownLabels = new Set(OFFICE_DIVISION_OPTIONS.map(o => o.label.toUpperCase()));
+    const knownNames = new Set(OFFICE_DIVISION_OPTIONS.map(o => o.name?.toUpperCase() || ''));
+    const extra: { value: string; label: string }[] = [];
+
+    personnelList.forEach(p => {
+      const val = (p.officeDivision || p.division || '').trim();
+      if (
+        val &&
+        val !== '—' &&
+        val !== '-' &&
+        !knownValues.has(val.toUpperCase()) &&
+        !knownLabels.has(val.toUpperCase()) &&
+        !knownNames.has(val.toUpperCase())
+      ) {
+        knownValues.add(val.toUpperCase());
+        extra.push({ value: val, label: val });
+      }
+    });
+
+    extra.sort((a, b) => a.label.localeCompare(b.label));
+    return [...OFFICE_DIVISION_OPTIONS, ...extra];
+  }, [personnelList]);
+
   // Handle Search Reset
   const handleReset = () => {
     setSearchAccountNo('');
@@ -392,7 +419,7 @@ export const PersonnelPage: React.FC = () => {
     setSearchBadgeNo('');
     setSearchRank('Please select');
     setSearchRankCategory('Please select');
-    setSearchUnitCategory('Please select');
+    setSearchOfficeDivision('Please select');
     setSearchUnit('');
     setSearchSubUnit('');
     setSearchStation('');
@@ -490,9 +517,24 @@ export const PersonnelPage: React.FC = () => {
         if (cat.toUpperCase() !== searchRankCategory.toUpperCase()) return false;
       }
 
-      if (searchUnitCategory && searchUnitCategory !== 'Please select') {
-        const uc = p.unitCategory || 'ITMS HQ';
-        if (uc.toLowerCase() !== searchUnitCategory.toLowerCase()) return false;
+      if (searchOfficeDivision && searchOfficeDivision !== 'Please select') {
+        const selected = searchOfficeDivision.toLowerCase().trim();
+        const personOD = (p.officeDivision || p.sub_unit || p.division || p.unit || '').toLowerCase().trim();
+        if (!personOD) return false;
+
+        const opt = OFFICE_DIVISION_OPTIONS.find(o => o.value.toLowerCase() === selected);
+        const optName = opt?.name?.toLowerCase() || '';
+
+        const tokens = personOD.split(/[\s/,()\-–—.]+/).map(t => t.trim()).filter(Boolean);
+        const matchesToken = tokens.includes(selected);
+        const matchesName = optName ? (personOD.includes(optName) || optName.includes(personOD)) : false;
+        const matchesDirect = personOD === selected || personOD.includes(selected);
+
+        const matches = selected.length <= 4
+          ? (matchesToken || matchesName || personOD === selected)
+          : (matchesDirect || matchesToken || matchesName);
+
+        if (!matches) return false;
       }
 
       if (searchUnit && searchUnit.trim().length > 0) {
@@ -529,7 +571,7 @@ export const PersonnelPage: React.FC = () => {
     searchBadgeNo,
     searchRank,
     searchRankCategory,
-    searchUnitCategory,
+    searchOfficeDivision,
     searchUnit,
     searchSubUnit,
     searchStation,
@@ -915,7 +957,7 @@ export const PersonnelPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Row 2: Rank Category, Rank, Unit Category, Sub-Unit, Details, Station, Status + Action Buttons */}
+          {/* Row 2: Rank Category, Rank, Office / Division, Sub-Unit, Details, Station, Status + Action Buttons */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-12 gap-3 items-end">
             <div className="lg:col-span-2">
               <label className="block text-2xs font-bold text-slate-700 mb-1">Rank Category</label>
@@ -969,15 +1011,15 @@ export const PersonnelPage: React.FC = () => {
             </div>
 
             <div className="lg:col-span-2">
-              <label className="block text-2xs font-bold text-slate-700 mb-1">Unit Category</label>
+              <label className="block text-2xs font-bold text-slate-700 mb-1">Office / Division</label>
               <select
-                value={searchUnitCategory}
-                onChange={e => { setSearchUnitCategory(e.target.value); setCurrentPage(1); }}
+                value={searchOfficeDivision}
+                onChange={e => { setSearchOfficeDivision(e.target.value); setCurrentPage(1); }}
                 className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded focus:border-cyan-500 focus:outline-none font-semibold text-slate-800"
               >
-                <option value="Please select">All Unit Categories</option>
-                {UNIT_CATEGORIES.map(uc => (
-                  <option key={uc} value={uc}>{uc}</option>
+                <option value="Please select">All Offices / Divisions</option>
+                {officeDivisionChoices.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
               </select>
             </div>
