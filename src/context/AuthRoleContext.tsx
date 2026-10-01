@@ -110,6 +110,7 @@ interface AuthRoleContextType {
   addPersonnel: (personnel: Personnel) => Promise<Personnel>;
   bulkImportPersonnel: (
     rows: PersonnelImportRow[],
+    duplicateMode?: 'skip' | 'update' | 'flag',
     onProgress?: (completed: number, total: number) => void
   ) => Promise<BulkPersonnelImportResult>;
   updatePersonnel: (personnel: Personnel) => Promise<Personnel>;
@@ -359,15 +360,26 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const bulkImportPersonnel = async (
     rows: PersonnelImportRow[],
+    duplicateMode: 'skip' | 'update' | 'flag' = 'skip',
     onProgress?: (completed: number, total: number) => void
   ) => {
     if (!backendConnected) {
       throw new Error('The backend is offline. Start the server before importing personnel records.');
     }
 
-    const result = await bulkCreatePersonnelApi(rows, onProgress);
-    if (result.created.length > 0) {
-      setPersonnelList(prev => [...result.created, ...prev]);
+    const result = await bulkCreatePersonnelApi(rows, onProgress, duplicateMode);
+    if ((result.created && result.created.length > 0) || (result.updated && result.updated.length > 0)) {
+      setPersonnelList(prev => {
+        let updatedList = [...prev];
+        if (result.updated && result.updated.length > 0) {
+          const updatedMap = new Map(result.updated.map(u => [u.id, u]));
+          updatedList = updatedList.map(p => updatedMap.get(p.id) || p);
+        }
+        if (result.created && result.created.length > 0) {
+          updatedList = [...result.created, ...updatedList];
+        }
+        return updatedList;
+      });
     }
     return result;
   };

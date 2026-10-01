@@ -70,7 +70,7 @@ class PAISRepository {
   // ================= PERSONNEL CRUD =================
   normalizePersonnelRecord(p) {
     if (!p) return p;
-    const sub_unit = p.sub_unit || p.division || '';
+    const sub_unit = p.sub_unit || p.officeDivision || p.division || '';
     const details = p.details || p.detail || '';
     const station = p.station || '';
     const detectedCategory = getRankCategoryBackend(p.rank);
@@ -78,25 +78,97 @@ class PAISRepository {
       ? detectedCategory
       : (p.rankCategory || detectedCategory);
     const positionCategory = p.positionCategory || 'Main';
-    const unitCategory = p.unitCategory || 'ITMS HQ';
+    const unitCategory = p.unitCategory || p.unit || 'ITMS HQ';
     const subUnitCategory = p.subUnitCategory || 'Division';
+    const birthdate = p.birthdate || p.birthday || '';
+    const qualification = p.qualification || p.qualifier || '';
+    const desUp = p.desUp || p.dateOfEntry || p.dateEnteredService || p.date_entered_service || '';
+    const badgeNo = p.badgeNo || p.badge_number || '';
+    const status = p.status || p.pstatus || 'Active';
+    const contactNumber = p.contactNumber || p.phone_number || '';
+    const firstName = p.firstName || p.first_name || '';
+    const lastName = p.lastName || p.last_name || '';
+    const middleName = p.middleName || p.middle_name || '';
+    const designationDate = p.designationDate || p.designation_date || '';
+    const lastPromotionDate = p.lastPromotionDate || p.last_promotion_date || '';
+    const enterInOfficerPositionDate = p.enterInOfficerPositionDate || p.dateOfOfficershipOrCommission || p.date_of_officership_or_commission || '';
+    const unit = p.unit || unitCategory;
+    const fullName = p.fullName || [firstName, middleName, lastName].filter(Boolean).join(' ') || `${firstName} ${lastName}`.trim();
+
     return {
       ...p,
+      fullName,
+      firstName,
+      first_name: firstName,
+      lastName,
+      last_name: lastName,
+      middleName,
+      middle_name: middleName,
+      badgeNo,
+      badge_number: badgeNo,
       rankCategory,
       positionCategory,
       unitCategory,
       subUnitCategory,
+      unit,
+      unitCode: p.unitCode || p.unit_code || '',
+      unit_code: p.unit_code || p.unitCode || '',
       sub_unit,
+      subUnitCode: p.subUnitCode || p.sub_unit_code || '',
+      sub_unit_code: p.sub_unit_code || p.subUnitCode || '',
+      stationCode: p.stationCode || p.station_code || '',
+      station_code: p.station_code || p.stationCode || '',
+      subStationCode: p.subStationCode || p.sub_station_code || '',
+      sub_station_code: p.sub_station_code || p.subStationCode || '',
+      subStation: p.subStation || p.sub_station || '',
+      sub_station: p.sub_station || p.subStation || '',
       details,
       station,
       division: sub_unit,
-      detail: details
+      officeDivision: sub_unit,
+      detail: details,
+      birthdate,
+      birthday: birthdate,
+      qualification,
+      qualifier: qualification,
+      desUp,
+      dateOfEntry: desUp,
+      dateEnteredService: desUp,
+      date_entered_service: desUp,
+      designationDate,
+      designation_date: designationDate,
+      lastPromotionDate,
+      last_promotion_date: lastPromotionDate,
+      enterInOfficerPositionDate,
+      dateOfOfficershipOrCommission: enterInOfficerPositionDate,
+      date_of_officership_or_commission: enterInOfficerPositionDate,
+      status,
+      pstatus: status,
+      pstatusDate: p.pstatusDate || p.pstatus_date || '',
+      pstatus_date: p.pstatus_date || p.pstatusDate || '',
+      rankStatus: p.rankStatus || p.rank_status || '',
+      rank_status: p.rank_status || p.rankStatus || '',
+      sourceOfCommissionship: p.sourceOfCommissionship || p.source_of_commissionship || '',
+      source_of_commissionship: p.source_of_commissionship || p.sourceOfCommissionship || '',
+      civilStatus: p.civilStatus || p.civil_status || '',
+      civil_status: p.civil_status || p.civilStatus || '',
+      religion: p.religion || '',
+      email: p.email || '',
+      contactNumber,
+      phone_number: contactNumber,
+      tin: p.tin || '',
+      gsisNumber: p.gsisNumber || p.gsis_number || '',
+      gsis_number: p.gsis_number || p.gsisNumber || '',
+      philHealthNo: p.philHealthNo || p.phil_health_no || '',
+      phil_health_no: p.phil_health_no || p.philHealthNo || '',
+      pagibigNo: p.pagibigNo || p.pagibig_no || '',
+      pagibig_no: p.pagibig_no || p.pagibigNo || ''
     };
   }
 
   sanitizePersonnelPayload(data) {
     if (!data) return data;
-    const sub_unit = data.sub_unit !== undefined ? data.sub_unit : (data.division || '');
+    const sub_unit = data.sub_unit !== undefined ? data.sub_unit : (data.officeDivision || data.division || '');
     const details = data.details !== undefined ? data.details : (data.detail || '');
     const station = data.station !== undefined ? data.station : '';
     const detectedCategory = getRankCategoryBackend(data.rank);
@@ -104,19 +176,91 @@ class PAISRepository {
       ? detectedCategory
       : (data.rankCategory || detectedCategory);
     const positionCategory = data.positionCategory || 'Main';
-    const unitCategory = data.unitCategory || 'ITMS HQ';
+    const unitCategory = data.unitCategory || data.unit || 'ITMS HQ';
     const subUnitCategory = data.subUnitCategory || 'Division';
+    const birthdate = data.birthdate !== undefined ? data.birthdate : (data.birthday || '');
+    const qualification = data.qualification !== undefined ? data.qualification : (data.qualifier || '');
+    const desUp = data.desUp !== undefined ? data.desUp : (data.dateOfEntry || data.dateEnteredService || data.date_entered_service || '');
+    const badgeNo = data.badgeNo !== undefined ? data.badgeNo : (data.badge_number || '');
+    const status = data.status !== undefined ? data.status : (data.pstatus || 'Active');
+    const contactNumber = data.contactNumber !== undefined ? data.contactNumber : (data.phone_number || '');
+    const firstName = data.firstName !== undefined ? data.firstName : (data.first_name || '');
+    const lastName = data.lastName !== undefined ? data.lastName : (data.last_name || '');
+    const middleName = data.middleName !== undefined ? data.middleName : (data.middle_name || '');
+    const designationDate = data.designationDate !== undefined ? data.designationDate : (data.designation_date || '');
+    const lastPromotionDate = data.lastPromotionDate !== undefined ? data.lastPromotionDate : (data.last_promotion_date || '');
+    const enterInOfficerPositionDate = data.enterInOfficerPositionDate !== undefined ? data.enterInOfficerPositionDate : (data.dateOfOfficershipOrCommission || data.date_of_officership_or_commission || '');
+    const unit = data.unit !== undefined ? data.unit : unitCategory;
+    const fullName = data.fullName || [firstName, middleName, lastName].filter(Boolean).join(' ') || `${firstName} ${lastName}`.trim();
+
     return {
       ...data,
+      fullName,
+      firstName,
+      first_name: firstName,
+      lastName,
+      last_name: lastName,
+      middleName,
+      middle_name: middleName,
+      badgeNo,
+      badge_number: badgeNo,
       rankCategory,
       positionCategory,
       unitCategory,
       subUnitCategory,
+      unit,
+      unitCode: data.unitCode || data.unit_code || '',
+      unit_code: data.unit_code || data.unitCode || '',
       sub_unit,
+      subUnitCode: data.subUnitCode || data.sub_unit_code || '',
+      sub_unit_code: data.sub_unit_code || data.subUnitCode || '',
+      stationCode: data.stationCode || data.station_code || '',
+      station_code: data.station_code || data.stationCode || '',
+      subStationCode: data.subStationCode || data.sub_station_code || '',
+      sub_station_code: data.sub_station_code || data.subStationCode || '',
+      subStation: data.subStation || data.sub_station || '',
+      sub_station: data.sub_station || data.subStation || '',
       details,
       station,
       division: sub_unit,
-      detail: details
+      officeDivision: sub_unit,
+      detail: details,
+      birthdate,
+      birthday: birthdate,
+      qualification,
+      qualifier: qualification,
+      desUp,
+      dateOfEntry: desUp,
+      dateEnteredService: desUp,
+      date_entered_service: desUp,
+      designationDate,
+      designation_date: designationDate,
+      lastPromotionDate,
+      last_promotion_date: lastPromotionDate,
+      enterInOfficerPositionDate,
+      dateOfOfficershipOrCommission: enterInOfficerPositionDate,
+      date_of_officership_or_commission: enterInOfficerPositionDate,
+      status,
+      pstatus: status,
+      pstatusDate: data.pstatusDate || data.pstatus_date || '',
+      pstatus_date: data.pstatus_date || data.pstatusDate || '',
+      rankStatus: data.rankStatus || data.rank_status || '',
+      rank_status: data.rank_status || data.rankStatus || '',
+      sourceOfCommissionship: data.sourceOfCommissionship || data.source_of_commissionship || '',
+      source_of_commissionship: data.source_of_commissionship || data.sourceOfCommissionship || '',
+      civilStatus: data.civilStatus || data.civil_status || '',
+      civil_status: data.civil_status || data.civilStatus || '',
+      religion: data.religion || '',
+      email: data.email || '',
+      contactNumber,
+      phone_number: contactNumber,
+      tin: data.tin || '',
+      gsisNumber: data.gsisNumber || data.gsis_number || '',
+      gsis_number: data.gsis_number || data.gsisNumber || '',
+      philHealthNo: data.philHealthNo || data.phil_health_no || '',
+      phil_health_no: data.phil_health_no || data.philHealthNo || '',
+      pagibigNo: data.pagibigNo || data.pagibig_no || '',
+      pagibig_no: data.pagibig_no || data.pagibigNo || ''
     };
   }
 
@@ -181,46 +325,66 @@ class PAISRepository {
     return { ...payload, salaryGrade: num };
   }
 
-  stripUnpersistedPersonnelColumns(payload) {
+  toSupabasePersonnelPayload(payload) {
     if (!payload || typeof payload !== 'object') return payload;
-    const {
-      rankCategory,
-      positionCategory,
-      unitCategory,
-      subUnitCategory,
-      designationDate,
-      effectiveDate,
-      ...rest
-    } = payload;
-    return rest;
+    const allowedColumns = new Set([
+      'id',
+      'firstName', 'first_name',
+      'middleName', 'middle_name',
+      'lastName', 'last_name',
+      'fullName',
+      'qualifier', 'qualification',
+      'address', 'gender',
+      'contactNumber', 'phone_number',
+      'email',
+      'birthday', 'birthdate', 'ageToDate',
+      'dateOfEntry', 'desUp', 'date_entered_service', 'ageOfServiceToDate',
+      'enterInOfficerPositionDate', 'date_of_officership_or_commission',
+      'source_of_commissionship',
+      'status', 'pstatus', 'pstatus_date',
+      'rank', 'rankFullName', 'rankCategory', 'rank_status',
+      'badgeNo', 'badge_number',
+      'salaryGrade', 'plantilla',
+      'positionCategory',
+      'unit', 'unit_code', 'unitCategory',
+      'officeDivision',
+      'sub_unit', 'division', 'sub_unit_code', 'subUnitCategory',
+      'station', 'station_code',
+      'sub_station', 'sub_station_code',
+      'details', 'detail',
+      'designation', 'designationDate', 'designation_date',
+      'effectiveDate',
+      'lastPromotionDate', 'last_promotion_date',
+      'civil_status', 'religion',
+      'tin', 'gsis_number', 'phil_health_no', 'pagibig_no',
+      'pnco', 'nup',
+      'createdAt', 'updatedAt'
+    ]);
+
+    const result = {};
+    for (const [key, value] of Object.entries(payload)) {
+      if (allowedColumns.has(key) && value !== undefined) {
+        result[key] = value;
+      }
+    }
+    return result;
   }
 
   async createPersonnel(data) {
-    const payload = this.sanitizePersonnelPayload(data);
+    const payload = this.coerceSalaryGradeForLegacyInt(this.sanitizePersonnelPayload(data));
     const newRecord = {
       id: payload.id || `pnp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       ...payload
     };
 
     if (this.isSupabaseConnected()) {
-      let { data: inserted, error } = await supabase.from('personnel').insert([newRecord]).select().single();
-      if (error && error.code === '22P02' && typeof newRecord.salaryGrade === 'string') {
-        const fallbackRecord = this.coerceSalaryGradeForLegacyInt(newRecord);
+      const dbRecord = this.toSupabasePersonnelPayload(newRecord);
+      let { data: inserted, error } = await supabase.from('personnel').insert([dbRecord]).select().single();
+      if (error && error.code === '22P02') {
+        const fallbackRecord = this.coerceSalaryGradeForLegacyInt(dbRecord);
         const retry = await supabase.from('personnel').insert([fallbackRecord]).select().single();
         if (!retry.error) {
           inserted = retry.data;
-          error = null;
-        }
-      }
-      if (error && (error.code === '42703' || (error.message && /column.*does not exist|schema cache/i.test(error.message)))) {
-        // Table hasn't run the PAIS 2.0 column migration yet; insert core columns and restore in-memory
-        let safeRecord = this.stripUnpersistedPersonnelColumns(newRecord);
-        if (typeof safeRecord.salaryGrade === 'string') {
-          safeRecord = this.coerceSalaryGradeForLegacyInt(safeRecord);
-        }
-        const retry = await supabase.from('personnel').insert([safeRecord]).select().single();
-        if (!retry.error) {
-          inserted = { ...retry.data, ...newRecord };
           error = null;
         }
       }
@@ -233,36 +397,30 @@ class PAISRepository {
 
   async createPersonnelBulk(records) {
     if (!Array.isArray(records) || records.length === 0) return [];
-    const payloads = records.map(r => this.sanitizePersonnelPayload(r));
+    const payloads = records.map((r, index) => {
+      const sanitized = this.sanitizePersonnelPayload(r);
+      const withId = {
+        id: r.id || sanitized.id || `pnp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${index}`,
+        ...sanitized
+      };
+      return this.coerceSalaryGradeForLegacyInt(withId);
+    });
 
     if (this.isSupabaseConnected()) {
+      const dbPayloads = payloads.map(p => this.toSupabasePersonnelPayload(p));
       let { data: inserted, error } = await supabase
         .from('personnel')
-        .insert(payloads)
+        .insert(dbPayloads)
         .select();
 
       if (error && error.code === '22P02') {
-        // Graceful fallback if Supabase table "salaryGrade" column is still integer
-        const fallbackPayloads = payloads.map(p => this.coerceSalaryGradeForLegacyInt(p));
+        const fallbackPayloads = dbPayloads.map(p => this.coerceSalaryGradeForLegacyInt(p));
         const retry = await supabase
           .from('personnel')
           .insert(fallbackPayloads)
           .select();
         if (!retry.error) {
           inserted = retry.data;
-          error = null;
-        }
-      }
-
-      if (error && (error.code === '42703' || (error.message && /column.*does not exist|schema cache/i.test(error.message)))) {
-        const safePayloads = payloads.map(p => {
-          let s = this.stripUnpersistedPersonnelColumns(p);
-          if (typeof s.salaryGrade === 'string') s = this.coerceSalaryGradeForLegacyInt(s);
-          return s;
-        });
-        const retry = await supabase.from('personnel').insert(safePayloads).select();
-        if (!retry.error) {
-          inserted = (retry.data || []).map((row, idx) => ({ ...row, ...payloads[idx] }));
           error = null;
         }
       }
@@ -278,25 +436,16 @@ class PAISRepository {
   }
 
   async updatePersonnel(id, data) {
-    const payload = this.sanitizePersonnelPayload(data);
+    const payload = this.coerceSalaryGradeForLegacyInt(this.sanitizePersonnelPayload(data));
     if (this.isSupabaseConnected()) {
-      let { data: updated, error } = await supabase.from('personnel').update(payload).eq('id', id).select().single();
-      if (error && error.code === '22P02' && typeof payload.salaryGrade === 'string') {
-        const fallbackPayload = this.coerceSalaryGradeForLegacyInt(payload);
+      const dbPayload = this.toSupabasePersonnelPayload(payload);
+      delete dbPayload.id;
+      let { data: updated, error } = await supabase.from('personnel').update(dbPayload).eq('id', id).select().single();
+      if (error && error.code === '22P02') {
+        const fallbackPayload = this.coerceSalaryGradeForLegacyInt(dbPayload);
         const retry = await supabase.from('personnel').update(fallbackPayload).eq('id', id).select().single();
         if (!retry.error) {
           updated = retry.data;
-          error = null;
-        }
-      }
-      if (error && (error.code === '42703' || (error.message && /column.*does not exist|schema cache/i.test(error.message)))) {
-        let safePayload = this.stripUnpersistedPersonnelColumns(payload);
-        if (typeof safePayload.salaryGrade === 'string') {
-          safePayload = this.coerceSalaryGradeForLegacyInt(safePayload);
-        }
-        const retry = await supabase.from('personnel').update(safePayload).eq('id', id).select().single();
-        if (!retry.error) {
-          updated = { ...retry.data, ...payload };
           error = null;
         }
       }

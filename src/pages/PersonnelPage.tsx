@@ -53,8 +53,20 @@ import {
   Check,
   Loader2,
   AlertCircle,
-  ShieldCheck
+  ShieldCheck,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Building2,
+  Calendar,
+  IdCard,
+  Mail,
+  Phone,
+  MapPin,
+  Briefcase,
+  Award
 } from 'lucide-react';
+import { calculateYearsBetween } from '../utils/personnelCsv';
 
 // ─── Export Modal Component ───────────────────────────────────────────────────
 
@@ -217,11 +229,24 @@ export const PersonnelPage: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
+  // Sorting state
+  const [sortField, setSortField] = useState<string>('rank');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
   // Personnel Type state for registration form
   const [personnelType, setPersonnelType] = useState<'Uniformed Personnel' | 'Non-Uniformed Personnel'>('Uniformed Personnel');
   const [addFormError, setAddFormError] = useState<string | null>(null);
 
-  // New Personnel Form State — all fields organized by Identity, Assignment, Orders
+  // New Personnel Form State — all 34 fields organized by A. Personal Info, B. ID & Contact, C. Career, D. Assignment
   const [newPersonnelForm, setNewPersonnelForm] = useState<Partial<Personnel>>({
     rankCategory: undefined,
     rank: '',
@@ -230,12 +255,14 @@ export const PersonnelPage: React.FC = () => {
     middleName: '',
     lastName: '',
     qualifier: '',
+    qualification: '',
     badgeNo: '',
     salaryGrade: undefined,
     plantilla: '',
     positionCategory: 'Main',
     unitCategory: 'ITMS HQ',
     subUnitCategory: 'Division',
+    officeDivision: '',
     sub_unit: '',
     details: '',
     station: '',
@@ -244,13 +271,38 @@ export const PersonnelPage: React.FC = () => {
     designation: '',
     address: '',
     gender: 'Male',
+    civilStatus: 'Single',
+    religion: '',
+    email: '',
+    phoneNumber: '',
     contactNumber: '',
+    tin: '',
+    gsisNumber: '',
+    philHealthNo: '',
+    pagibigNo: '',
     birthday: '',
+    birthdate: '',
+    ageToDate: undefined,
     dateOfEntry: '',
+    desUp: '',
+    dateEnteredService: '',
+    ageOfServiceToDate: undefined,
+    sourceOfCommissionship: '',
+    dateOfOfficershipOrCommission: '',
     enterInOfficerPositionDate: '',
     designationDate: '',
     effectiveDate: '',
     lastPromotionDate: '',
+    pstatus: 'Active',
+    pstatusDate: '',
+    rankStatus: 'PERM',
+    unitCode: 'C02',
+    unit: 'ITMS',
+    subUnitCode: '',
+    subUnit: '',
+    stationCode: '',
+    subStationCode: '',
+    subStation: '',
     status: 'Active'
   });
 
@@ -299,6 +351,7 @@ export const PersonnelPage: React.FC = () => {
         rankCategory: 'NUP',
         rank: 'NUP',
         rankFullName: 'Non-Uniformed Personnel',
+        badgeNo: '',
         salaryGrade: prev.salaryGrade || '14'
       }));
     }
@@ -354,16 +407,47 @@ export const PersonnelPage: React.FC = () => {
     return personnelList.filter(p => {
       if (globalSearchQuery && globalSearchQuery.trim().length > 0) {
         const q = globalSearchQuery.toLowerCase().trim();
-        const su = (p.sub_unit || p.division || '').toLowerCase();
+        const su = (p.sub_unit || p.division || p.subUnit || '').toLowerCase();
         const dt = (p.details || p.detail || '').toLowerCase();
         const st = (p.station || '').toLowerCase();
+        const od = (p.officeDivision || p.unit || '').toLowerCase();
+        const qual = (p.qualification || p.qualifier || '').toLowerCase();
+        const sg = (p.salaryGrade ? String(p.salaryGrade) : '').toLowerCase();
+        const des = (p.desUp || p.dateOfEntry || p.dateEnteredService || '').toLowerCase();
+        const dob = (p.birthdate || p.birthday || '').toLowerCase();
+        const tin = (p.tin || '').toLowerCase();
+        const email = (p.email || '').toLowerCase();
+        const phone = (p.phoneNumber || p.contactNumber || '').toLowerCase();
+        const gsis = (p.gsisNumber || '').toLowerCase();
+        const philhealth = (p.philHealthNo || '').toLowerCase();
+        const pagibig = (p.pagibigNo || '').toLowerCase();
+        const badge = (p.badgeNo || '').toLowerCase();
+        const unitCode = (p.unitCode || '').toLowerCase();
+        const subUnitCode = (p.subUnitCode || '').toLowerCase();
+        const stationCode = (p.stationCode || '').toLowerCase();
+        const subStation = (p.subStation || p.subStationCode || '').toLowerCase();
         const matchesGlobal = (
           (p.fullName && p.fullName.toLowerCase().includes(q)) ||
-          (p.badgeNo && p.badgeNo.toLowerCase().includes(q)) ||
+          badge.includes(q) ||
+          sg.includes(q) ||
           (p.rank && p.rank.toLowerCase().includes(q)) ||
+          od.includes(q) ||
           su.includes(q) ||
           dt.includes(q) ||
           st.includes(q) ||
+          qual.includes(q) ||
+          des.includes(q) ||
+          dob.includes(q) ||
+          tin.includes(q) ||
+          email.includes(q) ||
+          phone.includes(q) ||
+          gsis.includes(q) ||
+          philhealth.includes(q) ||
+          pagibig.includes(q) ||
+          unitCode.includes(q) ||
+          subUnitCode.includes(q) ||
+          stationCode.includes(q) ||
+          subStation.includes(q) ||
           (p.designation && p.designation.toLowerCase().includes(q))
         );
         if (!matchesGlobal) return false;
@@ -461,12 +545,44 @@ export const PersonnelPage: React.FC = () => {
     [selectedIds, personnelList, filteredPersonnel]
   );
 
+  // Sorted Personnel
+  const sortedPersonnel = useMemo(() => {
+    return [...filteredPersonnel].sort((a, b) => {
+      let aVal = '';
+      let bVal = '';
+      if (sortField === 'name') {
+        aVal = `${a.lastName || ''} ${a.firstName || ''}`;
+        bVal = `${b.lastName || ''} ${b.firstName || ''}`;
+      } else if (sortField === 'badge') {
+        aVal = a.badgeNo || (a.salaryGrade ? `SG-${a.salaryGrade}` : '');
+        bVal = b.badgeNo || (b.salaryGrade ? `SG-${b.salaryGrade}` : '');
+      } else if (sortField === 'rank') {
+        aVal = a.rank || '';
+        bVal = b.rank || '';
+      } else if (sortField === 'status') {
+        aVal = a.status || '';
+        bVal = b.status || '';
+      } else if (sortField === 'officeDivision') {
+        aVal = a.officeDivision || a.sub_unit || a.division || '';
+        bVal = b.officeDivision || b.sub_unit || b.division || '';
+      } else if (sortField === 'designation') {
+        aVal = a.designation || '';
+        bVal = b.designation || '';
+      } else if (sortField === 'entryDate') {
+        aVal = a.desUp || a.dateOfEntry || '';
+        bVal = b.desUp || b.dateOfEntry || '';
+      }
+      const cmp = aVal.localeCompare(bVal);
+      return sortDirection === 'asc' ? cmp : -cmp;
+    });
+  }, [filteredPersonnel, sortField, sortDirection]);
+
   // Paginated Data
-  const totalPages = Math.ceil(filteredPersonnel.length / pageSize) || 1;
+  const totalPages = Math.ceil(sortedPersonnel.length / pageSize) || 1;
   const paginatedPersonnel = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
-    return filteredPersonnel.slice(start, start + pageSize);
-  }, [filteredPersonnel, currentPage, pageSize]);
+    return sortedPersonnel.slice(start, start + pageSize);
+  }, [sortedPersonnel, currentPage, pageSize]);
 
   // Inspect Personnel Handler
   const handleInspectRow = (
@@ -507,18 +623,40 @@ export const PersonnelPage: React.FC = () => {
     }
 
     const isUniformed = newPersonnelForm.rankCategory !== 'NUP';
+    const trimmedBadge = (newPersonnelForm.badgeNo || '').trim();
+    if (isUniformed) {
+      if (!trimmedBadge) {
+        setAddFormError('Badge Number is required for Uniformed Personnel.');
+        return;
+      }
+      const existing = personnelList.find(
+        p => p.badgeNo && p.badgeNo.toLowerCase() === trimmedBadge.toLowerCase()
+      );
+      if (existing) {
+        setAddFormError(`A personnel record with Badge Number "${trimmedBadge}" already exists (${existing.fullName}).`);
+        return;
+      }
+    }
+
     const rankStr = newPersonnelForm.rank;
     const rankFull = isUniformed ? getRankFullName(rankStr) : 'Non-Uniformed Personnel';
     const rankCat = newPersonnelForm.rankCategory;
     const fnStr   = (newPersonnelForm.firstName || '').toUpperCase();
     const mnStr   = (newPersonnelForm.middleName || '').toUpperCase();
     const lnStr   = (newPersonnelForm.lastName || '').toUpperCase();
-    const qStr    = (newPersonnelForm.qualifier || '').toUpperCase();
+    const qStr    = (newPersonnelForm.qualification || newPersonnelForm.qualifier || '').toUpperCase();
     const full    = `${rankStr} ${fnStr}${mnStr ? ' ' + mnStr[0] + '.' : ''} ${lnStr}${qStr ? ' ' + qStr : ''}`.trim();
 
-    const subUnitStr = (newPersonnelForm.sub_unit || newPersonnelForm.division || '').trim();
+    const unitStr = (newPersonnelForm.unit || newPersonnelForm.officeDivision || 'ITMS').trim();
+    const subUnitStr = (newPersonnelForm.subUnit || newPersonnelForm.sub_unit || newPersonnelForm.division || '').trim();
     const detailsStr = (newPersonnelForm.details || newPersonnelForm.detail || '').trim();
     const stationStr = (newPersonnelForm.station || '').trim();
+    const phoneStr   = (newPersonnelForm.phoneNumber || newPersonnelForm.contactNumber || '').trim();
+
+    const bdate = newPersonnelForm.birthdate || newPersonnelForm.birthday || '';
+    const calculatedAge = newPersonnelForm.ageToDate || (bdate ? calculateYearsBetween(bdate) : undefined);
+    const sdate = newPersonnelForm.dateEnteredService || newPersonnelForm.desUp || newPersonnelForm.dateOfEntry || '';
+    const calculatedService = newPersonnelForm.ageOfServiceToDate || (sdate ? calculateYearsBetween(sdate) : undefined);
 
     const created: Personnel = {
       id: `pnp-${Date.now()}`,
@@ -526,32 +664,60 @@ export const PersonnelPage: React.FC = () => {
       rank: rankStr,
       rankFullName: rankFull,
       firstName: fnStr,
-      middleName: mnStr,
+      middleName: mnStr || undefined,
       lastName: lnStr,
-      qualifier: qStr,
+      qualifier: qStr || undefined,
+      qualification: qStr || undefined,
       fullName: full,
-      badgeNo: newPersonnelForm.badgeNo || '',
+      badgeNo: isUniformed ? trimmedBadge : '',
+      badge_number: isUniformed ? trimmedBadge : '',
       salaryGrade: isUniformed ? undefined : (String(newPersonnelForm.salaryGrade || '').trim() || undefined),
       plantilla: isUniformed ? '' : (newPersonnelForm.plantilla || '').trim(),
       positionCategory: newPersonnelForm.positionCategory || 'Main',
       unitCategory: newPersonnelForm.unitCategory || 'ITMS HQ',
       subUnitCategory: newPersonnelForm.subUnitCategory || 'Division',
-      sub_unit: subUnitStr,
-      details: detailsStr,
-      station: stationStr,
-      division: subUnitStr,
-      detail: detailsStr,
-      designation: newPersonnelForm.designation || '',
-      address: newPersonnelForm.address || '',
+      officeDivision: unitStr || undefined,
+      sub_unit: subUnitStr || undefined,
+      details: detailsStr || undefined,
+      station: stationStr || undefined,
+      division: subUnitStr || undefined,
+      detail: detailsStr || undefined,
+      designation: (newPersonnelForm.designation || '').trim() || undefined,
+      address: (newPersonnelForm.address || '').trim() || undefined,
       gender: newPersonnelForm.gender || 'Male',
-      contactNumber: newPersonnelForm.contactNumber || '',
-      birthday: newPersonnelForm.birthday || '',
-      dateOfEntry: newPersonnelForm.dateOfEntry || '',
-      enterInOfficerPositionDate: newPersonnelForm.enterInOfficerPositionDate || '',
+      civilStatus: (newPersonnelForm.civilStatus || '').trim() || undefined,
+      religion: (newPersonnelForm.religion || '').trim() || undefined,
+      email: (newPersonnelForm.email || '').trim() || undefined,
+      phoneNumber: phoneStr || undefined,
+      contactNumber: phoneStr || undefined,
+      tin: (newPersonnelForm.tin || '').trim() || undefined,
+      gsisNumber: (newPersonnelForm.gsisNumber || '').trim() || undefined,
+      philHealthNo: (newPersonnelForm.philHealthNo || '').trim() || undefined,
+      pagibigNo: (newPersonnelForm.pagibigNo || '').trim() || undefined,
+      birthday: bdate || undefined,
+      birthdate: bdate || undefined,
+      ageToDate: calculatedAge,
+      dateOfEntry: sdate || undefined,
+      desUp: sdate || undefined,
+      dateEnteredService: sdate || undefined,
+      ageOfServiceToDate: calculatedService,
+      sourceOfCommissionship: (newPersonnelForm.sourceOfCommissionship || '').trim() || undefined,
+      dateOfOfficershipOrCommission: (newPersonnelForm.dateOfOfficershipOrCommission || newPersonnelForm.enterInOfficerPositionDate || '').trim() || undefined,
+      enterInOfficerPositionDate: (newPersonnelForm.dateOfOfficershipOrCommission || newPersonnelForm.enterInOfficerPositionDate || '').trim() || undefined,
       designationDate: newPersonnelForm.designationDate || '',
       effectiveDate: newPersonnelForm.effectiveDate || '',
       lastPromotionDate: newPersonnelForm.lastPromotionDate || '',
-      status: newPersonnelForm.status || 'Active',
+      pstatus: newPersonnelForm.pstatus || newPersonnelForm.status || 'Active',
+      pstatusDate: newPersonnelForm.pstatusDate || '',
+      status: newPersonnelForm.status || newPersonnelForm.pstatus || 'Active',
+      rankStatus: newPersonnelForm.rankStatus || 'PERM',
+      unitCode: (newPersonnelForm.unitCode || 'C02').trim() || undefined,
+      unit: unitStr || undefined,
+      subUnitCode: (newPersonnelForm.subUnitCode || '').trim() || undefined,
+      subUnit: subUnitStr || undefined,
+      stationCode: (newPersonnelForm.stationCode || '').trim() || undefined,
+      subStationCode: (newPersonnelForm.subStationCode || '').trim() || undefined,
+      subStation: (newPersonnelForm.subStation || '').trim() || undefined,
     };
 
     addPersonnel(created);
@@ -567,12 +733,14 @@ export const PersonnelPage: React.FC = () => {
       middleName: '',
       lastName: '',
       qualifier: '',
+      qualification: '',
       badgeNo: '',
       salaryGrade: undefined,
       plantilla: '',
       positionCategory: 'Main',
       unitCategory: 'ITMS HQ',
       subUnitCategory: 'Division',
+      officeDivision: '',
       sub_unit: '',
       details: '',
       station: '',
@@ -581,13 +749,38 @@ export const PersonnelPage: React.FC = () => {
       designation: '',
       address: '',
       gender: 'Male',
+      civilStatus: 'Single',
+      religion: '',
+      email: '',
+      phoneNumber: '',
       contactNumber: '',
+      tin: '',
+      gsisNumber: '',
+      philHealthNo: '',
+      pagibigNo: '',
       birthday: '',
+      birthdate: '',
+      ageToDate: undefined,
       dateOfEntry: '',
+      desUp: '',
+      dateEnteredService: '',
+      ageOfServiceToDate: undefined,
+      sourceOfCommissionship: '',
+      dateOfOfficershipOrCommission: '',
       enterInOfficerPositionDate: '',
       designationDate: '',
       effectiveDate: '',
       lastPromotionDate: '',
+      pstatus: 'Active',
+      pstatusDate: '',
+      rankStatus: 'PERM',
+      unitCode: 'C02',
+      unit: 'ITMS',
+      subUnitCode: '',
+      subUnit: '',
+      stationCode: '',
+      subStationCode: '',
+      subStation: '',
       status: 'Active'
     });
   };
@@ -878,12 +1071,14 @@ export const PersonnelPage: React.FC = () => {
                         middleName: '',
                         lastName: '',
                         qualifier: '',
+                        qualification: '',
                         badgeNo: '',
                         salaryGrade: undefined,
                         plantilla: '',
                         positionCategory: 'Main',
                         unitCategory: 'ITMS HQ',
                         subUnitCategory: 'Division',
+                        officeDivision: '',
                         sub_unit: '',
                         details: '',
                         station: '',
@@ -894,7 +1089,11 @@ export const PersonnelPage: React.FC = () => {
                         gender: 'Male',
                         contactNumber: '',
                         birthday: '',
+                        birthdate: '',
+                        ageToDate: undefined,
                         dateOfEntry: '',
+                        desUp: '',
+                        ageOfServiceToDate: undefined,
                         enterInOfficerPositionDate: '',
                         designationDate: '',
                         effectiveDate: '',
@@ -962,15 +1161,28 @@ export const PersonnelPage: React.FC = () => {
                     }
                   </button>
                 </th>}
-                <th scope="col">Rank &amp; name</th>
-                <th scope="col">Badge no.</th>
+                <th scope="col" className="cursor-pointer hover:text-blue-700 select-none" onClick={() => handleSort('name')}>
+                  Rank &amp; name {sortField === 'name' ? (sortDirection === 'asc' ? <ArrowUp className="w-3 h-3 inline text-blue-700" /> : <ArrowDown className="w-3 h-3 inline text-blue-700" />) : <ArrowUpDown className="w-3 h-3 inline text-slate-400 opacity-60" />}
+                </th>
+                <th scope="col" className="cursor-pointer hover:text-blue-700 select-none" onClick={() => handleSort('status')}>
+                  Status {sortField === 'status' ? (sortDirection === 'asc' ? <ArrowUp className="w-3 h-3 inline text-blue-700" /> : <ArrowDown className="w-3 h-3 inline text-blue-700" />) : <ArrowUpDown className="w-3 h-3 inline text-slate-400 opacity-60" />}
+                </th>
+                <th scope="col" className="cursor-pointer hover:text-blue-700 select-none" onClick={() => handleSort('badge')}>
+                  Badge no. / SG {sortField === 'badge' ? (sortDirection === 'asc' ? <ArrowUp className="w-3 h-3 inline text-blue-700" /> : <ArrowDown className="w-3 h-3 inline text-blue-700" />) : <ArrowUpDown className="w-3 h-3 inline text-slate-400 opacity-60" />}
+                </th>
+                <th scope="col" className="cursor-pointer hover:text-blue-700 select-none" onClick={() => handleSort('officeDivision')}>
+                  Office / Division {sortField === 'officeDivision' ? (sortDirection === 'asc' ? <ArrowUp className="w-3 h-3 inline text-blue-700" /> : <ArrowDown className="w-3 h-3 inline text-blue-700" />) : <ArrowUpDown className="w-3 h-3 inline text-slate-400 opacity-60" />}
+                </th>
                 <th scope="col">Sub-Unit</th>
                 <th scope="col">Details</th>
                 <th scope="col">Station</th>
-                <th scope="col">Designation</th>
-                <th scope="col">Plantilla</th>
-                <th scope="col">Date of entry</th>
-                <th scope="col">Status</th>
+                <th scope="col" className="cursor-pointer hover:text-blue-700 select-none" onClick={() => handleSort('designation')}>
+                  Designation {sortField === 'designation' ? (sortDirection === 'asc' ? <ArrowUp className="w-3 h-3 inline text-blue-700" /> : <ArrowDown className="w-3 h-3 inline text-blue-700" />) : <ArrowUpDown className="w-3 h-3 inline text-slate-400 opacity-60" />}
+                </th>
+                <th scope="col">Birthdate &amp; Age</th>
+                <th scope="col" className="cursor-pointer hover:text-blue-700 select-none" onClick={() => handleSort('entryDate')}>
+                  Service / Entry {sortField === 'entryDate' ? (sortDirection === 'asc' ? <ArrowUp className="w-3 h-3 inline text-blue-700" /> : <ArrowDown className="w-3 h-3 inline text-blue-700" />) : <ArrowUpDown className="w-3 h-3 inline text-slate-400 opacity-60" />}
+                </th>
                 <th scope="col" className="text-right">Record action</th>
               </tr>
             </thead>
@@ -1003,19 +1215,65 @@ export const PersonnelPage: React.FC = () => {
                         </button>
                       </td>
                     )}
+                    {/* Rank & Name */}
                     <td>
-                      <p className="text-xs font-bold uppercase text-slate-900">{person.rank} {person.lastName}, {person.firstName} {person.middleName ? `${person.middleName.charAt(0)}.` : ''} {person.qualifier}</p>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold uppercase ${
+                          (person.rankCategory || getRankCategory(person.rank)) === 'PCO'
+                            ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                            : (person.rankCategory || getRankCategory(person.rank)) === 'PNCO'
+                              ? 'bg-blue-100 text-blue-900 border border-blue-300'
+                              : 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                        }`}>
+                          {person.rankCategory || getRankCategory(person.rank)}
+                        </span>
+                        <p className="text-xs font-bold uppercase text-slate-900">
+                          {person.rank} {person.lastName}, {person.firstName} {person.middleName ? `${person.middleName.charAt(0)}.` : ''} {person.qualifier || person.qualification || ''}
+                        </p>
+                      </div>
                       <p className="mt-0.5 text-[10px] text-slate-500">{person.rankFullName || 'Rank full name not recorded'}</p>
                     </td>
-                    <td className="font-mono font-semibold text-slate-700">{person.badgeNo || '—'}</td>
-                    {/* Sub-Unit */}
+
+                    {/* Status */}
+                    <td className="whitespace-nowrap">
+                      <span className={`status-marker ${
+                        person.status === 'Active'
+                          ? 'text-emerald-700'
+                          : 'text-amber-800'
+                      }`}>
+                        {person.status === 'Active' ? 'On duty / active' : person.status}
+                      </span>
+                    </td>
+
+                    {/* Badge No. / SG */}
                     <td>
-                      <p className="font-bold text-blue-800 text-[11px]">
-                        {(person.sub_unit || person.division)?.trim() || (
-                          <span className="font-normal text-slate-400 italic">—</span>
-                        )}
+                      {!isUniformedRank(person.rank) ? (
+                        <span className="font-mono font-bold text-emerald-800 text-[11px]">
+                          {person.salaryGrade ? `SG-${person.salaryGrade}` : '—'}
+                        </span>
+                      ) : (
+                        <span className="font-mono font-semibold text-slate-800 text-[11px]">{person.badgeNo || '—'}</span>
+                      )}
+                    </td>
+
+                    {/* Office / Division */}
+                    <td>
+                      <p className="font-semibold text-slate-900 text-[11px]">
+                        {person.officeDivision?.trim() || '—'}
                       </p>
                     </td>
+
+                    {/* Sub-Unit */}
+                    <td>
+                      {(person.sub_unit || person.division)?.trim() ? (
+                        <p className="font-medium text-slate-800 text-[11px]">
+                          {(person.sub_unit || person.division)?.trim()}
+                        </p>
+                      ) : (
+                        <p className="text-slate-400 italic text-[10px]">No sub-unit recorded</p>
+                      )}
+                    </td>
+
                     {/* Details */}
                     <td>
                       {(person.details || person.detail)?.trim() ? (
@@ -1028,6 +1286,7 @@ export const PersonnelPage: React.FC = () => {
                         </p>
                       )}
                     </td>
+
                     {/* Station */}
                     <td>
                       {person.station?.trim() ? (
@@ -1040,19 +1299,36 @@ export const PersonnelPage: React.FC = () => {
                         </p>
                       )}
                     </td>
-                    <td className="max-w-[180px]"><p className="truncate text-xs font-semibold" title={person.designation}>{person.designation || 'Not assigned'}</p></td>
-                    <td className="font-mono text-[10px]">{person.plantilla || '—'}</td>
-                    <td className="whitespace-nowrap font-mono text-[10px]">{person.dateOfEntry || '—'}</td>
 
-                    {/* Status */}
+                    {/* Designation */}
+                    <td className="max-w-[170px]">
+                      {person.designation?.trim() ? (
+                        <p className="truncate text-xs font-semibold text-slate-900" title={person.designation}>
+                          {person.designation}
+                        </p>
+                      ) : (
+                        <p className="text-slate-400 italic text-[10px]">Not assigned</p>
+                      )}
+                    </td>
+
+                    {/* Birthdate & Age */}
                     <td className="whitespace-nowrap">
-                      <span className={`status-marker ${
-                        person.status === 'Active'
-                          ? 'text-emerald-700'
-                          : 'text-amber-800'
-                      }`}>
-                        {person.status === 'Active' ? 'On duty / active' : person.status}
-                      </span>
+                      <p className="font-mono text-slate-800 text-[10px]">{person.birthdate || person.birthday || '—'}</p>
+                      {(person.ageToDate || (person.birthdate && calculateYearsBetween(person.birthdate))) && (
+                        <p className="text-[10px] text-slate-500 font-medium">
+                          {person.ageToDate || calculateYearsBetween(person.birthdate!)} yrs old
+                        </p>
+                      )}
+                    </td>
+
+                    {/* Service & Date of Entry */}
+                    <td className="whitespace-nowrap">
+                      <p className="font-mono text-slate-800 text-[10px]">{person.desUp || person.dateOfEntry || '—'}</p>
+                      {(person.ageOfServiceToDate || (person.desUp && calculateYearsBetween(person.desUp))) && (
+                        <p className="text-[10px] text-blue-700 font-semibold">
+                          {person.ageOfServiceToDate || calculateYearsBetween(person.desUp!)} yrs svc
+                        </p>
+                      )}
                     </td>
 
                     {/* ACTIONS DROPDOWN BUTTON */}
@@ -1313,34 +1589,42 @@ export const PersonnelPage: React.FC = () => {
       {/* ADD NEW PERSONNEL MODAL */}
       {addModalOpen && canManage && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-900/60 backdrop-blur-xs p-2 sm:p-4 overflow-y-auto" role="presentation">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-3xl overflow-hidden animate-scale-in my-2 sm:my-6" role="dialog" aria-modal="true" aria-labelledby="add-personnel-title">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-4xl overflow-hidden animate-scale-in my-2 sm:my-6 flex flex-col max-h-[92vh]" role="dialog" aria-modal="true" aria-labelledby="add-personnel-title">
             {/* Header */}
-            <div className="bg-white text-slate-900 px-6 py-4 flex items-center justify-between border-b border-slate-200">
-              <div className="flex items-center gap-2 font-bold text-sm">
-                <UserPlus className="w-5 h-5" />
-                <span id="add-personnel-title">Register New Personnel Record</span>
+            <div className="bg-white text-slate-900 px-6 py-4 flex items-center justify-between border-b border-slate-200 shrink-0">
+              <div className="flex items-center gap-2.5 font-bold text-sm">
+                <div className="p-1.5 bg-blue-50 text-blue-700 rounded-lg border border-blue-200">
+                  <UserPlus className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 id="add-personnel-title" className="text-sm font-extrabold text-slate-900">Register New Personnel Record</h3>
+                  <p className="text-[11px] text-slate-500 font-normal">Official 34-Column Roster Specification · PAIS 2.0</p>
+                </div>
               </div>
-              <button onClick={() => setAddModalOpen(false)} className="text-slate-400 hover:text-slate-900" aria-label="Close add personnel dialog">
+              <button onClick={() => setAddModalOpen(false)} className="text-slate-400 hover:text-slate-900 p-1.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer" aria-label="Close add personnel dialog">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleAddPersonnelSubmit} className="p-4 sm:p-6 space-y-5 text-xs">
+            <form onSubmit={handleAddPersonnelSubmit} className="p-4 sm:p-6 space-y-6 text-xs overflow-y-auto flex-1">
               {addFormError && (
-                <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-semibold text-red-700 flex items-center gap-2">
+                <div className="rounded-xl border border-red-200 bg-red-50 p-3.5 text-xs font-semibold text-red-700 flex items-center gap-2.5">
                   <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
                   <span>{addFormError}</span>
                 </div>
               )}
 
-              {/* ── Section 1: Identity ── */}
-              <div className="rounded-xl bg-slate-50 border border-slate-200 p-4 space-y-3">
-                <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-                  <div>
-                    <p className="text-2xs font-extrabold text-blue-800 uppercase tracking-widest">1. Identity &amp; Credentials</p>
-                    <p className="text-[11px] text-slate-500">Permanent biographical credentials and rank. Designation dates and Salary Grade belong to Orders and Assignment.</p>
+              {/* ── Section A: Personal Information ── */}
+              <div className="rounded-xl bg-slate-50 border border-slate-200 p-4 sm:p-5 space-y-3.5">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-2.5">
+                  <div className="flex items-center gap-2">
+                    <User className="w-4 h-4 text-blue-700" />
+                    <div>
+                      <p className="text-2xs font-extrabold text-blue-800 uppercase tracking-widest">A. Personal Information</p>
+                      <p className="text-[11px] text-slate-500">Biographical credentials, official rank, civil status, and personal details.</p>
+                    </div>
                   </div>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-800 uppercase">Identity</span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-800 uppercase">Personal Info</span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -1381,7 +1665,7 @@ export const PersonnelPage: React.FC = () => {
                       required
                     >
                       {!newPersonnelForm.rankCategory ? (
-                        <option value="">-- Select Rank Category first --</option>
+                        <option value="">-- Select Category First --</option>
                       ) : newPersonnelForm.rankCategory === 'PCO' ? (
                         <>
                           <option value="">-- Select PCO Rank --</option>
@@ -1402,57 +1686,34 @@ export const PersonnelPage: React.FC = () => {
                     </select>
                   </div>
 
-                  {newPersonnelForm.rankCategory === 'NUP' && (
-                    <div className="col-span-1 sm:col-span-2 lg:col-span-4 p-3 rounded-xl bg-blue-50 border border-blue-200 text-blue-950 text-xs flex items-start gap-2.5">
-                      <ShieldCheck className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
-                      <div className="space-y-0.5">
-                        <p className="font-bold text-blue-950">Non-Uniformed Personnel (NUP)</p>
-                        <p className="text-blue-800">
-                          Strictly isolated from uniformed police ranks. Rank is automatically set to <strong>NUP (Non-Uniformed Personnel)</strong>. Please record the employee's <strong>Plantilla Item</strong>, <strong>Salary Grade (SG)</strong>, and <strong>Position/Designation</strong> under the <strong>Assignment Details</strong> section below.
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Badge No */}
+                  {/* Last Name */}
                   <div>
-                    <label className="block text-2xs font-bold text-slate-700 mb-1">Badge Number *</label>
+                    <label className="block text-2xs font-bold text-slate-700 mb-1">Last Name <span className="text-red-500">*</span></label>
                     <input
                       type="text"
                       required
-                      value={newPersonnelForm.badgeNo || ''}
-                      onChange={e => setNewPersonnelForm({...newPersonnelForm, badgeNo: e.target.value})}
-                      className="w-full p-2 border border-slate-300 rounded font-mono font-bold bg-white focus:outline-none focus:border-blue-500"
-                      placeholder="e.g. 20230200374"
+                      value={newPersonnelForm.lastName || ''}
+                      onChange={e => setNewPersonnelForm({...newPersonnelForm, lastName: e.target.value})}
+                      className="w-full p-2 border border-slate-300 rounded font-bold uppercase bg-white focus:outline-none focus:border-blue-500"
+                      placeholder="e.g. DELA CRUZ"
                     />
                   </div>
 
-                  {/* Qualifier */}
-                  <div>
-                    <label className="block text-2xs font-bold text-slate-700 mb-1">Qualifier</label>
-                    <input
-                      type="text"
-                      value={newPersonnelForm.qualifier || ''}
-                      onChange={e => setNewPersonnelForm({...newPersonnelForm, qualifier: e.target.value})}
-                      className="w-full p-2 border border-slate-300 rounded bg-white focus:outline-none focus:border-blue-500"
-                      placeholder="e.g. JR. / III"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                   {/* First Name */}
                   <div>
-                    <label className="block text-2xs font-bold text-slate-700 mb-1">First Name *</label>
+                    <label className="block text-2xs font-bold text-slate-700 mb-1">First Name <span className="text-red-500">*</span></label>
                     <input
                       type="text"
                       required
                       value={newPersonnelForm.firstName || ''}
                       onChange={e => setNewPersonnelForm({...newPersonnelForm, firstName: e.target.value})}
-                      className="w-full p-2 border border-slate-300 rounded font-bold bg-white focus:outline-none focus:border-blue-500"
-                      placeholder="e.g. RUEL"
+                      className="w-full p-2 border border-slate-300 rounded font-bold uppercase bg-white focus:outline-none focus:border-blue-500"
+                      placeholder="e.g. JUAN"
                     />
                   </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                   {/* Middle Name */}
                   <div>
                     <label className="block text-2xs font-bold text-slate-700 mb-1">Middle Name</label>
@@ -1460,192 +1721,295 @@ export const PersonnelPage: React.FC = () => {
                       type="text"
                       value={newPersonnelForm.middleName || ''}
                       onChange={e => setNewPersonnelForm({...newPersonnelForm, middleName: e.target.value})}
-                      className="w-full p-2 border border-slate-300 rounded bg-white focus:outline-none focus:border-blue-500"
-                      placeholder="e.g. AMPIS"
+                      className="w-full p-2 border border-slate-300 rounded uppercase bg-white focus:outline-none focus:border-blue-500"
+                      placeholder="e.g. SANTOS"
                     />
                   </div>
-                  {/* Last Name */}
+
+                  {/* Qualification (Qual) */}
                   <div>
-                    <label className="block text-2xs font-bold text-slate-700 mb-1">Last Name *</label>
+                    <label className="block text-2xs font-bold text-slate-700 mb-1">Qualification (QUAL.)</label>
                     <input
                       type="text"
-                      required
-                      value={newPersonnelForm.lastName || ''}
-                      onChange={e => setNewPersonnelForm({...newPersonnelForm, lastName: e.target.value})}
-                      className="w-full p-2 border border-slate-300 rounded font-bold bg-white focus:outline-none focus:border-blue-500"
-                      placeholder="e.g. APALLA"
+                      value={newPersonnelForm.qualification || newPersonnelForm.qualifier || ''}
+                      onChange={e => setNewPersonnelForm({
+                        ...newPersonnelForm,
+                        qualification: e.target.value,
+                        qualifier: e.target.value
+                      })}
+                      className="w-full p-2 border border-slate-300 rounded uppercase bg-white focus:outline-none focus:border-blue-500"
+                      placeholder="e.g. JR., III, MSCS, CPA"
                     />
                   </div>
+
+                  {/* Birthdate */}
+                  <div>
+                    <label className="block text-2xs font-bold text-slate-700 mb-1">BirthDate</label>
+                    <input
+                      type="date"
+                      value={newPersonnelForm.birthdate || newPersonnelForm.birthday || ''}
+                      onChange={e => {
+                        const bdate = e.target.value;
+                        const age = calculateYearsBetween(bdate);
+                        setNewPersonnelForm({
+                          ...newPersonnelForm,
+                          birthdate: bdate,
+                          birthday: bdate,
+                          ageToDate: age || undefined
+                        });
+                      }}
+                      className="w-full p-2 border border-slate-300 rounded font-mono bg-white focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  {/* Age to Date */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-2xs font-bold text-slate-700">Age to Date</label>
+                      <span className="text-[10px] text-blue-600 font-semibold">Auto-Calculated</span>
+                    </div>
+                    <input
+                      type="number"
+                      value={newPersonnelForm.ageToDate ?? ''}
+                      onChange={e => setNewPersonnelForm({
+                        ...newPersonnelForm,
+                        ageToDate: e.target.value ? parseInt(e.target.value, 10) : undefined
+                      })}
+                      className="w-full p-2 border border-slate-300 rounded font-bold text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500"
+                      placeholder="e.g. 38"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                   {/* Gender */}
                   <div>
-                    <label className="block text-2xs font-bold text-slate-700 mb-1">Gender *</label>
+                    <label className="block text-2xs font-bold text-slate-700 mb-1">Gender <span className="text-red-500">*</span></label>
                     <select
                       value={newPersonnelForm.gender || 'Male'}
                       onChange={e => setNewPersonnelForm({...newPersonnelForm, gender: e.target.value})}
-                      className="w-full p-2 border border-slate-300 rounded bg-white focus:outline-none focus:border-blue-500 cursor-pointer"
+                      className="w-full p-2 border border-slate-300 rounded bg-white focus:outline-none focus:border-blue-500 cursor-pointer font-semibold"
                     >
                       <option value="Male">Male</option>
                       <option value="Female">Female</option>
                     </select>
                   </div>
-                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  {/* Civil Status */}
                   <div>
-                    <label className="block text-2xs font-bold text-slate-700 mb-1">Birthday</label>
-                    <input
-                      type="date"
-                      value={newPersonnelForm.birthday || ''}
-                      onChange={e => setNewPersonnelForm({...newPersonnelForm, birthday: e.target.value})}
-                      className="w-full p-2 border border-slate-300 rounded font-mono bg-white focus:outline-none focus:border-blue-500"
-                    />
+                    <label className="block text-2xs font-bold text-slate-700 mb-1">Civil Status</label>
+                    <select
+                      value={newPersonnelForm.civilStatus || 'Single'}
+                      onChange={e => setNewPersonnelForm({...newPersonnelForm, civilStatus: e.target.value})}
+                      className="w-full p-2 border border-slate-300 rounded bg-white focus:outline-none focus:border-blue-500 cursor-pointer"
+                    >
+                      <option value="Single">Single</option>
+                      <option value="Married">Married</option>
+                      <option value="Widowed">Widowed</option>
+                      <option value="Separated">Separated</option>
+                      <option value="Divorced">Divorced</option>
+                    </select>
                   </div>
+
+                  {/* Religion */}
                   <div>
-                    <label className="block text-2xs font-bold text-slate-700 mb-1">Contact Number</label>
+                    <label className="block text-2xs font-bold text-slate-700 mb-1">Religion</label>
                     <input
                       type="text"
-                      value={newPersonnelForm.contactNumber || ''}
-                      onChange={e => setNewPersonnelForm({...newPersonnelForm, contactNumber: e.target.value})}
-                      className="w-full p-2 border border-slate-300 rounded font-mono bg-white focus:outline-none focus:border-blue-500"
-                      placeholder="e.g. 0917-000-0000"
+                      value={newPersonnelForm.religion || ''}
+                      onChange={e => setNewPersonnelForm({...newPersonnelForm, religion: e.target.value})}
+                      className="w-full p-2 border border-slate-300 rounded bg-white focus:outline-none focus:border-blue-500"
+                      placeholder="e.g. Roman Catholic, Christian, Islam"
                     />
                   </div>
-                  <div className="sm:col-span-2">
-                    <label className="block text-2xs font-bold text-slate-700 mb-1">Residential Address</label>
+
+                  {/* Residential Address */}
+                  <div className="sm:col-span-3 lg:col-span-1">
+                    <label className="block text-2xs font-bold text-slate-700 mb-1">Address</label>
                     <input
                       type="text"
                       value={newPersonnelForm.address || ''}
                       onChange={e => setNewPersonnelForm({...newPersonnelForm, address: e.target.value})}
                       className="w-full p-2 border border-slate-300 rounded bg-white focus:outline-none focus:border-blue-500"
-                      placeholder="e.g. 123 Rizal St., Quezon City, Metro Manila"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-slate-200">
-                  <div>
-                    <label className="block text-2xs font-bold text-slate-700 mb-1">Date of Entry into Police Service</label>
-                    <input
-                      type="date"
-                      value={newPersonnelForm.dateOfEntry || ''}
-                      onChange={e => setNewPersonnelForm({...newPersonnelForm, dateOfEntry: e.target.value})}
-                      className="w-full p-2 border border-slate-300 rounded font-mono bg-white focus:outline-none focus:border-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-2xs font-bold text-slate-700 mb-1">Last Promotion Date</label>
-                    <input
-                      type="date"
-                      value={newPersonnelForm.lastPromotionDate || ''}
-                      onChange={e => setNewPersonnelForm({...newPersonnelForm, lastPromotionDate: e.target.value})}
-                      className="w-full p-2 border border-slate-300 rounded font-mono bg-white focus:outline-none focus:border-blue-500"
+                      placeholder="Residential address"
                     />
                   </div>
                 </div>
               </div>
 
-              {/* ── Section 2: Assignment ── */}
-              <div className="rounded-xl bg-slate-50 border border-slate-200 p-4 space-y-3">
-                <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-                  <div>
-                    <p className="text-2xs font-extrabold text-blue-800 uppercase tracking-widest">2. Organizational Assignment</p>
-                    <p className="text-[11px] text-slate-500">Postings, unit hierarchy, station, and compensation grade (SG). Station is optional.</p>
+              {/* ── Section B: Identification & Contact ── */}
+              <div className="rounded-xl bg-slate-50 border border-slate-200 p-4 sm:p-5 space-y-3.5">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-2.5">
+                  <div className="flex items-center gap-2">
+                    <IdCard className="w-4 h-4 text-emerald-700" />
+                    <div>
+                      <p className="text-2xs font-extrabold text-emerald-800 uppercase tracking-widest">B. Identification &amp; Contact</p>
+                      <p className="text-[11px] text-slate-500">PNP Badge, government identification numbers, and contact channels.</p>
+                    </div>
                   </div>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800 uppercase">Assignment</span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 uppercase">ID &amp; Contact</span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  {/* Position Category */}
+                  {/* Badge No (Uniformed) vs Salary Grade (NUP) */}
+                  {newPersonnelForm.rankCategory !== 'NUP' ? (
+                    <div>
+                      <label className="block text-2xs font-bold text-slate-700 mb-1">Badge Number <span className="text-red-500">*</span></label>
+                      <input
+                        type="text"
+                        required
+                        value={newPersonnelForm.badgeNo || ''}
+                        onChange={e => setNewPersonnelForm({...newPersonnelForm, badgeNo: e.target.value})}
+                        className="w-full p-2 border border-slate-300 rounded font-mono font-bold bg-white focus:outline-none focus:border-blue-500"
+                        placeholder="e.g. O-08161, 230200"
+                      />
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block text-2xs font-bold text-slate-700 mb-1">Salary Grade (SG) <span className="text-red-500">*</span></label>
+                      <input
+                        type="text"
+                        required
+                        value={newPersonnelForm.salaryGrade ?? ''}
+                        onChange={e => setNewPersonnelForm({...newPersonnelForm, salaryGrade: e.target.value})}
+                        className="w-full p-2 border border-slate-300 rounded font-bold text-emerald-800 bg-white focus:outline-none focus:border-blue-500"
+                        placeholder="e.g. 14, SG-14"
+                      />
+                    </div>
+                  )}
+
+                  {/* Email */}
                   <div>
-                    <label className="block text-2xs font-bold text-slate-700 mb-1">Position Category *</label>
-                    <select
-                      value={newPersonnelForm.positionCategory || 'Main'}
-                      onChange={e => setNewPersonnelForm({...newPersonnelForm, positionCategory: e.target.value as any})}
-                      className="w-full p-2 border border-slate-300 rounded font-semibold bg-white focus:outline-none focus:border-blue-500 cursor-pointer"
-                    >
-                      {POSITION_CATEGORIES.map(pc => (
-                        <option key={pc} value={pc}>{pc}</option>
-                      ))}
-                    </select>
+                    <label className="block text-2xs font-bold text-slate-700 mb-1">Email</label>
+                    <input
+                      type="email"
+                      value={newPersonnelForm.email || ''}
+                      onChange={e => setNewPersonnelForm({...newPersonnelForm, email: e.target.value})}
+                      className="w-full p-2 border border-slate-300 rounded bg-white focus:outline-none focus:border-blue-500"
+                      placeholder="e.g. officer@pnp.gov.ph"
+                    />
                   </div>
 
-                  {/* Unit Category */}
+                  {/* Phone Number */}
                   <div>
-                    <label className="block text-2xs font-bold text-slate-700 mb-1">Unit Category *</label>
-                    <select
-                      value={newPersonnelForm.unitCategory || 'ITMS HQ'}
-                      onChange={e => setNewPersonnelForm({...newPersonnelForm, unitCategory: e.target.value as any})}
-                      className="w-full p-2 border border-slate-300 rounded font-semibold bg-white focus:outline-none focus:border-blue-500 cursor-pointer"
-                    >
-                      {UNIT_CATEGORIES.map(uc => (
-                        <option key={uc} value={uc}>{uc}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Sub-Unit Category */}
-                  <div>
-                    <label className="block text-2xs font-bold text-slate-700 mb-1">Sub-Unit Category *</label>
-                    <select
-                      value={newPersonnelForm.subUnitCategory || 'Division'}
-                      onChange={e => setNewPersonnelForm({...newPersonnelForm, subUnitCategory: e.target.value as any})}
-                      className="w-full p-2 border border-slate-300 rounded font-semibold bg-white focus:outline-none focus:border-blue-500 cursor-pointer"
-                    >
-                      {SUB_UNIT_CATEGORIES.map(sc => (
-                        <option key={sc} value={sc}>{sc}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Sub-Unit Name */}
-                  <div>
-                    <label className="block text-2xs font-bold text-slate-700 mb-1">Sub-Unit Name</label>
+                    <label className="block text-2xs font-bold text-slate-700 mb-1">Phone Number</label>
                     <input
                       type="text"
-                      value={newPersonnelForm.sub_unit ?? newPersonnelForm.division ?? ''}
+                      value={newPersonnelForm.phoneNumber || newPersonnelForm.contactNumber || ''}
                       onChange={e => setNewPersonnelForm({
                         ...newPersonnelForm,
-                        sub_unit: e.target.value,
-                        division: e.target.value
+                        phoneNumber: e.target.value,
+                        contactNumber: e.target.value
                       })}
-                      className="w-full p-2 border border-slate-300 rounded bg-white focus:outline-none focus:border-blue-500 font-medium"
-                      placeholder="e.g. Network Operations Section"
+                      className="w-full p-2 border border-slate-300 rounded font-mono bg-white focus:outline-none focus:border-blue-500"
+                      placeholder="e.g. 0917-123-4567"
+                    />
+                  </div>
+
+                  {/* TIN */}
+                  <div>
+                    <label className="block text-2xs font-bold text-slate-700 mb-1">TIN</label>
+                    <input
+                      type="text"
+                      value={newPersonnelForm.tin || ''}
+                      onChange={e => setNewPersonnelForm({...newPersonnelForm, tin: e.target.value})}
+                      className="w-full p-2 border border-slate-300 rounded font-mono bg-white focus:outline-none focus:border-blue-500"
+                      placeholder="e.g. 900-744-527"
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  {/* Details */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {/* GSIS Number */}
                   <div>
-                    <label className="block text-2xs font-bold text-slate-700 mb-1">Details</label>
+                    <label className="block text-2xs font-bold text-slate-700 mb-1">Gsis Number</label>
                     <input
                       type="text"
-                      value={newPersonnelForm.details ?? newPersonnelForm.detail ?? ''}
-                      onChange={e => setNewPersonnelForm({
-                        ...newPersonnelForm,
-                        details: e.target.value,
-                        detail: e.target.value
-                      })}
-                      className="w-full p-2 border border-slate-300 rounded bg-white focus:outline-none focus:border-blue-500 font-medium"
-                      placeholder="e.g. Network Monitoring"
+                      value={newPersonnelForm.gsisNumber || ''}
+                      onChange={e => setNewPersonnelForm({...newPersonnelForm, gsisNumber: e.target.value})}
+                      className="w-full p-2 border border-slate-300 rounded font-mono bg-white focus:outline-none focus:border-blue-500"
+                      placeholder="e.g. 0002131234"
                     />
                   </div>
 
-                  {/* Station (Explicitly Optional) */}
+                  {/* PhilHealth No */}
+                  <div>
+                    <label className="block text-2xs font-bold text-slate-700 mb-1">Phil Health No</label>
+                    <input
+                      type="text"
+                      value={newPersonnelForm.philHealthNo || ''}
+                      onChange={e => setNewPersonnelForm({...newPersonnelForm, philHealthNo: e.target.value})}
+                      className="w-full p-2 border border-slate-300 rounded font-mono bg-white focus:outline-none focus:border-blue-500"
+                      placeholder="e.g. 12-345678901-2"
+                    />
+                  </div>
+
+                  {/* Pag-IBIG No */}
+                  <div>
+                    <label className="block text-2xs font-bold text-slate-700 mb-1">Pagibig No</label>
+                    <input
+                      type="text"
+                      value={newPersonnelForm.pagibigNo || ''}
+                      onChange={e => setNewPersonnelForm({...newPersonnelForm, pagibigNo: e.target.value})}
+                      className="w-full p-2 border border-slate-300 rounded font-mono bg-white focus:outline-none focus:border-blue-500"
+                      placeholder="e.g. 1234-5678-9012"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Section C: Service & Career ── */}
+              <div className="rounded-xl bg-slate-50 border border-slate-200 p-4 sm:p-5 space-y-3.5">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-2.5">
+                  <div className="flex items-center gap-2">
+                    <Briefcase className="w-4 h-4 text-indigo-700" />
+                    <div>
+                      <p className="text-2xs font-extrabold text-indigo-800 uppercase tracking-widest">C. Service &amp; Career Information</p>
+                      <p className="text-[11px] text-slate-500">Service longevity, commissionship, promotion records, and official status.</p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 uppercase">Service &amp; Career</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  {/* Date Entered Service */}
+                  <div>
+                    <label className="block text-2xs font-bold text-slate-700 mb-1">
+                      {newPersonnelForm.rankCategory === 'NUP' ? 'Date Entered Service' : 'Date Entered Service (DES UP)'}
+                    </label>
+                    <input
+                      type="date"
+                      value={newPersonnelForm.dateEnteredService || newPersonnelForm.desUp || newPersonnelForm.dateOfEntry || ''}
+                      onChange={e => {
+                        const sdate = e.target.value;
+                        const los = calculateYearsBetween(sdate);
+                        setNewPersonnelForm({
+                          ...newPersonnelForm,
+                          dateEnteredService: sdate,
+                          desUp: sdate,
+                          dateOfEntry: sdate,
+                          ageOfServiceToDate: los || undefined
+                        });
+                      }}
+                      className="w-full p-2 border border-slate-300 rounded font-mono bg-white focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  {/* Age of Service to Date */}
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <label className="block text-2xs font-bold text-slate-700">Station</label>
-                      <span className="text-[10px] text-slate-400 font-medium">(Optional)</span>
+                      <label className="block text-2xs font-bold text-slate-700">Age of Service to Date</label>
+                      <span className="text-[10px] text-blue-600 font-semibold">Auto-Calculated</span>
                     </div>
                     <input
-                      type="text"
-                      value={newPersonnelForm.station ?? ''}
+                      type="number"
+                      value={newPersonnelForm.ageOfServiceToDate ?? ''}
                       onChange={e => setNewPersonnelForm({
                         ...newPersonnelForm,
-                        station: e.target.value
+                        ageOfServiceToDate: e.target.value ? parseInt(e.target.value, 10) : undefined
                       })}
-                      className="w-full p-2 border border-slate-300 rounded bg-white focus:outline-none focus:border-blue-500 font-medium"
-                      placeholder="e.g. Camp Crame (Optional)"
+                      className="w-full p-2 border border-slate-300 rounded font-bold text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500"
+                      placeholder="e.g. 15"
                     />
                   </div>
 
@@ -1657,30 +2021,291 @@ export const PersonnelPage: React.FC = () => {
                       value={newPersonnelForm.designation || ''}
                       onChange={e => setNewPersonnelForm({...newPersonnelForm, designation: e.target.value})}
                       className="w-full p-2 border border-slate-300 rounded font-semibold bg-white focus:outline-none focus:border-blue-500"
-                      placeholder="e.g. Cyber Security Specialist"
+                      placeholder="e.g. Director, Section Chief, Specialist"
                     />
                   </div>
 
-                  {/* Duty Status */}
+                  {/* Designation Date */}
                   <div>
-                    <label className="block text-2xs font-bold text-slate-700 mb-1">Duty Status *</label>
+                    <label className="block text-2xs font-bold text-slate-700 mb-1">Designation Date</label>
+                    <input
+                      type="date"
+                      value={newPersonnelForm.designationDate || ''}
+                      onChange={e => setNewPersonnelForm({...newPersonnelForm, designationDate: e.target.value})}
+                      className="w-full p-2 border border-slate-300 rounded font-mono bg-white focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  {/* Effective Date */}
+                  <div>
+                    <label className="block text-2xs font-bold text-slate-700 mb-1">Effective Date of Designation</label>
+                    <input
+                      type="date"
+                      value={newPersonnelForm.effectiveDate || ''}
+                      onChange={e => setNewPersonnelForm({...newPersonnelForm, effectiveDate: e.target.value})}
+                      className="w-full p-2 border border-slate-300 rounded font-mono bg-white focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  {/* Last Promotion Date */}
+                  <div>
+                    <label className="block text-2xs font-bold text-slate-700 mb-1">Last Promotion Date</label>
+                    <input
+                      type="date"
+                      value={newPersonnelForm.lastPromotionDate || ''}
+                      onChange={e => setNewPersonnelForm({...newPersonnelForm, lastPromotionDate: e.target.value})}
+                      className="w-full p-2 border border-slate-300 rounded font-mono bg-white focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  {/* Source Of Commissionship */}
+                  <div>
+                    <label className="block text-2xs font-bold text-slate-700 mb-1">Source Of Commissionship</label>
+                    <input
+                      type="text"
+                      value={newPersonnelForm.sourceOfCommissionship || ''}
+                      onChange={e => setNewPersonnelForm({...newPersonnelForm, sourceOfCommissionship: e.target.value})}
+                      className="w-full p-2 border border-slate-300 rounded uppercase bg-white focus:outline-none focus:border-blue-500"
+                      placeholder="e.g. LATERAL, PNPA, OCS"
+                    />
+                  </div>
+
+                  {/* Date Of Officership Or Commission */}
+                  <div>
+                    <label className="block text-2xs font-bold text-slate-700 mb-1">Date Of Officership Or Commission</label>
+                    <input
+                      type="date"
+                      value={newPersonnelForm.dateOfOfficershipOrCommission || newPersonnelForm.enterInOfficerPositionDate || ''}
+                      onChange={e => setNewPersonnelForm({
+                        ...newPersonnelForm,
+                        dateOfOfficershipOrCommission: e.target.value,
+                        enterInOfficerPositionDate: e.target.value
+                      })}
+                      className="w-full p-2 border border-slate-300 rounded font-mono bg-white focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  {/* PStatus */}
+                  <div>
+                    <label className="block text-2xs font-bold text-slate-700 mb-1">PStatus (Personnel Status) <span className="text-red-500">*</span></label>
                     <select
-                      value={newPersonnelForm.status || 'Active'}
-                      onChange={e => setNewPersonnelForm({...newPersonnelForm, status: e.target.value})}
+                      value={newPersonnelForm.pstatus || newPersonnelForm.status || 'Active'}
+                      onChange={e => setNewPersonnelForm({
+                        ...newPersonnelForm,
+                        pstatus: e.target.value,
+                        status: e.target.value
+                      })}
                       className="w-full p-2 border border-slate-300 rounded font-bold bg-white focus:outline-none focus:border-blue-500 cursor-pointer"
                     >
-                      <option value="Active">ON DUTY / ACTIVE</option>
+                      <option value="Active">ACTIVE</option>
                       <option value="On Leave">ON LEAVE</option>
                       <option value="Detailed Out">DETAILED OUT</option>
+                      <option value="Non-Active">NON-ACTIVE</option>
                       <option value="Suspended">SUSPENDED</option>
                       <option value="Retired">RETIRED</option>
                     </select>
                   </div>
+
+                  {/* PStatus Date */}
+                  <div>
+                    <label className="block text-2xs font-bold text-slate-700 mb-1">PStatus Date</label>
+                    <input
+                      type="date"
+                      value={newPersonnelForm.pstatusDate || ''}
+                      onChange={e => setNewPersonnelForm({...newPersonnelForm, pstatusDate: e.target.value})}
+                      className="w-full p-2 border border-slate-300 rounded font-mono bg-white focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  {/* Rank Status */}
+                  <div>
+                    <label className="block text-2xs font-bold text-slate-700 mb-1">Rank Status</label>
+                    <select
+                      value={newPersonnelForm.rankStatus || 'PERM'}
+                      onChange={e => setNewPersonnelForm({...newPersonnelForm, rankStatus: e.target.value})}
+                      className="w-full p-2 border border-slate-300 rounded font-semibold bg-white focus:outline-none focus:border-blue-500 cursor-pointer"
+                    >
+                      <option value="PERM">PERM (Permanent)</option>
+                      <option value="TEMP">TEMP (Temporary)</option>
+                      <option value="PROB">PROB (Probationary)</option>
+                    </select>
+                  </div>
+
+                  {/* Position Category */}
+                  <div>
+                    <label className="block text-2xs font-bold text-slate-700 mb-1">Position Category</label>
+                    <select
+                      value={newPersonnelForm.positionCategory || 'Main'}
+                      onChange={e => setNewPersonnelForm({...newPersonnelForm, positionCategory: e.target.value as any})}
+                      className="w-full p-2 border border-slate-300 rounded font-semibold bg-white focus:outline-none focus:border-blue-500 cursor-pointer"
+                    >
+                      {POSITION_CATEGORIES.map(pc => (
+                        <option key={pc} value={pc}>{pc}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Section D: Organizational Assignment ── */}
+              <div className="rounded-xl bg-slate-50 border border-slate-200 p-4 sm:p-5 space-y-3.5">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-2.5">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="w-4 h-4 text-amber-700" />
+                    <div>
+                      <p className="text-2xs font-extrabold text-amber-800 uppercase tracking-widest">D. Organizational Assignment</p>
+                      <p className="text-[11px] text-slate-500">Unit hierarchy, sub-unit codes, stations, and duty placement.</p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800 uppercase">Assignment</span>
                 </div>
 
-                {/* NUP Specific: Plantilla & Salary Grade */}
-                {newPersonnelForm.rankCategory === 'NUP' && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-200">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  {/* Unit Code */}
+                  <div>
+                    <label className="block text-2xs font-bold text-slate-700 mb-1">Unit Code</label>
+                    <input
+                      type="text"
+                      value={newPersonnelForm.unitCode || ''}
+                      onChange={e => setNewPersonnelForm({...newPersonnelForm, unitCode: e.target.value})}
+                      className="w-full p-2 border border-slate-300 rounded font-mono font-bold bg-white focus:outline-none focus:border-blue-500"
+                      placeholder="e.g. C02"
+                    />
+                  </div>
+
+                  {/* Unit */}
+                  <div>
+                    <label className="block text-2xs font-bold text-slate-700 mb-1">Unit</label>
+                    <input
+                      type="text"
+                      value={newPersonnelForm.unit || newPersonnelForm.officeDivision || ''}
+                      onChange={e => setNewPersonnelForm({
+                        ...newPersonnelForm,
+                        unit: e.target.value,
+                        officeDivision: e.target.value
+                      })}
+                      className="w-full p-2 border border-slate-300 rounded font-semibold bg-white focus:outline-none focus:border-blue-500"
+                      placeholder="e.g. ITMS"
+                    />
+                  </div>
+
+                  {/* Sub Unit Code */}
+                  <div>
+                    <label className="block text-2xs font-bold text-slate-700 mb-1">Sub Unit Code</label>
+                    <input
+                      type="text"
+                      value={newPersonnelForm.subUnitCode || ''}
+                      onChange={e => setNewPersonnelForm({...newPersonnelForm, subUnitCode: e.target.value})}
+                      className="w-full p-2 border border-slate-300 rounded font-mono bg-white focus:outline-none focus:border-blue-500"
+                      placeholder="e.g. ARMD, ITPMD, CSD"
+                    />
+                  </div>
+
+                  {/* Sub Unit */}
+                  <div>
+                    <label className="block text-2xs font-bold text-slate-700 mb-1">Sub Unit</label>
+                    <input
+                      type="text"
+                      value={newPersonnelForm.subUnit || newPersonnelForm.sub_unit || newPersonnelForm.division || ''}
+                      onChange={e => setNewPersonnelForm({
+                        ...newPersonnelForm,
+                        subUnit: e.target.value,
+                        sub_unit: e.target.value,
+                        division: e.target.value
+                      })}
+                      className="w-full p-2 border border-slate-300 rounded font-medium bg-white focus:outline-none focus:border-blue-500"
+                      placeholder="e.g. Administrative and Resource Management Division"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  {/* Station Code */}
+                  <div>
+                    <label className="block text-2xs font-bold text-slate-700 mb-1">Station Code</label>
+                    <input
+                      type="text"
+                      value={newPersonnelForm.stationCode || ''}
+                      onChange={e => setNewPersonnelForm({...newPersonnelForm, stationCode: e.target.value})}
+                      className="w-full p-2 border border-slate-300 rounded font-mono bg-white focus:outline-none focus:border-blue-500"
+                      placeholder="e.g. CRAME"
+                    />
+                  </div>
+
+                  {/* Station */}
+                  <div>
+                    <label className="block text-2xs font-bold text-slate-700 mb-1">Station</label>
+                    <input
+                      type="text"
+                      value={newPersonnelForm.station || ''}
+                      onChange={e => setNewPersonnelForm({...newPersonnelForm, station: e.target.value})}
+                      className="w-full p-2 border border-slate-300 rounded font-medium bg-white focus:outline-none focus:border-blue-500"
+                      placeholder="e.g. Camp Crame"
+                    />
+                  </div>
+
+                  {/* Sub Station Code */}
+                  <div>
+                    <label className="block text-2xs font-bold text-slate-700 mb-1">Sub Station Code</label>
+                    <input
+                      type="text"
+                      value={newPersonnelForm.subStationCode || ''}
+                      onChange={e => setNewPersonnelForm({...newPersonnelForm, subStationCode: e.target.value})}
+                      className="w-full p-2 border border-slate-300 rounded font-mono bg-white focus:outline-none focus:border-blue-500"
+                      placeholder="e.g. HQ-01"
+                    />
+                  </div>
+
+                  {/* Sub Station */}
+                  <div>
+                    <label className="block text-2xs font-bold text-slate-700 mb-1">Sub Station</label>
+                    <input
+                      type="text"
+                      value={newPersonnelForm.subStation || ''}
+                      onChange={e => setNewPersonnelForm({...newPersonnelForm, subStation: e.target.value})}
+                      className="w-full p-2 border border-slate-300 rounded font-medium bg-white focus:outline-none focus:border-blue-500"
+                      placeholder="Sub Station Name"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  {/* Details */}
+                  <div className="sm:col-span-2">
+                    <label className="block text-2xs font-bold text-slate-700 mb-1">Details (Specific Role / Placement)</label>
+                    <input
+                      type="text"
+                      value={newPersonnelForm.details || newPersonnelForm.detail || ''}
+                      onChange={e => setNewPersonnelForm({
+                        ...newPersonnelForm,
+                        details: e.target.value,
+                        detail: e.target.value
+                      })}
+                      className="w-full p-2 border border-slate-300 rounded bg-white focus:outline-none focus:border-blue-500 font-medium"
+                      placeholder="e.g. Network Monitoring Section"
+                    />
+                  </div>
+
+                  {/* Unit Category */}
+                  <div>
+                    <label className="block text-2xs font-bold text-slate-700 mb-1">Unit Category</label>
+                    <select
+                      value={newPersonnelForm.unitCategory || 'ITMS HQ'}
+                      onChange={e => setNewPersonnelForm({...newPersonnelForm, unitCategory: e.target.value as any})}
+                      className="w-full p-2 border border-slate-300 rounded font-semibold bg-white focus:outline-none focus:border-blue-500 cursor-pointer"
+                    >
+                      {UNIT_CATEGORIES.map(uc => (
+                        <option key={uc} value={uc}>{uc}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Plantilla Item (For NUP) */}
+                  {newPersonnelForm.rankCategory === 'NUP' && (
                     <div>
                       <label className="block text-2xs font-bold text-slate-700 mb-1">Plantilla Item</label>
                       <input
@@ -1691,88 +2316,25 @@ export const PersonnelPage: React.FC = () => {
                         placeholder="e.g. ITMS-CSD-2024-001"
                       />
                     </div>
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="block text-2xs font-bold text-slate-700">Salary Grade (SG-ST)</label>
-                        <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">Compensation Grade</span>
-                      </div>
-                      <input
-                        type="text"
-                        value={newPersonnelForm.salaryGrade ?? ''}
-                        onChange={e => setNewPersonnelForm({...newPersonnelForm, salaryGrade: e.target.value})}
-                        placeholder="e.g. 14, SG-14, or 14-1"
-                        className="w-full p-2 border border-slate-300 rounded font-bold bg-white focus:outline-none focus:border-blue-500"
-                      />
-                      <p className="text-[10px] text-slate-400 mt-1">Salary Grade belongs under Assignment as a position compensation step that evolves, unlike permanent badge numbers.</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* ── Section 3: Orders ── */}
-              <div className="rounded-xl bg-slate-50 border border-slate-200 p-4 space-y-3">
-                <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-                  <div>
-                    <p className="text-2xs font-extrabold text-blue-800 uppercase tracking-widest">3. Designation Orders &amp; Dates</p>
-                    <p className="text-[11px] text-slate-500">Administrative order dates. Designation Date is the order issuance/promulgation date; Effective Date is when duties begin.</p>
-                  </div>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-cyan-100 text-cyan-800 uppercase">Orders</span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Designation Date (Order Promulgation Date) */}
-                  <div className="p-3 bg-white border border-slate-200 rounded-lg">
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="block text-2xs font-bold text-slate-800">Designation Date (Date Order Issued)</label>
-                      <span className="text-[10px] text-cyan-700 font-mono bg-cyan-50 px-1.5 py-0.2 rounded border border-cyan-200">Header Date</span>
-                    </div>
-                    <input
-                      type="date"
-                      value={newPersonnelForm.designationDate || newPersonnelForm.enterInOfficerPositionDate || ''}
-                      onChange={e => setNewPersonnelForm({
-                        ...newPersonnelForm,
-                        designationDate: e.target.value,
-                        enterInOfficerPositionDate: e.target.value
-                      })}
-                      className="w-full p-2 border border-slate-300 rounded font-mono bg-white focus:outline-none focus:border-blue-500"
-                    />
-                    <p className="text-[10px] text-slate-500 mt-1">Displayed in the upper-right portion of the Order (when authority promulgated the order).</p>
-                  </div>
-
-                  {/* Effective Date of Designation */}
-                  <div className="p-3 bg-white border border-slate-200 rounded-lg">
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="block text-2xs font-bold text-slate-800">Effective Date of Designation</label>
-                      <span className="text-[10px] text-indigo-700 font-mono bg-indigo-50 px-1.5 py-0.2 rounded border border-indigo-200">Body Date</span>
-                    </div>
-                    <input
-                      type="date"
-                      value={newPersonnelForm.effectiveDate || ''}
-                      onChange={e => setNewPersonnelForm({
-                        ...newPersonnelForm,
-                        effectiveDate: e.target.value
-                      })}
-                      className="w-full p-2 border border-slate-300 rounded font-mono bg-white focus:outline-none focus:border-blue-500"
-                    />
-                    <p className="text-[10px] text-slate-500 mt-1">Displayed in the body of the Order (when duties, accountability, and command take effect).</p>
-                  </div>
+                  )}
                 </div>
               </div>
 
               {/* Footer Buttons */}
-              <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-200">
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
                 <button
                   type="button"
                   onClick={() => setAddModalOpen(false)}
-                  className="px-4 py-2 border border-slate-300 rounded text-xs font-bold hover:bg-slate-100 transition-colors cursor-pointer"
+                  className="px-4 py-2 border border-slate-300 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-lg font-semibold text-xs transition-colors cursor-pointer shadow-xs"
+                  className="px-6 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-lg font-bold text-xs transition-colors cursor-pointer shadow-sm flex items-center gap-1.5"
                 >
-                  Save Record
+                  <UserPlus className="w-4 h-4" />
+                  <span>Save Personnel Record</span>
                 </button>
               </div>
             </form>

@@ -184,7 +184,10 @@ const readCellValue = (
  * Reads the first worksheet and retains cell values only for recognized
  * personnel-schema columns. Values from all other columns are not resolved.
  */
-export const readPersonnelXlsx = async (file: File): Promise<unknown[][]> => {
+export const readPersonnelXlsx = async (
+  file: File,
+  explicitHeaderRowIndex?: number
+): Promise<unknown[][]> => {
   const archiveBytes = await readWorkbookBytes(file);
   const metadataFiles = unzipSelectedFiles(
     archiveBytes,
@@ -238,10 +241,18 @@ export const readPersonnelXlsx = async (file: File): Promise<unknown[][]> => {
         uses1904Epoch
       );
     }
-    candidateRows.push(rowCells);
+    const denseRow: unknown[] = [];
+    for (let c = 0; c < rowCells.length; c += 1) {
+      denseRow[c] = rowCells[c] !== undefined ? rowCells[c] : '';
+    }
+    candidateRows.push(denseRow);
   }
 
-  const headerCandidateIndex = findPersonnelHeaderRowIndex(candidateRows);
+  const detectedIndex = findPersonnelHeaderRowIndex(candidateRows);
+  const headerCandidateIndex = explicitHeaderRowIndex !== undefined && explicitHeaderRowIndex >= 0 && explicitHeaderRowIndex < rows.length
+    ? explicitHeaderRowIndex
+    : detectedIndex;
+
   if (headerCandidateIndex < 0) {
     throw new Error('Unable to detect the personnel table header. Please check the Excel file.');
   }
@@ -249,7 +260,11 @@ export const readPersonnelXlsx = async (file: File): Promise<unknown[][]> => {
   const headerRowElement = rows[headerCandidateIndex];
   const headerExcelRowNum = getRowNumber(headerRowElement, headerCandidateIndex);
   const headerRowIndex = headerExcelRowNum - 1;
-  const headerCells = candidateRows[headerCandidateIndex];
+  const rawHeaderCells = candidateRows[headerCandidateIndex] || [];
+  const headerCells: unknown[] = [];
+  for (let c = 0; c < rawHeaderCells.length; c += 1) {
+    headerCells[c] = rawHeaderCells[c] !== undefined ? rawHeaderCells[c] : '';
+  }
 
   const selectedColumns = new Set<number>();
   for (let colIdx = 0; colIdx < headerCells.length; colIdx += 1) {
@@ -271,6 +286,17 @@ export const readPersonnelXlsx = async (file: File): Promise<unknown[][]> => {
     const rowEl = rows[rowIndex];
     const excelRowNum = getRowNumber(rowEl, rowIndex);
     const targetIdx = excelRowNum - 1;
+
+    // Check if the row contains footer / summary text in any cell (e.g. "Count:", "Total:")
+    const isSummaryRow = elementsByLocalName(rowEl, 'c').some(cell => {
+      const val = readCellValue(cell, sharedString, isDateStyle, uses1904Epoch).trim().toLowerCase();
+      return val.startsWith('count:') || val.startsWith('total:') || val === 'count' || val === 'total' || val === 'grand total';
+    });
+    if (isSummaryRow) {
+      projectedRows[targetIdx] = [];
+      continue;
+    }
+
     const projectedRow: unknown[] = [];
     for (const cell of elementsByLocalName(rowEl, 'c')) {
       const columnIndex = cellColumnIndex(cell);
@@ -282,7 +308,11 @@ export const readPersonnelXlsx = async (file: File): Promise<unknown[][]> => {
         uses1904Epoch
       );
     }
-    projectedRows[targetIdx] = projectedRow;
+    const denseProjected: unknown[] = [];
+    for (let c = 0; c < projectedRow.length; c += 1) {
+      denseProjected[c] = projectedRow[c] !== undefined ? projectedRow[c] : '';
+    }
+    projectedRows[targetIdx] = denseProjected;
   }
 
   return projectedRows;

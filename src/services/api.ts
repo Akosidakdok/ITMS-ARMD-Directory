@@ -109,8 +109,13 @@ export const syncAdminProfiles = async (): Promise<number> => { const res = awai
 
 export interface BulkPersonnelImportResult {
   created: Personnel[];
+  updated?: Personnel[];
   importedCount: number;
+  updatedCount?: number;
+  skippedCount?: number;
+  duplicateCount?: number;
   rejectedCount: number;
+  totalRows?: number;
   errors: PersonnelImportIssue[];
 }
 
@@ -187,12 +192,18 @@ export const deletePersonnelApi = async (id: string): Promise<boolean> => {
 
 export const bulkCreatePersonnelApi = async (
   rows: PersonnelImportRow[],
-  onProgress?: (completed: number, total: number) => void
+  onProgress?: (completed: number, total: number) => void,
+  duplicateMode: 'skip' | 'update' | 'flag' = 'skip'
 ): Promise<BulkPersonnelImportResult> => {
   const result: BulkPersonnelImportResult = {
     created: [],
+    updated: [],
     importedCount: 0,
+    updatedCount: 0,
+    skippedCount: 0,
+    duplicateCount: 0,
     rejectedCount: 0,
+    totalRows: rows.length,
     errors: []
   };
 
@@ -201,17 +212,22 @@ export const bulkCreatePersonnelApi = async (
     const res = await apiFetch(`${API_BASE_URL}/personnel/import/bulk`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ records: batch })
+      body: JSON.stringify({ records: batch, duplicateMode })
     });
     const json = await res.json().catch(() => null);
 
     if (!res.ok && res.status !== 207) {
-      throw new Error(json?.message || json?.error || 'Bulk personnel import failed');
+      const detail = json?.error ? `${json?.message || 'Bulk personnel import failed'}: ${json.error}` : (json?.message || json?.error || 'Bulk personnel import failed');
+      throw new Error(detail);
     }
 
     const batchResult = json?.data;
     result.created.push(...(batchResult?.created || []));
+    result.updated?.push(...(batchResult?.updated || []));
     result.importedCount += Number(batchResult?.importedCount || 0);
+    result.updatedCount = (result.updatedCount || 0) + Number(batchResult?.updatedCount || 0);
+    result.skippedCount = (result.skippedCount || 0) + Number(batchResult?.skippedCount || 0);
+    result.duplicateCount = (result.duplicateCount || 0) + Number(batchResult?.duplicateCount || 0);
     result.rejectedCount += Number(batchResult?.rejectedCount || 0);
     result.errors.push(...(batchResult?.errors || []));
     onProgress?.(Math.min(start + batch.length, rows.length), rows.length);

@@ -316,15 +316,17 @@ test('detects header on Row 8 with report headers on Rows 1-7 and parses records
 
   // Ignored vs Accepted headers
   assert.ok(result.ignoredHeaders.includes('NO.'));
-  assert.ok(result.ignoredHeaders.includes('AGE TO DATE'));
-  assert.ok(result.ignoredHeaders.includes('AGE OF SERVICE TO DATE'));
-  assert.ok(result.ignoredHeaders.includes('PNCO'));
-  assert.ok(result.ignoredHeaders.includes('NUP'));
+  assert.ok(result.acceptedHeaders.includes('AGE TO DATE'));
+  assert.ok(result.acceptedHeaders.includes('AGE OF SERVICE TO DATE'));
+  assert.ok(result.acceptedHeaders.includes('PNCO'));
+  assert.ok(result.acceptedHeaders.includes('NUP'));
   assert.ok(result.acceptedHeaders.includes('RANK'));
   assert.ok(result.acceptedHeaders.includes('FIRST NAME'));
   assert.ok(result.acceptedHeaders.includes('LAST NAME'));
   assert.ok(result.acceptedHeaders.includes('OFFICE/DIVISION'));
   assert.ok(result.acceptedHeaders.includes('DES (UP)'));
+  assert.equal(result.rows[0].data.ageToDate, 28);
+  assert.equal(result.rows[0].data.ageOfServiceToDate, 5);
 });
 
 test('standard files with header on Row 1 still work seamlessly', () => {
@@ -405,6 +407,21 @@ test('reports validation errors on records with accurate physical Excel row numb
   assert.ok(result.errors[0].messages.includes('firstName is required'));
   assert.equal(result.errors[1].rowNumber, 7, 'Second error should be on physical Row 7');
   assert.ok(result.errors[1].messages.includes('rank is required'));
+});
+
+test('ignores footer summary rows like Count: 600 or Total without reporting validation errors', () => {
+  const spreadsheetRows = [
+    ['RANK', 'LAST NAME', 'FIRST NAME', 'BADGE'],
+    ['PCpl', 'Santos', 'Juan', 'B-100'],
+    ['PCOL', 'Dela Cruz', 'Maria', 'B-101'],
+    ['', '', '', ''],
+    ['', 'Count:', '2', ''],
+    ['', '', '', '']
+  ];
+
+  const result = parsePersonnelExcelRows(spreadsheetRows);
+  assert.equal(result.rows.length, 2);
+  assert.equal(result.errors.length, 0);
 });
 
 

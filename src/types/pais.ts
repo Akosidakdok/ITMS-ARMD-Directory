@@ -64,6 +64,35 @@ export interface Personnel {
   lastPromotionDate?: string;
   status: 'Active' | 'On Leave' | 'Detailed Out' | 'Suspended' | string;
   avatarUrl?: string;
+  officeDivision?: string;
+  qualification?: string;
+  ageToDate?: string | number;
+  birthdate?: string;
+  ageOfServiceToDate?: string | number;
+  desUp?: string;
+  pnco?: string;
+  nup?: string;
+  // 34-column official schema fields
+  civilStatus?: string;
+  religion?: string;
+  email?: string;
+  tin?: string;
+  gsisNumber?: string;
+  philHealthNo?: string;
+  pagibigNo?: string;
+  sourceOfCommissionship?: string;
+  dateOfOfficershipOrCommission?: string;
+  pstatus?: string;
+  pstatusDate?: string;
+  rankStatus?: string;
+  unitCode?: string;
+  unit?: string;
+  subUnitCode?: string;
+  stationCode?: string;
+  subStationCode?: string;
+  subStation?: string;
+  dateEnteredService?: string;
+  badge_number?: string;
 }
 
 export interface AssignmentRecord {

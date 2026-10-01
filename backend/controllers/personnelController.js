@@ -68,6 +68,8 @@ export const getPersonnelImportSchema = (req, res) => {
 export const createPersonnelBulk = async (req, res) => {
   try {
     const submittedRows = req.body?.records;
+    const duplicateMode = req.body?.duplicateMode || req.body?.mode || 'skip'; // 'skip' | 'update' | 'flag'
+
     if (!Array.isArray(submittedRows) || submittedRows.length === 0) {
       return res.status(400).json({
         success: false,
@@ -82,9 +84,31 @@ export const createPersonnelBulk = async (req, res) => {
     }
 
     const existingPersonnel = await db.getPersonnel();
-    const knownIds = new Set(existingPersonnel.map(person => String(person.id).toLowerCase()));
-    const acceptedRows = [];
+    const existingById = new Map();
+    const existingByBadge = new Map();
+    const existingByNameAndBday = new Map();
+
+    for (const p of existingPersonnel) {
+      if (p.id) existingById.set(String(p.id).toLowerCase(), p);
+      if (p.badgeNo && String(p.badgeNo).trim()) {
+        existingByBadge.set(String(p.badgeNo).trim().toUpperCase(), p);
+      }
+      const bday = p.birthdate || p.birthday || '';
+      if (p.lastName && p.firstName) {
+        const key = `${p.lastName}__${p.firstName}__${bday}`.toUpperCase().trim();
+        existingByNameAndBday.set(key, p);
+      }
+    }
+
+    const rowsToCreate = [];
+    const rowsToUpdate = [];
+    const skippedRecords = [];
+    const duplicateRecords = [];
     const errors = [];
+
+    // Track identifiers inside this batch to catch in-file duplicates
+    const batchSeenBadges = new Set();
+    const batchSeenNames = new Set();
 
     for (let index = 0; index < submittedRows.length; index += 1) {
       const submitted = submittedRows[index];
@@ -92,10 +116,10 @@ export const createPersonnelBulk = async (req, res) => {
         ? submitted.rowNumber
         : index + 2;
       const { personnel, errors: rowErrors } = sanitizePersonnelImportRow(submitted?.data);
-      const normalizedId = personnel.id ? personnel.id.toLowerCase() : '';
 
-      if (normalizedId && knownIds.has(normalizedId)) {
-        rowErrors.push(`id "${personnel.id}" already exists`);
+      if (!personnel && rowErrors.length === 0) {
+        // Ignored footer summary row
+        continue;
       }
 
       if (rowErrors.length > 0) {
@@ -103,27 +127,91 @@ export const createPersonnelBulk = async (req, res) => {
         continue;
       }
 
-      if (normalizedId) knownIds.add(normalizedId);
-      acceptedRows.push({ rowNumber, personnel });
+      const normalizedBadge = personnel.badgeNo ? String(personnel.badgeNo).trim().toUpperCase() : '';
+      const bday = personnel.birthdate || personnel.birthday || '';
+      const nameKey = `${personnel.lastName}__${personnel.firstName}__${bday}`.toUpperCase().trim();
+
+      // Check in-batch collision
+      if (normalizedBadge && batchSeenBadges.has(normalizedBadge)) {
+        errors.push({
+          rowNumber,
+          messages: [`Badge number "${personnel.badgeNo}" is duplicated within this import file`]
+        });
+        continue;
+      }
+      if (batchSeenNames.has(nameKey)) {
+        errors.push({
+          rowNumber,
+          messages: [`Personnel "${personnel.fullName}" is duplicated within this import file`]
+        });
+        continue;
+      }
+
+      if (normalizedBadge) batchSeenBadges.add(normalizedBadge);
+      batchSeenNames.add(nameKey);
+
+      // Check existing database records
+      let matchedExisting = null;
+      if (personnel.id && existingById.has(String(personnel.id).toLowerCase())) {
+        matchedExisting = existingById.get(String(personnel.id).toLowerCase());
+      } else if (normalizedBadge && existingByBadge.has(normalizedBadge)) {
+        matchedExisting = existingByBadge.get(normalizedBadge);
+      } else if (existingByNameAndBday.has(nameKey)) {
+        matchedExisting = existingByNameAndBday.get(nameKey);
+      }
+
+      if (matchedExisting) {
+        if (duplicateMode === 'skip') {
+          skippedRecords.push({ rowNumber, existingId: matchedExisting.id, personnel });
+        } else if (duplicateMode === 'update') {
+          rowsToUpdate.push({ rowNumber, id: matchedExisting.id, data: personnel });
+        } else {
+          // 'flag'
+          duplicateRecords.push({ rowNumber, existingId: matchedExisting.id, personnel });
+          errors.push({
+            rowNumber,
+            messages: [`Duplicate detected: matches existing personnel ${matchedExisting.rank} ${matchedExisting.fullName} (ID: ${matchedExisting.id})`]
+          });
+        }
+        continue;
+      }
+
+      rowsToCreate.push({ rowNumber, personnel });
     }
 
     let created = [];
-    if (acceptedRows.length > 0) {
-      created = await db.createPersonnelBulk(acceptedRows.map(row => row.personnel));
+    if (rowsToCreate.length > 0) {
+      created = await db.createPersonnelBulk(rowsToCreate.map(r => r.personnel));
     }
 
+    let updated = [];
+    if (rowsToUpdate.length > 0) {
+      for (const item of rowsToUpdate) {
+        const resUpdated = await db.updatePersonnel(item.id, item.data);
+        if (resUpdated) updated.push(resUpdated);
+      }
+    }
+
+    const totalProcessed = created.length + updated.length;
     const status = errors.length > 0 ? 207 : 201;
+
     return res.status(status).json({
       success: errors.length === 0,
-      message: `${created.length} personnel record(s) imported`,
+      message: `${created.length} imported, ${updated.length} updated, ${skippedRecords.length} skipped`,
       data: {
         created,
+        updated,
+        totalRows: submittedRows.length,
         importedCount: created.length,
+        updatedCount: updated.length,
+        skippedCount: skippedRecords.length,
+        duplicateCount: duplicateRecords.length,
         rejectedCount: errors.length,
         errors
       }
     });
   } catch (error) {
+    console.error('Bulk personnel import error:', error);
     return res.status(500).json({
       success: false,
       message: 'Bulk personnel import failed',

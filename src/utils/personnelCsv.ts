@@ -1,4 +1,5 @@
-import type { Personnel } from '../types/pais';
+import type { Personnel, RankCategory } from '../types/pais.ts';
+import { getRankCategory } from '../constants/ranks.ts';
 
 export type PersonnelImportField = keyof Personnel;
 
@@ -9,12 +10,15 @@ export interface PersonnelImportRow {
 
 export interface PersonnelImportIssue {
   rowNumber: number;
+  field?: string;
+  originalValue?: string;
   messages: string[];
 }
 
 export interface PersonnelCsvResult {
   acceptedHeaders: string[];
   ignoredHeaders: string[];
+  detectedHeaderRowIndex: number;
   rows: PersonnelImportRow[];
   errors: PersonnelImportIssue[];
 }
@@ -28,6 +32,7 @@ export const PERSONNEL_IMPORTABLE_FIELDS: PersonnelImportField[] = [
   'middleName',
   'lastName',
   'qualifier',
+  'qualification',
   'badgeNo',
   'salaryGrade',
   'plantilla',
@@ -35,6 +40,7 @@ export const PERSONNEL_IMPORTABLE_FIELDS: PersonnelImportField[] = [
   'unitCategory',
   'subUnitCategory',
   'sub_unit',
+  'officeDivision',
   'details',
   'station',
   'designation',
@@ -42,12 +48,39 @@ export const PERSONNEL_IMPORTABLE_FIELDS: PersonnelImportField[] = [
   'gender',
   'contactNumber',
   'birthday',
+  'birthdate',
   'dateOfEntry',
   'enterInOfficerPositionDate',
   'designationDate',
   'effectiveDate',
   'lastPromotionDate',
-  'status'
+  'status',
+  'ageToDate',
+  'ageOfServiceToDate',
+  'desUp',
+  'pnco',
+  'nup',
+  // 34-column schema additions
+  'civilStatus',
+  'religion',
+  'email',
+  'tin',
+  'gsisNumber',
+  'philHealthNo',
+  'pagibigNo',
+  'sourceOfCommissionship',
+  'dateOfOfficershipOrCommission',
+  'pstatus',
+  'pstatusDate',
+  'rankStatus',
+  'unitCode',
+  'unit',
+  'subUnitCode',
+  'stationCode',
+  'subStationCode',
+  'subStation',
+  'dateEnteredService',
+  'badge_number'
 ];
 
 export const PERSONNEL_REQUIRED_IMPORT_FIELDS: PersonnelImportField[] = [
@@ -56,128 +89,153 @@ export const PERSONNEL_REQUIRED_IMPORT_FIELDS: PersonnelImportField[] = [
   'lastName'
 ];
 
-// Header aliases — only Personnel Information columns accepted
+// Header aliases mapped to approved schema fields
 const HEADER_ALIASES: Record<string, PersonnelImportField> = {
-  // Summary Profile
-  rank:              'rank',
-  rankabbr:          'rank',
-  rankfullname:      'rankFullName',   // "Rank Full Name" → rankfullname
-  rankname:          'rankFullName',
-  rankcategory:      'rankCategory',
-  'rank category':   'rankCategory',
-  categoryofrank:    'rankCategory',
-  'category of rank':'rankCategory',
-  badge:             'badgeNo',
-  badgeno:           'badgeNo',
-  badgenumber:       'badgeNo',        // "Badge Number"   → badgenumber
-  salarygrade:       'salaryGrade',
-  salarygradesgst:   'salaryGrade',    // "Salary Grade (SG-ST)" → salarygradesgst
-  salarygradesgst2:  'salaryGrade',
-  sg:                'salaryGrade',
-  sgst:              'salaryGrade',
-  plantilla:         'plantilla',
-  plantillaitem:     'plantilla',
+  // Rank
+  rank:               'rank',
+  rankabbr:           'rank',
+  rankfullname:       'rankFullName',
+  rankname:           'rankFullName',
+  rankcategory:       'rankCategory',
+  'rank category':    'rankCategory',
+  categoryofrank:     'rankCategory',
 
-  // Assignment Categories: Position Category, Unit Category, Sub-Unit Category
-  positioncategory:        'positionCategory',
-  'position category':     'positionCategory',
-  categoryofposition:      'positionCategory',
-  'category of position':  'positionCategory',
-  unitcategory:            'unitCategory',
-  'unit category':         'unitCategory',
-  categoryofunit:          'unitCategory',
-  'category of unit':      'unitCategory',
-  subunitcategory:         'subUnitCategory',
-  'sub-unit category':     'subUnitCategory',
-  'sub unit category':     'subUnitCategory',
-  categoryofsubunit:       'subUnitCategory',
+  // Status & PStatus
+  status:             'status',
+  pstatus:            'status',
+  dutystatus:         'status',
+  pstatusdate:        'pstatusDate',
+  'pstatus date':     'pstatusDate',
+  rankstatus:         'rankStatus',
+  'rank status':      'rankStatus',
 
-  // Organizational assignment: SUB-UNIT, DETAILS, STATION
-  subunit:           'sub_unit',
-  sub_unit:          'sub_unit',
-  division:          'sub_unit',       // Legacy "DIVISION" column maps to sub_unit
-  officedivision:    'sub_unit',
-  office:            'sub_unit',
-  unit:              'sub_unit',
-  unitdivision:      'sub_unit',
-  details:           'details',
-  detail:            'details',
-  detailsubunit:     'details',
-  station:           'station',
-  dutystation:       'station',
-  assignedstation:   'station',
+  // Badge No / Salary Grade
+  badgenosg:          'badgeNo',
+  'badgenosg':        'badgeNo',
+  'badgenumber/sg':   'badgeNo',
+  badge:              'badgeNo',
+  badgeno:            'badgeNo',
+  badgenumber:        'badgeNo',
+  'badge number':     'badgeNo',
+  salarygrade:        'salaryGrade',
+  salarygradesgst:    'salaryGrade',
+  sg:                 'salaryGrade',
+  sgst:               'salaryGrade',
+  plantilla:          'plantilla',
+  plantillaitem:      'plantilla',
 
-  designation:       'designation',
-  position:          'designation',
-  desup:             'designation',
-  des:               'designation',
-  designationdate:   'designationDate',
-  'designation date':'designationDate',
-  effectivedate:     'effectiveDate',
-  'effective date':  'effectiveDate',
+  // Names
+  lastname:           'lastName',
+  'last name':        'lastName',
+  lname:              'lastName',
+  surname:            'lastName',
+  firstname:          'firstName',
+  'first name':       'firstName',
+  fname:              'firstName',
+  middlename:         'middleName',
+  'middle name':      'middleName',
+  mname:              'middleName',
+  qual:               'qualification',
+  qualifier:          'qualification',
+  qualification:      'qualification',
 
-  // First Name
-  firstname:         'firstName',
-  'first name':      'firstName',
-  fname:             'firstName',
+  // Age & Birthdate
+  agetodate:          'ageToDate',
+  'age to date':      'ageToDate',
+  age:                'ageToDate',
+  birthdate:          'birthdate',
+  birthday:           'birthdate',
+  'birth date':       'birthdate',
+  dob:                'birthdate',
+  dateofbirth:        'birthdate',
 
-  // Middle Name
-  middlename:        'middleName',
-  'middle name':     'middleName',
-  mname:             'middleName',
+  // Service, Commissionship, & Promotions
+  dateenteredservice: 'dateOfEntry',
+  'date entered service': 'dateOfEntry',
+  dateofentry:        'dateOfEntry',
+  'date of entry':    'dateOfEntry',
+  entrydate:          'dateOfEntry',
+  desup:              'desUp',
+  'des(up)':          'desUp',
+  'des (up)':         'desUp',
+  des:                'desUp',
+  pnco:               'pnco',
+  nup:                'nup',
+  sourceofcommissionship: 'sourceOfCommissionship',
+  'source of commissionship': 'sourceOfCommissionship',
+  dateofofficershiporcommission: 'dateOfOfficershipOrCommission',
+  'date of officership or commission': 'dateOfOfficershipOrCommission',
+  lastpromotiondate:  'lastPromotionDate',
+  'last promotion date': 'lastPromotionDate',
+  ageofservicetodate: 'ageOfServiceToDate',
+  'age of service to date': 'ageOfServiceToDate',
+  lengthofservice:    'ageOfServiceToDate',
+  los:                'ageOfServiceToDate',
 
-  // Last Name
-  lastname:          'lastName',
-  'last name':       'lastName',
-  lname:             'lastName',
-  surname:           'lastName',
+  // Organizational assignment: Unit, Sub Unit, Station, Sub Station
+  unitcode:           'unitCode',
+  'unit code':        'unitCode',
+  unit:               'unit',
+  subunitcode:        'subUnitCode',
+  'sub unit code':    'subUnitCode',
+  subunit:            'sub_unit',
+  sub_unit:           'sub_unit',
+  'sub-unit':         'sub_unit',
+  'sub unit':         'sub_unit',
+  division:           'sub_unit',
+  officedivision:     'officeDivision',
+  'office/division':  'officeDivision',
+  'office / division':'officeDivision',
+  office:             'officeDivision',
+  stationcode:        'stationCode',
+  'station code':     'stationCode',
+  station:            'station',
+  dutystation:        'station',
+  substationcode:     'subStationCode',
+  'sub station code': 'subStationCode',
+  substation:         'subStation',
+  'sub station':      'subStation',
+  details:            'details',
+  detail:             'details',
 
-  // Qualifier
-  qualifier:         'qualifier',
-  qual:              'qualifier',
+  // Designation & Positions
+  designation:        'designation',
+  position:           'designation',
+  designationdate:    'designationDate',
+  'designation date': 'designationDate',
+  effectivedate:      'effectiveDate',
+  'effective date':   'effectiveDate',
+  enterinofficerpositiondate: 'enterInOfficerPositionDate',
 
-  // Address
-  address:           'address',
+  // Identification & Contact Numbers
+  email:              'email',
+  phonenumber:        'contactNumber',
+  'phone number':     'contactNumber',
+  contactnumber:      'contactNumber',
+  'contact number':   'contactNumber',
+  contact:            'contactNumber',
+  mobile:             'contactNumber',
+  tin:                'tin',
+  gsisnumber:         'gsisNumber',
+  'gsis number':      'gsisNumber',
+  gsis:               'gsisNumber',
+  gsisno:             'gsisNumber',
+  philhealthno:       'philHealthNo',
+  'phil health no':   'philHealthNo',
+  philhealth:         'philHealthNo',
+  philhealthnumber:   'philHealthNo',
+  pagibigno:          'pagibigNo',
+  'pagibig no':       'pagibigNo',
+  pagibig:            'pagibigNo',
+  pagibignumber:      'pagibigNo',
 
-  // Gender
-  gender:            'gender',
-  sex:               'gender',
-
-  // Contact Number
-  contactnumber:     'contactNumber',
-  'contact number':  'contactNumber',
-  contact:           'contactNumber',
-  mobile:            'contactNumber',
-  phone:             'contactNumber',
-
-  // Birthday
-  birthday:          'birthday',
-  birthdate:         'birthday',
-  dob:               'birthday',
-  dateofbirth:       'birthday',
-
-  // Date of Entry
-  dateofentry:       'dateOfEntry',
-  'date of entry':   'dateOfEntry',
-  entrydate:         'dateOfEntry',
-
-  // Enter in Officer Position / Designation Date
-  enterinofficerposition:      'enterInOfficerPositionDate',
-  enterinofficerpositiondate:  'enterInOfficerPositionDate',
-  'enter in officer position': 'enterInOfficerPositionDate',
-  officerpositiondate:         'enterInOfficerPositionDate',
-  'enter in officer position date': 'enterInOfficerPositionDate',
-
-  // Last Promotion Date
-  lastpromotiondate:       'lastPromotionDate',
-  'last promotion date':   'lastPromotionDate',
-  promotiondate:           'lastPromotionDate',
-  lastpromotion:           'lastPromotionDate',
-
-  // Status
-  status:            'status',
-  pstatus:           'status',
-  dutystatus:        'status',
+  // Personal Info
+  gender:             'gender',
+  sex:                'gender',
+  civilstatus:        'civilStatus',
+  'civil status':     'civilStatus',
+  religion:           'religion',
+  address:            'address'
 };
 
 const normalizeHeader = (header: string) => (
@@ -194,6 +252,7 @@ export const EXPECTED_PERSONNEL_HEADERS = new Set([
   'item',
   'rank',
   'status',
+  'badgenosg',
   'badge',
   'badgeno',
   'badgenumber',
@@ -202,6 +261,7 @@ export const EXPECTED_PERSONNEL_HEADERS = new Set([
   'middlename',
   'qual',
   'qualifier',
+  'qualification',
   'agetodate',
   'age',
   'birthdate',
@@ -213,17 +273,15 @@ export const EXPECTED_PERSONNEL_HEADERS = new Set([
   'des',
   'pnco',
   'nup',
-  'pco',
   'officedivision',
   'office',
   'division',
-  'sub_unit',
   'subunit',
+  'sub_unit',
   'designation',
   'position',
   'salarygrade',
   'sg',
-  'sgst',
   'plantilla',
   'details',
   'station',
@@ -233,11 +291,7 @@ export const EXPECTED_PERSONNEL_HEADERS = new Set([
   'contactnumber',
   'contact',
   'dateofentry',
-  'lastpromotiondate',
-  'civilstatus',
-  'tin',
-  'remarks',
-  'remark'
+  'lastpromotiondate'
 ]);
 
 export const isExpectedPersonnelHeader = (header: unknown): boolean => {
@@ -291,79 +345,23 @@ export const findPersonnelHeaderRowIndex = (
   return bestIndex;
 };
 
-interface ParsedRow {
-  nextIndex: number;
-  values: Map<number, string>;
-  endedInOpenQuote: boolean;
-}
+export const calculateYearsBetween = (startDateStr: string, endDate = new Date()): string | null => {
+  if (!startDateStr) return null;
+  const start = new Date(startDateStr);
+  if (isNaN(start.getTime())) return null;
+  let years = endDate.getFullYear() - start.getFullYear();
+  const m = endDate.getMonth() - start.getMonth();
+  if (m < 0 || (m === 0 && endDate.getDate() < start.getDate())) {
+    years--;
+  }
+  return years >= 0 ? String(years) : null;
+};
 
 interface ColumnProjection {
   index: number;
   field: PersonnelImportField;
+  headerName: string;
 }
-
-/**
- * Scans one CSV row and retains values only for selected columns.
- * Characters belonging to ignored columns are never accumulated in memory.
- */
-const readProjectedCsvRow = (
-  csv: string,
-  startIndex: number,
-  selectedColumns: ReadonlySet<number> | null
-): ParsedRow => {
-  const values = new Map<number, string>();
-  let index = startIndex;
-  let columnIndex = 0;
-  let inQuotes = false;
-  let value = '';
-
-  const shouldCapture = () => selectedColumns === null || selectedColumns.has(columnIndex);
-  const finishField = () => {
-    if (shouldCapture()) values.set(columnIndex, value.trim());
-    value = '';
-    columnIndex += 1;
-  };
-
-  while (index < csv.length) {
-    const char = csv[index];
-
-    if (char === '"') {
-      if (inQuotes && csv[index + 1] === '"') {
-        if (shouldCapture()) value += '"';
-        index += 2;
-        continue;
-      }
-      inQuotes = !inQuotes;
-      index += 1;
-      continue;
-    }
-
-    if (!inQuotes && char === ',') {
-      finishField();
-      index += 1;
-      continue;
-    }
-
-    if (!inQuotes && (char === '\n' || char === '\r')) {
-      finishField();
-      if (char === '\r' && csv[index + 1] === '\n') index += 1;
-      return { nextIndex: index + 1, values, endedInOpenQuote: false };
-    }
-
-    if (shouldCapture()) value += char;
-    index += 1;
-  }
-
-  finishField();
-  return { nextIndex: index, values, endedInOpenQuote: inQuotes };
-};
-
-const buildFullName = (record: Partial<Personnel>) => [
-  record.firstName,
-  record.middleName,
-  record.lastName,
-  record.qualifier
-].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
 
 const createColumnProjections = (
   headers: Array<{ index: number; value: string }>,
@@ -372,20 +370,31 @@ const createColumnProjections = (
   const projections: ColumnProjection[] = [];
   const usedFields = new Set<PersonnelImportField>();
 
-  for (const { index, value } of headers) {
-    const header = value.trim();
+  for (let i = 0; i < headers.length; i += 1) {
+    const item = headers[i];
+    if (!item) continue;
+    const { index, value } = item;
+    const header = (value || '').trim();
+    if (!header) continue;
     const field = getPersonnelImportField(header);
     if (!field || usedFields.has(field)) {
       result.ignoredHeaders.push(header || `Column ${index + 1}`);
       continue;
     }
     usedFields.add(field);
-    projections.push({ index, field });
+    projections.push({ index, field, headerName: header });
     result.acceptedHeaders.push(header);
   }
 
   return projections;
 };
+
+const buildFullName = (record: Partial<Personnel>) => [
+  record.firstName,
+  record.middleName,
+  record.lastName,
+  record.qualifier || record.qualification
+].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
 
 const projectPersonnelRow = (
   projections: ColumnProjection[],
@@ -401,25 +410,101 @@ const projectPersonnelRow = (
     const rawValue = getValue(projection.index).trim();
     if (!rawValue) continue;
     hasSchemaValue = true;
-
     (data as Record<string, unknown>)[projection.field] = rawValue;
   }
 
-  // Data that exists exclusively in ignored columns must not create an import row.
   if (!hasSchemaValue) return {};
+
+  // Ignore footer summary rows (e.g. "Count: 600", "Total: 100", etc.)
+  const isNumericRank = !data.rank || /^\d+$/.test(String(data.rank).trim());
+  const isSummaryRank = /^(count|total|sum|records?|subtotal)/i.test(String(data.rank || '').trim());
+  if (!data.lastName && !data.firstName && (isNumericRank || isSummaryRank)) {
+    return {};
+  }
+
+  // Clean middleName
+  if (data.middleName && (/^\(no middle name\)$/i.test(data.middleName) || data.middleName.toUpperCase() === 'N/A')) {
+    data.middleName = '';
+  }
+
+  // Derive Rank Category
+  const rankCategory = (data.rank ? getRankCategory(data.rank) : 'PNCO') as RankCategory;
+
+  // Badge No / Salary Grade interpretation
+  if (rankCategory === 'NUP') {
+    if (!data.salaryGrade && data.badgeNo) {
+      data.salaryGrade = data.badgeNo.replace(/^SG-?/i, '');
+      data.badgeNo = '';
+    } else if (data.salaryGrade) {
+      data.badgeNo = '';
+    }
+  } else {
+    // Uniformed personnel
+    delete data.salaryGrade;
+  }
+
+  // Synchronize bidirectional aliases
+  if (data.birthdate && !data.birthday) data.birthday = data.birthdate;
+  if (data.birthday && !data.birthdate) data.birthdate = data.birthday;
+
+  if (data.qualification && !data.qualifier) data.qualifier = data.qualification;
+  if (data.qualifier && !data.qualification) data.qualification = data.qualifier;
+
+  if (data.desUp && !data.dateOfEntry) data.dateOfEntry = data.desUp;
+  if (data.dateOfEntry && !data.desUp) data.desUp = data.dateOfEntry;
+  if (data.dateEnteredService && !data.dateOfEntry) {
+    data.dateOfEntry = data.dateEnteredService;
+    data.desUp = data.dateEnteredService;
+  }
+
+  if (data.officeDivision && !data.sub_unit) data.sub_unit = data.officeDivision;
+  if (data.pstatus && !data.status) data.status = data.pstatus;
+  if (data.status && !data.pstatus) data.pstatus = data.status;
+
+  if (data.dateOfOfficershipOrCommission && !data.enterInOfficerPositionDate) {
+    data.enterInOfficerPositionDate = data.dateOfOfficershipOrCommission;
+  }
+
+  // Calculate or parse Age
+  if (data.ageToDate !== undefined && data.ageToDate !== null && String(data.ageToDate).trim() !== '' && !String(data.ageToDate).includes('Invalid')) {
+    const num = Number(data.ageToDate);
+    if (!isNaN(num)) data.ageToDate = num;
+  } else {
+    const calcAge = calculateYearsBetween(data.birthdate || data.birthday || '');
+    if (calcAge) data.ageToDate = calcAge;
+  }
+
+  // Calculate or parse Service
+  if (data.ageOfServiceToDate !== undefined && data.ageOfServiceToDate !== null && String(data.ageOfServiceToDate).trim() !== '' && !String(data.ageOfServiceToDate).includes('Invalid')) {
+    const num = Number(data.ageOfServiceToDate);
+    if (!isNaN(num)) data.ageOfServiceToDate = num;
+  } else {
+    const earliest = data.pnco || data.desUp || data.nup || data.dateOfEntry || data.dateEnteredService;
+    if (earliest) {
+      const calcService = calculateYearsBetween(earliest);
+      if (calcService) data.ageOfServiceToDate = calcService;
+    }
+  }
 
   if (!data.fullName) data.fullName = buildFullName(data);
   if (!data.status) data.status = 'Active';
 
+  // Validation
   for (const field of PERSONNEL_REQUIRED_IMPORT_FIELDS) {
-    if (!String(data[field] || '').trim()) messages.push(`${field} is required`);
+    if (!String(data[field] || '').trim()) {
+      messages.push(`${field} is required`);
+    }
   }
 
-  const normalizedBadge = String(data.badgeNo || '').toLowerCase();
-  if (normalizedBadge && seenBadges.has(normalizedBadge)) {
-    messages.push(`badgeNo "${data.badgeNo}" is duplicated in this file`);
+  // In-file duplicate badge check for uniformed personnel
+  if (rankCategory !== 'NUP' && data.badgeNo) {
+    const normalizedBadge = String(data.badgeNo).trim().toUpperCase();
+    if (seenBadges.has(normalizedBadge)) {
+      messages.push(`Badge number "${data.badgeNo}" is duplicated in this file`);
+    } else {
+      seenBadges.add(normalizedBadge);
+    }
   }
-  if (normalizedBadge) seenBadges.add(normalizedBadge);
 
   return messages.length > 0
     ? { issue: { rowNumber, messages } }
@@ -429,26 +514,38 @@ const projectPersonnelRow = (
 const formatSpreadsheetCell = (value: unknown): string => {
   if (value === null || value === undefined) return '';
   if (value instanceof Date) {
+    if (isNaN(value.getTime())) return '';
     const year = value.getFullYear();
     const month = String(value.getMonth() + 1).padStart(2, '0');
     const day = String(value.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   }
+  if (typeof value === 'object' && 'result' in (value as Record<string, unknown>)) {
+    const res = (value as { result?: unknown }).result;
+    return res !== null && res !== undefined ? String(res).trim() : '';
+  }
   return String(value).trim();
 };
 
 export const parsePersonnelExcelRows = (
-  spreadsheetRows: ReadonlyArray<ReadonlyArray<unknown>>
+  spreadsheetRows: ReadonlyArray<ReadonlyArray<unknown>>,
+  explicitHeaderRowIndex?: number
 ): PersonnelCsvResult => {
   const result: PersonnelCsvResult = {
     acceptedHeaders: [],
     ignoredHeaders: [],
+    detectedHeaderRowIndex: 0,
     rows: [],
     errors: []
   };
   if (!spreadsheetRows || spreadsheetRows.length === 0) return result;
 
-  const headerRowIndex = findPersonnelHeaderRowIndex(spreadsheetRows);
+  const headerRowIndex = explicitHeaderRowIndex !== undefined
+    ? explicitHeaderRowIndex
+    : findPersonnelHeaderRowIndex(spreadsheetRows);
+
+  result.detectedHeaderRowIndex = headerRowIndex;
+
   if (headerRowIndex < 0) {
     result.errors.push({
       rowNumber: 1,
@@ -458,13 +555,14 @@ export const parsePersonnelExcelRows = (
   }
 
   const headerRow = spreadsheetRows[headerRowIndex] || [];
-  const projections = createColumnProjections(
-    headerRow.map((value, index) => ({
-      index,
-      value: formatSpreadsheetCell(value)
-    })),
-    result
-  );
+  const rawHeaderItems: Array<{ index: number; value: string }> = [];
+  for (let i = 0; i < headerRow.length; i += 1) {
+    rawHeaderItems.push({
+      index: i,
+      value: formatSpreadsheetCell(headerRow[i])
+    });
+  }
+  const projections = createColumnProjections(rawHeaderItems, result);
 
   if (projections.length === 0) {
     result.errors.push({
@@ -478,6 +576,18 @@ export const parsePersonnelExcelRows = (
   for (let index = headerRowIndex + 1; index < spreadsheetRows.length; index += 1) {
     const spreadsheetRow = spreadsheetRows[index];
     if (!spreadsheetRow || !Array.isArray(spreadsheetRow)) continue;
+    // Skip completely empty rows
+    const hasValues = spreadsheetRow.some(cell => cell !== null && cell !== undefined && String(cell).trim() !== '');
+    if (!hasValues) continue;
+
+    // Skip summary / aggregate footer rows (e.g. rows containing "Count:", "Total:", etc.)
+    const isSummaryFooterRow = spreadsheetRow.some(cell => {
+      if (cell === null || cell === undefined) return false;
+      const str = String(cell).trim().toLowerCase();
+      return str.startsWith('count:') || str.startsWith('total:') || str === 'count' || str === 'total' || str === 'grand total';
+    });
+    if (isSummaryFooterRow) continue;
+
     const projected = projectPersonnelRow(
       projections,
       columnIndex => formatSpreadsheetCell(spreadsheetRow[columnIndex]),
@@ -491,57 +601,114 @@ export const parsePersonnelExcelRows = (
   return result;
 };
 
-export const parsePersonnelCsv = (csv: string): PersonnelCsvResult => {
+/**
+ * Standard CSV row parser that splits text lines while respecting quotes.
+ */
+export const parseCsvLines = (csv: string): string[][] => {
+  const lines: string[][] = [];
+  let currentRow: string[] = [];
+  let currentVal = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < csv.length; i++) {
+    const char = csv[i];
+
+    if (char === '"') {
+      if (inQuotes && csv[i + 1] === '"') {
+        currentVal += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === ',' && !inQuotes) {
+      currentRow.push(currentVal.trim());
+      currentVal = '';
+    } else if ((char === '\r' || char === '\n') && !inQuotes) {
+      if (char === '\r' && csv[i + 1] === '\n') i++;
+      currentRow.push(currentVal.trim());
+      if (currentRow.some(c => c !== '')) {
+        lines.push(currentRow);
+      }
+      currentRow = [];
+      currentVal = '';
+    } else {
+      currentVal += char;
+    }
+  }
+
+  if (currentVal || currentRow.length > 0) {
+    currentRow.push(currentVal.trim());
+    if (currentRow.some(c => c !== '')) {
+      lines.push(currentRow);
+    }
+  }
+
+  return lines;
+};
+
+export const parsePersonnelCsv = (
+  csv: string,
+  explicitHeaderRowIndex?: number
+): PersonnelCsvResult => {
   const result: PersonnelCsvResult = {
     acceptedHeaders: [],
     ignoredHeaders: [],
+    detectedHeaderRowIndex: 0,
     rows: [],
     errors: []
   };
   if (!csv.trim()) return result;
 
-  const headerRow = readProjectedCsvRow(csv, 0, null);
-  if (headerRow.endedInOpenQuote) {
-    result.errors.push({ rowNumber: 1, messages: ['Header row contains an unclosed quote'] });
+  const parsedLines = parseCsvLines(csv);
+  if (parsedLines.length === 0) return result;
+
+  const headerRowIndex = explicitHeaderRowIndex !== undefined
+    ? explicitHeaderRowIndex
+    : findPersonnelHeaderRowIndex(parsedLines);
+
+  result.detectedHeaderRowIndex = headerRowIndex;
+
+  if (headerRowIndex < 0) {
+    result.errors.push({
+      rowNumber: 1,
+      messages: ['Unable to detect the personnel table header in CSV. Please check the file.']
+    });
     return result;
   }
 
-  const projections = createColumnProjections(
-    Array.from(headerRow.values.entries()).map(([index, value]) => ({ index, value })),
-    result
-  );
+  const headerRow = parsedLines[headerRowIndex] || [];
+  const rawHeaderItems: Array<{ index: number; value: string }> = [];
+  for (let i = 0; i < headerRow.length; i += 1) {
+    rawHeaderItems.push({
+      index: i,
+      value: String(headerRow[i] || '').trim()
+    });
+  }
+  const projections = createColumnProjections(rawHeaderItems, result);
 
   if (projections.length === 0) {
     result.errors.push({
-      rowNumber: 1,
+      rowNumber: headerRowIndex + 1,
       messages: ['The CSV has no columns that match the personnel database schema']
     });
     return result;
   }
 
-  const selectedIndexes = new Set(projections.map(projection => projection.index));
   const seenBadges = new Set<string>();
-  let csvIndex = headerRow.nextIndex;
-  let rowNumber = 2;
+  for (let index = headerRowIndex + 1; index < parsedLines.length; index += 1) {
+    const row = parsedLines[index];
+    if (!row || !row.some(c => c.trim() !== '')) continue;
 
-  while (csvIndex < csv.length) {
-    const parsed = readProjectedCsvRow(csv, csvIndex, selectedIndexes);
-    const currentRowNumber = rowNumber;
-    csvIndex = parsed.nextIndex;
-    rowNumber += 1;
-
-    if (parsed.endedInOpenQuote) {
-      result.errors.push({
-        rowNumber: currentRowNumber,
-        messages: ['Row contains an unclosed quote']
-      });
-      break;
-    }
-
+    // Skip summary / aggregate footer rows
+    const isSummaryFooterRow = row.some(cell => {
+      const str = cell.trim().toLowerCase();
+      return str.startsWith('count:') || str.startsWith('total:') || str === 'count' || str === 'total' || str === 'grand total';
+    });
+    if (isSummaryFooterRow) continue;
     const projected = projectPersonnelRow(
       projections,
-      columnIndex => parsed.values.get(columnIndex) || '',
-      currentRowNumber,
+      columnIndex => row[columnIndex] || '',
+      index + 1,
       seenBadges
     );
     if (projected.row) result.rows.push(projected.row);

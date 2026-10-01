@@ -16,7 +16,10 @@ import {
   BadgeCheck,
   RotateCcw,
   Edit3,
-  ShieldCheck
+  ShieldCheck,
+  Briefcase,
+  IdCard,
+  Mail
 } from 'lucide-react';
 import { Badge } from '../common/Badge';
 import { hasManagementAccess } from '../../utils/accessControl';
@@ -27,20 +30,12 @@ import {
   UNIT_CATEGORIES, 
   POSITION_CATEGORIES, 
   SUB_UNIT_CATEGORIES, 
-  getPcoRanks, 
-  getPncoRanks, 
   getRankCategory,
   PCO_DISPLAY_RANKS,
   PNCO_DISPLAY_RANKS,
-  NUP_DISPLAY_RANKS,
-  isRankInCategory,
-  getRanksByCategory
+  isRankInCategory
 } from '../../constants/ranks';
-
-const UNIFORMED_RANKS_ORDER = [
-  'Pat', 'PCpl', 'PSSg', 'PMSg', 'PSMS', 'PCMS', 'PEMS',
-  'PLT', 'PCPT', 'PMAJ', 'PLTCOL', 'PCOL', 'PBGEN', 'PMGEN', 'PLTGEN', 'PGEN'
-];
+import { calculateYearsBetween } from '../../utils/personnelCsv';
 
 interface PersonnelInfoTabProps {
   personnel: Personnel;
@@ -59,9 +54,6 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
   const canManage = hasManagementAccess(role);
 
   const [internalEditing, setInternalEditing] = useState(isEditing);
-  const [personnelType, setPersonnelType] = useState<'Uniformed Personnel' | 'Non-Uniformed Personnel'>(
-    personnel.rank === 'NUP' ? 'Non-Uniformed Personnel' : 'Uniformed Personnel'
-  );
   const [formData, setFormData] = useState<Personnel>(personnel);
   const [isSaving, setIsSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -73,11 +65,49 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
 
   useEffect(() => {
     const derivedCat = personnel.rankCategory || getRankCategory(personnel.rank);
+    const bdate = personnel.birthdate || personnel.birthday || '';
+    const sdate = personnel.dateEnteredService || personnel.desUp || personnel.dateOfEntry || '';
     setFormData({
       ...personnel,
-      rankCategory: derivedCat
+      rankCategory: derivedCat,
+      unit: personnel.unit || personnel.officeDivision || '',
+      officeDivision: personnel.unit || personnel.officeDivision || '',
+      subUnit: personnel.subUnit || personnel.sub_unit || personnel.division || '',
+      sub_unit: personnel.subUnit || personnel.sub_unit || personnel.division || '',
+      division: personnel.subUnit || personnel.sub_unit || personnel.division || '',
+      details: personnel.details || personnel.detail || '',
+      detail: personnel.details || personnel.detail || '',
+      station: personnel.station || '',
+      stationCode: personnel.stationCode || '',
+      subStationCode: personnel.subStationCode || '',
+      subStation: personnel.subStation || '',
+      unitCode: personnel.unitCode || 'C02',
+      subUnitCode: personnel.subUnitCode || '',
+      qualification: personnel.qualification || personnel.qualifier || '',
+      qualifier: personnel.qualification || personnel.qualifier || '',
+      birthdate: bdate,
+      birthday: bdate,
+      ageToDate: personnel.ageToDate || (bdate ? calculateYearsBetween(bdate) : undefined),
+      dateEnteredService: sdate,
+      desUp: sdate,
+      dateOfEntry: sdate,
+      ageOfServiceToDate: personnel.ageOfServiceToDate || (sdate ? calculateYearsBetween(sdate) : undefined),
+      civilStatus: personnel.civilStatus || 'Single',
+      religion: personnel.religion || '',
+      email: personnel.email || '',
+      phoneNumber: personnel.phoneNumber || personnel.contactNumber || '',
+      contactNumber: personnel.phoneNumber || personnel.contactNumber || '',
+      tin: personnel.tin || '',
+      gsisNumber: personnel.gsisNumber || '',
+      philHealthNo: personnel.philHealthNo || '',
+      pagibigNo: personnel.pagibigNo || '',
+      sourceOfCommissionship: personnel.sourceOfCommissionship || '',
+      dateOfOfficershipOrCommission: personnel.dateOfOfficershipOrCommission || personnel.enterInOfficerPositionDate || '',
+      enterInOfficerPositionDate: personnel.dateOfOfficershipOrCommission || personnel.enterInOfficerPositionDate || '',
+      pstatus: personnel.pstatus || personnel.status || 'Active',
+      pstatusDate: personnel.pstatusDate || '',
+      rankStatus: personnel.rankStatus || 'PERM'
     });
-    setPersonnelType(personnel.rank === 'NUP' ? 'Non-Uniformed Personnel' : 'Uniformed Personnel');
     setErrorMessage(null);
     setSavedSuccess(false);
   }, [personnel]);
@@ -97,35 +127,23 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
     const currentRank = formData.rank;
     const isCompatible = Boolean(currentRank && isRankInCategory(currentRank, cat));
 
-    if (cat === 'PCO') {
-      setPersonnelType('Uniformed Personnel');
+    if (cat === 'PCO' || cat === 'PNCO') {
       const nextRank = isCompatible ? currentRank : '';
       setFormData(prev => ({
         ...prev,
-        rankCategory: 'PCO',
-        rank: nextRank as any,
-        rankFullName: nextRank ? getRankFullName(nextRank) : '',
-        plantilla: '',
-        salaryGrade: undefined
-      }));
-    } else if (cat === 'PNCO') {
-      setPersonnelType('Uniformed Personnel');
-      const nextRank = isCompatible ? currentRank : '';
-      setFormData(prev => ({
-        ...prev,
-        rankCategory: 'PNCO',
+        rankCategory: cat,
         rank: nextRank as any,
         rankFullName: nextRank ? getRankFullName(nextRank) : '',
         plantilla: '',
         salaryGrade: undefined
       }));
     } else {
-      setPersonnelType('Non-Uniformed Personnel');
       setFormData(prev => ({
         ...prev,
         rankCategory: 'NUP',
         rank: 'NUP',
         rankFullName: 'Non-Uniformed Personnel',
+        badgeNo: '',
         salaryGrade: prev.salaryGrade || '14'
       }));
     }
@@ -148,22 +166,47 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
     }));
   };
 
-  const handlePersonnelTypeChange = (type: 'Uniformed Personnel' | 'Non-Uniformed Personnel') => {
-    setPersonnelType(type);
-    if (type === 'Uniformed Personnel') {
-      handleRankCategoryChange(formData.rankCategory === 'PCO' ? 'PCO' : 'PNCO');
-    } else {
-      handleRankCategoryChange('NUP');
-    }
-  };
-
   const handleChange = (field: keyof Personnel, value: any) => {
     setFormData(prev => {
       const next = { ...prev, [field]: value };
-      if (field === 'sub_unit') {
+      if (field === 'sub_unit' || field === 'subUnit') {
         next.division = value;
-      } else if (field === 'details') {
+        next.sub_unit = value;
+        next.subUnit = value;
+      } else if (field === 'officeDivision' || field === 'unit') {
+        next.officeDivision = value;
+        next.unit = value;
+      } else if (field === 'details' || field === 'detail') {
+        next.details = value;
         next.detail = value;
+      } else if (field === 'phoneNumber' || field === 'contactNumber') {
+        next.phoneNumber = value;
+        next.contactNumber = value;
+      } else if (field === 'badgeNo' || field === 'badge_number') {
+        next.badgeNo = value;
+        next.badge_number = value;
+      } else if (field === 'birthdate' || field === 'birthday') {
+        next.birthdate = value;
+        next.birthday = value;
+        if (value) {
+          next.ageToDate = calculateYearsBetween(value) || undefined;
+        }
+      } else if (field === 'desUp' || field === 'dateOfEntry' || field === 'dateEnteredService') {
+        next.desUp = value;
+        next.dateOfEntry = value;
+        next.dateEnteredService = value;
+        if (value) {
+          next.ageOfServiceToDate = calculateYearsBetween(value) || undefined;
+        }
+      } else if (field === 'qualification' || field === 'qualifier') {
+        next.qualification = value;
+        next.qualifier = value;
+      } else if (field === 'pstatus' || field === 'status') {
+        next.pstatus = value;
+        next.status = value;
+      } else if (field === 'dateOfOfficershipOrCommission' || field === 'enterInOfficerPositionDate') {
+        next.dateOfOfficershipOrCommission = value;
+        next.enterInOfficerPositionDate = value;
       }
       return next;
     });
@@ -171,11 +214,49 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
 
   const handleReset = () => {
     const derivedCat = personnel.rankCategory || getRankCategory(personnel.rank);
+    const bdate = personnel.birthdate || personnel.birthday || '';
+    const sdate = personnel.dateEnteredService || personnel.desUp || personnel.dateOfEntry || '';
     setFormData({
       ...personnel,
-      rankCategory: derivedCat
+      rankCategory: derivedCat,
+      unit: personnel.unit || personnel.officeDivision || '',
+      officeDivision: personnel.unit || personnel.officeDivision || '',
+      subUnit: personnel.subUnit || personnel.sub_unit || personnel.division || '',
+      sub_unit: personnel.subUnit || personnel.sub_unit || personnel.division || '',
+      division: personnel.subUnit || personnel.sub_unit || personnel.division || '',
+      details: personnel.details || personnel.detail || '',
+      detail: personnel.details || personnel.detail || '',
+      station: personnel.station || '',
+      stationCode: personnel.stationCode || '',
+      subStationCode: personnel.subStationCode || '',
+      subStation: personnel.subStation || '',
+      unitCode: personnel.unitCode || 'C02',
+      subUnitCode: personnel.subUnitCode || '',
+      qualification: personnel.qualification || personnel.qualifier || '',
+      qualifier: personnel.qualification || personnel.qualifier || '',
+      birthdate: bdate,
+      birthday: bdate,
+      ageToDate: personnel.ageToDate || (bdate ? calculateYearsBetween(bdate) : undefined),
+      dateEnteredService: sdate,
+      desUp: sdate,
+      dateOfEntry: sdate,
+      ageOfServiceToDate: personnel.ageOfServiceToDate || (sdate ? calculateYearsBetween(sdate) : undefined),
+      civilStatus: personnel.civilStatus || 'Single',
+      religion: personnel.religion || '',
+      email: personnel.email || '',
+      phoneNumber: personnel.phoneNumber || personnel.contactNumber || '',
+      contactNumber: personnel.phoneNumber || personnel.contactNumber || '',
+      tin: personnel.tin || '',
+      gsisNumber: personnel.gsisNumber || '',
+      philHealthNo: personnel.philHealthNo || '',
+      pagibigNo: personnel.pagibigNo || '',
+      sourceOfCommissionship: personnel.sourceOfCommissionship || '',
+      dateOfOfficershipOrCommission: personnel.dateOfOfficershipOrCommission || personnel.enterInOfficerPositionDate || '',
+      enterInOfficerPositionDate: personnel.dateOfOfficershipOrCommission || personnel.enterInOfficerPositionDate || '',
+      pstatus: personnel.pstatus || personnel.status || 'Active',
+      pstatusDate: personnel.pstatusDate || '',
+      rankStatus: personnel.rankStatus || 'PERM'
     });
-    setPersonnelType(personnel.rank === 'NUP' ? 'Non-Uniformed Personnel' : 'Uniformed Personnel');
     setErrorMessage(null);
     setSavedSuccess(false);
   };
@@ -184,13 +265,7 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
     setInternalEditing(editing);
     onToggleEdit?.(editing);
     if (!editing) {
-      const derivedCat = personnel.rankCategory || getRankCategory(personnel.rank);
-      setFormData({
-        ...personnel,
-        rankCategory: derivedCat
-      });
-      setPersonnelType(personnel.rank === 'NUP' ? 'Non-Uniformed Personnel' : 'Uniformed Personnel');
-      setErrorMessage(null);
+      handleReset();
     }
   };
 
@@ -219,13 +294,20 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
     }
 
     const isUniformed = formData.rankCategory !== 'NUP';
-    const subUnitStr = (formData.sub_unit || formData.division || '').trim();
+    if (isUniformed && !formData.badgeNo?.trim()) {
+      setErrorMessage('Badge Number is required for Uniformed Personnel.');
+      return;
+    }
+
+    const unitStr = (formData.unit || formData.officeDivision || 'ITMS').trim();
+    const subUnitStr = (formData.subUnit || formData.sub_unit || formData.division || '').trim();
     const detailsStr = (formData.details || formData.detail || '').trim();
     const stationStr = (formData.station || '').trim();
+    const phoneStr = (formData.phoneNumber || formData.contactNumber || '').trim();
     const fnStr = (formData.firstName || '').trim();
     const mnStr = (formData.middleName || '').trim();
     const lnStr = (formData.lastName || '').trim();
-    const qStr  = (formData.qualifier || '').trim();
+    const qStr  = (formData.qualification || formData.qualifier || '').trim();
     const rankStr = formData.rank;
     const rankFull = isUniformed ? getRankFullName(rankStr) : 'Non-Uniformed Personnel';
 
@@ -233,38 +315,69 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
     const qualifierPart = qStr ? ` ${qStr}` : '';
     const fullName = `${rankStr} ${fnStr}${middleInitial} ${lnStr}${qualifierPart}`.trim();
 
+    const bdate = formData.birthdate || formData.birthday || '';
+    const sdate = formData.dateEnteredService || formData.desUp || formData.dateOfEntry || '';
+
     const payload: Personnel = {
       ...formData,
       rankCategory: formData.rankCategory || (isUniformed ? getRankCategory(rankStr) : 'NUP'),
       rank: rankStr,
       rankFullName: rankFull,
       firstName: fnStr,
-      middleName: mnStr,
+      middleName: mnStr || undefined,
       lastName: lnStr,
-      qualifier: qStr,
+      qualifier: qStr || undefined,
+      qualification: qStr || undefined,
       fullName: fullName || formData.fullName,
-      badgeNo: (formData.badgeNo || '').trim(),
+      badgeNo: isUniformed ? (formData.badgeNo || '').trim() : '',
+      badge_number: isUniformed ? (formData.badgeNo || '').trim() : '',
       salaryGrade: isUniformed ? undefined : (String(formData.salaryGrade || '').trim() || undefined),
       plantilla: isUniformed ? '' : (formData.plantilla || '').trim(),
       positionCategory: formData.positionCategory || 'Main',
       unitCategory: formData.unitCategory || 'ITMS HQ',
       subUnitCategory: formData.subUnitCategory || 'Division',
-      sub_unit: subUnitStr,
-      details: detailsStr,
-      station: stationStr,
-      division: subUnitStr,
-      detail: detailsStr,
-      designation: (formData.designation || '').trim(),
-      address: (formData.address || '').trim(),
+      officeDivision: unitStr || undefined,
+      sub_unit: subUnitStr || undefined,
+      details: detailsStr || undefined,
+      station: stationStr || undefined,
+      division: subUnitStr || undefined,
+      detail: detailsStr || undefined,
+      designation: (formData.designation || '').trim() || undefined,
+      address: (formData.address || '').trim() || undefined,
       gender: formData.gender || 'Male',
-      contactNumber: (formData.contactNumber || '').trim(),
-      birthday: formData.birthday || '',
-      dateOfEntry: formData.dateOfEntry || '',
-      enterInOfficerPositionDate: formData.enterInOfficerPositionDate || formData.designationDate || '',
-      designationDate: formData.designationDate || formData.enterInOfficerPositionDate || '',
+      civilStatus: (formData.civilStatus || '').trim() || undefined,
+      religion: (formData.religion || '').trim() || undefined,
+      email: (formData.email || '').trim() || undefined,
+      phoneNumber: phoneStr || undefined,
+      contactNumber: phoneStr || undefined,
+      tin: (formData.tin || '').trim() || undefined,
+      gsisNumber: (formData.gsisNumber || '').trim() || undefined,
+      philHealthNo: (formData.philHealthNo || '').trim() || undefined,
+      pagibigNo: (formData.pagibigNo || '').trim() || undefined,
+      birthday: bdate || undefined,
+      birthdate: bdate || undefined,
+      ageToDate: formData.ageToDate || (bdate ? calculateYearsBetween(bdate) : undefined),
+      dateOfEntry: sdate || undefined,
+      desUp: sdate || undefined,
+      dateEnteredService: sdate || undefined,
+      ageOfServiceToDate: formData.ageOfServiceToDate || (sdate ? calculateYearsBetween(sdate) : undefined),
+      sourceOfCommissionship: (formData.sourceOfCommissionship || '').trim() || undefined,
+      dateOfOfficershipOrCommission: (formData.dateOfOfficershipOrCommission || formData.enterInOfficerPositionDate || '').trim() || undefined,
+      enterInOfficerPositionDate: (formData.dateOfOfficershipOrCommission || formData.enterInOfficerPositionDate || '').trim() || undefined,
+      designationDate: formData.designationDate || '',
       effectiveDate: formData.effectiveDate || '',
       lastPromotionDate: formData.lastPromotionDate || '',
-      status: formData.status || 'Active'
+      pstatus: formData.pstatus || formData.status || 'Active',
+      pstatusDate: formData.pstatusDate || '',
+      status: formData.status || formData.pstatus || 'Active',
+      rankStatus: formData.rankStatus || 'PERM',
+      unitCode: (formData.unitCode || 'C02').trim() || undefined,
+      unit: unitStr || undefined,
+      subUnitCode: (formData.subUnitCode || '').trim() || undefined,
+      subUnit: subUnitStr || undefined,
+      stationCode: (formData.stationCode || '').trim() || undefined,
+      subStationCode: (formData.subStationCode || '').trim() || undefined,
+      subStation: (formData.subStation || '').trim() || undefined
     };
 
     setIsSaving(true);
@@ -283,6 +396,8 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
       setIsSaving(false);
     }
   };
+
+  const isUniformed = formData.rankCategory !== 'NUP';
 
   return (
     <div className="space-y-5">
@@ -343,15 +458,19 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
       {/* RENDER EDIT FORM ONLY WHEN EDITING IS ACTIVE */}
       {internalEditing && canManage ? (
         <form onSubmit={handleSave} className="space-y-6">
-          {/* ── Section 1: Identity & Rank ── */}
-          <div className="rounded-xl bg-white border border-slate-200 p-4 sm:p-5 shadow-2xs space-y-3">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-              <h4 className="text-2xs font-extrabold uppercase tracking-widest text-blue-800 flex items-center gap-1.5">
-                <BadgeCheck className="w-3.5 h-3.5 text-blue-600" /> 1. Identity &amp; Rank Credentials
-              </h4>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-800 uppercase">Identity</span>
+          {/* ── Section A: Personal Information ── */}
+          <div className="rounded-xl bg-white border border-slate-200 p-4 sm:p-5 shadow-2xs space-y-3.5">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+              <div className="flex items-center gap-2">
+                <User className="w-4 h-4 text-blue-700" />
+                <div>
+                  <h4 className="text-2xs font-extrabold uppercase tracking-widest text-blue-800">A. Personal Information</h4>
+                  <p className="text-[11px] text-slate-500">Biographical credentials, official rank, civil status, and personal background.</p>
+                </div>
+              </div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-800 uppercase">Personal Info</span>
             </div>
-            
+
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
               {/* Rank Category */}
               <div>
@@ -390,7 +509,7 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
                   required
                 >
                   {!formData.rankCategory ? (
-                    <option value="">-- Select Rank Category first --</option>
+                    <option value="">-- Select Category First --</option>
                   ) : formData.rankCategory === 'PCO' ? (
                     <>
                       <option value="">-- Select PCO Rank --</option>
@@ -411,55 +530,34 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
                 </select>
               </div>
 
-              {formData.rankCategory === 'NUP' && (
-                <div className="col-span-1 sm:col-span-2 lg:col-span-4 p-3 rounded-xl bg-blue-50 border border-blue-200 text-blue-950 text-xs flex items-start gap-2.5">
-                  <ShieldCheck className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
-                  <div className="space-y-0.5">
-                    <p className="font-bold text-blue-950">Non-Uniformed Personnel (NUP)</p>
-                    <p className="text-blue-800">
-                      Strictly isolated from uniformed police ranks. Rank is automatically set to <strong>NUP (Non-Uniformed Personnel)</strong>. Please record the employee's <strong>Plantilla Item</strong>, <strong>Salary Grade (SG)</strong>, and <strong>Position/Designation</strong> under the <strong>Assignment Details</strong> section below.
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* Badge Number */}
+              {/* Last Name */}
               <div>
-                <label className="block text-2xs font-bold text-slate-700 mb-1">Badge Number *</label>
+                <label className="block text-2xs font-bold text-slate-700 mb-1">Last Name <span className="text-red-500">*</span></label>
                 <input
                   type="text"
                   required
-                  value={formData.badgeNo || ''}
-                  onChange={e => handleChange('badgeNo', e.target.value)}
-                  placeholder="e.g. 101001"
-                  className="w-full p-2 border border-slate-300 rounded text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-mono font-semibold"
-                />
-              </div>
-
-              {/* Qualifier */}
-              <div>
-                <label className="block text-2xs font-bold text-slate-700 mb-1">Qualifier</label>
-                <input
-                  type="text"
-                  value={formData.qualifier || ''}
-                  onChange={e => handleChange('qualifier', e.target.value)}
-                  placeholder="Jr., Sr., III"
-                  className="w-full p-2 border border-slate-300 rounded text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-medium"
+                  value={formData.lastName || ''}
+                  onChange={e => handleChange('lastName', e.target.value)}
+                  placeholder="e.g. DELA CRUZ"
+                  className="w-full p-2 border border-slate-300 rounded uppercase font-bold text-slate-900 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500"
                 />
               </div>
 
               {/* First Name */}
               <div>
-                <label className="block text-2xs font-bold text-slate-700 mb-1">First Name *</label>
+                <label className="block text-2xs font-bold text-slate-700 mb-1">First Name <span className="text-red-500">*</span></label>
                 <input
                   type="text"
                   required
                   value={formData.firstName || ''}
                   onChange={e => handleChange('firstName', e.target.value)}
-                  className="w-full p-2 border border-slate-300 rounded text-slate-900 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-bold"
+                  placeholder="e.g. JUAN"
+                  className="w-full p-2 border border-slate-300 rounded uppercase font-bold text-slate-900 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500"
                 />
               </div>
+            </div>
 
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
               {/* Middle Name */}
               <div>
                 <label className="block text-2xs font-bold text-slate-700 mb-1">Middle Name</label>
@@ -467,108 +565,388 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
                   type="text"
                   value={formData.middleName || ''}
                   onChange={e => handleChange('middleName', e.target.value)}
-                  className="w-full p-2 border border-slate-300 rounded text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-medium"
+                  placeholder="e.g. SANTOS"
+                  className="w-full p-2 border border-slate-300 rounded uppercase text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-medium"
                 />
               </div>
 
-              {/* Last Name */}
+              {/* Qualification */}
               <div>
-                <label className="block text-2xs font-bold text-slate-700 mb-1">Last Name *</label>
+                <label className="block text-2xs font-bold text-slate-700 mb-1">Qualification (QUAL.)</label>
                 <input
                   type="text"
-                  required
-                  value={formData.lastName || ''}
-                  onChange={e => handleChange('lastName', e.target.value)}
-                  className="w-full p-2 border border-slate-300 rounded text-slate-900 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-bold"
+                  value={formData.qualification || formData.qualifier || ''}
+                  onChange={e => handleChange('qualification', e.target.value)}
+                  placeholder="e.g. JR., III, MSCS, CPA"
+                  className="w-full p-2 border border-slate-300 rounded uppercase text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-medium"
                 />
               </div>
 
+              {/* Birthdate */}
+              <div>
+                <label className="block text-2xs font-bold text-slate-700 mb-1">BirthDate</label>
+                <input
+                  type="date"
+                  value={formData.birthdate || formData.birthday || ''}
+                  onChange={e => handleChange('birthdate', e.target.value)}
+                  className="w-full p-2 border border-slate-300 rounded font-mono text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              {/* Age to Date */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-2xs font-bold text-slate-700">Age to Date</label>
+                  <span className="text-[10px] text-blue-600 font-semibold">Auto-Calculated</span>
+                </div>
+                <input
+                  type="number"
+                  value={formData.ageToDate ?? ''}
+                  onChange={e => handleChange('ageToDate', e.target.value ? parseInt(e.target.value, 10) : undefined)}
+                  placeholder="e.g. 38"
+                  className="w-full p-2 border border-slate-300 rounded font-bold text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-3 text-xs">
               {/* Gender */}
               <div>
-                <label className="block text-2xs font-bold text-slate-700 mb-1">Gender *</label>
+                <label className="block text-2xs font-bold text-slate-700 mb-1">Gender <span className="text-red-500">*</span></label>
                 <select
                   value={formData.gender || 'Male'}
                   onChange={e => handleChange('gender', e.target.value)}
-                  className="w-full p-2 border border-slate-300 rounded text-slate-900 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-semibold cursor-pointer"
+                  className="w-full p-2 border border-slate-300 rounded text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-medium cursor-pointer"
                 >
                   <option value="Male">Male</option>
                   <option value="Female">Female</option>
                 </select>
               </div>
 
-              {/* Birthday */}
+              {/* Civil Status */}
               <div>
-                <label className="block text-2xs font-bold text-slate-700 mb-1">Birthday</label>
-                <input
-                  type="date"
-                  value={formData.birthday || ''}
-                  onChange={e => handleChange('birthday', e.target.value)}
-                  className="w-full p-2 border border-slate-300 rounded text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-mono font-medium"
-                />
+                <label className="block text-2xs font-bold text-slate-700 mb-1">Civil Status</label>
+                <select
+                  value={formData.civilStatus || 'Single'}
+                  onChange={e => handleChange('civilStatus', e.target.value)}
+                  className="w-full p-2 border border-slate-300 rounded text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-medium cursor-pointer"
+                >
+                  <option value="Single">Single</option>
+                  <option value="Married">Married</option>
+                  <option value="Widowed">Widowed</option>
+                  <option value="Separated">Separated</option>
+                  <option value="Divorced">Divorced</option>
+                </select>
               </div>
 
-              {/* Contact Number */}
+              {/* Religion */}
               <div>
-                <label className="block text-2xs font-bold text-slate-700 mb-1">Contact Number</label>
+                <label className="block text-2xs font-bold text-slate-700 mb-1">Religion</label>
                 <input
                   type="text"
-                  value={formData.contactNumber || ''}
-                  onChange={e => handleChange('contactNumber', e.target.value)}
-                  placeholder="e.g. 09171234567"
-                  className="w-full p-2 border border-slate-300 rounded text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-mono font-medium"
+                  value={formData.religion || ''}
+                  onChange={e => handleChange('religion', e.target.value)}
+                  placeholder="e.g. Roman Catholic, Christian, Islam"
+                  className="w-full p-2 border border-slate-300 rounded text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500"
                 />
               </div>
 
               {/* Residential Address */}
-              <div className="sm:col-span-2">
-                <label className="block text-2xs font-bold text-slate-700 mb-1">Residential Address</label>
+              <div className="sm:col-span-3 lg:col-span-1">
+                <label className="block text-2xs font-bold text-slate-700 mb-1">Address</label>
                 <input
                   type="text"
                   value={formData.address || ''}
                   onChange={e => handleChange('address', e.target.value)}
-                  placeholder="e.g. Quezon City, Metro Manila"
+                  placeholder="Residential address"
                   className="w-full p-2 border border-slate-300 rounded text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-medium"
                 />
               </div>
             </div>
+          </div>
 
-            {/* Service Dates in Identity */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-100 text-xs">
+          {/* ── Section B: Identification & Contact ── */}
+          <div className="rounded-xl bg-white border border-slate-200 p-4 sm:p-5 shadow-2xs space-y-3.5">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+              <div className="flex items-center gap-2">
+                <IdCard className="w-4 h-4 text-emerald-700" />
+                <div>
+                  <h4 className="text-2xs font-extrabold uppercase tracking-widest text-emerald-800">B. Identification &amp; Contact</h4>
+                  <p className="text-[11px] text-slate-500">PNP Badge, government identification numbers, and contact channels.</p>
+                </div>
+              </div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 uppercase">ID &amp; Contact</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+              {/* Badge No (Uniformed) vs Salary Grade (NUP) */}
+              {isUniformed ? (
+                <div>
+                  <label className="block text-2xs font-bold text-slate-700 mb-1">Badge Number <span className="text-red-500">*</span></label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.badgeNo || ''}
+                    onChange={e => handleChange('badgeNo', e.target.value)}
+                    placeholder="e.g. O-08161, 230200"
+                    className="w-full p-2 border border-slate-300 rounded text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-mono font-bold"
+                  />
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-2xs font-bold text-slate-700 mb-1">Salary Grade (SG) <span className="text-red-500">*</span></label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.salaryGrade ?? ''}
+                    onChange={e => handleChange('salaryGrade', e.target.value)}
+                    placeholder="e.g. 14, SG-14"
+                    className="w-full p-2 border border-slate-300 rounded text-emerald-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-bold"
+                  />
+                </div>
+              )}
+
+              {/* Email */}
               <div>
-                <label className="block text-2xs font-bold text-slate-700 mb-1">Date of Entry into Police Service</label>
+                <label className="block text-2xs font-bold text-slate-700 mb-1">Email</label>
                 <input
-                  type="date"
-                  value={formData.dateOfEntry || ''}
-                  onChange={e => handleChange('dateOfEntry', e.target.value)}
-                  className="w-full p-2 border border-slate-300 rounded text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-mono font-medium"
+                  type="email"
+                  value={formData.email || ''}
+                  onChange={e => handleChange('email', e.target.value)}
+                  placeholder="e.g. officer@pnp.gov.ph"
+                  className="w-full p-2 border border-slate-300 rounded text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-mono"
                 />
               </div>
 
+              {/* Phone Number */}
+              <div>
+                <label className="block text-2xs font-bold text-slate-700 mb-1">Phone Number</label>
+                <input
+                  type="text"
+                  value={formData.phoneNumber || formData.contactNumber || ''}
+                  onChange={e => handleChange('phoneNumber', e.target.value)}
+                  placeholder="e.g. 0917-123-4567"
+                  className="w-full p-2 border border-slate-300 rounded text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-mono"
+                />
+              </div>
+
+              {/* TIN */}
+              <div>
+                <label className="block text-2xs font-bold text-slate-700 mb-1">TIN</label>
+                <input
+                  type="text"
+                  value={formData.tin || ''}
+                  onChange={e => handleChange('tin', e.target.value)}
+                  placeholder="e.g. 900-744-527"
+                  className="w-full p-2 border border-slate-300 rounded font-mono text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+              {/* GSIS Number */}
+              <div>
+                <label className="block text-2xs font-bold text-slate-700 mb-1">Gsis Number</label>
+                <input
+                  type="text"
+                  value={formData.gsisNumber || ''}
+                  onChange={e => handleChange('gsisNumber', e.target.value)}
+                  placeholder="e.g. 0002131234"
+                  className="w-full p-2 border border-slate-300 rounded font-mono text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              {/* PhilHealth No */}
+              <div>
+                <label className="block text-2xs font-bold text-slate-700 mb-1">Phil Health No</label>
+                <input
+                  type="text"
+                  value={formData.philHealthNo || ''}
+                  onChange={e => handleChange('philHealthNo', e.target.value)}
+                  placeholder="e.g. 12-345678901-2"
+                  className="w-full p-2 border border-slate-300 rounded font-mono text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              {/* Pag-IBIG No */}
+              <div>
+                <label className="block text-2xs font-bold text-slate-700 mb-1">Pagibig No</label>
+                <input
+                  type="text"
+                  value={formData.pagibigNo || ''}
+                  onChange={e => handleChange('pagibigNo', e.target.value)}
+                  placeholder="e.g. 1234-5678-9012"
+                  className="w-full p-2 border border-slate-300 rounded font-mono text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* ── Section C: Service & Career Information ── */}
+          <div className="rounded-xl bg-white border border-slate-200 p-4 sm:p-5 shadow-2xs space-y-3.5">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+              <div className="flex items-center gap-2">
+                <Briefcase className="w-4 h-4 text-indigo-700" />
+                <div>
+                  <h4 className="text-2xs font-extrabold uppercase tracking-widest text-indigo-800">C. Service &amp; Career Information</h4>
+                  <p className="text-[11px] text-slate-500">Service longevity, commissionship, promotion records, and official status.</p>
+                </div>
+              </div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 uppercase">Service &amp; Career</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+              {/* Date Entered Service */}
+              <div>
+                <label className="block text-2xs font-bold text-slate-700 mb-1">
+                  {isUniformed ? 'Date Entered Service (DES UP)' : 'Date Entered Service'}
+                </label>
+                <input
+                  type="date"
+                  value={formData.dateEnteredService || formData.desUp || formData.dateOfEntry || ''}
+                  onChange={e => handleChange('dateEnteredService', e.target.value)}
+                  className="w-full p-2 border border-slate-300 rounded font-mono text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              {/* Age of Service to Date */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-2xs font-bold text-slate-700">Age of Service to Date</label>
+                  <span className="text-[10px] text-blue-600 font-semibold">Auto-Calculated</span>
+                </div>
+                <input
+                  type="number"
+                  value={formData.ageOfServiceToDate ?? ''}
+                  onChange={e => handleChange('ageOfServiceToDate', e.target.value ? parseInt(e.target.value, 10) : undefined)}
+                  placeholder="e.g. 15"
+                  className="w-full p-2 border border-slate-300 rounded font-bold text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              {/* Designation */}
+              <div>
+                <label className="block text-2xs font-bold text-slate-700 mb-1">Designation</label>
+                <input
+                  type="text"
+                  value={formData.designation || ''}
+                  onChange={e => handleChange('designation', e.target.value)}
+                  placeholder="e.g. IT Project Officer"
+                  className="w-full p-2 border border-slate-300 rounded font-semibold text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              {/* Designation Date */}
+              <div>
+                <label className="block text-2xs font-bold text-slate-700 mb-1">Designation Date</label>
+                <input
+                  type="date"
+                  value={formData.designationDate || formData.enterInOfficerPositionDate || ''}
+                  onChange={e => {
+                    handleChange('designationDate', e.target.value);
+                    handleChange('enterInOfficerPositionDate', e.target.value);
+                  }}
+                  className="w-full p-2 border border-slate-300 rounded font-mono text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+              {/* Effective Date */}
+              <div>
+                <label className="block text-2xs font-bold text-slate-700 mb-1">Effective Date of Designation</label>
+                <input
+                  type="date"
+                  value={formData.effectiveDate || ''}
+                  onChange={e => handleChange('effectiveDate', e.target.value)}
+                  className="w-full p-2 border border-slate-300 rounded font-mono text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              {/* Last Promotion Date */}
               <div>
                 <label className="block text-2xs font-bold text-slate-700 mb-1">Last Promotion Date</label>
                 <input
                   type="date"
                   value={formData.lastPromotionDate || ''}
                   onChange={e => handleChange('lastPromotionDate', e.target.value)}
-                  className="w-full p-2 border border-slate-300 rounded text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-mono font-medium"
+                  className="w-full p-2 border border-slate-300 rounded font-mono text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              {/* Source Of Commissionship */}
+              <div>
+                <label className="block text-2xs font-bold text-slate-700 mb-1">Source Of Commissionship</label>
+                <input
+                  type="text"
+                  value={formData.sourceOfCommissionship || ''}
+                  onChange={e => handleChange('sourceOfCommissionship', e.target.value)}
+                  placeholder="e.g. LATERAL, PNPA, OCS"
+                  className="w-full p-2 border border-slate-300 rounded uppercase text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              {/* Date Of Officership Or Commission */}
+              <div>
+                <label className="block text-2xs font-bold text-slate-700 mb-1">Date Of Officership Or Commission</label>
+                <input
+                  type="date"
+                  value={formData.dateOfOfficershipOrCommission || formData.enterInOfficerPositionDate || ''}
+                  onChange={e => {
+                    handleChange('dateOfOfficershipOrCommission', e.target.value);
+                    handleChange('enterInOfficerPositionDate', e.target.value);
+                  }}
+                  className="w-full p-2 border border-slate-300 rounded font-mono text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500"
                 />
               </div>
             </div>
-          </div>
-
-          {/* ── Section 2: Organizational Placement & Assignment ── */}
-          <div className="rounded-xl bg-white border border-slate-200 p-4 sm:p-5 shadow-2xs space-y-3">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-              <h4 className="text-2xs font-extrabold uppercase tracking-widest text-blue-800 flex items-center gap-1.5">
-                <Building2 className="w-3.5 h-3.5 text-blue-600" /> 2. Organizational Placement &amp; Assignment
-              </h4>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800 uppercase">Assignment</span>
-            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+              {/* PStatus */}
+              <div>
+                <label className="block text-2xs font-bold text-slate-700 mb-1">PStatus (Personnel Status) <span className="text-red-500">*</span></label>
+                <select
+                  value={formData.pstatus || formData.status || 'Active'}
+                  onChange={e => handleChange('pstatus', e.target.value)}
+                  className="w-full p-2 border border-slate-300 rounded font-bold text-slate-900 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 cursor-pointer"
+                >
+                  <option value="Active">ACTIVE</option>
+                  <option value="On Leave">ON LEAVE</option>
+                  <option value="Detailed Out">DETAILED OUT</option>
+                  <option value="Non-Active">NON-ACTIVE</option>
+                  <option value="Suspended">SUSPENDED</option>
+                  <option value="Retired">RETIRED</option>
+                </select>
+              </div>
+
+              {/* PStatus Date */}
+              <div>
+                <label className="block text-2xs font-bold text-slate-700 mb-1">PStatus Date</label>
+                <input
+                  type="date"
+                  value={formData.pstatusDate || ''}
+                  onChange={e => handleChange('pstatusDate', e.target.value)}
+                  className="w-full p-2 border border-slate-300 rounded font-mono text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              {/* Rank Status */}
+              <div>
+                <label className="block text-2xs font-bold text-slate-700 mb-1">Rank Status</label>
+                <select
+                  value={formData.rankStatus || 'PERM'}
+                  onChange={e => handleChange('rankStatus', e.target.value)}
+                  className="w-full p-2 border border-slate-300 rounded font-semibold text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 cursor-pointer"
+                >
+                  <option value="PERM">PERM (Permanent)</option>
+                  <option value="TEMP">TEMP (Temporary)</option>
+                  <option value="PROB">PROB (Probationary)</option>
+                </select>
+              </div>
+
               {/* Position Category */}
               <div>
-                <label className="block text-2xs font-bold text-slate-700 mb-1">Position Category *</label>
+                <label className="block text-2xs font-bold text-slate-700 mb-1">Position Category</label>
                 <select
                   value={formData.positionCategory || 'Main'}
                   onChange={e => handleChange('positionCategory', e.target.value)}
@@ -579,10 +957,138 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
                   ))}
                 </select>
               </div>
+            </div>
+          </div>
+
+          {/* ── Section D: Organizational Assignment ── */}
+          <div className="rounded-xl bg-white border border-slate-200 p-4 sm:p-5 shadow-2xs space-y-3.5">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+              <div className="flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-amber-700" />
+                <div>
+                  <h4 className="text-2xs font-extrabold uppercase tracking-widest text-amber-800">D. Organizational Assignment</h4>
+                  <p className="text-[11px] text-slate-500">Unit hierarchy, sub-unit codes, stations, and duty placement.</p>
+                </div>
+              </div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800 uppercase">Assignment</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+              {/* Unit Code */}
+              <div>
+                <label className="block text-2xs font-bold text-slate-700 mb-1">Unit Code</label>
+                <input
+                  type="text"
+                  value={formData.unitCode || ''}
+                  onChange={e => handleChange('unitCode', e.target.value)}
+                  placeholder="e.g. C02"
+                  className="w-full p-2 border border-slate-300 rounded font-mono font-bold text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              {/* Unit */}
+              <div>
+                <label className="block text-2xs font-bold text-slate-700 mb-1">Unit</label>
+                <input
+                  type="text"
+                  value={formData.unit || formData.officeDivision || ''}
+                  onChange={e => handleChange('unit', e.target.value)}
+                  placeholder="e.g. ITMS"
+                  className="w-full p-2 border border-slate-300 rounded font-semibold text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              {/* Sub Unit Code */}
+              <div>
+                <label className="block text-2xs font-bold text-slate-700 mb-1">Sub Unit Code</label>
+                <input
+                  type="text"
+                  value={formData.subUnitCode || ''}
+                  onChange={e => handleChange('subUnitCode', e.target.value)}
+                  placeholder="e.g. ARMD, ITPMD, CSD"
+                  className="w-full p-2 border border-slate-300 rounded font-mono text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              {/* Sub Unit */}
+              <div>
+                <label className="block text-2xs font-bold text-slate-700 mb-1">Sub Unit</label>
+                <input
+                  type="text"
+                  value={formData.sub_unit || formData.subUnit || formData.division || ''}
+                  onChange={e => handleChange('sub_unit', e.target.value)}
+                  placeholder="e.g. Administrative and Resource Management Division"
+                  className="w-full p-2 border border-slate-300 rounded font-medium text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+              {/* Station Code */}
+              <div>
+                <label className="block text-2xs font-bold text-slate-700 mb-1">Station Code</label>
+                <input
+                  type="text"
+                  value={formData.stationCode || ''}
+                  onChange={e => handleChange('stationCode', e.target.value)}
+                  placeholder="e.g. CRAME"
+                  className="w-full p-2 border border-slate-300 rounded font-mono text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              {/* Station */}
+              <div>
+                <label className="block text-2xs font-bold text-slate-700 mb-1">Station</label>
+                <input
+                  type="text"
+                  value={formData.station || ''}
+                  onChange={e => handleChange('station', e.target.value)}
+                  placeholder="e.g. Camp Crame"
+                  className="w-full p-2 border border-slate-300 rounded font-medium text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              {/* Sub Station Code */}
+              <div>
+                <label className="block text-2xs font-bold text-slate-700 mb-1">Sub Station Code</label>
+                <input
+                  type="text"
+                  value={formData.subStationCode || ''}
+                  onChange={e => handleChange('subStationCode', e.target.value)}
+                  placeholder="e.g. HQ-01"
+                  className="w-full p-2 border border-slate-300 rounded font-mono text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              {/* Sub Station */}
+              <div>
+                <label className="block text-2xs font-bold text-slate-700 mb-1">Sub Station</label>
+                <input
+                  type="text"
+                  value={formData.subStation || ''}
+                  onChange={e => handleChange('subStation', e.target.value)}
+                  placeholder="Sub Station Name"
+                  className="w-full p-2 border border-slate-300 rounded font-medium text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+              {/* Details */}
+              <div className="sm:col-span-2">
+                <label className="block text-2xs font-bold text-slate-700 mb-1">Details (Specific Role / Placement)</label>
+                <input
+                  type="text"
+                  value={formData.details || formData.detail || ''}
+                  onChange={e => handleChange('details', e.target.value)}
+                  placeholder="e.g. Network Monitoring Section"
+                  className="w-full p-2 border border-slate-300 rounded font-medium text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
 
               {/* Unit Category */}
               <div>
-                <label className="block text-2xs font-bold text-slate-700 mb-1">Unit Category *</label>
+                <label className="block text-2xs font-bold text-slate-700 mb-1">Unit Category</label>
                 <select
                   value={formData.unitCategory || 'ITMS HQ'}
                   onChange={e => handleChange('unitCategory', e.target.value)}
@@ -594,161 +1100,19 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
                 </select>
               </div>
 
-              {/* Sub-Unit Category */}
-              <div>
-                <label className="block text-2xs font-bold text-slate-700 mb-1">Sub-Unit Category *</label>
-                <select
-                  value={formData.subUnitCategory || 'Division'}
-                  onChange={e => handleChange('subUnitCategory', e.target.value)}
-                  className="w-full p-2 border border-slate-300 rounded font-semibold text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 cursor-pointer"
-                >
-                  {SUB_UNIT_CATEGORIES.map(sc => (
-                    <option key={sc} value={sc}>{sc}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Sub-Unit Name */}
-              <div>
-                <label className="block text-2xs font-bold text-slate-700 mb-1">Sub-Unit Name</label>
-                <input
-                  type="text"
-                  value={formData.sub_unit || formData.division || ''}
-                  onChange={e => handleChange('sub_unit', e.target.value)}
-                  placeholder="e.g. Network Operations Section"
-                  className="w-full p-2 border border-slate-300 rounded text-slate-900 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-bold"
-                />
-              </div>
-
-              {/* Details */}
-              <div>
-                <label className="block text-2xs font-bold text-slate-700 mb-1">Details</label>
-                <input
-                  type="text"
-                  value={formData.details || formData.detail || ''}
-                  onChange={e => handleChange('details', e.target.value)}
-                  placeholder="e.g. Network Monitoring"
-                  className="w-full p-2 border border-slate-300 rounded text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-medium"
-                />
-              </div>
-
-              {/* Station (Explicitly Optional) */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-2xs font-bold text-slate-700">Station</label>
-                  <span className="text-[10px] text-slate-400 font-medium">(Optional)</span>
-                </div>
-                <input
-                  type="text"
-                  value={formData.station || ''}
-                  onChange={e => handleChange('station', e.target.value)}
-                  placeholder="e.g. Camp Crame (Optional)"
-                  className="w-full p-2 border border-slate-300 rounded text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-medium"
-                />
-              </div>
-
-              {/* Designation */}
-              <div>
-                <label className="block text-2xs font-bold text-slate-700 mb-1">Designation</label>
-                <input
-                  type="text"
-                  value={formData.designation || ''}
-                  onChange={e => handleChange('designation', e.target.value)}
-                  placeholder="e.g. Section Chief"
-                  className="w-full p-2 border border-slate-300 rounded text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-semibold"
-                />
-              </div>
-
-              {/* Duty Status */}
-              <div>
-                <label className="block text-2xs font-bold text-slate-700 mb-1">Duty Status *</label>
-                <select
-                  value={formData.status || 'Active'}
-                  onChange={e => handleChange('status', e.target.value)}
-                  className="w-full p-2 border border-slate-300 rounded text-slate-900 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-bold cursor-pointer"
-                >
-                  <option value="Active">Active / On Duty</option>
-                  <option value="On Leave">On Leave</option>
-                  <option value="Detailed Out">Detailed Out</option>
-                  <option value="Suspended">Suspended</option>
-                  <option value="Inactive">Inactive</option>
-                  <option value="Retired">Retired</option>
-                </select>
-              </div>
-            </div>
-
-            {/* NUP Specific: Plantilla & Salary Grade */}
-            {formData.rankCategory === 'NUP' && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-100 text-xs">
+              {/* NUP Specific: Plantilla */}
+              {!isUniformed && (
                 <div>
                   <label className="block text-2xs font-bold text-slate-700 mb-1">Plantilla Item</label>
                   <input
                     type="text"
                     value={formData.plantilla || ''}
                     onChange={e => handleChange('plantilla', e.target.value)}
-                    placeholder="e.g. P-001"
-                    className="w-full p-2 border border-slate-300 rounded text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-mono font-medium"
+                    placeholder="e.g. ITMS-CSD-2024-001"
+                    className="w-full p-2 border border-slate-300 rounded font-mono font-medium text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500"
                   />
                 </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-2xs font-bold text-slate-700">Salary Grade (SG-ST)</label>
-                    <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">Compensation Grade</span>
-                  </div>
-                  <input
-                    type="text"
-                    value={formData.salaryGrade ?? ''}
-                    onChange={e => handleChange('salaryGrade', e.target.value)}
-                    placeholder="e.g. 14, SG-14, or 14-1"
-                    className="w-full p-2 border border-slate-300 rounded text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 font-mono font-medium"
-                  />
-                  <p className="text-[10px] text-slate-400 mt-1">Salary Grade is recorded here under Assignment as a position-level compensation grade that changes over time.</p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* ── Section 3: Designation Orders & Dates ── */}
-          <div className="rounded-xl bg-white border border-slate-200 p-4 sm:p-5 shadow-2xs space-y-3">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-              <h4 className="text-2xs font-extrabold uppercase tracking-widest text-blue-800 flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5 text-blue-600" /> 3. Designation Orders &amp; Dates
-              </h4>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-cyan-100 text-cyan-800 uppercase">Orders</span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-2xs font-bold text-slate-800">Designation Date (Date Order Issued)</label>
-                  <span className="text-[10px] text-cyan-700 font-mono bg-cyan-50 px-1.5 py-0.2 rounded border border-cyan-200">Header Date</span>
-                </div>
-                <input
-                  type="date"
-                  value={formData.designationDate || formData.enterInOfficerPositionDate || ''}
-                  onChange={e => {
-                    handleChange('designationDate', e.target.value);
-                    handleChange('enterInOfficerPositionDate', e.target.value);
-                  }}
-                  className="w-full p-2 border border-slate-300 rounded text-slate-800 bg-white focus:outline-none focus:border-blue-500 font-mono font-medium"
-                />
-                <p className="text-[10px] text-slate-500 mt-1">Displayed in the upper-right portion / header of the Order (when authority issued/signed the order).</p>
-              </div>
-
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-2xs font-bold text-slate-800">Effective Date of Designation</label>
-                  <span className="text-[10px] text-indigo-700 font-mono bg-indigo-50 px-1.5 py-0.2 rounded border border-indigo-200">Body Date</span>
-                </div>
-                <input
-                  type="date"
-                  value={formData.effectiveDate || ''}
-                  onChange={e => handleChange('effectiveDate', e.target.value)}
-                  className="w-full p-2 border border-slate-300 rounded text-slate-800 bg-white focus:outline-none focus:border-blue-500 font-mono font-medium"
-                />
-                <p className="text-[10px] text-slate-500 mt-1">Displayed in the body of the Order (when duties, accountability, and command officially begin).</p>
-              </div>
+              )}
             </div>
           </div>
 
@@ -776,13 +1140,13 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
       ) : (
         /* Read-only view (Summary of Profile details) */
         <div className="space-y-4">
-          {/* ── Box 1: Identity & Rank Credentials ── */}
+          {/* ── Box A: Personal & Biographical Information ── */}
           <div className="rounded-xl bg-white border border-slate-200 p-4 sm:p-5 shadow-2xs space-y-3">
             <div className="flex items-center justify-between border-b border-slate-100 pb-2">
               <h4 className="text-2xs font-extrabold uppercase tracking-widest text-blue-800 flex items-center gap-1.5">
-                <BadgeCheck className="w-3.5 h-3.5 text-blue-600" /> 1. Identity &amp; Rank Credentials
+                <ShieldCheck className="w-3.5 h-3.5 text-blue-600" /> A. Personal &amp; Biographical Information
               </h4>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-800 uppercase">Identity</span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-800 uppercase">Biographical</span>
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
@@ -797,130 +1161,209 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
                   <span className="text-[10px] text-slate-500 block truncate">{personnel.rankFullName}</span>
                 )}
               </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
-                <span className="text-[10px] uppercase font-bold text-slate-500 block">Badge No.</span>
-                <span className="font-mono font-bold text-slate-800 text-xs">{personnel.badgeNo || '—'}</span>
-              </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
-                <span className="text-[10px] uppercase font-bold text-slate-500 block">Official Full Name</span>
-                <span className="font-bold text-slate-900 text-xs truncate">{personnel.rank} {personnel.fullName}</span>
-              </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
-                <span className="text-[10px] uppercase font-bold text-slate-500 block">Gender &amp; Birthday</span>
-                <span className="font-medium text-slate-800 text-xs">{personnel.gender || 'Male'} · {personnel.birthday || '—'}</span>
-              </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
-                <span className="text-[10px] uppercase font-bold text-slate-500 block">Contact Number</span>
-                <span className="font-mono font-semibold text-emerald-700 text-xs">{personnel.contactNumber || '—'}</span>
-              </div>
               <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 sm:col-span-2">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Official Full Name</span>
+                <span className="font-bold text-slate-900 text-xs truncate">
+                  {personnel.rank} {personnel.fullName}
+                  {(personnel.qualification || personnel.qualifier) && ` (${personnel.qualification || personnel.qualifier})`}
+                </span>
+              </div>
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Birthdate &amp; Age</span>
+                <span className="font-medium text-slate-800 text-xs">
+                  {personnel.birthdate || personnel.birthday || '—'}
+                  {(personnel.ageToDate || (personnel.birthdate && calculateYearsBetween(personnel.birthdate))) && 
+                    ` (${personnel.ageToDate || calculateYearsBetween(personnel.birthdate!)} yrs old)`}
+                </span>
+              </div>
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Gender</span>
+                <span className="font-medium text-slate-800 text-xs">{personnel.gender || 'Male'}</span>
+              </div>
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Civil Status</span>
+                <span className="font-medium text-slate-800 text-xs">{personnel.civilStatus || 'Single'}</span>
+              </div>
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Religion</span>
+                <span className="font-medium text-slate-800 text-xs">{personnel.religion || '—'}</span>
+              </div>
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 sm:col-span-4">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Residential Address</span>
                 <span className="font-medium text-slate-800 text-xs truncate">{personnel.address || '—'}</span>
-              </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 sm:col-span-2">
-                <span className="text-[10px] uppercase font-bold text-slate-500 block">Date of Entry into Police Service</span>
-                <span className="font-mono text-slate-800 text-xs">{personnel.dateOfEntry || '—'}</span>
-              </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 sm:col-span-2">
-                <span className="text-[10px] uppercase font-bold text-slate-500 block">Last Promotion Date</span>
-                <span className="font-mono text-slate-800 text-xs">{personnel.lastPromotionDate || '—'}</span>
               </div>
             </div>
           </div>
 
-          {/* ── Box 2: Organizational Placement & Assignment ── */}
+          {/* ── Box B: Identification & Contact ── */}
           <div className="rounded-xl bg-white border border-slate-200 p-4 sm:p-5 shadow-2xs space-y-3">
             <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-              <h4 className="text-2xs font-extrabold uppercase tracking-widest text-blue-800 flex items-center gap-1.5">
-                <Building2 className="w-3.5 h-3.5 text-blue-600" /> 2. Organizational Placement &amp; Assignment
+              <h4 className="text-2xs font-extrabold uppercase tracking-widest text-emerald-800 flex items-center gap-1.5">
+                <IdCard className="w-3.5 h-3.5 text-emerald-600" /> B. Identification &amp; Contact
+              </h4>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 uppercase">ID &amp; Contact</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">
+                  {isUniformed ? 'Badge No.' : 'Salary Grade (SG)'}
+                </span>
+                <span className="font-mono font-bold text-slate-800 text-xs">
+                  {isUniformed ? (personnel.badgeNo || '—') : (personnel.salaryGrade ? `SG-${personnel.salaryGrade}` : '—')}
+                </span>
+              </div>
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Email Address</span>
+                <span className="font-mono font-medium text-slate-800 text-xs truncate">{personnel.email || '—'}</span>
+              </div>
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Phone Number</span>
+                <span className="font-mono font-semibold text-emerald-700 text-xs">{personnel.phoneNumber || personnel.contactNumber || '—'}</span>
+              </div>
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">TIN</span>
+                <span className="font-mono text-slate-800 text-xs">{personnel.tin || '—'}</span>
+              </div>
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">GSIS Number</span>
+                <span className="font-mono text-slate-800 text-xs">{personnel.gsisNumber || '—'}</span>
+              </div>
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">PhilHealth No</span>
+                <span className="font-mono text-slate-800 text-xs">{personnel.philHealthNo || '—'}</span>
+              </div>
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 sm:col-span-2">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Pag-IBIG No</span>
+                <span className="font-mono text-slate-800 text-xs">{personnel.pagibigNo || '—'}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Box C: Service & Career Information ── */}
+          <div className="rounded-xl bg-white border border-slate-200 p-4 sm:p-5 shadow-2xs space-y-3">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+              <h4 className="text-2xs font-extrabold uppercase tracking-widest text-indigo-800 flex items-center gap-1.5">
+                <Briefcase className="w-3.5 h-3.5 text-indigo-600" /> C. Service &amp; Career Information
+              </h4>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 uppercase">Service &amp; Career</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">
+                  {isUniformed ? 'Date Entered Service (DES UP)' : 'Date Entered Service'}
+                </span>
+                <span className="font-mono text-slate-800 text-xs">
+                  {personnel.dateEnteredService || personnel.desUp || personnel.dateOfEntry || '—'}
+                  {(personnel.ageOfServiceToDate || ((personnel.dateEnteredService || personnel.desUp) && calculateYearsBetween((personnel.dateEnteredService || personnel.desUp)!))) && 
+                    ` (${personnel.ageOfServiceToDate || calculateYearsBetween((personnel.dateEnteredService || personnel.desUp)!)} yrs)`}
+                </span>
+              </div>
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Designation</span>
+                <span className="font-semibold text-slate-800 text-xs">{personnel.designation || '—'}</span>
+              </div>
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Designation Date</span>
+                <span className="font-mono text-slate-800 text-xs">{personnel.designationDate || personnel.enterInOfficerPositionDate || '—'}</span>
+              </div>
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Effective Date</span>
+                <span className="font-mono text-slate-800 text-xs">{personnel.effectiveDate || '—'}</span>
+              </div>
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Last Promotion Date</span>
+                <span className="font-mono text-slate-800 text-xs">{personnel.lastPromotionDate || '—'}</span>
+              </div>
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Source Of Commissionship</span>
+                <span className="font-medium text-slate-800 text-xs">{personnel.sourceOfCommissionship || '—'}</span>
+              </div>
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Date of Officership / Comm.</span>
+                <span className="font-mono text-slate-800 text-xs">{personnel.dateOfOfficershipOrCommission || personnel.enterInOfficerPositionDate || '—'}</span>
+              </div>
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Duty Status (PStatus)</span>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <Badge variant={(personnel.pstatus || personnel.status) === 'Active' ? 'success' : 'neutral'} size="sm">
+                    {personnel.pstatus || personnel.status || 'Active'}
+                  </Badge>
+                  {personnel.pstatusDate && (
+                    <span className="text-[10px] font-mono text-slate-400">({personnel.pstatusDate})</span>
+                  )}
+                </div>
+              </div>
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Rank Status</span>
+                <span className="font-semibold text-slate-800 text-xs">{personnel.rankStatus || 'PERM'}</span>
+              </div>
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 sm:col-span-3">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Position Category</span>
+                <span className="font-semibold text-slate-800 text-xs">{personnel.positionCategory || 'Main'}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Box D: Organizational Assignment ── */}
+          <div className="rounded-xl bg-white border border-slate-200 p-4 sm:p-5 shadow-2xs space-y-3">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+              <h4 className="text-2xs font-extrabold uppercase tracking-widest text-amber-800 flex items-center gap-1.5">
+                <Building2 className="w-3.5 h-3.5 text-amber-600" /> D. Organizational Assignment
               </h4>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800 uppercase">Assignment</span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
               <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
-                <span className="text-[10px] uppercase font-bold text-slate-500 block">Position Category</span>
-                <span className="font-semibold text-slate-800 text-xs">{personnel.positionCategory || 'Main'}</span>
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Unit Code</span>
+                <span className="font-mono font-bold text-blue-900 text-xs">{personnel.unitCode || '—'}</span>
+              </div>
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Unit / Office Division</span>
+                <span className="font-bold text-blue-900 text-xs">{personnel.unit || personnel.officeDivision || '—'}</span>
+              </div>
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Sub-Unit Code</span>
+                <span className="font-mono font-medium text-slate-800 text-xs">{personnel.subUnitCode || '—'}</span>
+              </div>
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Sub-Unit</span>
+                <span className="font-bold text-blue-800 text-xs truncate">
+                  {(personnel.subUnit || personnel.sub_unit || personnel.division)?.trim() || '—'}
+                </span>
+              </div>
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Station Code</span>
+                <span className="font-mono text-slate-800 text-xs">{personnel.stationCode || '—'}</span>
+              </div>
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Station</span>
+                <span className="font-medium text-slate-800 text-xs">{personnel.station?.trim() || '—'}</span>
+              </div>
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Sub Station Code</span>
+                <span className="font-mono text-slate-800 text-xs">{personnel.subStationCode || '—'}</span>
+              </div>
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Sub Station</span>
+                <span className="font-medium text-slate-800 text-xs">{personnel.subStation?.trim() || '—'}</span>
+              </div>
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 sm:col-span-2">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Details (Role / Placement)</span>
+                <span className="font-medium text-slate-800 text-xs">{(personnel.details || personnel.detail)?.trim() || '—'}</span>
               </div>
               <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Unit Category</span>
                 <span className="font-bold text-blue-800 text-xs">{personnel.unitCategory || 'ITMS HQ'}</span>
               </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
-                <span className="text-[10px] uppercase font-bold text-slate-500 block">Sub-Unit Category</span>
-                <span className="font-semibold text-slate-800 text-xs">{personnel.subUnitCategory || 'Division'}</span>
-              </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
-                <span className="text-[10px] uppercase font-bold text-slate-500 block">Sub-Unit Name</span>
-                <span className="font-bold text-blue-800 text-xs truncate">{personnel.sub_unit || personnel.division || '—'}</span>
-              </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
-                <span className="text-[10px] uppercase font-bold text-slate-500 block">Details</span>
-                <span className="font-medium text-slate-800 text-xs">{personnel.details || personnel.detail || 'No Details recorded'}</span>
-              </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
-                <span className="text-[10px] uppercase font-bold text-slate-500 block">Station</span>
-                <span className="font-medium text-slate-800 text-xs">{personnel.station || 'No Station recorded (Optional)'}</span>
-              </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
-                <span className="text-[10px] uppercase font-bold text-slate-500 block">Designation</span>
-                <span className="font-semibold text-slate-800 text-xs">{personnel.designation || 'Not assigned'}</span>
-              </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
-                <span className="text-[10px] uppercase font-bold text-slate-500 block">Duty Status</span>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <Badge variant={personnel.status === 'Active' ? 'success' : 'neutral'} size="sm">{personnel.status}</Badge>
+              {!isUniformed && (
+                <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                  <span className="text-[10px] uppercase font-bold text-slate-500 block">Plantilla Item</span>
+                  <span className="font-mono text-slate-800 text-xs">{personnel.plantilla || '—'}</span>
                 </div>
-              </div>
-
-              {!isUniformedRank(personnel.rank) && (
-                <>
-                  <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 sm:col-span-2">
-                    <span className="text-[10px] uppercase font-bold text-slate-500 block">Plantilla Item</span>
-                    <span className="font-mono text-slate-800 text-xs">{personnel.plantilla || '—'}</span>
-                  </div>
-                  <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 sm:col-span-2">
-                    <span className="text-[10px] uppercase font-bold text-slate-500 block">Salary Grade (Compensation Step)</span>
-                    <span className="font-mono text-emerald-800 text-xs font-bold">
-                      {!personnel.salaryGrade ? '—' : (/^sg\b/i.test(String(personnel.salaryGrade).trim()) ? String(personnel.salaryGrade).trim() : `SG ${personnel.salaryGrade}`)}
-                    </span>
-                  </div>
-                </>
               )}
-            </div>
-          </div>
-
-          {/* ── Box 3: Designation Orders & Dates ── */}
-          <div className="rounded-xl bg-white border border-slate-200 p-4 sm:p-5 shadow-2xs space-y-3">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-              <h4 className="text-2xs font-extrabold uppercase tracking-widest text-blue-800 flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5 text-blue-600" /> 3. Designation Orders &amp; Dates
-              </h4>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-cyan-100 text-cyan-800 uppercase">Orders</span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] uppercase font-bold text-slate-500">Designation Date (Date Order Issued)</span>
-                  <span className="text-[9px] font-mono text-cyan-700 bg-cyan-50 px-1 rounded border border-cyan-200">Header Date</span>
-                </div>
-                <span className="font-mono font-bold text-slate-800 text-xs mt-1 block">
-                  {personnel.designationDate || personnel.enterInOfficerPositionDate || '—'}
-                </span>
-                <p className="text-[10px] text-slate-400 mt-0.5">Displayed on the upper-right portion / header of the administrative order.</p>
-              </div>
-
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] uppercase font-bold text-slate-500">Effective Date of Designation</span>
-                  <span className="text-[9px] font-mono text-indigo-700 bg-indigo-50 px-1 rounded border border-indigo-200">Body Date</span>
-                </div>
-                <span className="font-mono font-bold text-slate-800 text-xs mt-1 block">
-                  {personnel.effectiveDate || '—'}
-                </span>
-                <p className="text-[10px] text-slate-400 mt-0.5">Displayed in the body of the administrative order when duties officially take effect.</p>
-              </div>
             </div>
           </div>
         </div>
