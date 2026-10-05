@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Update bulk personnel uploads to recognize the headers in `List for OJT Project.xlsx`, persist the fields that are not currently supported, and preserve correct behavior across personnel, assignment, dashboard, reporting, export, and related modules.
+Update bulk personnel uploads to recognize the headers in [List for OJT Project.xlsx](../../reference-materials/personnel-import/List%20for%20OJT%20Project.xlsx), persist the fields that are not currently supported, and preserve correct behavior across personnel, assignment, dashboard, reporting, export, and related modules.
 
 This document describes the implementation plan. It does not apply the migration or change application code.
 

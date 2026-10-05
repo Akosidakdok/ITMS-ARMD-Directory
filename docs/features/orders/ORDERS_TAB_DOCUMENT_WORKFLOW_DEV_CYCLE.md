@@ -54,7 +54,7 @@ ITMS-SO-TR-2026-0001
 
 Reference file:
 
-`Format Example -- Travel Purpose.docx`
+[Format Example -- Travel Purpose.docx](../../reference-materials/orders/Format%20Example%20--%20Travel%20Purpose.docx)
 
 The reference is a one-page official Letter Order with the following structure:
 

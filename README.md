@@ -42,8 +42,8 @@ Use Supabase-managed backups or `pg_dump` according to the organization’s data
 
 Sign in → Dashboard → Select a module → Search/select personnel → View, add, or edit information → Save → Generate a report/document → Print or export PDF. Use the profile tabs to review records linked to one personnel member. Sign out from the sidebar when work is complete.
 
-Detailed project plans are available in [PROJECT_IMPLEMENTATION_UIUX_SDLC_PLAN.md](./PROJECT_IMPLEMENTATION_UIUX_SDLC_PLAN.md). The completion audit is in [SDLC_COMPLETION_AUDIT.md](./SDLC_COMPLETION_AUDIT.md).
+Project documentation is organized in the [documentation index](./docs/README.md). Detailed project plans are available in [PROJECT_IMPLEMENTATION_UIUX_SDLC_PLAN.md](./docs/project/PROJECT_IMPLEMENTATION_UIUX_SDLC_PLAN.md), and the completion audit is in [SDLC_COMPLETION_AUDIT.md](./docs/project/SDLC_COMPLETION_AUDIT.md).
 
-The dated ten-week delivery schedule for July 20–September 27, 2026 is in [PROJECT_DELIVERY_PLAN_10_WEEKS.md](./PROJECT_DELIVERY_PLAN_10_WEEKS.md).
+The dated ten-week delivery schedule for July 20–September 27, 2026 is in [PROJECT_DELIVERY_PLAN_10_WEEKS.md](./docs/project/PROJECT_DELIVERY_PLAN_10_WEEKS.md).
 
-The consolidated August 18, 2026 change log, revised plans, verification results, and updated eight-week timeline are in [UPDATED_IMPLEMENTATION_UIUX_SDLC_DOCUMENTATION_2026-08-18.md](./UPDATED_IMPLEMENTATION_UIUX_SDLC_DOCUMENTATION_2026-08-18.md).
+The consolidated August 18, 2026 change log, revised plans, verification results, and updated eight-week timeline are in [UPDATED_IMPLEMENTATION_UIUX_SDLC_DOCUMENTATION_2026-08-18.md](./docs/project/UPDATED_IMPLEMENTATION_UIUX_SDLC_DOCUMENTATION_2026-08-18.md).

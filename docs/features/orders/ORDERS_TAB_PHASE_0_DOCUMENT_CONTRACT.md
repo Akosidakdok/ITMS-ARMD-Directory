@@ -23,7 +23,7 @@ No application code is changed in Phase 0.
 
 | Input | Decision |
 |---|---|
-| `Format Example -- Travel Purpose.docx` | Visual reference for the existing Travel Letter Order |
+| [Format Example -- Travel Purpose.docx](../../reference-materials/orders/Format%20Example%20--%20Travel%20Purpose.docx) | Visual reference for the existing Travel Letter Order |
 | `PNP_ITMS_Letter_Orders_Format_Template.md` | Primary layout and formatting specification |
 | `src/assets/pnp-logo.png` | Left-side PNP emblem source |
 | `resources/ITMS-LOGO.jpg` | Right-side ITMS seal source |
