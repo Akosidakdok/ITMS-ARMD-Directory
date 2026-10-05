@@ -121,6 +121,12 @@ Expected Response:
 
 Run `backend/scripts/migrate_assignment_regions.sql` and `backend/scripts/migrate_authorized_strength.sql` in Supabase before using these production endpoints.
 
+### Orders and Assignment Postings
+
+Released posting orders create or update linked assignment records. Future-effective postings remain Scheduled until their effective date; revocation retains the assignment history and records the reversal. Existing assignment `orderRef` text stays available, and uniquely matching references are linked to order IDs by the migration below.
+
+Run `backend/scripts/migrate_order_assignment_coexistence.sql` in the Supabase SQL Editor before deploying this flow. It adds stable order links and assignment-effect history, and backfills only unambiguous legacy references. Unmatched or ambiguous references remain available for review.
+
 ---
 
 ## Future Database Migration Guide

@@ -93,6 +93,7 @@ export const AssignmentOverview: React.FC<AssignmentOverviewProps> = ({ assignme
         && (!assignment.endDate || assignment.endDate >= filters.asOfDate)
         && assignment.status !== 'Terminated';
       if (filters.status === 'Current' && assignment.status !== 'Current') return false;
+      if (filters.status === 'Scheduled' && assignment.status !== 'Scheduled') return false;
       if (filters.status === 'As of date' && !isActiveOnDate) return false;
       if (filters.status === 'Completed' && assignment.status !== 'Completed') return false;
       if (filters.status === 'Terminated' && assignment.status !== 'Terminated') return false;
@@ -196,7 +197,7 @@ export const AssignmentOverview: React.FC<AssignmentOverviewProps> = ({ assignme
         </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {filterSelect('Assignment view', 'status', ['As of date', 'Current', 'Completed', 'Terminated'])}
+          {filterSelect('Assignment view', 'status', ['As of date', 'Current', 'Scheduled', 'Completed', 'Terminated'])}
           <label className="min-w-[150px] flex-1">
             <span className="mb-1 block text-[10px] font-extrabold uppercase tracking-wide text-slate-500">As-of date</span>
             <input type="date" value={filters.asOfDate} onChange={event => updateFilter('asOfDate', event.target.value)} className={selectClass} />

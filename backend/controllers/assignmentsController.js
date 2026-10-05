@@ -82,6 +82,7 @@ export const deleteAssignment = async (req, res) => {
       message: 'Assignment record deleted successfully'
     });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    const status = /history is retained|cannot be deleted/i.test(error.message) ? 409 : 500;
+    res.status(status).json({ success: false, message: error.message, error: error.message });
   }
 };

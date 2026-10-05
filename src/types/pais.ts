@@ -108,6 +108,17 @@ export interface AssignmentRecord {
   unit: string;
   position: string;
   orderRef: string;
+  /** Stable link to the order that created this posting. `orderRef` remains for legacy records. */
+  orderId?: string;
+  /** Order that ended or superseded this posting. */
+  endedByOrderId?: string;
+  /** Order that scheduled/caused a termination. */
+  terminationOrderId?: string;
+  /** Additional orders that modified this posting, such as a detail extension. */
+  relatedOrderIds?: string[];
+  /** Immutable before/after snapshots for order-driven changes. */
+  orderEffectHistory?: Array<Record<string, unknown>>;
+  revokedByOrderId?: string;
   designationDate?: string;
   effectiveDate?: string;
   startDate: string;
@@ -188,6 +199,9 @@ export interface OrderRecord {
   signedBy?: string;
   releasedAt?: string;
   releasedBy?: string;
+  assignmentEffectStatus?: 'Not applicable' | 'Applied' | 'Needs review' | 'Reversed' | string;
+  assignmentEffectMessage?: string;
+  assignmentEffectsAppliedAt?: string;
   createdBy?: string;
   updatedBy?: string;
   downloadUrl?: string;

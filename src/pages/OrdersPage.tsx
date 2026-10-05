@@ -202,6 +202,7 @@ export const OrdersPage = () => {
     role,
     backendConnected,
     personnelList,
+    assignmentsList,
     ordersList,
     awardsList,
     leaveList,
@@ -405,6 +406,13 @@ export const OrdersPage = () => {
       .catch(() => { if (active) setOrderHistory([]); });
     return () => { active = false; };
   }, [selectedOrder?.id]);
+
+  const activeSelectedOrderId = selectedOrder?.id;
+  useEffect(() => {
+    if (!activeSelectedOrderId) return;
+    const refreshedOrder = ordersList.find(order => order.id === activeSelectedOrderId);
+    if (refreshedOrder) setSelectedOrder(refreshedOrder);
+  }, [ordersList, activeSelectedOrderId]);
 
   const personnelNames = useMemo(
     () => new Map(personnelList.map((person) => [person.id, `${person.rank} ${person.fullName}`])),
@@ -999,7 +1007,7 @@ export const OrdersPage = () => {
 
   const transitionSelectedOrder = async (nextStatus: OrderDocumentStatus) => {
     if (!selectedOrder) return;
-    if (nextStatus === 'Revoked') {
+    if (nextStatus === 'Revoked' && selectedOrderStatus !== 'Revoked') {
       setRevokeReason('');
       setRevokeDialogOpen(true);
       return;
@@ -1570,6 +1578,48 @@ export const OrdersPage = () => {
             <Detail label="Affected personnel" value={selectedOrder.personnelIds?.length ? selectedOrder.personnelIds.map(id => personnelNames.get(id) || 'Unknown personnel').join('\n') : String(selectedOrder.affectedPersonnelCount || 1)} />
             <Detail label="Signatory" value={[selectedOrder.signatory, selectedOrder.signatoryTitle].filter(Boolean).join(' - ')} />
             {selectedOrder.description && <div className="sm:col-span-2"><Detail label="Directives and particulars" value={selectedOrder.description} /></div>}
+            <div className="sm:col-span-2 rounded-xl border border-cyan-200 bg-cyan-50/60 p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-cyan-950">Assignment postings</p>
+                  <p className="mt-1 text-xs text-cyan-900">Posting orders apply when released and take effect on the order’s effective date.</p>
+                  <p className="mt-2 text-xs font-semibold text-slate-700">Effect status: {selectedOrder.assignmentEffectStatus || (selectedOrderStatus === 'Released' ? 'Pending' : 'Not released')}</p>
+                  {selectedOrder.assignmentEffectMessage && <p className="mt-1 text-xs text-slate-600">{selectedOrder.assignmentEffectMessage}</p>}
+                </div>
+                {canEdit && backendConnected && selectedOrderStatus === 'Released' && !['Applied', 'Not applicable'].includes(selectedOrder.assignmentEffectStatus || '') && (
+                  <button type="button" onClick={() => void transitionSelectedOrder('Released')} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-cyan-300 bg-white px-3 py-2 text-xs font-semibold text-cyan-800 hover:bg-cyan-100">
+                    <RefreshCw size={14} /> Apply or retry effects
+                  </button>
+                )}
+                {canEdit && backendConnected && selectedOrderStatus === 'Revoked' && !['Reversed', 'Not applicable'].includes(selectedOrder.assignmentEffectStatus || '') && (
+                  <button type="button" onClick={() => void transitionSelectedOrder('Revoked')} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-rose-300 bg-white px-3 py-2 text-xs font-semibold text-rose-800 hover:bg-rose-50">
+                    <RefreshCw size={14} /> Retry reversal
+                  </button>
+                )}
+              </div>
+              {(() => {
+                const linkedAssignments = assignmentsList.filter(assignment =>
+                  assignment.orderId === selectedOrder.id ||
+                  assignment.endedByOrderId === selectedOrder.id ||
+                  assignment.terminationOrderId === selectedOrder.id ||
+                  assignment.revokedByOrderId === selectedOrder.id ||
+                  assignment.relatedOrderIds?.includes(selectedOrder.id)
+                );
+                return linkedAssignments.length ? (
+                  <div className="mt-3 overflow-x-auto rounded-lg border border-cyan-100 bg-white">
+                    <table className="w-full min-w-[520px] text-left text-xs">
+                      <thead className="border-b border-slate-200 text-slate-500"><tr><th className="px-3 py-2 font-semibold">Personnel</th><th className="px-3 py-2 font-semibold">Posting</th><th className="px-3 py-2 font-semibold">Effective</th><th className="px-3 py-2 font-semibold">Status</th></tr></thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {linkedAssignments.map(assignment => {
+                          const person = personnelList.find(item => item.id === assignment.personnelId);
+                          return <tr key={assignment.id}><td className="px-3 py-2 font-semibold text-slate-800">{person?.fullName || assignment.personnelId}</td><td className="px-3 py-2 text-slate-700">{assignment.position}{assignment.unit ? ` · ${assignment.unit}` : ''}</td><td className="px-3 py-2 text-slate-600">{formatDate(assignment.effectiveDate || assignment.startDate)}</td><td className="px-3 py-2 font-semibold text-slate-700">{assignment.status}{assignment.revokedByOrderId === selectedOrder.id ? ' · order revoked' : ''}</td></tr>;
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : <p className="mt-3 text-xs text-slate-500">No assignment records are linked to this order yet.</p>;
+              })()}
+            </div>
             <div className="sm:col-span-2 grid gap-4 lg:grid-cols-2">
               <div className="rounded-xl border border-teal-200 bg-teal-50 p-4">
                 <p className="flex items-center gap-2 text-sm font-semibold text-teal-950"><FileText size={16} /> Generated unsigned order</p>

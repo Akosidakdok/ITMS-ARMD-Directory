@@ -10,6 +10,7 @@ Project documentation is grouped by topic. The backend guide remains beside the 
 - [Development cycle and roadmap](project/DEVELOPMENT_CYCLE.md)
 - [Feature gaps checklist](project/FEATURE_GAPS_CHECKLIST.md)
 - [SDLC completion audit](project/SDLC_COMPLETION_AUDIT.md)
+- [Implementation and release tracker](project/IMPLEMENTATION_AND_RELEASE_TRACKER.md)
 - [Changes since September 17, 2026](project/CHANGES_SINCE_2026-09-17.md)
 
 ## Feature implementation

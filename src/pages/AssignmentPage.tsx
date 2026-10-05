@@ -41,6 +41,7 @@ export const AssignmentPage: React.FC = () => {
   const [isCustomStationEntry, setIsCustomStationEntry] = useState(false);
   const [region, setRegion] = useState('');
   const [position, setPosition] = useState('');
+  const [orderId, setOrderId] = useState('');
   const [orderRef, setOrderRef] = useState('');
   const [designationDate, setDesignationDate] = useState('');
   const [effectiveDate, setEffectiveDate] = useState('');
@@ -190,6 +191,7 @@ export const AssignmentPage: React.FC = () => {
     setIsCustomStationEntry(false);
     setRegion('');
     setPosition('');
+    setOrderId('');
     setOrderRef('');
     setDesignationDate('');
     setEffectiveDate('');
@@ -218,6 +220,7 @@ export const AssignmentPage: React.FC = () => {
     setRegion(assignment.region || '');
     setIsCustomSubUnitEntry(false);
     setPosition(assignment.position);
+    setOrderId(assignment.orderId || '');
     setOrderRef(assignment.orderRef);
     setDesignationDate(assignment.designationDate || '');
     setEffectiveDate(assignment.effectiveDate || '');
@@ -235,6 +238,11 @@ export const AssignmentPage: React.FC = () => {
     try {
       const normalizedSubUnit = sub_unit.trim();
       const generatedUnitName = normalizedSubUnit ? `${unitCategory} - ${normalizedSubUnit}` : unitCategory;
+      const selectedOrder = ordersList.find(order => order.id === orderId);
+      const effectivePostingDate = effectiveDate || startDate;
+      const effectiveStatus = status === 'Current' && effectivePostingDate > new Date().toISOString().slice(0, 10)
+        ? 'Scheduled'
+        : status;
       const payload: AssignmentRecord = {
         id: editingAssignment?.id || `asg-${Date.now()}`,
         personnelId,
@@ -247,12 +255,13 @@ export const AssignmentPage: React.FC = () => {
         region: region || undefined,
         unit: generatedUnitName,
         position: position.trim(),
-        orderRef: orderRef.trim(),
+        orderId: orderId || undefined,
+        orderRef: orderRef.trim() || selectedOrder?.orderNumber || selectedOrder?.orderNo || '',
         designationDate: designationDate || undefined,
         effectiveDate: effectiveDate || undefined,
         startDate,
         endDate: endDate || undefined,
-        status,
+        status: effectiveStatus,
         remarks: remarks.trim() || undefined
       };
       if (editingAssignment) {
@@ -357,6 +366,7 @@ export const AssignmentPage: React.FC = () => {
               >
                 <option value="ALL">All Statuses</option>
                 <option value="Current">Current</option>
+                <option value="Scheduled">Scheduled</option>
                 <option value="Completed">Completed</option>
                 <option value="Terminated">Terminated</option>
               </select>
@@ -462,7 +472,7 @@ export const AssignmentPage: React.FC = () => {
                       <div className="text-[10px] text-slate-400">to {asg.endDate ? formatDateSafe(asg.endDate) : 'Present'}</div>
                     </td>
                     <td className="py-3 px-4">
-                      <Badge variant={asg.status === 'Current' ? 'primary' : asg.status === 'Completed' ? 'neutral' : 'warning'} size="sm">
+                      <Badge variant={asg.status === 'Current' ? 'primary' : asg.status === 'Scheduled' ? 'info' : asg.status === 'Completed' ? 'neutral' : 'warning'} size="sm">
                         {asg.status}
                       </Badge>
                     </td>
@@ -799,18 +809,39 @@ export const AssignmentPage: React.FC = () => {
           {/* Orders Section: Order Ref, Designation Date, Effective Date */}
           <div className="p-3 bg-cyan-50/50 border border-cyan-200 rounded-xl space-y-3">
             <p className="text-[10px] font-extrabold uppercase tracking-wider text-cyan-800">Administrative Order Context</p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Order Reference *</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Link official order</label>
+                <select
+                  value={orderId}
+                  onChange={e => {
+                    const nextOrderId = e.target.value;
+                    const linkedOrder = ordersList.find(order => order.id === nextOrderId);
+                    setOrderId(nextOrderId);
+                    if (linkedOrder) setOrderRef(linkedOrder.orderNumber || linkedOrder.orderNo || linkedOrder.id);
+                  }}
+                  className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
+                >
+                  <option value="">Manual posting / legacy reference</option>
+                  {ordersList.map(order => <option key={order.id} value={order.id}>{order.orderNumber || order.orderNo || order.id} — {order.purposeLabel || order.subject}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Order reference</label>
                 <input
                   type="text"
                   value={orderRef}
-                  onChange={e => setOrderRef(e.target.value)}
-                  placeholder="e.g. SO-ITMS-2026-099"
+                  onChange={e => {
+                    setOrderRef(e.target.value);
+                    const linkedOrder = ordersList.find(order => order.id === orderId);
+                    if (linkedOrder && e.target.value.trim() !== (linkedOrder.orderNumber || linkedOrder.orderNo || linkedOrder.id)) setOrderId('');
+                  }}
+                  placeholder="Optional for manual or legacy records"
                   className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
-                  required
                 />
               </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Designation Date</label>
                 <input
@@ -873,6 +904,7 @@ export const AssignmentPage: React.FC = () => {
                 className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-bold focus:outline-none focus:border-blue-500 cursor-pointer"
               >
                 <option value="Current">Current</option>
+                <option value="Scheduled">Scheduled</option>
                 <option value="Completed">Completed</option>
                 <option value="Terminated">Terminated</option>
               </select>
@@ -916,10 +948,12 @@ export const AssignmentPage: React.FC = () => {
       >
         {selectedAssignment && (() => {
           const person = personnelList.find(p => p.id === selectedAssignment.personnelId);
-          const connectedOrder = ordersList.find(o => 
+          const connectedOrder = ordersList.find(o => o.id === selectedAssignment.orderId) || ordersList.find(o =>
             (o.orderNumber && selectedAssignment.orderRef && o.orderNumber.trim().toLowerCase() === selectedAssignment.orderRef.trim().toLowerCase()) ||
             (o.id && selectedAssignment.orderRef && o.id.trim().toLowerCase() === selectedAssignment.orderRef.trim().toLowerCase())
           );
+          const relatedOrders = ordersList.filter(order => order.id === selectedAssignment.orderId || order.id === selectedAssignment.endedByOrderId || order.id === selectedAssignment.terminationOrderId || order.id === selectedAssignment.revokedByOrderId || selectedAssignment.relatedOrderIds?.includes(order.id));
+          const hasOrderHistoryLink = Boolean(selectedAssignment.orderId || selectedAssignment.endedByOrderId || selectedAssignment.terminationOrderId || selectedAssignment.relatedOrderIds?.length);
           return (
             <div className="space-y-3 text-xs">
               {[
@@ -933,6 +967,7 @@ export const AssignmentPage: React.FC = () => {
                 ['Station', selectedAssignment.station || 'Not recorded (Optional)'],
                 ['Unit / Division', selectedAssignment.unit],
                 ['Order Reference', selectedAssignment.orderRef ? `${selectedAssignment.orderRef} ${connectedOrder ? `(${connectedOrder.documentStatus || connectedOrder.status})` : '(Unlinked)'}` : 'Not recorded'],
+                ['Related Orders', relatedOrders.length ? relatedOrders.map(order => order.orderNumber || order.orderNo || order.id).join(', ') : 'No linked order IDs'],
                 ['Designation Date (Date Order Issued)', formatDateSafe(selectedAssignment.designationDate)],
                 ['Effective Date of Designation', formatDateSafe(selectedAssignment.effectiveDate || selectedAssignment.startDate)],
                 ['Start Date', formatDateSafe(selectedAssignment.startDate)],
@@ -945,7 +980,7 @@ export const AssignmentPage: React.FC = () => {
                   <p className="mt-1 font-bold text-slate-900">{value}</p>
                 </div>
               ))}
-              {canManage && (
+              {canManage && !hasOrderHistoryLink && (
                 <div className="flex justify-end gap-2 border-t border-slate-200 pt-3">
                   <button
                     type="button"
@@ -970,6 +1005,7 @@ export const AssignmentPage: React.FC = () => {
                   </button>
                 </div>
               )}
+              {canManage && hasOrderHistoryLink && <p className="border-t border-slate-200 pt-3 text-right text-[11px] font-semibold text-slate-500">This assignment is linked to order history and is retained for the audit trail.</p>}
             </div>
           );
         })()}

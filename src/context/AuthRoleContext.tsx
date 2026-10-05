@@ -198,10 +198,12 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     if (isOnline) {
       try {
-        const [pData, oData, aData, eData, prData, tData, lData, awData] = await Promise.all([
+        // Assignment reads reconcile effective dates on the server, so fetch
+        // personnel after assignments to avoid briefly showing stale postings.
+        const aData = await fetchAssignments();
+        const [pData, oData, eData, prData, tData, lData, awData] = await Promise.all([
           fetchPersonnel(),
           fetchOrders(),
-          fetchAssignments(),
           fetchEducation(),
           fetchPromotions(),
           fetchTraining(),
@@ -431,6 +433,13 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (backendConnected) {
       const updated = await transitionOrderStatusApi(id, nextStatus, reason);
       setOrdersList(prev => prev.map(order => order.id === updated.id ? updated : order));
+      try {
+        const [nextAssignments, nextPersonnel] = await Promise.all([fetchAssignments(), fetchPersonnel()]);
+        setAssignmentsList(nextAssignments);
+        setPersonnelList(nextPersonnel);
+      } catch (error) {
+        console.warn('Order status changed, but assignment postings could not be refreshed:', error);
+      }
       return updated;
     }
     const existing = ordersList.find(order => order.id === id);
@@ -444,6 +453,13 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (backendConnected) {
       const updated = await restoreOrderStatusApi(id, reason);
       setOrdersList(prev => prev.map(order => order.id === updated.id ? updated : order));
+      try {
+        const [nextAssignments, nextPersonnel] = await Promise.all([fetchAssignments(), fetchPersonnel()]);
+        setAssignmentsList(nextAssignments);
+        setPersonnelList(nextPersonnel);
+      } catch (error) {
+        console.warn('Order restored, but assignment postings could not be refreshed:', error);
+      }
       return updated;
     }
     const existing = ordersList.find(order => order.id === id);
@@ -545,7 +561,13 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       return next;
     });
 
-    if (isCurrent) {
+    if (backendConnected) {
+      try {
+        setPersonnelList(await fetchPersonnel());
+      } catch (error) {
+        console.warn('Assignment changed, but personnel details could not be refreshed:', error);
+      }
+    } else if (isCurrent && isMain) {
       setPersonnelList(prev => prev.map(p => {
         if (p.id === created.personnelId) {
           return {
@@ -594,7 +616,13 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       return next;
     });
 
-    if (isCurrent) {
+    if (backendConnected) {
+      try {
+        setPersonnelList(await fetchPersonnel());
+      } catch (error) {
+        console.warn('Assignment changed, but personnel details could not be refreshed:', error);
+      }
+    } else if (isCurrent && isMain) {
       setPersonnelList(prev => prev.map(p => {
         if (p.id === updated.personnelId) {
           return {
@@ -625,9 +653,9 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setAssignmentsList(remaining);
 
     if (target && target.status === 'Current') {
-      const otherActive = remaining.find(a => a.personnelId === target.personnelId && a.status === 'Current');
+      const otherActive = remaining.find(a => a.personnelId === target.personnelId && a.status === 'Current' && a.positionCategory !== 'In Addition/Concurrent');
       const fallback = otherActive || remaining
-        .filter(a => a.personnelId === target.personnelId)
+        .filter(a => a.personnelId === target.personnelId && a.positionCategory !== 'In Addition/Concurrent' && !['Scheduled', 'Terminated'].includes(a.status))
         .sort((a, b) => (b.effectiveDate || b.startDate || '').localeCompare(a.effectiveDate || a.startDate || ''))[0];
       if (fallback) {
         setPersonnelList(prev => prev.map(p => {
@@ -649,6 +677,13 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           }
           return p;
         }));
+      }
+    }
+    if (backendConnected) {
+      try {
+        setPersonnelList(await fetchPersonnel());
+      } catch (error) {
+        console.warn('Assignment deleted, but personnel details could not be refreshed:', error);
       }
     }
   };

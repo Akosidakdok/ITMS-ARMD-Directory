@@ -165,6 +165,20 @@ export const deleteOrder = async (req, res) => {
         message: `Only Draft or Revoked orders can be deleted. ${currentStatus} orders remain in the register.`
       });
     }
+    const assignments = await db.getAssignments();
+    const hasAssignmentLinks = assignments.some(assignment =>
+      assignment.orderId === order.id ||
+      assignment.endedByOrderId === order.id ||
+      assignment.terminationOrderId === order.id ||
+      assignment.revokedByOrderId === order.id ||
+      assignment.relatedOrderIds?.includes(order.id)
+    );
+    if (hasAssignmentLinks) {
+      return res.status(409).json({
+        success: false,
+        message: 'This order is retained because assignment history links to it.'
+      });
+    }
     const success = await db.deleteOrder(req.params.id);
     if (!success) {
       return res.status(404).json({ success: false, message: 'Order not found' });

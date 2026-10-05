@@ -471,13 +471,15 @@ export const createAssignmentApi = async (assignment: AssignmentRecord): Promise
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(assignment)
   });
-  const json = await res.json();
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(json?.message || json?.error || 'Failed to create assignment');
   return json.data;
 };
 
 export const deleteAssignmentApi = async (id: string): Promise<void> => {
   const res = await apiFetch(`${API_BASE_URL}/assignments/${id}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error('Failed to delete assignment');
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(json?.message || json?.error || 'Failed to delete assignment');
 };
 
 // ================= EDUCATION API =================

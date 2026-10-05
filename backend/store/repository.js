@@ -30,6 +30,23 @@ const PCO_RANKS_BACKEND = new Set([
   'POLICE MAJOR GENERAL', 'POLICE LIEUTENANT GENERAL', 'POLICE GENERAL'
 ]);
 
+const POSTING_ORDER_CODES = new Set(['DES', 'TDS', 'DO', 'DOX', 'RA', 'UA', 'AO']);
+const ASSIGNMENT_UNIT_CATEGORIES = new Set(['ITMS HQ', 'Command Group', 'P-Staff', 'DIPO/APC', 'D-Staff', 'NOSU', 'NASU', 'PRO']);
+
+function manilaDate() {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit'
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+function previousDate(date) {
+  const value = new Date(`${date}T00:00:00Z`);
+  value.setUTCDate(value.getUTCDate() - 1);
+  return value.toISOString().slice(0, 10);
+}
+
 function getRankCategoryBackend(rank) {
   if (!rank) return 'PNCO';
   const clean = String(rank).trim().toUpperCase();
@@ -669,7 +686,7 @@ class PAISRepository {
         changedAt
       }]);
       if (historyError) throw new Error(`Order status history insert failed: ${historyError.message}`);
-      return data;
+      return targetStatus === 'Released' ? this.applyReleasedOrderEffects(data, actor) : data;
     }
 
     const index = this.inMemoryOrders.findIndex(order => order.id === id);
@@ -684,7 +701,9 @@ class PAISRepository {
       changedBy: actor,
       changedAt
     });
-    return this.inMemoryOrders[index];
+    return targetStatus === 'Released'
+      ? this.applyReleasedOrderEffects(this.inMemoryOrders[index], actor)
+      : this.inMemoryOrders[index];
   }
 
   async attachOrderDocument(id, metadata) {
@@ -783,7 +802,9 @@ class PAISRepository {
     if (!existing) return null;
 
     const fromStatus = normalizeOrderStatus(existing);
-    assertOrderStatusTransition(fromStatus, toStatus);
+    const retryingPostingEffects = fromStatus === toStatus && ['Released', 'Revoked'].includes(toStatus);
+    if (fromStatus === toStatus && !retryingPostingEffects) return existing;
+    if (!retryingPostingEffects && fromStatus !== toStatus) assertOrderStatusTransition(fromStatus, toStatus);
     if (toStatus === 'Signed' && !existing.signedDocument?.storagePath) {
       throw new Error('A scanned signed order image must be uploaded before the order can be marked Signed.');
     }
@@ -803,7 +824,9 @@ class PAISRepository {
     }
 
     let updated;
-    if (this.isSupabaseConnected()) {
+    if (retryingPostingEffects) {
+      updated = existing;
+    } else if (this.isSupabaseConnected()) {
       const { data, error } = await supabase
         .from('orders')
         .update(statusUpdate)
@@ -823,22 +846,29 @@ class PAISRepository {
         changedAt
       }]);
       if (historyError) throw new Error(`Order status history insert failed: ${historyError.message}`);
-      return updated;
+    } else {
+      const index = this.inMemoryOrders.findIndex(order => order.id === id);
+      if (index === -1) return null;
+      this.inMemoryOrders[index] = { ...this.inMemoryOrders[index], ...statusUpdate };
+      updated = this.inMemoryOrders[index];
+      this.inMemoryOrderStatusHistory.push({
+        id: `osh-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        orderId: id,
+        fromStatus,
+        toStatus,
+        reason: String(reason || '').trim() || null,
+        changedBy: actor,
+        changedAt
+      });
     }
 
-    const index = this.inMemoryOrders.findIndex(order => order.id === id);
-    if (index === -1) return null;
-    this.inMemoryOrders[index] = { ...this.inMemoryOrders[index], ...statusUpdate };
-    this.inMemoryOrderStatusHistory.push({
-      id: `osh-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      orderId: id,
-      fromStatus,
-      toStatus,
-      reason: String(reason || '').trim() || null,
-      changedBy: actor,
-      changedAt
-    });
-    return this.inMemoryOrders[index];
+    if (toStatus === 'Released') {
+      return this.applyReleasedOrderEffects(updated, actor);
+    }
+    if (toStatus === 'Revoked') {
+      return this.reverseOrderAssignmentEffects(updated, actor);
+    }
+    return updated;
   }
 
   // ================= AWARDS CRUD =================
@@ -917,44 +947,449 @@ class PAISRepository {
   }
 
   // ================= ASSIGNMENTS CRUD =================
-  async getAssignments(personnelId = null) {
+  async readAssignmentsRaw(personnelId = null) {
     if (this.isSupabaseConnected()) {
-      try {
-        let req = supabase.from('assignments').select('*');
-        if (personnelId) req = req.eq('personnelId', personnelId);
-        const { data, error } = await req;
-        if (!error && Array.isArray(data)) return data;
-      } catch (e) {}
+      let query = supabase.from('assignments').select('*');
+      if (personnelId) query = query.eq('personnelId', personnelId);
+      const { data, error } = await query;
+      if (error) throw new Error(`Assignment lookup failed: ${error.message}`);
+      return data || [];
+    }
+    return personnelId
+      ? this.inMemoryAssignments.filter(assignment => assignment.personnelId === personnelId)
+      : [...this.inMemoryAssignments];
+  }
+
+  async persistAssignmentPatch(id, patch) {
+    const update = { ...patch, updatedAt: new Date().toISOString() };
+    if (this.isSupabaseConnected()) {
+      const { data, error } = await supabase.from('assignments').update(update).eq('id', id).select().single();
+      if (error || !data) throw new Error(`Assignment update failed: ${error?.message || 'Assignment not found'}`);
+      return data;
+    }
+    const index = this.inMemoryAssignments.findIndex(assignment => assignment.id === id);
+    if (index === -1) return null;
+    this.inMemoryAssignments[index] = { ...this.inMemoryAssignments[index], ...update };
+    return this.inMemoryAssignments[index];
+  }
+
+  async setOrderAssignmentEffectStatus(order, status, message = '') {
+    const statusPatch = {
+      assignmentEffectStatus: status,
+      assignmentEffectMessage: message || null,
+      assignmentEffectsAppliedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    if (this.isSupabaseConnected()) {
+      const { data, error } = await supabase.from('orders').update(statusPatch).eq('id', order.id).select().single();
+      if (error || !data) throw new Error(`Order assignment-effect status update failed: ${error?.message || 'Order not found'}`);
+      return data;
+    }
+    const index = this.inMemoryOrders.findIndex(item => item.id === order.id);
+    if (index === -1) return { ...order, ...statusPatch };
+    this.inMemoryOrders[index] = { ...this.inMemoryOrders[index], ...statusPatch };
+    return this.inMemoryOrders[index];
+  }
+
+  orderEffectEvent(assignment, event) {
+    const history = Array.isArray(assignment.orderEffectHistory) ? assignment.orderEffectHistory : [];
+    return [...history, { ...event, changedAt: new Date().toISOString() }];
+  }
+
+  async activateOrderDrivenAssignment(assignment, order, effectiveDate) {
+    if (!assignment || (assignment.positionCategory && assignment.positionCategory !== 'Main')) {
+      return assignment;
+    }
+    const priorRows = await this.readAssignmentsRaw(assignment.personnelId);
+    for (const prior of priorRows.filter(row => row.id !== assignment.id && row.status === 'Current' && (!row.positionCategory || row.positionCategory === 'Main'))) {
+      const endDate = previousDate(effectiveDate);
+      await this.persistAssignmentPatch(prior.id, {
+        status: 'Completed', endDate, endedByOrderId: order.id,
+        orderEffectHistory: this.orderEffectEvent(prior, {
+          orderId: order.id, action: 'superseded', effectiveDate,
+          before: { status: prior.status, endDate: prior.endDate || null, endedByOrderId: prior.endedByOrderId || null },
+          after: { status: 'Completed', endDate, endedByOrderId: order.id }
+        })
+      });
+    }
+    const current = await this.persistAssignmentPatch(assignment.id, { status: 'Current' });
+    if (current) await this.syncPersonnelFromAssignment(current);
+    return current;
+  }
+
+  async getAssignments(personnelId = null) {
+    const all = await this.readAssignmentsRaw();
+    const rows = await this.reconcileAssignmentDates(all);
+    return personnelId ? rows.filter(assignment => assignment.personnelId === personnelId) : rows;
+  }
+
+  async createOrderDrivenAssignment(order, person, data, effectType) {
+    const effectiveDate = String(data.startDate || order.effectiveDate || order.issuedDate || manilaDate()).slice(0, 10);
+    const status = effectiveDate > manilaDate() ? 'Scheduled' : 'Current';
+    const isMain = (data.positionCategory || 'Main') === 'Main';
+    const assignmentId = `asg-order-${encodeURIComponent(order.id)}-${encodeURIComponent(person.id)}`;
+    const existing = (await this.readAssignmentsRaw(person.id)).find(row => row.id === assignmentId || row.orderId === order.id);
+    if (existing) {
+      if (existing.revokedByOrderId === order.id) {
+        const revokeEvents = (existing.orderEffectHistory || []).filter(event => event.orderId === order.id && event.action === 'revoked');
+        const revokeEvent = revokeEvents[revokeEvents.length - 1];
+        const before = revokeEvent?.before || {};
+        const currentRows = await this.readAssignmentsRaw(person.id);
+        const previouslySuperseded = row => (row.orderEffectHistory || []).some(event => event.orderId === order.id && event.action === 'superseded');
+        const rowDate = row => String(row.effectiveDate || row.startDate || '').slice(0, 10);
+        const laterCurrent = currentRows.some(row => row.id !== existing.id && row.status === 'Current' && (!row.positionCategory || row.positionCategory === 'Main') && !previouslySuperseded(row) && rowDate(row) > effectiveDate);
+        const priorCurrent = currentRows.filter(row => row.id !== existing.id && row.status === 'Current' && (!row.positionCategory || row.positionCategory === 'Main') && (previouslySuperseded(row) || !rowDate(row) || rowDate(row) <= effectiveDate));
+        let restoredStatus = before.status;
+        if (['Current', 'Scheduled'].includes(before.status)) {
+          restoredStatus = effectiveDate > manilaDate() ? 'Scheduled' : (laterCurrent ? 'Completed' : 'Current');
+        }
+        if (restoredStatus === 'Current') {
+          for (const prior of priorCurrent) {
+            await this.persistAssignmentPatch(prior.id, {
+              status: 'Completed', endDate: previousDate(effectiveDate), endedByOrderId: order.id,
+              orderEffectHistory: this.orderEffectEvent(prior, {
+                orderId: order.id, action: 'superseded', effectiveDate,
+                before: { status: prior.status, endDate: prior.endDate || null, endedByOrderId: prior.endedByOrderId || null },
+                after: { status: 'Completed', endDate: previousDate(effectiveDate), endedByOrderId: order.id }
+              })
+            });
+          }
+        }
+        const restored = await this.persistAssignmentPatch(existing.id, {
+          status: restoredStatus || existing.status,
+          endDate: before.endDate || data.endDate || null,
+          revokedByOrderId: null,
+          orderEffectHistory: this.orderEffectEvent(existing, {
+            orderId: order.id, action: 'reapplied', effectiveDate,
+            before: { status: existing.status }, after: { status: restoredStatus }, effectType
+          })
+        });
+        if (restored?.status === 'Current') await this.syncPersonnelFromAssignment(restored);
+        return restored;
+      }
+      if (isMain && status === 'Current' && ['Current', 'Scheduled'].includes(existing.status)) {
+        return this.activateOrderDrivenAssignment(existing, order, effectiveDate);
+      }
+      return existing;
     }
 
-    if (personnelId) {
-      return this.inMemoryAssignments.filter(a => a.personnelId === personnelId);
+    const assignment = {
+      id: assignmentId,
+      personnelId: person.id,
+      positionCategory: data.positionCategory || 'Main',
+      unitCategory: data.unitCategory || person.unitCategory || 'ITMS HQ',
+      subUnitCategory: data.subUnitCategory || person.subUnitCategory || 'Division',
+      sub_unit: data.sub_unit ?? person.sub_unit ?? person.division ?? '',
+      details: data.details || '',
+      station: data.station || person.station || '',
+      region: data.region || '',
+      unit: data.unit || data.unitCategory || person.unitCategory || 'ITMS HQ',
+      position: data.position || 'Assignment',
+      orderRef: order.orderNumber || order.orderNo || order.id,
+      orderId: order.id,
+      relatedOrderIds: [order.id],
+      designationDate: order.issuedDate || '',
+      effectiveDate,
+      startDate: effectiveDate,
+      endDate: data.endDate || undefined,
+      // Stage a due main posting so the prior current posting is closed before
+      // this one becomes Current. A retry can safely finish activation.
+      status: status === 'Current' && isMain ? 'Scheduled' : status,
+      remarks: data.remarks || '',
+      orderEffectHistory: [{
+        orderId: order.id, action: 'created', effectType, effectiveDate,
+        before: null, after: { status, startDate: effectiveDate }, changedAt: new Date().toISOString()
+      }]
+    };
+    if (this.isSupabaseConnected()) {
+      const { data: inserted, error } = await supabase.from('assignments').insert([assignment]).select().single();
+      if (error || !inserted) {
+        const raced = (await this.readAssignmentsRaw(person.id)).find(row => row.id === assignmentId || row.orderId === order.id);
+        if (raced) return raced;
+        throw new Error(`Order assignment creation failed: ${error?.message || 'No assignment returned'}`);
+      }
+      if (status === 'Current' && isMain) return this.activateOrderDrivenAssignment(inserted, order, effectiveDate);
+      if (status === 'Current') await this.syncPersonnelFromAssignment(inserted);
+      return inserted;
     }
-    return [...this.inMemoryAssignments];
+    this.inMemoryAssignments.unshift(assignment);
+    if (status === 'Current' && isMain) return this.activateOrderDrivenAssignment(assignment, order, effectiveDate);
+    if (status === 'Current') await this.syncPersonnelFromAssignment(assignment);
+    return assignment;
+  }
+
+  async reconcileAssignmentDates(assignments) {
+    const today = manilaDate();
+    const changedPeople = new Set();
+    let rows = assignments;
+    const dueAssignments = rows
+      .filter(row => row.status === 'Scheduled' && (row.effectiveDate || row.startDate) <= today)
+      .sort((a, b) => String(a.effectiveDate || a.startDate).localeCompare(String(b.effectiveDate || b.startDate)) || String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
+    for (const scheduled of dueAssignments) {
+      const effectiveDate = scheduled.effectiveDate || scheduled.startDate;
+      if (!scheduled.positionCategory || scheduled.positionCategory === 'Main') {
+        const priorRows = rows.filter(row => row.personnelId === scheduled.personnelId && row.id !== scheduled.id && row.status === 'Current' && (!row.positionCategory || row.positionCategory === 'Main'));
+        for (const prior of priorRows) {
+          const endDate = previousDate(effectiveDate);
+          await this.persistAssignmentPatch(prior.id, {
+            status: 'Completed', endDate, endedByOrderId: scheduled.orderId || null,
+            ...(scheduled.orderId ? { orderEffectHistory: this.orderEffectEvent(prior, {
+              orderId: scheduled.orderId, action: 'superseded', effectiveDate,
+              before: { status: prior.status, endDate: prior.endDate || null, endedByOrderId: prior.endedByOrderId || null },
+              after: { status: 'Completed', endDate, endedByOrderId: scheduled.orderId }
+            }) } : {})
+          });
+        }
+      }
+      await this.persistAssignmentPatch(scheduled.id, { status: 'Current' });
+      if (!scheduled.positionCategory || scheduled.positionCategory === 'Main') changedPeople.add(scheduled.personnelId);
+      rows = await this.readAssignmentsRaw();
+    }
+    for (const expired of rows.filter(row => row.status === 'Current' && row.endDate && row.endDate < today)) {
+      await this.persistAssignmentPatch(expired.id, { status: expired.terminationOrderId ? 'Terminated' : 'Completed' });
+      if (!expired.positionCategory || expired.positionCategory === 'Main') changedPeople.add(expired.personnelId);
+    }
+    for (const personnelId of changedPeople) {
+      const current = (await this.readAssignmentsRaw(personnelId)).find(row => row.status === 'Current' && (!row.positionCategory || row.positionCategory === 'Main'));
+      if (current) await this.syncPersonnelFromAssignment(current);
+    }
+    return changedPeople.size ? this.readAssignmentsRaw() : assignments;
+  }
+
+  async applyReleasedOrderEffects(order, actor = 'system') {
+    const code = String(order.purposeCode || '').trim().toUpperCase();
+    if (!POSTING_ORDER_CODES.has(code)) {
+      return this.setOrderAssignmentEffectStatus(order, 'Not applicable', 'This order purpose does not change assignment postings.');
+    }
+
+    const involvement = Array.isArray(order.personnelInvolvement) && order.personnelInvolvement.length
+      ? order.personnelInvolvement.filter(item => item.role === 'affected')
+      : (order.personnelIds || []).map(personnelId => ({ personnelId, role: 'affected' }));
+    const personnelIds = [...new Set(involvement.map(item => item.personnelId).filter(Boolean))];
+    if (!personnelIds.length) {
+      return this.setOrderAssignmentEffectStatus(order, 'Needs review', 'No affected personnel are linked to this posting order.');
+    }
+
+    const today = manilaDate();
+    const effectiveDate = String(order.effectiveDate || order.issuedDate || today).slice(0, 10);
+    const purpose = order.purposeData || {};
+    const reviewItems = [];
+    for (const personnelId of personnelIds) {
+      const person = await this.getPersonnelById(personnelId);
+      if (!person) { reviewItems.push(`Personnel ${personnelId} was not found`); continue; }
+      const records = await this.readAssignmentsRaw(personnelId);
+      const currentMain = records.find(row => row.status === 'Current' && (!row.positionCategory || row.positionCategory === 'Main'));
+
+      if (code === 'TDS') {
+        const priorTermination = records.find(row => row.terminationOrderId === order.id ||
+          (Array.isArray(row.orderEffectHistory) && row.orderEffectHistory.some(event => event.orderId === order.id && ['termination', 'termination-reversed'].includes(event.action))));
+        const priorTerminationEvents = priorTermination?.orderEffectHistory?.filter(event => event.orderId === order.id && ['termination', 'termination-reversed'].includes(event.action)) || [];
+        const latestTerminationEvent = priorTerminationEvents[priorTerminationEvents.length - 1];
+        if (latestTerminationEvent?.action === 'termination' && priorTermination?.terminationOrderId === order.id) continue;
+        const target = priorTermination || currentMain;
+        if (!target || target.status !== 'Current' || (priorTermination && currentMain?.id !== priorTermination.id)) {
+          reviewItems.push(`${person.fullName || personnelId}: no unchanged current main posting to terminate`);
+          continue;
+        }
+        const terminationDate = effectiveDate;
+        const terminatedNow = terminationDate <= today;
+        await this.persistAssignmentPatch(target.id, {
+          endDate: terminationDate,
+          terminationOrderId: order.id,
+          endedByOrderId: order.id,
+          relatedOrderIds: [...new Set([...(target.relatedOrderIds || []), order.id])],
+          ...(terminatedNow ? { status: 'Terminated' } : {}),
+          orderEffectHistory: this.orderEffectEvent(target, {
+            orderId: order.id, action: 'termination', effectiveDate: terminationDate,
+            before: { status: target.status, endDate: target.endDate || null, terminationOrderId: target.terminationOrderId || null, endedByOrderId: target.endedByOrderId || null },
+            after: { status: terminatedNow ? 'Terminated' : 'Current', endDate: terminationDate, terminationOrderId: order.id }
+          })
+        });
+        if (terminatedNow) await this.syncPersonnelFromAssignment({ ...target, status: 'Terminated' });
+        continue;
+      }
+
+      if (code === 'DOX') {
+        const originalRef = String(purpose.originalDetailOrder || '').trim().toLowerCase();
+        const originalOrders = (await this.getOrders()).filter(item =>
+          String(item.id || '').trim().toLowerCase() === originalRef ||
+          String(item.orderNumber || item.orderNo || '').trim().toLowerCase() === originalRef
+        );
+        if (originalOrders.length !== 1) { reviewItems.push(`${person.fullName || personnelId}: original detail order is unmatched or ambiguous`); continue; }
+        const candidates = records.filter(row => row.orderId === originalOrders[0].id || String(row.orderRef || '').trim().toLowerCase() === originalRef);
+        if (candidates.length !== 1) { reviewItems.push(`${person.fullName || personnelId}: original detail assignment is unmatched or ambiguous`); continue; }
+        const target = candidates[0];
+        const extensionEndDate = String(purpose.extensionEndDate || '').slice(0, 10);
+        if (!extensionEndDate) { reviewItems.push(`${person.fullName || personnelId}: extension end date is missing`); continue; }
+        const targetEvents = (target.orderEffectHistory || []).filter(event => event.orderId === order.id && ['extension', 'extension-reversed'].includes(event.action));
+        const latestTargetEvent = targetEvents[targetEvents.length - 1];
+        if (latestTargetEvent?.action === 'extension') {
+          if (target.endDate === latestTargetEvent.after?.endDate) continue;
+          reviewItems.push(`${person.fullName || personnelId}: the detail end date changed after this extension`);
+          continue;
+        }
+        await this.persistAssignmentPatch(target.id, {
+          endDate: extensionEndDate,
+          relatedOrderIds: [...new Set([...(target.relatedOrderIds || []), order.id])],
+          orderEffectHistory: this.orderEffectEvent(target, {
+            orderId: order.id, action: 'extension', effectiveDate,
+            before: { endDate: target.endDate || null }, after: { endDate: extensionEndDate }
+          })
+        });
+        continue;
+      }
+
+      if (records.filter(row => row.orderId === order.id).length > 1) {
+        reviewItems.push(`${person.fullName || personnelId}: multiple assignments are already linked to this order`);
+        continue;
+      }
+
+      const rawTarget = String(purpose.assignedUnit || purpose.toUnit || purpose.toSubUnit || purpose.detailLocation || '').trim();
+      const targetIsUnitCategory = ASSIGNMENT_UNIT_CATEGORIES.has(rawTarget);
+      let assignmentData;
+      if (code === 'DO') {
+        assignmentData = {
+          positionCategory: 'In Addition/Concurrent',
+          unitCategory: person.unitCategory || 'ITMS HQ',
+          subUnitCategory: person.subUnitCategory || 'Division',
+          sub_unit: person.sub_unit || person.division || '',
+          unit: person.unit || person.unitCategory || 'ITMS HQ',
+          position: 'Detail', details: rawTarget,
+          startDate: String(purpose.detailStartDate || effectiveDate).slice(0, 10),
+          endDate: purpose.detailEndDate ? String(purpose.detailEndDate).slice(0, 10) : undefined
+        };
+      } else if (code === 'RA') {
+        if (!currentMain) { reviewItems.push(`${person.fullName || personnelId}: no current main posting to reassign`); continue; }
+        const toSubUnit = String(purpose.toSubUnit || '').trim();
+        assignmentData = {
+          ...currentMain, id: undefined, status: undefined,
+          sub_unit: toSubUnit,
+          unit: [currentMain.unitCategory || person.unitCategory || 'ITMS HQ', toSubUnit].filter(Boolean).join(' - '),
+          startDate: effectiveDate
+        };
+      } else if (code === 'UA') {
+        if (!currentMain) { reviewItems.push(`${person.fullName || personnelId}: no current main posting to reassign`); continue; }
+        const toUnit = String(purpose.toUnit || '').trim();
+        assignmentData = { ...currentMain, id: undefined, status: undefined, unitCategory: toUnit || currentMain.unitCategory, unit: toUnit || currentMain.unit, startDate: effectiveDate };
+      } else {
+        const isDesignation = code === 'DES';
+        const assignedUnit = String(purpose.assignedUnit || '').trim();
+        assignmentData = {
+          positionCategory: 'Main',
+          unitCategory: targetIsUnitCategory ? rawTarget : (person.unitCategory || 'ITMS HQ'),
+          subUnitCategory: person.subUnitCategory || 'Division',
+          sub_unit: assignedUnit && !targetIsUnitCategory ? assignedUnit : (person.sub_unit || person.division || ''),
+          unit: assignedUnit || person.unit || person.unitCategory || 'ITMS HQ',
+          position: String(isDesignation ? purpose.designation || '' : purpose.position || '').trim(),
+          details: person.details || '', station: person.station || '', startDate: effectiveDate
+        };
+      }
+      const linkedAssignment = await this.createOrderDrivenAssignment(order, person, assignmentData, code);
+      const expectedStatus = String(assignmentData.startDate || effectiveDate).slice(0, 10) > today ? 'Scheduled' : 'Current';
+      if (linkedAssignment?.status !== expectedStatus) {
+        reviewItems.push(`${person.fullName || personnelId}: a later posting already changed this assignment`);
+      }
+    }
+
+    const status = reviewItems.length ? 'Needs review' : 'Applied';
+    const message = reviewItems.length
+      ? `${reviewItems.length} posting effect${reviewItems.length === 1 ? '' : 's'} need review: ${reviewItems.join('; ')}`
+      : `Posting effects applied for ${personnelIds.length} affected personnel by ${actor}.`;
+    return this.setOrderAssignmentEffectStatus(order, status, message);
+  }
+
+  async reverseOrderAssignmentEffects(order, actor = 'system') {
+    if (!POSTING_ORDER_CODES.has(String(order.purposeCode || '').trim().toUpperCase())) {
+      return this.setOrderAssignmentEffectStatus(order, 'Not applicable', 'This order purpose does not change assignment postings.');
+    }
+    const rows = await this.readAssignmentsRaw();
+    const today = manilaDate();
+    const changedPeople = new Set();
+    const eventsFor = row => (Array.isArray(row.orderEffectHistory) ? row.orderEffectHistory : []).filter(event => event.orderId === order.id);
+
+    for (const row of rows.filter(item => item.orderId === order.id)) {
+      const nextStatus = ['Current', 'Scheduled'].includes(row.status) ? 'Terminated' : row.status;
+      await this.persistAssignmentPatch(row.id, {
+        status: nextStatus,
+        ...(nextStatus === 'Terminated' ? { endDate: today } : {}),
+        revokedByOrderId: order.id,
+        orderEffectHistory: this.orderEffectEvent(row, { orderId: order.id, action: 'revoked', before: { status: row.status, endDate: row.endDate || null }, after: { status: nextStatus, endDate: nextStatus === 'Terminated' ? today : row.endDate || null }, actor })
+      });
+      if (!row.positionCategory || row.positionCategory === 'Main') changedPeople.add(row.personnelId);
+    }
+
+    for (const row of rows) {
+      if (row.orderId === order.id) continue;
+      const history = eventsFor(row);
+      if (!history.length) continue;
+      const lastEvent = history[history.length - 1];
+      if (lastEvent.action === 'termination' && row.terminationOrderId === order.id) {
+        const laterCurrent = rows.some(item => item.personnelId === row.personnelId && item.id !== row.id && item.status === 'Current' && (!item.positionCategory || item.positionCategory === 'Main'));
+        if (!laterCurrent) {
+          const before = lastEvent.before || {};
+          await this.persistAssignmentPatch(row.id, {
+            status: before.status === 'Terminated' ? 'Current' : (before.status || 'Current'),
+            endDate: before.endDate || null,
+            terminationOrderId: before.terminationOrderId || null,
+            endedByOrderId: before.endedByOrderId || null,
+            revokedByOrderId: order.id,
+            orderEffectHistory: this.orderEffectEvent(row, { orderId: order.id, action: 'termination-reversed', before: { status: row.status }, after: before, actor })
+          });
+          changedPeople.add(row.personnelId);
+        }
+      } else if (lastEvent.action === 'extension' && row.endDate === lastEvent.after?.endDate) {
+        await this.persistAssignmentPatch(row.id, {
+          endDate: lastEvent.before?.endDate || null,
+          relatedOrderIds: (row.relatedOrderIds || []).filter(id => id !== order.id),
+          revokedByOrderId: order.id,
+          orderEffectHistory: this.orderEffectEvent(row, { orderId: order.id, action: 'extension-reversed', before: { endDate: row.endDate }, after: { endDate: lastEvent.before?.endDate || null }, actor })
+        });
+      }
+    }
+
+    let freshRows = await this.readAssignmentsRaw();
+    for (const row of freshRows.filter(item => item.endedByOrderId === order.id)) {
+      const laterCurrent = freshRows.some(item => item.personnelId === row.personnelId && item.id !== row.id && item.status === 'Current' && (!item.positionCategory || item.positionCategory === 'Main'));
+      if (laterCurrent) continue;
+      const event = eventsFor(row).find(item => item.action === 'superseded');
+      const before = event?.before || {};
+      await this.persistAssignmentPatch(row.id, {
+        status: before.status || 'Current', endDate: before.endDate || null,
+        endedByOrderId: before.endedByOrderId || null, revokedByOrderId: order.id,
+        orderEffectHistory: this.orderEffectEvent(row, { orderId: order.id, action: 'superseded-reversed', before: { status: row.status, endDate: row.endDate || null }, after: before, actor })
+      });
+      changedPeople.add(row.personnelId);
+      freshRows = await this.readAssignmentsRaw();
+    }
+    for (const personnelId of changedPeople) {
+      const current = (await this.readAssignmentsRaw(personnelId)).find(item => item.status === 'Current' && (!item.positionCategory || item.positionCategory === 'Main'));
+      if (current) await this.syncPersonnelFromAssignment(current);
+    }
+    return this.setOrderAssignmentEffectStatus(order, 'Reversed', 'Revocation recorded against linked assignment history.');
   }
 
   async getAssignmentById(id) {
     if (this.isSupabaseConnected()) {
-      try {
-        const { data, error } = await supabase.from('assignments').select('*').eq('id', id).single();
-        if (!error && data) return data;
-      } catch (e) {}
+      const { data, error } = await supabase.from('assignments').select('*').eq('id', id).maybeSingle();
+      if (error) throw new Error(`Assignment lookup failed: ${error.message}`);
+      return data || null;
     }
     return this.inMemoryAssignments.find(a => a.id === id) || null;
   }
 
   async syncPersonnelFromAssignment(assignment, isDeleted = false) {
     if (!assignment?.personnelId) return;
+    if (assignment.positionCategory === 'In Addition/Concurrent') return;
     const personnelId = assignment.personnelId;
 
     if (isDeleted || assignment.status !== 'Current') {
-      const all = await this.getAssignments(personnelId);
-      const remainingCurrent = all.find(a => a.id !== assignment.id && a.status === 'Current');
+      const all = await this.readAssignmentsRaw(personnelId);
+      const remainingCurrent = all.find(a => a.id !== assignment.id && a.status === 'Current' && (!a.positionCategory || a.positionCategory === 'Main'));
       if (remainingCurrent) {
         await this.syncPersonnelFromAssignment(remainingCurrent, false);
       } else {
         const mostRecent = all
-          .filter(a => a.id !== assignment.id)
+          .filter(a => a.id !== assignment.id && !['Scheduled', 'Terminated'].includes(a.status) && (!a.positionCategory || a.positionCategory === 'Main'))
           .sort((a, b) => (b.effectiveDate || b.startDate || '').localeCompare(a.effectiveDate || a.startDate || ''))[0];
         if (mostRecent) {
           const updates = {
@@ -993,42 +1428,52 @@ class PAISRepository {
   }
 
   async createAssignment(data) {
+    const effectiveDate = String(data.effectiveDate || data.startDate || '').slice(0, 10);
+    if ((data.status || 'Current') === 'Current' && effectiveDate && effectiveDate > manilaDate()) {
+      data = { ...data, status: 'Scheduled' };
+    }
     const isCurrent = (data.status || 'Current') === 'Current';
     const isMain = !data.positionCategory || data.positionCategory === 'Main';
-
-    if (isCurrent && isMain && data.personnelId) {
-      const priorAssignments = await this.getAssignments(data.personnelId);
-      for (const prior of priorAssignments) {
-        if (prior.status === 'Current' && (!prior.positionCategory || prior.positionCategory === 'Main')) {
-          const endDate = prior.endDate || data.startDate || data.effectiveDate || new Date().toISOString().slice(0, 10);
-          await this.updateAssignment(prior.id, { status: 'Completed', endDate }, false);
-        }
-      }
-    }
-
+    const stagedMainPosting = isCurrent && isMain && Boolean(data.personnelId);
     const newRecord = {
       id: data.id || `asg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      status: data.status || 'Current',
       positionCategory: data.positionCategory || 'Main',
       unitCategory: data.unitCategory || 'ITMS HQ',
       subUnitCategory: data.subUnitCategory || 'Division',
-      ...data
+      ...data,
+      status: stagedMainPosting ? 'Scheduled' : (data.status || 'Current')
     };
 
-    let inserted = null;
+    let inserted;
     if (this.isSupabaseConnected()) {
-      try {
-        const { data: res, error } = await supabase.from('assignments').insert([newRecord]).select().single();
-        if (!error && res) inserted = res;
-      } catch (e) {}
-    }
-
-    if (!inserted) {
+      const { data: saved, error } = await supabase.from('assignments').insert([newRecord]).select().single();
+      if (error || !saved) throw new Error(`Assignment creation failed: ${error?.message || 'No assignment returned'}`);
+      inserted = saved;
+    } else {
       this.inMemoryAssignments.unshift(newRecord);
       inserted = newRecord;
     }
 
-    if (isCurrent) {
+    if (stagedMainPosting) {
+      const priorAssignments = await this.readAssignmentsRaw(data.personnelId);
+      for (const prior of priorAssignments.filter(row => row.id !== inserted.id && row.status === 'Current' && (!row.positionCategory || row.positionCategory === 'Main'))) {
+        const endDate = prior.endDate || previousDate(effectiveDate || manilaDate());
+        await this.persistAssignmentPatch(prior.id, {
+          status: 'Completed', endDate,
+          ...(inserted.orderId ? {
+            endedByOrderId: inserted.orderId,
+            orderEffectHistory: this.orderEffectEvent(prior, {
+              orderId: inserted.orderId, action: 'superseded', effectiveDate: effectiveDate || manilaDate(),
+              before: { status: prior.status, endDate: prior.endDate || null, endedByOrderId: prior.endedByOrderId || null },
+              after: { status: 'Completed', endDate, endedByOrderId: inserted.orderId }
+            })
+          } : {})
+        });
+      }
+      inserted = await this.persistAssignmentPatch(inserted.id, { status: 'Current' });
+    }
+
+    if (inserted?.status === 'Current') {
       await this.syncPersonnelFromAssignment(inserted);
     }
     return inserted;
@@ -1036,38 +1481,46 @@ class PAISRepository {
 
   async updateAssignment(id, data, shouldSync = true) {
     const existing = await this.getAssignmentById(id);
+    const effectiveDate = String(data.effectiveDate || data.startDate || existing?.effectiveDate || existing?.startDate || '').slice(0, 10);
+    if ((data.status || existing?.status) === 'Current' && effectiveDate && effectiveDate > manilaDate()) {
+      data = { ...data, status: 'Scheduled' };
+    }
     const personnelId = data.personnelId || existing?.personnelId;
     const isCurrent = (data.status || existing?.status) === 'Current';
     const isMain = (data.positionCategory || existing?.positionCategory || 'Main') === 'Main';
-
-    if (shouldSync && isCurrent && isMain && personnelId) {
-      const priorAssignments = await this.getAssignments(personnelId);
-      for (const prior of priorAssignments) {
-        if (prior.id !== id && prior.status === 'Current' && (!prior.positionCategory || prior.positionCategory === 'Main')) {
-          const endDate = prior.endDate || data.startDate || data.effectiveDate || new Date().toISOString().slice(0, 10);
-          await this.updateAssignment(prior.id, { status: 'Completed', endDate }, false);
-        }
-      }
-    }
-
-    let updated = null;
+    const stagedMainPosting = shouldSync && isCurrent && isMain && Boolean(personnelId);
+    const updatePayload = stagedMainPosting ? { ...data, status: 'Scheduled' } : data;
+    let updated;
     if (this.isSupabaseConnected()) {
-      try {
-        const { data: res, error } = await supabase
-          .from('assignments')
-          .update(data)
-          .eq('id', id)
-          .select()
-          .single();
-        if (!error && res) updated = res;
-      } catch (e) {}
-    }
-
-    if (!updated) {
+      const { data: saved, error } = await supabase.from('assignments').update(updatePayload).eq('id', id).select().single();
+      if (error || !saved) throw new Error(`Assignment update failed: ${error?.message || 'Assignment not found'}`);
+      updated = saved;
+    } else {
       const index = this.inMemoryAssignments.findIndex(a => a.id === id);
       if (index === -1) return null;
-      this.inMemoryAssignments[index] = { ...this.inMemoryAssignments[index], ...data, id };
+      this.inMemoryAssignments[index] = { ...this.inMemoryAssignments[index], ...updatePayload, id };
       updated = this.inMemoryAssignments[index];
+    }
+
+    if (stagedMainPosting) {
+      const priorAssignments = await this.readAssignmentsRaw(personnelId);
+      const activeUpdated = { ...updated, ...data };
+      const effectiveStart = String(data.effectiveDate || data.startDate || existing?.effectiveDate || existing?.startDate || manilaDate()).slice(0, 10);
+      for (const prior of priorAssignments.filter(row => row.id !== id && row.status === 'Current' && (!row.positionCategory || row.positionCategory === 'Main'))) {
+        const endDate = prior.endDate || previousDate(effectiveStart);
+        await this.persistAssignmentPatch(prior.id, {
+          status: 'Completed', endDate,
+          ...(activeUpdated.orderId ? {
+            endedByOrderId: activeUpdated.orderId,
+            orderEffectHistory: this.orderEffectEvent(prior, {
+              orderId: activeUpdated.orderId, action: 'superseded', effectiveDate: effectiveStart,
+              before: { status: prior.status, endDate: prior.endDate || null, endedByOrderId: prior.endedByOrderId || null },
+              after: { status: 'Completed', endDate, endedByOrderId: activeUpdated.orderId }
+            })
+          } : {})
+        });
+      }
+      updated = await this.persistAssignmentPatch(id, { ...data, status: 'Current' });
     }
 
     if (shouldSync && updated) {
@@ -1078,18 +1531,20 @@ class PAISRepository {
 
   async deleteAssignment(id) {
     const existing = await this.getAssignmentById(id);
+    if (existing && (existing.orderId || existing.endedByOrderId || existing.terminationOrderId || existing.relatedOrderIds?.length)) {
+      throw new Error('Order-linked assignment history is retained and cannot be deleted. Revoke or correct the linked order instead.');
+    }
     let deleted = false;
     if (this.isSupabaseConnected()) {
-      try {
-        const { error } = await supabase.from('assignments').delete().eq('id', id);
-        if (!error) deleted = true;
-      } catch (e) {}
-    }
-
-    const index = this.inMemoryAssignments.findIndex(a => a.id === id);
-    if (index !== -1) {
-      this.inMemoryAssignments.splice(index, 1);
-      deleted = true;
+      const { error } = await supabase.from('assignments').delete().eq('id', id);
+      if (error) throw new Error(`Assignment deletion failed: ${error.message}`);
+      deleted = Boolean(existing);
+    } else {
+      const index = this.inMemoryAssignments.findIndex(a => a.id === id);
+      if (index !== -1) {
+        this.inMemoryAssignments.splice(index, 1);
+        deleted = true;
+      }
     }
 
     if (deleted && existing) {
