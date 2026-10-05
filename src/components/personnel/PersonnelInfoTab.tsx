@@ -1139,7 +1139,7 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
         </form>
       ) : (
         /* Read-only view (Summary of Profile details) */
-        <div className="space-y-4">
+        <div className="space-y-4 min-w-0">
           {/* ── Box A: Personal & Biographical Information ── */}
           <div className="rounded-xl bg-white border border-slate-200 p-4 sm:p-5 shadow-2xs space-y-3">
             <div className="flex items-center justify-between border-b border-slate-100 pb-2">
@@ -1150,25 +1150,25 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 min-w-0 break-words">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Rank Category</span>
                 <span className="font-extrabold text-indigo-700 text-xs">{personnel.rankCategory || getRankCategory(personnel.rank)}</span>
               </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 min-w-0 break-words">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Rank</span>
                 <span className="font-extrabold text-blue-800 text-xs">{personnel.rank}</span>
                 {personnel.rankFullName && (
                   <span className="text-[10px] text-slate-500 block truncate">{personnel.rankFullName}</span>
                 )}
               </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 sm:col-span-2">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 min-w-0 break-words sm:col-span-2">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Official Full Name</span>
-                <span className="font-bold text-slate-900 text-xs truncate">
+                <span className="block min-w-0 font-bold text-slate-900 text-xs truncate">
                   {personnel.rank} {personnel.fullName}
                   {(personnel.qualification || personnel.qualifier) && ` (${personnel.qualification || personnel.qualifier})`}
                 </span>
               </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 min-w-0 break-words">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Birthdate &amp; Age</span>
                 <span className="font-medium text-slate-800 text-xs">
                   {personnel.birthdate || personnel.birthday || '—'}
@@ -1176,21 +1176,21 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
                     ` (${personnel.ageToDate || calculateYearsBetween(personnel.birthdate!)} yrs old)`}
                 </span>
               </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 min-w-0 break-words">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Gender</span>
                 <span className="font-medium text-slate-800 text-xs">{personnel.gender || 'Male'}</span>
               </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 min-w-0 break-words">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Civil Status</span>
                 <span className="font-medium text-slate-800 text-xs">{personnel.civilStatus || 'Single'}</span>
               </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 min-w-0 break-words">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Religion</span>
                 <span className="font-medium text-slate-800 text-xs">{personnel.religion || '—'}</span>
               </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 sm:col-span-4">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 min-w-0 break-words sm:col-span-4">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Residential Address</span>
-                <span className="font-medium text-slate-800 text-xs truncate">{personnel.address || '—'}</span>
+                <span className="block min-w-0 font-medium text-slate-800 text-xs truncate">{personnel.address || '—'}</span>
               </div>
             </div>
           </div>
@@ -1205,7 +1205,7 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 min-w-0 break-words">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">
                   {isUniformed ? 'Badge No.' : 'Salary Grade (SG)'}
                 </span>
@@ -1213,27 +1213,27 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
                   {isUniformed ? (personnel.badgeNo || '—') : (personnel.salaryGrade ? `SG-${personnel.salaryGrade}` : '—')}
                 </span>
               </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 min-w-0 break-words">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Email Address</span>
-                <span className="font-mono font-medium text-slate-800 text-xs truncate">{personnel.email || '—'}</span>
+                <span className="block min-w-0 font-mono font-medium text-slate-800 text-xs truncate">{personnel.email || '—'}</span>
               </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 min-w-0 break-words">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Phone Number</span>
                 <span className="font-mono font-semibold text-emerald-700 text-xs">{personnel.phoneNumber || personnel.contactNumber || '—'}</span>
               </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 min-w-0 break-words">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">TIN</span>
                 <span className="font-mono text-slate-800 text-xs">{personnel.tin || '—'}</span>
               </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 min-w-0 break-words">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">GSIS Number</span>
                 <span className="font-mono text-slate-800 text-xs">{personnel.gsisNumber || '—'}</span>
               </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 min-w-0 break-words">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">PhilHealth No</span>
                 <span className="font-mono text-slate-800 text-xs">{personnel.philHealthNo || '—'}</span>
               </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 sm:col-span-2">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 min-w-0 break-words sm:col-span-2">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Pag-IBIG No</span>
                 <span className="font-mono text-slate-800 text-xs">{personnel.pagibigNo || '—'}</span>
               </div>
@@ -1250,7 +1250,7 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 min-w-0 break-words">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">
                   {isUniformed ? 'Date Entered Service (DES UP)' : 'Date Entered Service'}
                 </span>
@@ -1260,33 +1260,33 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
                     ` (${personnel.ageOfServiceToDate || calculateYearsBetween((personnel.dateEnteredService || personnel.desUp)!)} yrs)`}
                 </span>
               </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 min-w-0 break-words">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Designation</span>
                 <span className="font-semibold text-slate-800 text-xs">{personnel.designation || '—'}</span>
               </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 min-w-0 break-words">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Designation Date</span>
                 <span className="font-mono text-slate-800 text-xs">{personnel.designationDate || personnel.enterInOfficerPositionDate || '—'}</span>
               </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 min-w-0 break-words">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Effective Date</span>
                 <span className="font-mono text-slate-800 text-xs">{personnel.effectiveDate || '—'}</span>
               </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 min-w-0 break-words">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Last Promotion Date</span>
                 <span className="font-mono text-slate-800 text-xs">{personnel.lastPromotionDate || '—'}</span>
               </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 min-w-0 break-words">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Source Of Commissionship</span>
                 <span className="font-medium text-slate-800 text-xs">{personnel.sourceOfCommissionship || '—'}</span>
               </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 min-w-0 break-words">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Date of Officership / Comm.</span>
                 <span className="font-mono text-slate-800 text-xs">{personnel.dateOfOfficershipOrCommission || personnel.enterInOfficerPositionDate || '—'}</span>
               </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 min-w-0 break-words">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Duty Status (PStatus)</span>
-                <div className="flex items-center gap-2 mt-0.5">
+                <div className="flex flex-wrap items-center gap-2 mt-0.5">
                   <Badge variant={(personnel.pstatus || personnel.status) === 'Active' ? 'success' : 'neutral'} size="sm">
                     {personnel.pstatus || personnel.status || 'Active'}
                   </Badge>
@@ -1295,11 +1295,11 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
                   )}
                 </div>
               </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 min-w-0 break-words">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Rank Status</span>
                 <span className="font-semibold text-slate-800 text-xs">{personnel.rankStatus || 'PERM'}</span>
               </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 sm:col-span-3">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 min-w-0 break-words sm:col-span-3">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Position Category</span>
                 <span className="font-semibold text-slate-800 text-xs">{personnel.positionCategory || 'Main'}</span>
               </div>
@@ -1316,50 +1316,50 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 min-w-0 break-words">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Unit Code</span>
                 <span className="font-mono font-bold text-blue-900 text-xs">{personnel.unitCode || '—'}</span>
               </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 min-w-0 break-words">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Unit / Office Division</span>
                 <span className="font-bold text-blue-900 text-xs">{personnel.unit || personnel.officeDivision || '—'}</span>
               </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 min-w-0 break-words">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Sub-Unit Code</span>
                 <span className="font-mono font-medium text-slate-800 text-xs">{personnel.subUnitCode || '—'}</span>
               </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 min-w-0 break-words">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Sub-Unit</span>
-                <span className="font-bold text-blue-800 text-xs truncate">
+                <span className="block min-w-0 font-bold text-blue-800 text-xs break-words">
                   {(personnel.subUnit || personnel.sub_unit || personnel.division)?.trim() || '—'}
                 </span>
               </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 min-w-0 break-words">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Station Code</span>
                 <span className="font-mono text-slate-800 text-xs">{personnel.stationCode || '—'}</span>
               </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 min-w-0 break-words">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Station</span>
                 <span className="font-medium text-slate-800 text-xs">{personnel.station?.trim() || '—'}</span>
               </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 min-w-0 break-words">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Sub Station Code</span>
                 <span className="font-mono text-slate-800 text-xs">{personnel.subStationCode || '—'}</span>
               </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 min-w-0 break-words">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Sub Station</span>
                 <span className="font-medium text-slate-800 text-xs">{personnel.subStation?.trim() || '—'}</span>
               </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 sm:col-span-2">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 min-w-0 break-words sm:col-span-2">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Details (Role / Placement)</span>
                 <span className="font-medium text-slate-800 text-xs">{(personnel.details || personnel.detail)?.trim() || '—'}</span>
               </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 min-w-0 break-words">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Unit Category</span>
                 <span className="font-bold text-blue-800 text-xs">{personnel.unitCategory || 'ITMS HQ'}</span>
               </div>
               {!isUniformed && (
-                <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 min-w-0 break-words">
                   <span className="text-[10px] uppercase font-bold text-slate-500 block">Plantilla Item</span>
                   <span className="font-mono text-slate-800 text-xs">{personnel.plantilla || '—'}</span>
                 </div>
