@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { db } from '../backend/store/repository.js';
+import { createTestRepository } from '../test-support/repository.js';
+
+const db = createTestRepository();
 
 function seedPersonnel(data = {}) {
   const id = data.id || `pnp-test-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
@@ -105,7 +107,7 @@ test('Assignment Module: Marking an assignment as Current automatically complete
   // Verify asg1 was transitioned to Completed
   const reloadedAsg1 = await db.getAssignmentById(asg1.id);
   assert.equal(reloadedAsg1.status, 'Completed', 'Prior Current Main assignment should be marked Completed');
-  assert.equal(reloadedAsg1.endDate, '2026-09-01', 'Prior assignment endDate should be set to new assignment startDate');
+  assert.equal(reloadedAsg1.endDate, '2026-08-31', 'Prior assignment should end the day before its successor starts');
 
   // Verify personnel was updated to asg2
   const updatedPersonnel = await db.getPersonnelById(personnel.id);

@@ -9,7 +9,6 @@ import educationRoutes from './routes/educationRoutes.js';
 import promotionsRoutes from './routes/promotionsRoutes.js';
 import trainingRoutes from './routes/trainingRoutes.js';
 import leaveRoutes from './routes/leaveRoutes.js';
-import awardsRoutes from './routes/awardsRoutes.js';
 import adminUsersRoutes from './routes/adminUsersRoutes.js';
 import dispositionRoutes from './routes/dispositionRoutes.js';
 import worksheetRoutes from './routes/worksheetRoutes.js';
@@ -91,7 +90,6 @@ app.get('/api/health', async (req, res) => {
       '/api/promotions',
       '/api/training',
       '/api/leave',
-      '/api/awards',
       '/api/disposition',
       '/api/worksheets'
     ]
@@ -124,7 +122,6 @@ app.use('/api/education', educationRoutes);
 app.use('/api/promotions', promotionsRoutes);
 app.use('/api/training', trainingRoutes);
 app.use('/api/leave', leaveRoutes);
-app.use('/api/awards', awardsRoutes);
 app.use('/api/admin-users', adminUsersRoutes);
 app.use('/api/disposition', dispositionRoutes);
 app.use('/api/worksheets', worksheetRoutes);

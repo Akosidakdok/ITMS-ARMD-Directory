@@ -5,8 +5,7 @@ import {
   EducationRecord, 
   PromotionRecord, 
   TrainingRecord, 
-  LeaveRecord,
-  AwardRecord
+  LeaveRecord
 } from '../types/pais';
 import type {
   PersonnelImportIssue,
@@ -21,6 +20,7 @@ export const AUTH_TOKEN_KEY = 'pais.auth.token';
 export interface AuthenticatedUser {
   username: string;
   displayName: string;
+  email?: string;
   role: 'superadmin' | 'admin' | 'view_only';
 }
 
@@ -245,12 +245,10 @@ export const fetchOrders = async (): Promise<OrderRecord[]> => {
 };
 
 export const createOrderApi = async (order: OrderRecord): Promise<OrderRecord> => {
-  const issueYear = new Date(order.issuedDate || Date.now()).getFullYear() || new Date().getFullYear();
-  const fallbackOrderNumber = order.orderNumber || `${order.series || 'AO'}-${order.purposeCode || 'GEN'}-${issueYear}-${String(Math.floor(1000 + Math.random() * 9000))}`;
-  const payload = {
-    ...order,
-    orderNumber: fallbackOrderNumber
-  };
+  const payload = { ...order };
+  delete payload.orderNumber;
+  delete payload.orderNo;
+  delete payload.issuancePending;
   const res = await apiFetch(`${API_BASE_URL}/orders`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -413,48 +411,6 @@ export const deleteSignedOrderDocumentApi = async (id: string): Promise<OrderRec
   const json = await res.json().catch(() => null);
   if (!res.ok) throw new Error(json?.message || json?.error || 'Failed to remove signed order scan');
   return json.data;
-};
-
-// ================= AWARDS API =================
-export const fetchAwards = async (): Promise<AwardRecord[]> => {
-  const res = await apiFetch(`${API_BASE_URL}/awards`);
-  const json = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(json?.message || 'Failed to fetch awards');
-  return json.data;
-};
-
-export const createAwardApi = async (
-  award: Omit<AwardRecord, 'id' | 'status'>
-): Promise<AwardRecord> => {
-  const res = await apiFetch(`${API_BASE_URL}/awards`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(award)
-  });
-  const json = await res.json().catch(() => null);
-  if (!res.ok) {
-    const details = json?.error && json?.message && !json.message.includes(json.error)
-      ? `${json.message} (${json.error})`
-      : json?.message || json?.error;
-    throw new Error(details || 'Failed to save award');
-  }
-  return json.data;
-};
-
-export const updateAwardApi = async (award: AwardRecord): Promise<AwardRecord> => {
-  const res = await apiFetch(`${API_BASE_URL}/awards/${award.id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(award)
-  });
-  const json = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(json?.message || json?.error || 'Failed to update award');
-  return json.data;
-};
-
-export const deleteAwardApi = async (id: string): Promise<void> => {
-  const res = await apiFetch(`${API_BASE_URL}/awards/${id}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error('Failed to delete award');
 };
 
 // ================= ASSIGNMENTS API =================

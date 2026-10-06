@@ -6,6 +6,7 @@ import { Badge } from '../components/common/Badge';
 import { EmptyState, OperationalSummary, PageHeader, SectionHeader } from '../components/common/SystemUI';
 import { calculateTimeInGrade } from '../utils/timeInGrade';
 import { AutomatedPersonnelCounter } from '../components/dashboard/AutomatedPersonnelCounter';
+import { getOrderNumberDisplay } from '../utils/orderNumber';
 
 const formatDate = (value?: string) => {
   if (!value) return 'Date not recorded';
@@ -52,8 +53,10 @@ export const DashboardPage: React.FC = () => {
     ...ordersList.map(order => ({
       date: order.issuedDate || order.effectiveDate || '',
       type: 'Order',
-      title: order.orderNumber || order.orderNo || 'Administrative order',
-      detail: order.subject || 'No subject recorded'
+      title: getOrderNumberDisplay(order, 'Administrative order'),
+      detail: order.issuancePending
+        ? `${order.subject || 'No subject recorded'} · Draft awaiting official issuance`
+        : order.subject || 'No subject recorded'
     })),
     ...leaveList.map(leave => ({
       date: leave.updatedAt || leave.createdAt || leave.startDate,

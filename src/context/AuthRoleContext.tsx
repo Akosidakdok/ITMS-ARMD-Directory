@@ -7,8 +7,7 @@ import {
   PromotionRecord, 
   OrderRecord, 
   TrainingRecord, 
-  LeaveRecord,
-  AwardRecord
+  LeaveRecord
 } from '../types/pais';
 import { 
   INITIAL_PERSONNEL, 
@@ -17,8 +16,7 @@ import {
   INITIAL_PROMOTIONS, 
   INITIAL_ORDERS, 
   INITIAL_TRAINING, 
-  INITIAL_LEAVE,
-  INITIAL_AWARDS
+  INITIAL_LEAVE
 } from '../data/mockData';
 import { getRankFullName } from '../constants/ranks';
 import {
@@ -66,10 +64,6 @@ import {
   createLeaveApi,
   updateLeaveApi,
   deleteLeaveApi,
-  fetchAwards,
-  createAwardApi,
-  updateAwardApi,
-  deleteAwardApi,
   bulkCreatePersonnelApi,
   loginApi,
   verifySessionApi,
@@ -104,7 +98,6 @@ interface AuthRoleContextType {
   ordersList: OrderRecord[];
   trainingList: TrainingRecord[];
   leaveList: LeaveRecord[];
-  awardsList: AwardRecord[];
 
   // Action helpers
   addPersonnel: (personnel: Personnel) => Promise<Personnel>;
@@ -148,9 +141,6 @@ interface AuthRoleContextType {
   deleteTraining: (id: string) => Promise<void>;
   bulkUpsertTraining: (records: Partial<TrainingRecord>[]) => Promise<BulkUpsertResult>;
   addLeave: (leave: LeaveRecord) => void;
-  createAward: (award: Omit<AwardRecord, 'id' | 'status'>) => Promise<AwardRecord>;
-  updateAward: (award: AwardRecord) => Promise<AwardRecord>;
-  deleteAward: (id: string) => Promise<void>;
   createCalendarLeave: (leave: LeaveRecord) => Promise<LeaveRecord>;
   updateCalendarLeave: (leave: LeaveRecord) => Promise<LeaveRecord>;
   deleteCalendarLeave: (id: string) => Promise<void>;
@@ -160,6 +150,32 @@ const AuthRoleContext = createContext<AuthRoleContextType | undefined>(undefined
 
 const DATA_REFRESH_INTERVAL_MS = 30_000;
 const MAX_REFRESH_BACKOFF_MS = 5 * 60_000;
+const PENDING_ORDER_DRAFTS_KEY = 'pais.pending_order_drafts.v1';
+
+const readPendingOrderDrafts = (storageKey: string): OrderRecord[] => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const value = JSON.parse(window.localStorage.getItem(storageKey) || '[]');
+    return Array.isArray(value) ? value.filter((order): order is OrderRecord => Boolean(order?.id && order.issuancePending)) : [];
+  } catch {
+    return [];
+  }
+};
+
+const writePendingOrderDrafts = (storageKey: string, drafts: OrderRecord[]) => {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(storageKey, JSON.stringify(drafts.filter(order => order.issuancePending)));
+  } catch (error) {
+    console.warn('Unable to persist pending order drafts on this device:', error);
+  }
+};
+
+const mergePendingOrderDrafts = (orders: OrderRecord[], storageKey: string): OrderRecord[] => {
+  const serverIds = new Set(orders.map(order => order.id));
+  const pending = readPendingOrderDrafts(storageKey).filter(order => !serverIds.has(order.id));
+  return [...pending, ...orders];
+};
 
 export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [role, setRole] = useState<UserRole>('admin');
@@ -180,7 +196,7 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [ordersList, setOrdersList] = useState<OrderRecord[]>([]);
   const [trainingList, setTrainingList] = useState<TrainingRecord[]>([]);
   const [leaveList, setLeaveList] = useState<LeaveRecord[]>([]);
-  const [awardsList, setAwardsList] = useState<AwardRecord[]>([]);
+  const pendingOrderDraftsStorageKey = `${PENDING_ORDER_DRAFTS_KEY}:${authUser?.username || 'local'}`;
 
   // Initialize and load backend data if server is online. Health checks are
   // intentionally optional so normal refreshes do not trigger an extra
@@ -190,7 +206,7 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     if (checkHealth || !isOnline) {
       const health = await fetchBackendHealth();
-      isOnline = health?.status === 'online';
+      isOnline = health?.status === 'online' && health.database?.supabase?.isConnected !== false;
       setBackendHealth(health);
       backendConnectedRef.current = isOnline;
       setBackendConnected(isOnline);
@@ -201,23 +217,21 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         // Assignment reads reconcile effective dates on the server, so fetch
         // personnel after assignments to avoid briefly showing stale postings.
         const aData = await fetchAssignments();
-        const [pData, oData, eData, prData, tData, lData, awData] = await Promise.all([
+        const [pData, oData, eData, prData, tData, lData] = await Promise.all([
           fetchPersonnel(),
           fetchOrders(),
           fetchEducation(),
           fetchPromotions(),
           fetchTraining(),
-          fetchLeave(),
-          fetchAwards()
+          fetchLeave()
         ]);
         setPersonnelList(pData);
-        setOrdersList(oData);
+        setOrdersList(mergePendingOrderDrafts(oData, pendingOrderDraftsStorageKey));
         setAssignmentsList(aData);
         setEducationList(eData);
         setPromotionsList(prData);
         setTrainingList(tData);
         setLeaveList(lData);
-        setAwardsList(awData);
         backendConnectedRef.current = true;
         setBackendConnected(true);
         return true;
@@ -225,18 +239,18 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         console.warn('Backend reachable but error fetching data:', err);
         backendConnectedRef.current = false;
         setBackendConnected(false);
+        setOrdersList(current => mergePendingOrderDrafts(current, pendingOrderDraftsStorageKey));
         return false;
       }
     } else {
-      // Offline fallback only when backend server is not running at all
+      // Do not treat the server's in-memory fallback as the official register.
       setPersonnelList(INITIAL_PERSONNEL);
       setAssignmentsList(INITIAL_ASSIGNMENTS);
       setEducationList(INITIAL_EDUCATION);
       setPromotionsList(INITIAL_PROMOTIONS);
-      setOrdersList(INITIAL_ORDERS);
+      setOrdersList(mergePendingOrderDrafts(INITIAL_ORDERS, pendingOrderDraftsStorageKey));
       setTrainingList(INITIAL_TRAINING);
       setLeaveList(INITIAL_LEAVE);
-      setAwardsList(INITIAL_AWARDS);
       return false;
     }
   };
@@ -337,7 +351,6 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setOrdersList([]);
     setTrainingList([]);
     setLeaveList([]);
-    setAwardsList([]);
   };
 
   const refreshData = async () => {
@@ -410,26 +423,49 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setOrdersList(prev => [created, ...prev]);
       return created;
     }
-    setOrdersList(prev => [order, ...prev]);
-    return order;
+    const draft: OrderRecord = {
+      ...order,
+      orderNumber: undefined,
+      orderNo: undefined,
+      status: 'Draft',
+      documentStatus: 'Draft',
+      issuancePending: true
+    };
+    const drafts = readPendingOrderDrafts(pendingOrderDraftsStorageKey).filter(existing => existing.id !== draft.id);
+    writePendingOrderDrafts(pendingOrderDraftsStorageKey, [draft, ...drafts]);
+    setOrdersList(prev => [draft, ...prev.filter(existing => existing.id !== draft.id)]);
+    return draft;
   };
 
   const updateOrder = async (order: OrderRecord) => {
     if (backendConnected) {
-      const updated = await updateOrderApi(order);
+      const updated = order.issuancePending ? await createOrderApi(order) : await updateOrderApi(order);
+      if (order.issuancePending) {
+        writePendingOrderDrafts(pendingOrderDraftsStorageKey, readPendingOrderDrafts(pendingOrderDraftsStorageKey).filter(draft => draft.id !== order.id));
+      }
       setOrdersList(prev => prev.map(o => o.id === updated.id ? updated : o));
       return updated;
     }
-    setOrdersList(prev => prev.map(o => o.id === order.id ? order : o));
-    return order;
+    const updated = order.issuancePending
+      ? { ...order, orderNumber: undefined, orderNo: undefined, status: 'Draft', documentStatus: 'Draft' }
+      : order;
+    if (updated.issuancePending) {
+      writePendingOrderDrafts(pendingOrderDraftsStorageKey, readPendingOrderDrafts(pendingOrderDraftsStorageKey).map(draft => draft.id === updated.id ? updated : draft));
+    }
+    setOrdersList(prev => prev.map(o => o.id === updated.id ? updated : o));
+    return updated;
   };
 
   const deleteOrder = async (id: string) => {
-    if (backendConnected) await deleteOrderApi(id);
+    const existing = ordersList.find(item => item.id === id);
+    if (backendConnected && !existing?.issuancePending) await deleteOrderApi(id);
+    if (existing?.issuancePending) writePendingOrderDrafts(pendingOrderDraftsStorageKey, readPendingOrderDrafts(pendingOrderDraftsStorageKey).filter(draft => draft.id !== id));
     setOrdersList(prev => prev.filter(item => item.id !== id));
   };
 
   const transitionOrderStatus = async (id: string, nextStatus: OrderDocumentStatus, reason = '') => {
+    const pendingDraft = ordersList.find(order => order.id === id && order.issuancePending);
+    if (pendingDraft) throw new Error('Issue this draft to assign its official order number before changing its workflow status.');
     if (backendConnected) {
       const updated = await transitionOrderStatusApi(id, nextStatus, reason);
       setOrdersList(prev => prev.map(order => order.id === updated.id ? updated : order));
@@ -517,19 +553,19 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const uploadSignedOrderDocument = async (id: string, file: File) => {
-    if (!backendConnected) throw new Error('The backend is offline. Signed scan upload requires an active server connection.');
+    if (!backendConnected) throw new Error('The backend is offline. Approved order upload requires an active server connection.');
     const updated = await uploadSignedOrderDocumentApi(id, file);
     setOrdersList(prev => prev.map(order => order.id === updated.id ? updated : order));
     return updated;
   };
 
   const getSignedOrderDocument = async (id: string, download = false) => {
-    if (!backendConnected) throw new Error('The backend is offline. Signed scan retrieval requires an active server connection.');
+    if (!backendConnected) throw new Error('The backend is offline. Approved order retrieval requires an active server connection.');
     return getSignedOrderDocumentApi(id, download);
   };
 
   const deleteSignedOrderDocument = async (id: string) => {
-    if (!backendConnected) throw new Error('The backend is offline. Signed scan removal requires an active server connection.');
+    if (!backendConnected) throw new Error('The backend is offline. Approved order removal requires an active server connection.');
     const updated = await deleteSignedOrderDocumentApi(id);
     setOrdersList(prev => prev.map(order => order.id === updated.id ? updated : order));
     return updated;
@@ -904,30 +940,6 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
-  const createAward = async (award: Omit<AwardRecord, 'id' | 'status'>) => {
-    if (!backendConnected) {
-      throw new Error('The backend is offline. Start the server before saving an award.');
-    }
-    const created = await createAwardApi(award);
-    setAwardsList(prev => [created, ...prev]);
-    return created;
-  };
-
-  const updateAward = async (award: AwardRecord) => {
-    if (!backendConnected) {
-      setAwardsList(prev => prev.map(item => item.id === award.id ? award : item));
-      return award;
-    }
-    const updated = await updateAwardApi(award);
-    setAwardsList(prev => prev.map(item => item.id === updated.id ? updated : item));
-    return updated;
-  };
-
-  const deleteAward = async (id: string) => {
-    if (backendConnected) await deleteAwardApi(id);
-    setAwardsList(prev => prev.filter(item => item.id !== id));
-  };
-
   const createCalendarLeave = async (leave: LeaveRecord) => {
     if (!backendConnected) {
       throw new Error('The backend is offline. Start the server before saving leave.');
@@ -974,7 +986,6 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         ordersList,
         trainingList,
         leaveList,
-        awardsList,
         addPersonnel,
         bulkImportPersonnel,
         updatePersonnel,
@@ -1010,9 +1021,6 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         deleteTraining,
         bulkUpsertTraining,
         addLeave,
-        createAward,
-        updateAward,
-        deleteAward,
         createCalendarLeave,
         updateCalendarLeave,
         deleteCalendarLeave

@@ -129,8 +129,8 @@ export const DocumentRibbon: React.FC<DocumentRibbonProps> = ({
         {activeTab === 'review' && (
           <RibbonReviewTab
             onOpenFindReplace={onOpenFindReplace}
-            onOpenVersionHistory={onOpenVersionHistory}
-            onOpenProperties={onOpenProperties}
+            onOpenVersionHistory={onVersionHistory}
+            onOpenProperties={onProperties}
             wordCount={wordCount}
             characterCount={characterCount}
           />

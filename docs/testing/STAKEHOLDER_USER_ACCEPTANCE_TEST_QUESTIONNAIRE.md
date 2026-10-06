@@ -28,8 +28,8 @@ For each case, try the task yourself where possible. Mark **Pass**, **Fail**, or
 | UAT-05 | Add or edit a personnel record (administrator only) | Using an approved test record, add a record or change a non-sensitive test field, save, then reopen it. | The form is understandable, the save is confirmed, and the change remains after reopening. | | |
 | UAT-06 | Check required-field validation | In an approved test form, try to save with a required field empty or an invalid value. | The system identifies what needs correction, explains it clearly, and preserves other entered information. | | |
 | UAT-07 | Review assignment history | Open a test person's assignments. If permitted, add or edit a test assignment. | Assignment details and dates are understandable, and the correct person’s assignment history is shown. | | |
-| UAT-08 | Review or create an order | Open the Orders area. If in scope for your role, prepare a test order from an available template and review its personnel selection and fields. | The order type and fields are clear, selected personnel are correct, and the document preview reflects the entered information. | | |
-| UAT-09 | Check order and award profile links | Open the profile of a person associated with an approved test order or award. | The related order or award appears under the correct person's profile and is identifiable. | | |
+| UAT-08 | Manage an Award-purpose Administrative Order | In the Orders area, create or open an Administrative Order with the Award purpose. For a new order, enter the award title and citation and select recipient personnel. Review the generated unsigned order and approved-order-copy workflow. | Award orders are managed as Administrative Orders and use the same generated unsigned order and approved-copy workflow as other order purposes. The document reflects the award details and selected personnel. | | |
+| UAT-09 | Check Administrative Order profile links | Open the profile of a person associated with a test Administrative Order, including one with the Award purpose. | The related Administrative Order appears under the correct person's profile and is identifiable. | | |
 | UAT-10 | Review education and training | Open the education and training sections for a test person. If permitted, add a test entry. | Entries are readable, clearly associated with the person, and dates/details are presented as expected. | | |
 | UAT-11 | Review promotion information | Open a test person's promotion information and any time-in-grade calculation shown. | Promotion details and any calculation are understandable and appear consistent with the information provided. Record any discrepancy for review. | | |
 | UAT-12 | Review leave records and calendar | Open leave records and the calendar. Check how leave status and date ranges are displayed. | Leave details and statuses are understandable, and calendar entries correspond to the displayed dates and person. | | |
@@ -58,7 +58,7 @@ For each case, try the task yourself where possible. Mark **Pass**, **Fail**, or
 
    _Response:_
 
-5. Did any report, document, print preview, or PDF omit information or display incorrectly? Please describe.
+5. Did any report, document, print preview, or PDF omit information or display incorrectly? For document feedback, identify the Administrative Order purpose and the affected document section. Please describe.
 
    _Response:_
 

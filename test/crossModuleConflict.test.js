@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { db } from '../backend/store/repository.js';
+import { createTestRepository, issueTestOrder } from '../test-support/repository.js';
 import { generateOrderDocx } from '../backend/services/orderDocxGenerator.js';
+
+const db = createTestRepository();
 
 function seedTestPersonnel(data = {}) {
   const id = data.id || `pnp-cmc-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
@@ -32,7 +34,7 @@ test('Cross-Module Scenario A: Personnel -> Designation Order -> Assignment link
   });
 
   // 1. Create Designation Order
-  const order = await db.createOrder({
+  const order = await issueTestOrder(db, {
     series: 'SO',
     purposeCode: 'DES',
     issuedDate: '2026-09-10',
@@ -125,7 +127,7 @@ test('Cross-Module Scenario B: Reassignment & Relief marks prior Current Main Co
   // Verify asg1 completed
   const reloadedAsg1 = await db.getAssignmentById(asg1.id);
   assert.equal(reloadedAsg1.status, 'Completed');
-  assert.equal(reloadedAsg1.endDate, '2026-09-20');
+  assert.equal(reloadedAsg1.endDate, '2026-09-19');
 
   // Verify asg2 current
   const reloadedAsg2 = await db.getAssignmentById(asg2.id);
@@ -145,7 +147,7 @@ test('Cross-Module Scenario C: Snapshot immutability when personnel record is mu
     badgeNo: 'CMC-003'
   });
 
-  const order = await db.createOrder({
+  const order = await issueTestOrder(db, {
     series: 'SO',
     purposeCode: 'TR',
     issuedDate: '2026-09-12',
@@ -199,7 +201,7 @@ test('Cross-Module Scenario D: Multi-order linkage and revocation tracking', asy
   });
 
   // Original Order
-  const originalOrder = await db.createOrder({
+  const originalOrder = await issueTestOrder(db, {
     series: 'SO',
     purposeCode: 'DES',
     issuedDate: '2026-08-01',
@@ -234,7 +236,7 @@ test('Cross-Module Scenario E: Destructive order deletion handles referenced ass
     badgeNo: 'CMC-005'
   });
 
-  const order = await db.createOrder({
+  const order = await issueTestOrder(db, {
     series: 'SO',
     purposeCode: 'DES',
     issuedDate: '2026-09-01',
@@ -277,7 +279,7 @@ test('Cross-Module Scenario F: Soft-delete order and restoration preserves full 
     badgeNo: 'CMC-006'
   });
 
-  const order = await db.createOrder({
+  const order = await issueTestOrder(db, {
     series: 'LO',
     purposeCode: 'LV',
     issuedDate: '2026-09-18',
@@ -352,7 +354,7 @@ test('Cross-Module Scenario G: 20+ personnel order generation, sequence ordering
     }
   };
 
-  const order = await db.createOrder(orderPayload);
+  const order = await issueTestOrder(db, orderPayload);
   assert.equal(order.personnelInvolvement.length, 25);
 
   // Generate DOCX with manifest & hash
@@ -383,7 +385,7 @@ test('Cross-Module Scenario H: State isolation between concurrent assignment/ord
       position: 'Senior Analyst Bravo',
       status: 'Current'
     }),
-    db.createOrder({
+    issueTestOrder(db, {
       series: 'SO',
       purposeCode: 'DES',
       issuedDate: '2026-09-23',
@@ -391,7 +393,7 @@ test('Cross-Module Scenario H: State isolation between concurrent assignment/ord
       documentStatus: 'Draft',
       personnelInvolvement: [{ personnelId: p1.id, role: 'affected', sequence: 1 }]
     }),
-    db.createOrder({
+    issueTestOrder(db, {
       series: 'SO',
       purposeCode: 'DES',
       issuedDate: '2026-09-23',

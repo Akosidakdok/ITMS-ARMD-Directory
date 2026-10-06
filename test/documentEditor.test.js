@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { db } from '../backend/store/repository.js';
+import { createTestRepository, issueTestOrder } from '../test-support/repository.js';
+
+const db = createTestRepository();
 
 test('Document Repository: Create, fetch, and update document', async () => {
   const doc = await db.createDocument({
@@ -45,8 +47,7 @@ test('Document Repository: Create, fetch, and update document', async () => {
 
 test('Document Repository: Administrative Order integration preserves relationship and unsigned status', async () => {
   // Create sample order
-  const order = await db.createOrder({
-    orderNumber: 'ITMS-SO-DES-2026-9999',
+  const order = await issueTestOrder(db, {
     series: 'SO',
     purposeCode: 'DES',
     subject: 'DESIGNATION OF TEST PERSONNEL',
@@ -166,6 +167,6 @@ test('Document Format Unification: Canonical order HTML matches Download source 
 
   // 2. Check formatDocumentOrderNumber matches between frontend and backend
   const formattedNo = formatDocumentOrderNumber(order.orderNumber);
-  assert.equal(formattedNo, '2026-0099', 'Order number formatting matches source of truth');
+  assert.equal(formattedNo, 'ITMS-SO-DES-2026-0099', 'Order number formatting preserves the complete official reference');
 });
 

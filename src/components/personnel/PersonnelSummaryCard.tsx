@@ -5,7 +5,6 @@ import {
   ShieldCheck, 
   MapPin, 
   Building, 
-  Award, 
   Clock,
   IdCard,
   Edit
@@ -20,7 +19,7 @@ interface PersonnelSummaryCardProps {
 }
 
 export const PersonnelSummaryCard: React.FC<PersonnelSummaryCardProps> = ({ personnel, onEdit }) => {
-  const { role, assignmentsList, ordersList, leaveList, awardsList } = useAuthRole();
+  const { role, assignmentsList, ordersList, leaveList } = useAuthRole();
   const canManage = hasManagementAccess(role);
   const isUniformed = isUniformedRank(personnel.rank);
   const personnelAssignments = assignmentsList.filter(record => record.personnelId === personnel.id);
@@ -30,7 +29,10 @@ export const PersonnelSummaryCard: React.FC<PersonnelSummaryCardProps> = ({ pers
     record.description?.toLowerCase().includes(personnel.lastName.toLowerCase())
   );
   const personnelLeaves = leaveList.filter(record => record.personnelId === personnel.id);
-  const personnelAwards = awardsList.filter(record => record.personnelId === personnel.id);
+  const personnelAwards = ordersList.filter(record => record.purposeCode === 'AW' && (
+    record.personnelIds?.includes(personnel.id) ||
+    record.personnelSnapshot?.some(person => person.personnelId === personnel.id)
+  ));
 
   const formatSalaryGrade = (sg?: string | number) => {
     if (!sg) return '—';
@@ -91,7 +93,7 @@ export const PersonnelSummaryCard: React.FC<PersonnelSummaryCardProps> = ({ pers
           ['Assignments', personnelAssignments.length, personnelAssignments[0]?.position || 'No assignment records'],
           ['Orders', personnelOrders.length, personnelOrders[0]?.subject || 'No linked orders'],
           ['Leave', personnelLeaves.length, personnelLeaves[0] ? `${personnelLeaves[0].leaveType} (${personnelLeaves[0].startDate})` : 'No leave records'],
-          ['Awards', personnelAwards.length, personnelAwards[0]?.awardName || 'No award records']
+          ['Award orders', personnelAwards.length, personnelAwards[0]?.subject || 'No award orders']
         ].map(([label, count, detail]) => (
           <div key={label} className="grid grid-cols-[1fr_auto] gap-x-3 px-1 py-2.5">
             <div className="flex items-center justify-between gap-2">

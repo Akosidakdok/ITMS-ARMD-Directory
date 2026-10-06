@@ -25,11 +25,12 @@ export const CANONICAL_DOCUMENT_CONFIG = {
 };
 
 const safeText = (val: any) => String(val ?? '').trim();
+const escapeHtml = (val: any) => String(val ?? '').replace(/[&<>"']/g, character => ({
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+}[character] || character));
 
 export const formatDocumentOrderNumber = (orderNumber?: string) => {
-  const value = safeText(orderNumber);
-  const parts = value.split('-');
-  return parts.length >= 2 ? parts.slice(-2).join('-') : value;
+  return safeText(orderNumber);
 };
 
 export const formatOrderDate = (value?: string) => {
@@ -126,11 +127,12 @@ export const buildCanonicalOrderDocumentHtml = (
     order.seriesHeading ||
     'ADMINISTRATIVE ORDERS';
 
-  const orderNumStr = formatDocumentOrderNumber(order.orderNumber || order.orderNo || order.id || 'UNNUMBERED');
+  const orderNumStr = formatDocumentOrderNumber(order.orderNumber || order.orderNo || 'NUMBER PENDING');
   const issuedDateStr = formatOrderDate(order.issuedDate || order.date || new Date().toISOString().slice(0, 10));
 
   const purposeDef = getOrderPurposeDef(order.purposeCode);
   const subject = safeText(order.subject || purposeDef?.label || 'Administrative Order');
+  const description = safeText(order.description);
 
   const personnel = extractPersonnelList(order, options.personnelMap);
   const nonDrivers = personnel.filter(p => p.role !== 'driver');
@@ -145,7 +147,7 @@ export const buildCanonicalOrderDocumentHtml = (
       : safeText(data.destinations || data.destination || 'the stated destination');
     const start = formatOrderDateWithWeekday(data.travelStartDate || order.effectiveDate || order.issuedDate);
     const end = formatOrderDateWithWeekday(data.travelEndDate || data.travelStartDate || order.effectiveDate || order.issuedDate);
-    const activity = safeText(data.activity || data.travelPurpose || order.description || 'official business');
+    const activity = safeText(data.activity || data.travelPurpose || 'official business');
     narrative = `In addition to their duties and responsibilities, following-named personnel of this Service are authorized to travel to ${destinations} from ${start} to ${end} for the conduct of ${activity}:`;
   } else {
     const names = nonDrivers
@@ -250,6 +252,8 @@ export const buildCanonicalOrderDocumentHtml = (
     ${purposeDetails.map(d => `<p class="pais-detail-p" style="margin: 0; padding-left: 36pt; font-size: 12pt; line-height: 1.2;">${d}</p>`).join('\n')}
   </div>
   ` : ''}
+
+  ${description ? `<p class="pais-description-p" style="margin: 0 0 12px 0; text-align: justify; white-space: pre-wrap; font-size: 12pt; line-height: 1.2;">${escapeHtml(description)}</p>` : ''}
 
   <!-- PERSONNEL LIST -->
   <div class="pais-personnel-container" style="margin-bottom: 16px;">

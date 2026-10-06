@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import { Award, CalendarDays, Search } from 'lucide-react';
+import { CalendarDays, FileText, Search } from 'lucide-react';
 import { Modal } from '../common/Modal';
 
-export type NewRecordType = 'award' | 'leave-calendar';
+export type NewRecordType = 'administrative-order' | 'leave-calendar';
 
 interface OrderTypeSelectorModalProps {
   isOpen: boolean;
@@ -12,11 +12,11 @@ interface OrderTypeSelectorModalProps {
 
 const options = [
   {
-    id: 'award' as const,
-    label: 'Award',
-    description: 'Encode an award citation and associate it with personnel.',
-    icon: Award,
-    color: 'bg-amber-50 text-amber-700 border-amber-200'
+    id: 'administrative-order' as const,
+    label: 'Administrative Order',
+    description: 'Create any order purpose, including Awards, with the same generated document and approval-copy workflow.',
+    icon: FileText,
+    color: 'bg-teal-50 text-teal-700 border-teal-200'
   },
   {
     id: 'leave-calendar' as const,
@@ -47,8 +47,8 @@ export const OrderTypeSelectorModal: React.FC<OrderTypeSelectorModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Select Order Type"
-      subtitle="Choose the type of record you want to create"
+      title="Create a record"
+      subtitle="Choose what you want to add"
       maxWidth="lg"
     >
       <div className="space-y-4">

@@ -1,5 +1,13 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 
+declare module '@tiptap/core' {
+  interface Commands<ReturnType> {
+    pageBreak: {
+      setPageBreak: () => ReturnType;
+    };
+  }
+}
+
 export const PageBreakNode = Node.create({
   name: 'pageBreak',
   group: 'block',

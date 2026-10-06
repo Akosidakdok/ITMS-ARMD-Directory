@@ -186,7 +186,7 @@ export const exportToDocx = async (
             const isCellBorderless = isBorderless || tdStyle.includes('border: none') || tdStyle.includes('border:none');
 
             // Alignment
-            let cellAlignment = AlignmentType.LEFT;
+            let cellAlignment: (typeof AlignmentType)[keyof typeof AlignmentType] = AlignmentType.LEFT;
             if (tdElement.style.textAlign === 'center') cellAlignment = AlignmentType.CENTER;
             else if (tdElement.style.textAlign === 'right') cellAlignment = AlignmentType.RIGHT;
 
@@ -268,7 +268,7 @@ export const exportToDocx = async (
         }
 
         const textAlign = el.style.textAlign;
-        let alignment = AlignmentType.LEFT;
+        let alignment: (typeof AlignmentType)[keyof typeof AlignmentType] = AlignmentType.LEFT;
         if (textAlign === 'center') alignment = AlignmentType.CENTER;
         else if (textAlign === 'right') alignment = AlignmentType.RIGHT;
         else if (textAlign === 'justify') alignment = AlignmentType.JUSTIFIED;

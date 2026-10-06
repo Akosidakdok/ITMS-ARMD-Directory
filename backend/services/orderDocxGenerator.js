@@ -20,9 +20,10 @@ import {
 } from 'docx';
 import { getOrderPurposeDefinition } from '../utils/orderCatalog.js';
 import { ORDER_CATALOG } from '../utils/orderCatalog.js';
+import { formatOfficialOrderNumber } from '../../shared/orderNumber.js';
 
 export const ORDER_TEMPLATE_KEY = 'pnp-itms-letter-orders';
-export const ORDER_TEMPLATE_VERSION = '1.0.0';
+export const ORDER_TEMPLATE_VERSION = '1.1.0';
 
 const FONT = 'Arial';
 const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -43,11 +44,7 @@ const textParagraph = (text, options = {}) => paragraph([run(text, options.runOp
 const blankParagraph = () => paragraph([]);
 
 const safeText = value => String(value ?? '').trim();
-export const formatDocumentOrderNumber = orderNumber => {
-  const value = safeText(orderNumber);
-  const parts = value.split('-');
-  return parts.length >= 2 ? parts.slice(-2).join('-') : value;
-};
+export const formatDocumentOrderNumber = formatOfficialOrderNumber;
 const formatDate = value => {
   if (!value) return '';
   const date = new Date(`${String(value).slice(0, 10)}T00:00:00`);
@@ -83,7 +80,7 @@ const getTravelNarrative = order => {
     : safeText(data.destinations || data.destination || 'the stated destination');
   const start = formatDateWithWeekday(data.travelStartDate || order.effectiveDate || order.issuedDate);
   const end = formatDateWithWeekday(data.travelEndDate || data.travelStartDate || order.effectiveDate || order.issuedDate);
-  const activity = safeText(data.activity || data.travelPurpose || order.description || 'official business');
+  const activity = safeText(data.activity || data.travelPurpose || 'official business');
   return `In addition to their duties and responsibilities, following-named personnel of this Service are authorized to travel to ${destinations} from ${start} to ${end} for the conduct of ${activity}:`;
 };
 
@@ -173,7 +170,7 @@ const buildSignatureTable = order => {
 
 export const computeOrderSourceHash = order => {
   const canonical = {
-    orderNumber: order.orderNumber || order.orderNo || order.id || '',
+    orderNumber: order.orderNumber || order.orderNo || 'NUMBER PENDING',
     series: order.series || '',
     purposeCode: order.purposeCode || '',
     subject: safeText(order.subject),
@@ -187,7 +184,8 @@ export const computeOrderSourceHash = order => {
       rank: p.rank,
       fullName: p.fullName
     })),
-    purposeData: order.purposeData || {}
+    purposeData: order.purposeData || {},
+    description: safeText(order.description)
   };
   return crypto.createHash('sha256').update(JSON.stringify(canonical)).digest('hex');
 };
@@ -197,19 +195,23 @@ export const buildOrderGenerationManifest = order => ({
   templateVersion: ORDER_TEMPLATE_VERSION,
   generatedAt: new Date().toISOString(),
   generatedBy: order.generatedBy || order.updatedBy || order.createdBy || 'system',
-  orderNumber: order.orderNumber || order.orderNo || order.id,
+  orderNumber: order.orderNumber || order.orderNo || 'NUMBER PENDING',
   personnelSnapshot: getPersonnel(order),
   personnelCount: getPersonnel(order).length,
   sourceDataHash: computeOrderSourceHash(order)
 });
 
 export const generateOrderDocx = async order => {
+  if (!(order.orderNumber || order.orderNo)) {
+    throw new Error('A generated order document requires an officially issued order number.');
+  }
   const pnpLogo = fs.readFileSync(pnpLogoPath);
   const itmsLogo = fs.readFileSync(itmsLogoPath);
   const series = ORDER_CATALOG.series.find(option => option.value === order.series);
   const purpose = getOrderPurposeDefinition(order.purposeCode);
   const heading = series?.heading || 'ADMINISTRATIVE ORDERS';
   const subject = safeText(order.subject || purpose?.label || 'Administrative Order');
+  const description = safeText(order.description);
   const personnel = getPersonnel(order);
   const bodyChildren = [
     buildLetterhead(pnpLogo, itmsLogo),
@@ -225,12 +227,13 @@ export const generateOrderDocx = async order => {
     }),
     blankParagraph(),
     textParagraph(heading, { runOptions: { bold: true } }),
-    textParagraph(`NUMBER ${formatDocumentOrderNumber(order.orderNumber || order.orderNo || order.id)}`, { runOptions: { bold: true } }),
+    textParagraph(`NUMBER ${formatDocumentOrderNumber(order.orderNumber || order.orderNo)}`, { runOptions: { bold: true } }),
     blankParagraph(),
     textParagraph(`SUBJECT    :  ${subject}`, { runOptions: { bold: true } }),
     blankParagraph(),
     textParagraph(getNarrative(order), { alignment: AlignmentType.JUSTIFIED, indent: { firstLine: 720 } }),
     ...getPurposeDetails(order).flatMap(detail => [textParagraph(detail, { indent: { left: 720 } })]),
+    ...(description ? description.split(/\r?\n/).map(line => line ? textParagraph(line, { alignment: AlignmentType.JUSTIFIED }) : blankParagraph()) : []),
     blankParagraph(),
     ...personnel.filter(p => p.role !== 'driver').map((person, idx) => {
       const seq = personnel.length > 1 ? `${idx + 1}. ` : '';

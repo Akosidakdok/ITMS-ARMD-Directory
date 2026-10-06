@@ -60,6 +60,28 @@ export const LEGACY_ORDER_STATUS_OPTIONS = ['Active', 'Pending'] as const;
 export const getOrderPurposeLabel = (code?: string) =>
   ORDER_PURPOSE_OPTIONS.find(option => option.value === code)?.label || code || 'Unclassified';
 
+export const formatOrderPurposeLabel = (code?: string, label?: string) => {
+  const purposeLabel = (label || getOrderPurposeLabel(code)).trim();
+  if (!code) {
+    const repeatedCode = purposeLabel.match(/^([A-Z0-9]+)\s*(?:—|–|-)\s*\1(?=$|\s|[—–-])\s*(?:[—–-]\s*)?(.*)$/i);
+    return repeatedCode ? (repeatedCode[2] ? `${repeatedCode[1]} — ${repeatedCode[2]}` : repeatedCode[1]) : purposeLabel || 'Unclassified';
+  }
+
+  let purposeName = purposeLabel;
+  const prefixedCode = /^([A-Z0-9]+)\s*(?:—|–|-)\s*(.*)$/i;
+  while (purposeName) {
+    if (purposeName.toUpperCase() === code.toUpperCase()) {
+      purposeName = '';
+      break;
+    }
+    const match = purposeName.match(prefixedCode);
+    if (!match || match[1].toUpperCase() !== code.toUpperCase()) break;
+    purposeName = match[2].trim();
+  }
+
+  return purposeName ? `${code} — ${purposeName}` : code;
+};
+
 export const getOrderPurposeDefinition = (code?: string) =>
   ORDER_PURPOSE_DEFINITIONS.find(definition => definition.value === code);
 

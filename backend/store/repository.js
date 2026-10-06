@@ -17,8 +17,9 @@ import {
   INITIAL_LEAVE,
   INITIAL_AWARDS
 } from './initialData.js';
-import { buildOrderNumber, extractOrderSequence, getOrderYear } from '../utils/orderNumber.js';
 import { assertOrderStatusTransition, normalizeOrderStatus, ORDER_LOCKED_STATUSES } from '../utils/orderWorkflow.js';
+import { buildOrderNumber, getOrderYear } from '../utils/orderNumber.js';
+import { previousCalendarDate } from '../utils/dateOnly.js';
 
 const PCO_RANKS_BACKEND = new Set([
   'PBGEN', 'PCOL', 'PLTCOL', 'PMAJ', 'PCPT', 'PLT',
@@ -41,12 +42,6 @@ function manilaDate() {
   return `${values.year}-${values.month}-${values.day}`;
 }
 
-function previousDate(date) {
-  const value = new Date(`${date}T00:00:00Z`);
-  value.setUTCDate(value.getUTCDate() - 1);
-  return value.toISOString().slice(0, 10);
-}
-
 function getRankCategoryBackend(rank) {
   if (!rank) return 'PNCO';
   const clean = String(rank).trim().toUpperCase();
@@ -62,18 +57,18 @@ function getRankCategoryBackend(rank) {
   return 'PNCO';
 }
 
-class PAISRepository {
-  constructor() {
-    this.inMemoryPersonnel = [...INITIAL_PERSONNEL];
-    this.inMemoryAssignments = [...INITIAL_ASSIGNMENTS];
-    this.inMemoryEducation = [...INITIAL_EDUCATION];
-    this.inMemoryPromotions = [...INITIAL_PROMOTIONS];
-    this.inMemoryOrders = [...INITIAL_ORDERS];
-    this.inMemoryOrderSequences = new Map();
+export class PAISRepository {
+  constructor({ initialData = true, orderIssuanceAdapter = null } = {}) {
+    this.orderIssuanceAdapter = orderIssuanceAdapter;
+    this.inMemoryPersonnel = initialData ? [...INITIAL_PERSONNEL] : [];
+    this.inMemoryAssignments = initialData ? [...INITIAL_ASSIGNMENTS] : [];
+    this.inMemoryEducation = initialData ? [...INITIAL_EDUCATION] : [];
+    this.inMemoryPromotions = initialData ? [...INITIAL_PROMOTIONS] : [];
+    this.inMemoryOrders = initialData ? [...INITIAL_ORDERS] : [];
     this.inMemoryOrderStatusHistory = [];
-    this.inMemoryTraining = [...INITIAL_TRAINING];
-    this.inMemoryLeave = [...INITIAL_LEAVE];
-    this.inMemoryAwards = [...INITIAL_AWARDS];
+    this.inMemoryTraining = initialData ? [...INITIAL_TRAINING] : [];
+    this.inMemoryLeave = initialData ? [...INITIAL_LEAVE] : [];
+    this.inMemoryAwards = initialData ? [...INITIAL_AWARDS] : [];
     this.inMemoryAuthorizedStrengths = [];
     this.inMemoryDocuments = [];
     this.inMemoryDocumentTemplates = [];
@@ -490,43 +485,23 @@ class PAISRepository {
   }
 
   // ================= ORDERS CRUD =================
-  async nextOrderNumber({ series, purposeCode, issuedDate }) {
-    const year = getOrderYear(issuedDate);
-
-    if (this.isSupabaseConnected()) {
-      const { data, error } = await supabase.rpc('next_itms_order_sequence', {
-        p_year: year,
-        p_series: series
-      });
-      if (error) {
-        throw new Error(`Order-number sequence generation failed: ${error.message}`);
-      }
-      return buildOrderNumber({ series, purposeCode, year, sequence: Number(data) });
-    }
-
-    const sequenceKey = `${year}:${series}`;
-    const existingMax = this.inMemoryOrders.reduce((max, order) => {
-      const parsed = extractOrderSequence(order.orderNumber);
-      return parsed && parsed.year === year && parsed.series === series
-        ? Math.max(max, parsed.sequence)
-        : max;
-    }, 0);
-    const next = Math.max(this.inMemoryOrderSequences.get(sequenceKey) || 0, existingMax) + 1;
-    this.inMemoryOrderSequences.set(sequenceKey, next);
-    return buildOrderNumber({ series, purposeCode, year, sequence: next });
-  }
-
   async getOrders() {
-    if (this.isSupabaseConnected()) {
-      try {
-        const { data, error } = await supabase.from('orders').select('*');
-        if (!error && Array.isArray(data)) return data.filter(o => !o.isDeleted);
-      } catch (e) {}
+    if (this.orderIssuanceAdapter) {
+      return this.inMemoryOrders.filter(order => !order.isDeleted);
     }
-    return this.inMemoryOrders.filter(o => !o.isDeleted);
+    if (!this.isSupabaseConnected()) {
+      throw new Error('The official order register requires an active Supabase database connection.');
+    }
+    const { data, error } = await supabase.from('orders').select('*');
+    if (error) throw new Error(`Order register could not be loaded: ${error.message}`);
+    if (!Array.isArray(data)) throw new Error('Order register returned an invalid response.');
+    return data.filter(order => !order.isDeleted);
   }
 
   async getOrderById(id) {
+    if (this.orderIssuanceAdapter) {
+      return this.inMemoryOrders.find(order => order.id === id) || null;
+    }
     if (this.isSupabaseConnected()) {
       try {
         const { data, error } = await supabase.from('orders').select('*').eq('id', id).single();
@@ -537,27 +512,58 @@ class PAISRepository {
   }
 
   async createOrder(data) {
-    const orderNumber = data.series && data.purposeCode && data.issuedDate
-      ? await this.nextOrderNumber(data)
-      : data.orderNumber;
-    if (!orderNumber) {
-      throw new Error('Order number could not be generated. Series, purpose code, and issued date are required.');
-    }
     const newRecord = {
-      id: data.id || `ord-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       ...data,
-      orderNumber
+      id: data.id || `ord-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     };
 
-    if (this.isSupabaseConnected()) {
-      try {
-        const { data: inserted, error } = await supabase.from('orders').insert([newRecord]).select().single();
-        if (!error && inserted) return inserted;
-      } catch (e) {}
+    if (this.orderIssuanceAdapter) {
+      const { orderNumber: _clientOrderNumber, orderNo: _legacyOrderNo, issuancePending: _issuancePending, ...orderPayload } = newRecord;
+      const existing = this.inMemoryOrders.find(order => order.id === newRecord.id);
+      if (existing) {
+        if (existing.series !== orderPayload.series
+          || existing.purposeCode !== orderPayload.purposeCode
+          || existing.issuedDate !== orderPayload.issuedDate
+          || existing.subject !== orderPayload.subject) {
+          throw new Error('Order id already exists with different issuance details.');
+        }
+        return existing;
+      }
+
+      const year = getOrderYear(orderPayload.issuedDate);
+      const sequence = await this.orderIssuanceAdapter.allocate({
+        year,
+        series: orderPayload.series,
+        purposeCode: orderPayload.purposeCode
+      });
+      const now = new Date().toISOString();
+      const created = {
+        ...orderPayload,
+        orderNumber: buildOrderNumber({ series: orderPayload.series, purposeCode: orderPayload.purposeCode, year, sequence }),
+        personnelIds: orderPayload.personnelIds || [],
+        createdAt: now,
+        updatedAt: now,
+        documentVersion: 0,
+        isDeleted: false,
+        orderEffectHistory: [],
+        status: orderPayload.status || orderPayload.documentStatus || 'Draft',
+        documentStatus: orderPayload.documentStatus || orderPayload.status || 'Draft',
+        affectedPersonnelCount: orderPayload.affectedPersonnelCount ?? 1
+      };
+      this.inMemoryOrders.unshift(created);
+      return created;
     }
 
-    this.inMemoryOrders.unshift(newRecord);
-    return newRecord;
+    if (!this.isSupabaseConnected()) {
+      throw new Error('Official order issuance requires a live Supabase database connection. Save this order as a local draft and issue it after reconnecting.');
+    }
+
+    const { orderNumber: _clientOrderNumber, orderNo: _legacyOrderNo, issuancePending: _issuancePending, ...orderPayload } = newRecord;
+    const { data: inserted, error } = await supabase.rpc('issue_itms_order', { p_order: orderPayload });
+    if (error) throw new Error(`Official order issuance failed: ${error.message}`);
+    const created = Array.isArray(inserted) ? inserted[0] : inserted;
+    if (!created?.orderNumber) throw new Error('Official order issuance returned no order number. The order was not saved.');
+    return created;
   }
 
   async updateOrder(id, data) {
@@ -580,7 +586,7 @@ class PAISRepository {
         throw new Error(`Order ${key} cannot be changed after number allocation.`);
       }
     }
-    if (this.isSupabaseConnected()) {
+    if (!this.orderIssuanceAdapter && this.isSupabaseConnected()) {
       try {
         const { data: updated, error } = await supabase.from('orders').update(data).eq('id', id).select().single();
         if (!error && updated) return updated;
@@ -599,7 +605,7 @@ class PAISRepository {
     const deletedAt = new Date().toISOString();
     const update = { isDeleted: true, deletedAt };
 
-    if (this.isSupabaseConnected()) {
+    if (!this.orderIssuanceAdapter && this.isSupabaseConnected()) {
       try {
         const { data, error } = await supabase.from('orders').update(update).eq('id', id).select().single();
         if (!error && data) return true;
@@ -651,7 +657,7 @@ class PAISRepository {
       statusUpdate.deletedAt = null;
     }
 
-    if (this.isSupabaseConnected()) {
+    if (!this.orderIssuanceAdapter && this.isSupabaseConnected()) {
       let { data, error } = await supabase
         .from('orders')
         .update(statusUpdate)
@@ -710,7 +716,7 @@ class PAISRepository {
     const existing = await this.getOrderById(id);
     if (!existing) return null;
     const update = { ...metadata, updatedAt: new Date().toISOString() };
-    if (supabase) {
+    if (supabase && !this.orderIssuanceAdapter) {
       const { data, error } = await supabase.from('orders').update(update).eq('id', id).select().single();
       if (error || !data) throw new Error(`Order document metadata update failed: ${error?.message || 'Order not found'}`);
       return data;
@@ -731,7 +737,7 @@ class PAISRepository {
       templateVersion: metadata.templateVersion || null,
       updatedAt: new Date().toISOString()
     };
-    if (supabase) {
+    if (supabase && !this.orderIssuanceAdapter) {
       const { data, error } = await supabase.from('orders').update(update).eq('id', id).select().single();
       if (error || !data) throw new Error(`Generated order document metadata update failed: ${error?.message || 'Order not found'}`);
       return data;
@@ -746,7 +752,7 @@ class PAISRepository {
     const existing = await this.getOrderById(id);
     if (!existing) return null;
     const update = { signedDocument: metadata.signedDocument || null, updatedAt: new Date().toISOString() };
-    if (supabase) {
+    if (supabase && !this.orderIssuanceAdapter) {
       const { data, error } = await supabase.from('orders').update(update).eq('id', id).select().single();
       if (error || !data) throw new Error(`Signed order document metadata update failed: ${error?.message || 'Order not found'}`);
       return data;
@@ -771,7 +777,7 @@ class PAISRepository {
       storagePath: null,
       updatedAt: new Date().toISOString()
     };
-    if (supabase) {
+    if (supabase && !this.orderIssuanceAdapter) {
       const { data, error } = await supabase.from('orders').update(update).eq('id', id).select().single();
       if (error || !data) throw new Error(`Order document metadata removal failed: ${error?.message || 'Order not found'}`);
       return data;
@@ -783,7 +789,7 @@ class PAISRepository {
   }
 
   async getOrderStatusHistory(orderId) {
-    if (this.isSupabaseConnected()) {
+    if (!this.orderIssuanceAdapter && this.isSupabaseConnected()) {
       const { data, error } = await supabase
         .from('order_status_history')
         .select('*')
@@ -806,7 +812,7 @@ class PAISRepository {
     if (fromStatus === toStatus && !retryingPostingEffects) return existing;
     if (!retryingPostingEffects && fromStatus !== toStatus) assertOrderStatusTransition(fromStatus, toStatus);
     if (toStatus === 'Signed' && !existing.signedDocument?.storagePath) {
-      throw new Error('A scanned signed order image must be uploaded before the order can be marked Signed.');
+      throw new Error('An approved order copy must be uploaded before the order can be marked Signed.');
     }
     const changedAt = new Date().toISOString();
     const statusUpdate = {
@@ -826,7 +832,7 @@ class PAISRepository {
     let updated;
     if (retryingPostingEffects) {
       updated = existing;
-    } else if (this.isSupabaseConnected()) {
+    } else if (!this.orderIssuanceAdapter && this.isSupabaseConnected()) {
       const { data, error } = await supabase
         .from('orders')
         .update(statusUpdate)
@@ -1002,7 +1008,7 @@ class PAISRepository {
     }
     const priorRows = await this.readAssignmentsRaw(assignment.personnelId);
     for (const prior of priorRows.filter(row => row.id !== assignment.id && row.status === 'Current' && (!row.positionCategory || row.positionCategory === 'Main'))) {
-      const endDate = previousDate(effectiveDate);
+      const endDate = previousCalendarDate(effectiveDate);
       await this.persistAssignmentPatch(prior.id, {
         status: 'Completed', endDate, endedByOrderId: order.id,
         orderEffectHistory: this.orderEffectEvent(prior, {
@@ -1046,11 +1052,11 @@ class PAISRepository {
         if (restoredStatus === 'Current') {
           for (const prior of priorCurrent) {
             await this.persistAssignmentPatch(prior.id, {
-              status: 'Completed', endDate: previousDate(effectiveDate), endedByOrderId: order.id,
+              status: 'Completed', endDate: previousCalendarDate(effectiveDate), endedByOrderId: order.id,
               orderEffectHistory: this.orderEffectEvent(prior, {
                 orderId: order.id, action: 'superseded', effectiveDate,
                 before: { status: prior.status, endDate: prior.endDate || null, endedByOrderId: prior.endedByOrderId || null },
-                after: { status: 'Completed', endDate: previousDate(effectiveDate), endedByOrderId: order.id }
+                after: { status: 'Completed', endDate: previousCalendarDate(effectiveDate), endedByOrderId: order.id }
               })
             });
           }
@@ -1130,7 +1136,7 @@ class PAISRepository {
       if (!scheduled.positionCategory || scheduled.positionCategory === 'Main') {
         const priorRows = rows.filter(row => row.personnelId === scheduled.personnelId && row.id !== scheduled.id && row.status === 'Current' && (!row.positionCategory || row.positionCategory === 'Main'));
         for (const prior of priorRows) {
-          const endDate = previousDate(effectiveDate);
+          const endDate = previousCalendarDate(effectiveDate);
           await this.persistAssignmentPatch(prior.id, {
             status: 'Completed', endDate, endedByOrderId: scheduled.orderId || null,
             ...(scheduled.orderId ? { orderEffectHistory: this.orderEffectEvent(prior, {
@@ -1167,7 +1173,7 @@ class PAISRepository {
       : (order.personnelIds || []).map(personnelId => ({ personnelId, role: 'affected' }));
     const personnelIds = [...new Set(involvement.map(item => item.personnelId).filter(Boolean))];
     if (!personnelIds.length) {
-      return this.setOrderAssignmentEffectStatus(order, 'Needs review', 'No affected personnel are linked to this posting order.');
+      return this.setOrderAssignmentEffectStatus(order, 'Needs review', 'No selected personnel are linked to this posting order.');
     }
 
     const today = manilaDate();
@@ -1294,7 +1300,7 @@ class PAISRepository {
     const status = reviewItems.length ? 'Needs review' : 'Applied';
     const message = reviewItems.length
       ? `${reviewItems.length} posting effect${reviewItems.length === 1 ? '' : 's'} need review: ${reviewItems.join('; ')}`
-      : `Posting effects applied for ${personnelIds.length} affected personnel by ${actor}.`;
+      : `Posting effects applied for ${personnelIds.length} selected personnel by ${actor}.`;
     return this.setOrderAssignmentEffectStatus(order, status, message);
   }
 
@@ -1457,7 +1463,7 @@ class PAISRepository {
     if (stagedMainPosting) {
       const priorAssignments = await this.readAssignmentsRaw(data.personnelId);
       for (const prior of priorAssignments.filter(row => row.id !== inserted.id && row.status === 'Current' && (!row.positionCategory || row.positionCategory === 'Main'))) {
-        const endDate = prior.endDate || previousDate(effectiveDate || manilaDate());
+        const endDate = prior.endDate || previousCalendarDate(effectiveDate || manilaDate());
         await this.persistAssignmentPatch(prior.id, {
           status: 'Completed', endDate,
           ...(inserted.orderId ? {
@@ -1507,7 +1513,7 @@ class PAISRepository {
       const activeUpdated = { ...updated, ...data };
       const effectiveStart = String(data.effectiveDate || data.startDate || existing?.effectiveDate || existing?.startDate || manilaDate()).slice(0, 10);
       for (const prior of priorAssignments.filter(row => row.id !== id && row.status === 'Current' && (!row.positionCategory || row.positionCategory === 'Main'))) {
-        const endDate = prior.endDate || previousDate(effectiveStart);
+        const endDate = prior.endDate || previousCalendarDate(effectiveStart);
         await this.persistAssignmentPatch(prior.id, {
           status: 'Completed', endDate,
           ...(activeUpdated.orderId ? {

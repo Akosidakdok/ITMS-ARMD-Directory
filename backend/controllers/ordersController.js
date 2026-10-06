@@ -86,6 +86,12 @@ export const getOrderById = async (req, res) => {
 
 export const createOrder = async (req, res) => {
   try {
+    if (!db.isSupabaseConnected()) {
+      return res.status(503).json({
+        success: false,
+        message: 'Official order issuance is unavailable while the database is disconnected. Save this as a local draft and issue it after reconnecting.'
+      });
+    }
     const { series, purposeCode, orderType, subject, issuedDate } = req.body;
     if (!series || !purposeCode || !orderType || !subject || !issuedDate) {
       return res.status(400).json({
@@ -101,7 +107,7 @@ export const createOrder = async (req, res) => {
     }
     const personnelPayload = await prepareOrderPersonnel(req.body);
     if (normalizeOrderStatus(req.body) === 'Signed' && !req.body.signedDocument?.storagePath) {
-      return res.status(409).json({ success: false, message: 'A signed order scan must be uploaded before creating a Signed order.' });
+      return res.status(409).json({ success: false, message: 'An approved order copy must be uploaded before setting an order to Signed.' });
     }
     const purposeErrors = validateOrderPurposePayload({ ...req.body, ...personnelPayload });
     if (purposeErrors.length) {
@@ -222,8 +228,8 @@ export const transitionOrderStatus = async (req, res) => {
     res.json({ success: true, message: `Order moved to ${status}.`, data: updated });
   } catch (error) {
     const isWorkflowError = /Invalid order status/.test(error.message);
-    const missingSignedScan = /signed order image must be uploaded/i.test(error.message);
-    res.status(missingSignedScan ? 409 : isWorkflowError ? 400 : 500).json({ success: false, message: error.message, error: error.message });
+    const missingApprovedCopy = /approved order copy must be uploaded/i.test(error.message);
+    res.status(missingApprovedCopy ? 409 : isWorkflowError ? 400 : 500).json({ success: false, message: error.message, error: error.message });
   }
 };
 
@@ -241,6 +247,9 @@ export const regenerateOrderDocument = async (req, res) => {
   try {
     const order = await db.getOrderById(req.params.id);
     if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    if (!(order.orderNumber || order.orderNo)) {
+      return res.status(409).json({ success: false, message: 'A generated order document requires an officially issued order number.' });
+    }
     if (ORDER_LOCKED_STATUSES.includes(normalizeOrderStatus(order))) {
       return res.status(409).json({ success: false, message: 'Generated documents cannot be replaced on locked orders.' });
     }
@@ -324,6 +333,9 @@ export const uploadOrderDocument = async (req, res) => {
   try {
     const order = await db.getOrderById(req.params.id);
     if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    if (!(order.orderNumber || order.orderNo)) {
+      return res.status(409).json({ success: false, message: 'An order must have an official number before its document can be uploaded.' });
+    }
     if (ORDER_LOCKED_STATUSES.includes(normalizeOrderStatus(order))) {
       return res.status(409).json({ success: false, message: 'Documents cannot be replaced on locked orders.' });
     }
@@ -419,10 +431,13 @@ export const uploadSignedOrderDocument = async (req, res) => {
   try {
     const order = await db.getOrderById(req.params.id);
     if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
-    if (ORDER_LOCKED_STATUSES.includes(normalizeOrderStatus(order))) {
-      return res.status(409).json({ success: false, message: 'Signed scans cannot be replaced on locked orders.' });
+    if (!(order.orderNumber || order.orderNo)) {
+      return res.status(409).json({ success: false, message: 'An order must have an official number before an approved copy can be uploaded.' });
     }
-    if (!req.file) return res.status(400).json({ success: false, message: 'Select a signed JPEG, PNG, or WEBP scan.' });
+    if (ORDER_LOCKED_STATUSES.includes(normalizeOrderStatus(order))) {
+      return res.status(409).json({ success: false, message: 'Approved order copies cannot be replaced on locked orders.' });
+    }
+    if (!req.file) return res.status(400).json({ success: false, message: 'Select an approved order copy in JPEG, PNG, or WEBP format.' });
     if (!isSignedOrderImage(req.file.buffer, req.file.mimetype)) {
       return res.status(400).json({ success: false, message: 'The selected file is not a valid JPEG, PNG, or WEBP image.' });
     }
@@ -451,7 +466,7 @@ export const uploadSignedOrderDocument = async (req, res) => {
     if (order.signedDocument?.storagePath && order.signedDocument.storagePath !== uploadedPath) {
       await removeOrderDocument(order.signedDocument.storagePath).catch(() => {});
     }
-    res.status(201).json({ success: true, message: 'Signed order scan uploaded successfully.', data: updated });
+    res.status(201).json({ success: true, message: 'Approved order copy uploaded successfully.', data: updated });
   } catch (error) {
     if (uploadedPath) await removeOrderDocument(uploadedPath).catch(() => {});
     res.status(500).json({ success: false, message: error.message, error: error.message });
@@ -463,7 +478,7 @@ export const getSignedOrderDocument = async (req, res) => {
     const order = await db.getOrderById(req.params.id);
     if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
     const document = order.signedDocument;
-    if (!document?.storagePath) return res.status(404).json({ success: false, message: 'This order has no signed scan.' });
+    if (!document?.storagePath) return res.status(404).json({ success: false, message: 'This order has no approved copy.' });
     const signedExtension = document.fileMimeType === 'image/jpeg'
       ? 'jpg'
       : document.fileMimeType?.split('/')[1] || 'png';
@@ -482,11 +497,11 @@ export const deleteSignedOrderDocument = async (req, res) => {
     const order = await db.getOrderById(req.params.id);
     if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
     if (ORDER_LOCKED_STATUSES.includes(normalizeOrderStatus(order))) {
-      return res.status(409).json({ success: false, message: 'Signed scans cannot be removed from locked orders.' });
+      return res.status(409).json({ success: false, message: 'Approved order copies cannot be removed from locked orders.' });
     }
     if (order.signedDocument?.storagePath) await removeOrderDocument(order.signedDocument.storagePath);
     const updated = await db.clearSignedOrderDocument(req.params.id);
-    res.json({ success: true, message: 'Signed order scan removed.', data: updated });
+    res.json({ success: true, message: 'Approved order copy removed.', data: updated });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message, error: error.message });
   }

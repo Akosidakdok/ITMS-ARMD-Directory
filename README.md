@@ -13,8 +13,11 @@ This repository contains the React/Vite frontend and Express/Supabase backend fo
 
 ## Verification
 
-- `npm test` runs schema, import, authentication, and time-in-grade tests.
+- `npm test` runs the automated repository test suite, including order/assignment workflows and numbering checks.
 - `npm run build` creates the production frontend.
+- `npm run typecheck` runs the strict TypeScript check.
+- GitHub Actions runs all three checks on every push and pull request.
+- `npm run test:order-db` runs the order-number concurrency integration check. Set `PAIS_RUN_ORDER_DB_INTEGRATION=true`, `PAIS_TEST_SUPABASE_URL`, and `PAIS_TEST_SUPABASE_SERVICE_ROLE_KEY` for a dedicated test Supabase project first. It creates and deletes temporary test orders; the sequence counter remains advanced, so do not point it at production.
 - `GET /api/health` reports API, authentication-configuration, and database status without requiring a session.
 
 ## Access control

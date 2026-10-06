@@ -1,3 +1,5 @@
+import { formatOrderPurposeLabel } from '../../../constants/orders';
+
 export interface PaisFieldDefinition {
   key: string;
   label: string;
@@ -131,7 +133,7 @@ export const resolvePaisFieldValue = (
       if (prop === 'order_number') return o.orderNumber || o.orderNo || '';
       if (prop === 'order_type') return o.orderType || o.type || 'Administrative Order';
       if (prop === 'series') return o.series || 'SO';
-      if (prop === 'purpose') return o.purposeLabel || o.purposeCode || '';
+      if (prop === 'purpose') return formatOrderPurposeLabel(o.purposeCode, o.purposeLabel);
       if (prop === 'subject') return o.subject || '';
       if (prop === 'details') return o.description || o.details || '';
       if (prop === 'authority') return o.authority || 'By Command of Director, ITMS';

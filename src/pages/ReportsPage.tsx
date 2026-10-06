@@ -17,6 +17,7 @@ import { ExportPrintModal } from '../components/common/ExportPrintModal';
 import { Button, PageHeader } from '../components/common/SystemUI';
 import { resolvePersonnelRankCategory } from '../utils/personnelCounting';
 import { AutomatedPersonnelCounter } from '../components/dashboard/AutomatedPersonnelCounter';
+import { getOrderNumberDisplay } from '../utils/orderNumber';
 
 type ReportTab = 'alpha_list' | 'strength_counting' | 'leave' | 'education' | 'training' | 'promotion' | 'orders' | 'awards';
 
@@ -25,14 +26,14 @@ const reportTabs: Array<{ key: ReportTab; label: string; description: string; ic
   { key: 'strength_counting', label: 'Personnel Strength', description: 'Headcount & deployment audit', icon: BarChart3 },
   { key: 'training', label: 'Training', description: 'Completed courses', icon: GraduationCap },
   { key: 'orders', label: 'Orders', description: 'Administrative orders', icon: FileText },
-  { key: 'awards', label: 'Awards', description: 'Recognition records', icon: Medal },
+  { key: 'awards', label: 'Award Orders', description: 'Administrative orders using the Award purpose', icon: Medal },
   { key: 'leave', label: 'Leave', description: 'Date-filtered roster', icon: Calendar },
   { key: 'education', label: 'Education', description: 'Qualifications', icon: GraduationCap },
   { key: 'promotion', label: 'Promotion TIG', description: 'Eligibility audit', icon: Award }
 ];
 
 export const ReportsPage: React.FC = () => {
-  const { personnelList, assignmentsList, leaveList, educationList, trainingList, ordersList, awardsList } = useAuthRole();
+  const { personnelList, assignmentsList, leaveList, educationList, trainingList, ordersList } = useAuthRole();
   const [activeReportTab, setActiveReportTab] = useState<ReportTab>('alpha_list');
 
   // Filters
@@ -144,12 +145,29 @@ export const ReportsPage: React.FC = () => {
   }));
   const ordersReportData = ordersList.map(order => ({
     ...order,
-    orderNumber: order.orderNumber || order.orderNo || '—',
+    orderNumber: getOrderNumberDisplay(order, '—'),
     orderType: order.orderType || order.type || 'Administrative Order',
     personnel: order.personnelIds?.map(id => personnelNames.get(id) || 'Unknown personnel').join(', ') || `${order.affectedPersonnelCount || 0} personnel`,
     date: order.issuedDate || order.effectiveDate || '—'
   }));
-  const awardsReportData = awardsList.map(award => ({ ...award, personnelName: personnelNames.get(award.personnelId) || award.personnelName }));
+  const awardsReportData = ordersList
+    .filter(order => order.purposeCode === 'AW')
+    .map(order => {
+      const purposeData = order.purposeData || {};
+      const snapshotNames = order.personnelSnapshot?.map(person => `${person.rank || ''} ${person.fullName || ''}`.trim()).filter(Boolean) || [];
+      const personnel = snapshotNames.length
+        ? snapshotNames.join(', ')
+        : order.personnelIds?.map(id => personnelNames.get(id) || 'Unknown personnel').join(', ') || 'Unknown personnel';
+      return {
+        orderNumber: getOrderNumberDisplay(order, '—'),
+        personnelName: personnel,
+        awardName: order.subject,
+        title: typeof purposeData.awardTitle === 'string' ? purposeData.awardTitle : '',
+        orderType: order.orderType || order.type || 'Administrative Order',
+        authorityDate: order.issuedDate || order.effectiveDate || '—',
+        status: order.documentStatus || order.status || 'Draft'
+      };
+    });
 
   // 5. Personnel Strength & Counting Report Data (Aggregated by Sub-Unit & Station)
   const strengthReportData = React.useMemo(() => {
@@ -292,9 +310,9 @@ export const ReportsPage: React.FC = () => {
           { key: 'date', label: 'Issued Date' }, { key: 'status', label: 'Status' }
         ] };
       case 'awards':
-        return { title: 'PNP ITMS Awards and Recognition Report', data: awardsReportData, columns: [
-          { key: 'personnelName', label: 'Personnel' }, { key: 'awardName', label: 'Award' },
-          { key: 'title', label: 'Title' }, { key: 'orderType', label: 'Authority Type' },
+        return { title: 'PNP ITMS Award Orders Report', data: awardsReportData, columns: [
+          { key: 'orderNumber', label: 'Order No.' }, { key: 'personnelName', label: 'Personnel' }, { key: 'awardName', label: 'Award' },
+          { key: 'title', label: 'Award Title' }, { key: 'orderType', label: 'Order Type' },
           { key: 'authorityDate', label: 'Authority Date' }, { key: 'status', label: 'Status' }
         ] };
     }

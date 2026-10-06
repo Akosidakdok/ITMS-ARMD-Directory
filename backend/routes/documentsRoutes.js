@@ -18,7 +18,8 @@ const formatDate = value => {
 
 // Generate default HTML for an administrative order
 const generateAdministrativeOrderHtml = order => {
-  const orderNum = order.orderNumber || order.orderNo || `ITMS-${order.series || 'SO'}-${order.purposeCode || 'GEN'}-${new Date().getFullYear()}-0001`;
+  const orderNum = order.orderNumber || order.orderNo;
+  if (!orderNum) throw new Error('An official order number is required before generating an administrative order document.');
   const formattedOrderNum = formatDocumentOrderNumber(orderNum);
   const issuedDate = formatDate(order.issuedDate || order.date || new Date().toISOString().slice(0, 10));
   const seriesHeading = order.seriesHeading || (order.series === 'GO' ? 'GENERAL ORDERS' : order.series === 'LO' ? 'LETTER ORDERS' : 'ADMINISTRATIVE ORDERS');
@@ -179,6 +180,9 @@ router.get('/order/:orderId', async (req, res) => {
     const order = await db.getOrderById(orderId);
     if (!order) {
       return res.status(404).json({ success: false, message: 'Administrative Order not found' });
+    }
+    if (!(order.orderNumber || order.orderNo)) {
+      return res.status(409).json({ success: false, message: 'Issue this order before generating its administrative order document.' });
     }
 
     // Check if an existing document is linked to this order

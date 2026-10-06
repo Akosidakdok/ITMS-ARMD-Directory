@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { performance } from 'node:perf_hooks';
-import { db } from '../backend/store/repository.js';
+import { createTestRepository, issueTestOrder } from '../test-support/repository.js';
+
+const db = createTestRepository();
 import { generateOrderDocx } from '../backend/services/orderDocxGenerator.js';
 
 function seedStressPersonnel(prefix, count) {
@@ -98,7 +100,7 @@ test('Stress Test 2: Order creation scaling & sequential numbering (100, 500, 10
   // 1. Create 100 orders
   const t0 = performance.now();
   for (let i = 0; i < 100; i++) {
-    await db.createOrder({
+    await issueTestOrder(db, {
       series: 'SO',
       purposeCode: 'TR',
       issuedDate: '2026-09-01',
@@ -114,7 +116,7 @@ test('Stress Test 2: Order creation scaling & sequential numbering (100, 500, 10
   // 2. Scale to 500 orders
   const t2 = performance.now();
   for (let i = 100; i < 500; i++) {
-    await db.createOrder({
+    await issueTestOrder(db, {
       series: i % 2 === 0 ? 'GO' : 'LO',
       purposeCode: i % 2 === 0 ? 'DES' : 'LV',
       issuedDate: '2026-09-05',
@@ -209,7 +211,7 @@ test('Stress Test 4: High-concurrency operations and race-condition immunity', a
       })
     );
     operations.push(
-      db.createOrder({
+      issueTestOrder(db, {
         series: 'SO',
         purposeCode: 'TR',
         issuedDate: '2026-09-23',

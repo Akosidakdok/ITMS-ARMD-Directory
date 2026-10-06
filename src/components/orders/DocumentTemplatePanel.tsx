@@ -4,6 +4,7 @@ import { SearchableSelect } from '../common/SearchableSelect';
 import type { DocumentTemplateType, Personnel } from '../../types/pais';
 import {
   getOrderPurposeLabel,
+  formatOrderPurposeLabel,
   ORDER_DOCUMENT_STATUS_OPTIONS,
   ORDER_PURPOSE_OPTIONS,
   ORDER_SERIES_OPTIONS,
@@ -23,7 +24,7 @@ type TemplateFields = {
   unit: string;
   designation: string;
   subject: string;
-  particulars: string;
+  description: string;
   signatory: string;
   signatoryTitle: string;
 };
@@ -39,8 +40,7 @@ type SavedTemplateDraft = {
 const TEMPLATE_TYPES: DocumentTemplateType[] = [
   'Assignment Order',
   'Administrative Order',
-  'Leave Endorsement',
-  'Award Citation'
+  'Leave Endorsement'
 ];
 
 const today = new Date().toISOString().slice(0, 10);
@@ -63,7 +63,7 @@ const buildFields = (
   unit: person?.sub_unit || person?.division || person?.unitCategory || '',
   designation: person?.designation || '',
   subject: getOrderPurposeLabel(purposeCode),
-  particulars: person
+  description: person
     ? `${person.rank} ${person.fullName} is hereby documented under this ${templateType.toLowerCase()} for ${getOrderPurposeLabel(purposeCode).toLowerCase()}.`
     : '',
   signatory: 'PBGEN BENJAMIN H ACORDA',
@@ -90,7 +90,13 @@ export const DocumentTemplatePanel = ({ personnel }: DocumentTemplatePanelProps)
     if (saved) {
       try {
         const draft = JSON.parse(saved) as SavedTemplateDraft;
-        setFields(draft.fields || buildFields(templateType, undefined, 'DES'));
+        const savedFields = draft.fields as (Partial<TemplateFields> & { particulars?: string }) | undefined;
+        const { particulars: legacyParticulars, ...normalizedFields } = savedFields || {};
+        setFields({
+          ...buildFields(templateType, undefined, 'DES'),
+          ...normalizedFields,
+          description: savedFields?.description ?? legacyParticulars ?? ''
+        });
         setPersonnelId(draft.personnelId || '');
         setOrderSeries(draft.series || 'SO');
         setPurposeCode(draft.purposeCode || 'DES');
@@ -129,9 +135,9 @@ export const DocumentTemplatePanel = ({ personnel }: DocumentTemplatePanelProps)
     setFields(previous => ({
       ...previous,
       subject: getOrderPurposeLabel(value),
-      particulars: selectedPerson
+      description: selectedPerson
         ? `${selectedPerson.rank} ${selectedPerson.fullName} is hereby documented under this ${templateType.toLowerCase()} for ${getOrderPurposeLabel(value).toLowerCase()}.`
-        : previous.particulars
+        : previous.description
     }));
   };
 
@@ -141,7 +147,7 @@ export const DocumentTemplatePanel = ({ personnel }: DocumentTemplatePanelProps)
     setMessage('Draft saved in this browser. Official order numbering occurs when the order is saved.');
   };
 
-  const documentHtml = () => `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(orderNumberPreview)}</title><style>body{font-family:Arial,sans-serif;margin:40px;color:#0f172a}.document{max-width:760px;margin:auto;border:1px solid #cbd5e1;padding:40px}.center{text-align:center}.meta{display:grid;grid-template-columns:140px 1fr;gap:8px;margin:28px 0}.label{font-weight:700}.subject{font-weight:700;text-transform:uppercase;margin-top:24px}.body{line-height:1.7;text-align:justify;margin-top:18px;white-space:pre-wrap}.status{color:#475569;font-size:12px}.signatory{margin-top:64px;text-align:right}@media print{body{margin:0}.document{border:0}}</style></head><body><main class="document"><div class="center"><strong>PHILIPPINE NATIONAL POLICE</strong><br>Information Technology Management Service</div><div class="meta"><span class="label">Order No.</span><span>${escapeHtml(orderNumberPreview)}</span><span class="label">Series</span><span>${escapeHtml(orderSeries)}</span><span class="label">Purpose</span><span>${escapeHtml(`${purposeCode} — ${getOrderPurposeLabel(purposeCode)}`)}</span><span class="label">Status</span><span class="status">${escapeHtml(documentStatus)}</span><span class="label">Date</span><span>${escapeHtml(fields.date)}</span><span class="label">Personnel</span><span>${escapeHtml(fields.personnelName)}</span><span class="label">Badge No.</span><span>${escapeHtml(fields.badgeNo)}</span><span class="label">Unit</span><span>${escapeHtml(fields.unit)}</span></div><p class="subject">${escapeHtml(fields.subject)}</p><p class="body">${escapeHtml(fields.particulars)}</p><div class="signatory"><strong>${escapeHtml(fields.signatory)}</strong><br>${escapeHtml(fields.signatoryTitle)}</div></main></body></html>`;
+  const documentHtml = () => `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(orderNumberPreview)}</title><style>body{font-family:Arial,sans-serif;margin:40px;color:#0f172a}.document{max-width:760px;margin:auto;border:1px solid #cbd5e1;padding:40px}.center{text-align:center}.meta{display:grid;grid-template-columns:140px 1fr;gap:8px;margin:28px 0}.label{font-weight:700}.subject{font-weight:700;text-transform:uppercase;margin-top:24px}.body{line-height:1.7;text-align:justify;margin-top:18px;white-space:pre-wrap}.status{color:#475569;font-size:12px}.signatory{margin-top:64px;text-align:right}@media print{body{margin:0}.document{border:0}}</style></head><body><main class="document"><div class="center"><strong>PHILIPPINE NATIONAL POLICE</strong><br>Information Technology Management Service</div><div class="meta"><span class="label">Order No.</span><span>${escapeHtml(orderNumberPreview)}</span><span class="label">Series</span><span>${escapeHtml(orderSeries)}</span><span class="label">Purpose</span><span>${escapeHtml(formatOrderPurposeLabel(purposeCode))}</span><span class="label">Status</span><span class="status">${escapeHtml(documentStatus)}</span><span class="label">Date</span><span>${escapeHtml(fields.date)}</span><span class="label">Personnel</span><span>${escapeHtml(fields.personnelName)}</span><span class="label">Badge No.</span><span>${escapeHtml(fields.badgeNo)}</span><span class="label">Unit</span><span>${escapeHtml(fields.unit)}</span></div><p class="subject">${escapeHtml(fields.subject)}</p><p class="body">${escapeHtml(fields.description)}</p><div class="signatory"><strong>${escapeHtml(fields.signatory)}</strong><br>${escapeHtml(fields.signatoryTitle)}</div></main></body></html>`;
 
   const downloadHtml = () => {
     const blob = new Blob([documentHtml()], { type: 'text/html' });
@@ -171,7 +177,7 @@ export const DocumentTemplatePanel = ({ personnel }: DocumentTemplatePanelProps)
     pdf.text([
       `Order No.: ${orderNumberPreview}`,
       `Series: ${orderSeries}`,
-      `Purpose: ${purposeCode} — ${getOrderPurposeLabel(purposeCode)}`,
+      `Purpose: ${formatOrderPurposeLabel(purposeCode)}`,
       `Status: ${documentStatus}`,
       `Date: ${fields.date}`,
       `Personnel: ${fields.personnelName}`,
@@ -181,7 +187,7 @@ export const DocumentTemplatePanel = ({ personnel }: DocumentTemplatePanelProps)
     pdf.setFontSize(11);
     pdf.text(fields.subject.toUpperCase(), 20, 92);
     pdf.setFontSize(10);
-    pdf.text(pdf.splitTextToSize(fields.particulars, 170), 20, 104);
+    pdf.text(pdf.splitTextToSize(fields.description, 170), 20, 104);
     pdf.text(fields.signatory, 190, 245, { align: 'right' });
     pdf.text(fields.signatoryTitle, 190, 251, { align: 'right' });
     pdf.save(`${orderNumberPreview || 'document-template'}.pdf`);
@@ -215,8 +221,8 @@ export const DocumentTemplatePanel = ({ personnel }: DocumentTemplatePanelProps)
           <SearchableSelect label="Personnel source" value={personnelId} onChange={value => { setPersonnelId(value); const person = personnel.find(item => item.id === value); if (person) setFields(previous => ({ ...previous, personnelName: `${person.rank} ${person.fullName}`, badgeNo: person.badgeNo || '', unit: person.sub_unit || person.division || person.unitCategory || '', designation: person.designation || '' })); }} placeholder="Select personnel" options={personnelOptions} />
           {Object.entries(fields).map(([key, value]) => (
             <label key={key} className="block">
-              <span className="mb-1.5 block text-xs font-bold capitalize text-slate-700">{key.replace(/([A-Z])/g, ' $1')}</span>
-              {key === 'particulars' ? <textarea value={value} onChange={event => updateField(key as keyof TemplateFields, event.target.value)} rows={5} className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /> : <input type={key === 'date' ? 'date' : 'text'} value={value} onChange={event => updateField(key as keyof TemplateFields, event.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" />}
+              <span className="mb-1.5 block text-xs font-bold capitalize text-slate-700">{key === 'description' ? 'Description' : key.replace(/([A-Z])/g, ' $1')}</span>
+              {key === 'description' ? <textarea aria-label="Description" value={value} onChange={event => updateField(key as keyof TemplateFields, event.target.value)} rows={5} className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /> : <input type={key === 'date' ? 'date' : 'text'} value={value} onChange={event => updateField(key as keyof TemplateFields, event.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" />}
             </label>
           ))}
         </div>
@@ -227,7 +233,7 @@ export const DocumentTemplatePanel = ({ personnel }: DocumentTemplatePanelProps)
             <div className="mt-8 grid grid-cols-1 gap-2 text-sm sm:grid-cols-[140px_1fr]">
               <p className="font-bold">Order No.</p><p className="font-mono">{orderNumberPreview}</p>
               <p className="font-bold">Series</p><p>{orderSeries}</p>
-              <p className="font-bold">Purpose</p><p>{purposeCode} — {getOrderPurposeLabel(purposeCode)}</p>
+              <p className="font-bold">Purpose</p><p>{formatOrderPurposeLabel(purposeCode)}</p>
               <p className="font-bold">Status</p><p>{documentStatus}</p>
               <p className="font-bold">Date</p><p>{fields.date}</p>
               <p className="font-bold">Personnel</p><p>{fields.personnelName || 'Select personnel or enter manually'}</p>
@@ -235,7 +241,7 @@ export const DocumentTemplatePanel = ({ personnel }: DocumentTemplatePanelProps)
               <p className="font-bold">Unit</p><p>{fields.unit}</p>
             </div>
             <p className="mt-8 text-sm font-bold uppercase">{fields.subject}</p>
-            <p className="mt-5 whitespace-pre-wrap text-justify text-sm leading-7">{fields.particulars}</p>
+            <p className="mt-5 whitespace-pre-wrap text-justify text-sm leading-7">{fields.description}</p>
             <div className="mt-20 text-right text-sm"><p className="font-bold">{fields.signatory}</p><p>{fields.signatoryTitle}</p></div>
           </div>
         </div>

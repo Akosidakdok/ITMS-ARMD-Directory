@@ -46,6 +46,8 @@ export interface Personnel {
   unitCategory?: UnitCategory;
   subUnitCategory?: SubUnitCategory;
   sub_unit?: string;
+  /** Legacy camel-case alias normalized to sub_unit when persisted. */
+  subUnit?: string;
   details?: string;
   station?: string;
   /** Legacy fallback for previously stored records */
@@ -56,6 +58,8 @@ export interface Personnel {
   address?: string;
   gender?: 'Male' | 'Female' | string;
   contactNumber?: string;
+  /** Legacy camel-case alias normalized to contactNumber when persisted. */
+  phoneNumber?: string;
   birthday?: string;
   dateOfEntry?: string;
   enterInOfficerPositionDate?: string;
@@ -168,6 +172,8 @@ export interface OrderRecord {
   personnelIds?: string[];
   orderNo?: string;
   orderNumber?: string;
+  /** Local-only draft marker. Database-issued orders never retain this field. */
+  issuancePending?: boolean;
   series?: import('../constants/orders').OrderSeries;
   purposeCode?: import('../constants/orders').OrderPurposeCode | string;
   purposeLabel?: string;
@@ -256,27 +262,10 @@ export interface OrderGenerationManifest {
   sourceDataHash?: string;
 }
 
-export type AwardOrderType = 'General Order' | 'Special Order' | 'Letter Order';
-
-export interface AwardRecord {
-  id: string;
-  orderType: AwardOrderType;
-  title: string;
-  citationDetails: string;
-  awardName: string;
-  authorityDate: string;
-  personnelId: string;
-  personnelName: string;
-  status: 'Active' | 'Archived' | string;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
 export type DocumentTemplateType =
   | 'Assignment Order'
   | 'Administrative Order'
-  | 'Leave Endorsement'
-  | 'Award Citation';
+  | 'Leave Endorsement';
 
 export interface DocumentTemplateField {
   key: string;

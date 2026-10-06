@@ -21,8 +21,6 @@ import {
   Upload,
   X,
 } from 'lucide-react';
-import { AwardForm } from '../components/orders/AwardForm';
-import { AdministrativeOrderModeModal, type AdministrativeOrderMode } from '../components/orders/AdministrativeOrderModeModal';
 import { DocumentTemplatePanel } from '../components/orders/DocumentTemplatePanel';
 import { DocumentEditorModule } from '../components/document/DocumentEditorModule';
 import { DocumentErrorBoundary } from '../components/document/DocumentErrorBoundary';
@@ -33,6 +31,7 @@ import {
 } from '../components/document/utils/sharedOrderDocument';
 import { exportToDocx } from '../components/document/utils/docxExporter';
 import { fetchOrderDocumentForEditApi, saveOrderDocumentFromEditorApi } from '../services/documentsApi';
+import type { DocumentRecord } from '../services/documentsApi';
 import { LeaveCalendar } from '../components/orders/LeaveCalendar';
 import { LeaveCalendarForm } from '../components/orders/LeaveCalendarForm';
 import { OrderTypeSelectorModal } from '../components/orders/OrderTypeSelectorModal';
@@ -43,11 +42,13 @@ import { OperationalSummary, PageHeader } from '../components/common/SystemUI';
 import { useAuthRole } from '../context/AuthRoleContext';
 import { hasManagementAccess } from '../utils/accessControl';
 import { useBodyScrollLock } from '../utils/useBodyScrollLock';
-import type { AwardRecord, LeaveRecord, OrderRecord } from '../types/pais';
+import { getOfficialOrderNumber, getOrderNumberDisplay } from '../utils/orderNumber';
+import type { LeaveRecord, OrderRecord } from '../types/pais';
 import { LEAVE_TYPES } from '../data/leaveTypes';
 import type { OrderStatusHistoryRecord } from '../services/api';
 import {
   getOrderPurposeLabel,
+  formatOrderPurposeLabel,
   LEGACY_ORDER_STATUS_OPTIONS,
   ORDER_DOCUMENT_STATUS_OPTIONS,
   ORDER_PURPOSE_OPTIONS,
@@ -61,7 +62,6 @@ import {
 
 type DashboardRecord =
   | { kind: 'order'; id: string; reference: string; recordType: string; subtype: string; title: string; personnel: string; date: string; status: string; source: OrderRecord }
-  | { kind: 'award'; id: string; reference: string; recordType: string; subtype: string; title: string; personnel: string; date: string; status: string; source: AwardRecord }
   | { kind: 'leave'; id: string; reference: string; recordType: string; subtype: string; title: string; personnel: string; date: string; status: string; source: LeaveRecord };
 
 const ORDER_STATUSES = [...ORDER_DOCUMENT_STATUS_OPTIONS.map(option => option.value), ...LEGACY_ORDER_STATUS_OPTIONS];
@@ -122,8 +122,7 @@ const formatDateRange = (start: string, end?: string) =>
   !end || end === start ? formatDate(start) : `${formatDate(start)} – ${formatDate(end)}`;
 
 const formatOrderReference = (reference: string) => {
-  const match = reference.match(/^ITMS-[A-Z]+-[A-Z0-9]+-(\d{4}-\d+)$/);
-  return match ? match[1] : reference;
+  return reference;
 };
 
 const ModalShell = ({
@@ -204,7 +203,6 @@ export const OrdersPage = () => {
     personnelList,
     assignmentsList,
     ordersList,
-    awardsList,
     leaveList,
     addOrder,
     updateOrder,
@@ -222,9 +220,6 @@ export const OrdersPage = () => {
     uploadSignedOrderDocument,
     getSignedOrderDocument,
     deleteSignedOrderDocument,
-    createAward,
-    updateAward,
-    deleteAward,
     createCalendarLeave,
     updateCalendarLeave,
     deleteCalendarLeave,
@@ -233,16 +228,12 @@ export const OrdersPage = () => {
   const canEdit = hasManagementAccess(role);
   const [activeView, setActiveView] = useState<'list' | 'calendar' | 'templates'>('list');
   const [selectorOpen, setSelectorOpen] = useState(false);
-  const [adminOrderModeSelectorOpen, setAdminOrderModeSelectorOpen] = useState(false);
-  const [awardFormOpen, setAwardFormOpen] = useState(false);
   const [leaveFormOpen, setLeaveFormOpen] = useState(false);
   const [orderFormOpen, setOrderFormOpen] = useState(false);
   const [editingLeave, setEditingLeave] = useState<LeaveRecord | null>(null);
   const [editingOrder, setEditingOrder] = useState<OrderRecord | null>(null);
-  const [editingAward, setEditingAward] = useState<AwardRecord | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<OrderRecord | null>(null);
   const [orderHistory, setOrderHistory] = useState<OrderStatusHistoryRecord[]>([]);
-  const [selectedAward, setSelectedAward] = useState<AwardRecord | null>(null);
   const [selectedLeave, setSelectedLeave] = useState<LeaveRecord | null>(null);
   const [documentPreview, setDocumentPreview] = useState<{ order: OrderRecord; html: string } | null>(null);
   const [loadingDocumentPreview, setLoadingDocumentPreview] = useState(false);
@@ -253,13 +244,17 @@ export const OrdersPage = () => {
   const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
   const [restoreReason, setRestoreReason] = useState('');
   const [submittingRestore, setSubmittingRestore] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<{ kind: 'order' | 'award' | 'leave'; id: string; label: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ kind: 'order' | 'leave'; id: string; label: string } | null>(null);
   const [submittingDelete, setSubmittingDelete] = useState(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [orderEditingInDocumentEditor, setOrderEditingInDocumentEditor] = useState<{ order: OrderRecord; document: any } | null>(null);
   const [loadingOrderEditor, setLoadingOrderEditor] = useState(false);
 
   const handleEditOrderInDocumentEditor = async (order: OrderRecord) => {
+    if (!getOfficialOrderNumber(order)) {
+      setToast({ type: 'error', message: 'Issue this draft first to assign its official order number before editing or generating the document.' });
+      return;
+    }
     setLoadingOrderEditor(true);
     try {
       const data = await fetchOrderDocumentForEditApi(order.id);
@@ -276,7 +271,7 @@ export const OrdersPage = () => {
 
     const localDoc: DocumentRecord = {
       id: `doc-order-${order.id}`,
-      title: `${order.orderNumber || order.orderNo || 'Order'} - ${order.subject || 'Document'}`,
+      title: `${getOrderNumberDisplay(order, 'Order')} - ${order.subject || 'Document'}`,
       description: order.subject || order.description || 'Administrative Order Document',
       document_type: order.orderType || 'Administrative Order',
       content_html: initialHtml,
@@ -371,7 +366,6 @@ export const OrdersPage = () => {
   // Legacy DOCX actions remain available internally for compatibility with old records.
   const [uploadingOrderFile, setUploadingOrderFile] = useState(false);
   const [uploadingSignedDocument, setUploadingSignedDocument] = useState(false);
-  const [orderMode, setOrderMode] = useState<AdministrativeOrderMode>('default');
   const [orderWizardStep, setOrderWizardStep] = useState(1);
   const today = new Date();
   const [calendarMonth, setCalendarMonth] = useState(today.getMonth());
@@ -463,7 +457,6 @@ export const OrdersPage = () => {
     setDescription('');
     setPurposeData({});
     setOrderError('');
-    setOrderMode('default');
     setOrderWizardStep(1);
   };
 
@@ -487,7 +480,6 @@ export const OrdersPage = () => {
     ));
     setDescription(order.description || '');
     setPurposeData(Object.fromEntries(Object.entries(order.purposeData || {}).map(([key, value]) => [key, Array.isArray(value) ? value.join(', ') : String(value ?? '')])));
-    setOrderMode('default');
     setOrderWizardStep(1);
     setOrderFormOpen(true);
   };
@@ -584,10 +576,10 @@ export const OrdersPage = () => {
     const orderRows: DashboardRecord[] = ordersList.map((order) => ({
       kind: 'order',
       id: order.id,
-      reference: order.orderNumber || `ORDER-${order.id.slice(-6).toUpperCase()}`,
+      reference: getOrderNumberDisplay(order),
       recordType: 'Administrative Order',
       subtype: order.purposeCode
-        ? `${order.purposeCode} — ${order.purposeLabel || getOrderPurposeLabel(order.purposeCode)}`
+        ? formatOrderPurposeLabel(order.purposeCode, order.purposeLabel)
         : order.orderType || order.type || 'Administrative Order',
       title: order.subject,
       personnel: order.personnelIds?.length
@@ -606,18 +598,6 @@ export const OrdersPage = () => {
       status: order.documentStatus || order.status || 'Active',
       source: order,
     }));
-    const awardRows: DashboardRecord[] = awardsList.map((award) => ({
-      kind: 'award',
-      id: award.id,
-      reference: `AWD-${award.id.slice(-6).toUpperCase()}`,
-      recordType: 'Award',
-      subtype: award.orderType,
-      title: `${award.awardName} - ${award.title}`,
-      personnel: award.personnelName,
-      date: award.authorityDate,
-      status: award.status || 'Active',
-      source: award,
-    }));
     const leaveRows: DashboardRecord[] = calendarLeaves.map((leave) => ({
       kind: 'leave',
       id: leave.id,
@@ -630,8 +610,8 @@ export const OrdersPage = () => {
       status: leave.status,
       source: leave,
     }));
-    return [...orderRows, ...awardRows, ...leaveRows].sort((a, b) => b.date.localeCompare(a.date));
-  }, [ordersList, awardsList, calendarLeaves, personnelNames]);
+    return [...orderRows, ...leaveRows].sort((a, b) => b.date.localeCompare(a.date));
+  }, [ordersList, calendarLeaves, personnelNames]);
 
   const filteredRows = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -640,12 +620,13 @@ export const OrdersPage = () => {
       if (row.kind === 'order') searchableValues.push(
         row.source.signatory || '',
         row.source.description || '',
-        row.source.orderNumber || row.source.orderNo || '',
+        getOrderNumberDisplay(row.source),
         row.source.series || '',
         row.source.purposeCode || '',
         row.source.fileName || '',
         row.source.generatedDocument?.fileName || '',
         row.source.signedDocument?.fileName || '',
+        ...Object.values(row.source.purposeData || {}).map(value => Array.isArray(value) ? value.join(' ') : String(value ?? '')),
         row.source.createdBy || ''
       );
       const matchesSearch = !query || searchableValues
@@ -654,18 +635,18 @@ export const OrdersPage = () => {
       const matchesSubtype = !subtypeFilter || row.subtype === subtypeFilter;
       const matchesPersonnel = !personnelFilter
         || (row.kind === 'order' && !!row.source.personnelIds?.includes(personnelFilter))
-        || (row.kind === 'leave' && row.source.personnelId === personnelFilter)
-        || (row.kind === 'award' && row.source.personnelId === personnelFilter);
+        || (row.kind === 'leave' && row.source.personnelId === personnelFilter);
       const matchesStatus = !statusFilter || row.status.toLowerCase() === statusFilter.toLowerCase();
       const matchesFrom = !dateFrom || row.date >= dateFrom;
       const matchesTo = !dateTo || row.date <= dateTo;
+      if (row.kind === 'leave') return matchesSearch && matchesType && matchesSubtype && matchesPersonnel && matchesStatus && matchesFrom && matchesTo;
       if (row.kind !== 'order') return matchesSearch && matchesType && matchesSubtype && matchesPersonnel && matchesStatus && matchesFrom && matchesTo;
       const order = row.source;
       const issued = order.issuedDate || '';
       const effective = order.effectiveDate || '';
       const signed = order.signedAt || '';
       const released = order.releasedAt || '';
-      const orderNumber = order.orderNumber || order.orderNo || '';
+      const orderNumber = getOrderNumberDisplay(order);
       const matchesOrderNumber = !orderNumberFilter || orderNumber.toLowerCase().includes(orderNumberFilter.trim().toLowerCase());
       const matchesSeries = !seriesFilter || order.series === seriesFilter;
       const matchesPurpose = !purposeFilter || order.purposeCode === purposeFilter;
@@ -675,7 +656,7 @@ export const OrdersPage = () => {
         || (fileFilter === 'generated' && hasGenerated)
         || (fileFilter === 'signed' && hasSigned)
         || (fileFilter === 'both' && hasGenerated && hasSigned)
-        || (fileFilter === 'missing-signed' && !hasSigned)
+        || (fileFilter === 'missing-signed' && !hasSigned && !order.issuancePending)
         || (fileFilter === 'missing-generated' && !hasGenerated)
         || (fileFilter === 'none' && !hasGenerated && !hasSigned);
       const matchesCreatedBy = !createdByFilter || order.createdBy === createdByFilter;
@@ -721,7 +702,6 @@ export const OrdersPage = () => {
 
   const openRecord = (row: DashboardRecord) => {
     if (row.kind === 'order') setSelectedOrder(row.source);
-    if (row.kind === 'award') setSelectedAward(row.source);
     if (row.kind === 'leave') setSelectedLeave(row.source);
   };
 
@@ -767,15 +747,12 @@ export const OrdersPage = () => {
     setSavingOrder(true);
     setOrderError('');
     try {
-      const issueYear = new Date(savedIssuedDate || Date.now()).getFullYear() || new Date().getFullYear();
-      const fallbackSeq = String(Math.floor(1000 + Math.random() * 9000));
-      const fallbackOrderNumber = `${orderSeries}-${purposeCode}-${issueYear}-${fallbackSeq}`;
-
       const payload: OrderRecord = {
         id: editingOrder?.id || crypto.randomUUID(),
         personnelIds: selectedPersonnelIds,
         ...(personnelInvolvement.length ? { personnelInvolvement } : {}),
-        orderNumber: editingOrder?.orderNumber || fallbackOrderNumber,
+        ...(editingOrder?.orderNumber ? { orderNumber: editingOrder.orderNumber } : {}),
+        ...(editingOrder?.issuancePending ? { issuancePending: true } : {}),
         series: orderSeries,
         purposeCode,
         purposeLabel: getOrderPurposeLabel(purposeCode),
@@ -799,8 +776,10 @@ export const OrdersPage = () => {
         setToast({
           type: 'success',
           message: editingOrder
-            ? 'Administrative order updated for this session. Reconnect to persist it and generate the unsigned document.'
-            : 'Administrative order saved for this session. Reconnect to persist it and generate the unsigned document.'
+            ? editingOrder.issuancePending
+              ? 'Draft changes saved on this device. Reconnect and save again to issue it and assign its official number.'
+              : 'Administrative order updated for this session. Reconnect to persist the changes.'
+            : 'Draft saved on this device with its official number pending. Reconnect and save it to issue the order and generate its document.'
         });
         return;
       }
@@ -831,6 +810,10 @@ export const OrdersPage = () => {
   };
 
   const openOrderDocument = async (order: OrderRecord, download = false) => {
+    if (!getOfficialOrderNumber(order)) {
+      setToast({ type: 'error', message: 'Issue this draft first to assign its official order number before generating or downloading its document.' });
+      return;
+    }
     try {
       // 1. Check if a local edited document exists
       try {
@@ -839,7 +822,7 @@ export const OrdersPage = () => {
           const map = JSON.parse(raw);
           if (map[order.id]?.content_html) {
             await exportToDocx(map[order.id].content_html, {
-              title: order.orderNumber || order.orderNo || order.id || 'Order_Document',
+              title: getOrderNumberDisplay(order, order.id || 'Order_Document'),
               pageSize: CANONICAL_DOCUMENT_CONFIG.pageSize,
               orientation: CANONICAL_DOCUMENT_CONFIG.orientation,
               marginTop: CANONICAL_DOCUMENT_CONFIG.marginTop,
@@ -873,7 +856,7 @@ export const OrdersPage = () => {
       // 3. Fallback / offline: Export canonical order document directly to DOCX
       const canonicalHtml = buildCanonicalOrderDocumentHtml(order, { personnelMap: personnelNames });
       await exportToDocx(canonicalHtml, {
-        title: order.orderNumber || order.orderNo || order.id || 'Order_Document',
+        title: getOrderNumberDisplay(order, order.id || 'Order_Document'),
         pageSize: CANONICAL_DOCUMENT_CONFIG.pageSize,
         orientation: CANONICAL_DOCUMENT_CONFIG.orientation,
         marginTop: CANONICAL_DOCUMENT_CONFIG.marginTop,
@@ -890,6 +873,10 @@ export const OrdersPage = () => {
   };
 
   const viewOrderDocument = async (order: OrderRecord) => {
+    if (!getOfficialOrderNumber(order)) {
+      setToast({ type: 'error', message: 'Issue this draft first to assign its official order number before previewing its document.' });
+      return;
+    }
     setLoadingDocumentPreview(true);
     try {
       try {
@@ -953,7 +940,7 @@ export const OrdersPage = () => {
       const link = await getSignedOrderDocument(order.id, download);
       window.open(link.url, '_blank', 'noopener,noreferrer');
     } catch (error) {
-      setToast({ type: 'error', message: error instanceof Error ? error.message : 'Unable to open the signed order scan.' });
+      setToast({ type: 'error', message: error instanceof Error ? error.message : 'Unable to open the approved order copy.' });
     }
   };
 
@@ -976,20 +963,20 @@ export const OrdersPage = () => {
     if (!canEdit || LOCKED_ORDER_STATUSES.has(selectedOrderStatus || '')) return;
     const accepted = ['image/jpeg', 'image/png', 'image/webp'];
     if (!accepted.includes(file.type) || !/\.(jpe?g|png|webp)$/i.test(file.name)) {
-      setToast({ type: 'error', message: 'Signed order scans must be JPEG, PNG, or WEBP images.' });
+      setToast({ type: 'error', message: 'Approved order copies must be JPEG, PNG, or WEBP images.' });
       return;
     }
     if (file.size > 25 * 1024 * 1024) {
-      setToast({ type: 'error', message: 'The signed order scan must be 25 MB or smaller.' });
+      setToast({ type: 'error', message: 'The approved order copy must be 25 MB or smaller.' });
       return;
     }
     setUploadingSignedDocument(true);
     try {
       const updated = await uploadSignedOrderDocument(selectedOrder.id, file);
       setSelectedOrder(updated);
-      setToast({ type: 'success', message: updated.signedDocument?.version && updated.signedDocument.version > 1 ? 'Signed order scan replaced successfully.' : 'Signed order scan uploaded successfully.' });
+      setToast({ type: 'success', message: updated.signedDocument?.version && updated.signedDocument.version > 1 ? 'Approved order copy replaced successfully.' : 'Approved order copy uploaded successfully.' });
     } catch (error) {
-      setToast({ type: 'error', message: error instanceof Error ? error.message : 'Unable to upload the signed order scan.' });
+      setToast({ type: 'error', message: error instanceof Error ? error.message : 'Unable to upload the approved order copy.' });
     } finally {
       setUploadingSignedDocument(false);
     }
@@ -999,9 +986,9 @@ export const OrdersPage = () => {
     try {
       const updated = await deleteSignedOrderDocument(order.id);
       setSelectedOrder(updated);
-      setToast({ type: 'success', message: 'Signed order scan removed.' });
+      setToast({ type: 'success', message: 'Approved order copy removed.' });
     } catch (error) {
-      setToast({ type: 'error', message: error instanceof Error ? error.message : 'Unable to remove the signed order scan.' });
+      setToast({ type: 'error', message: error instanceof Error ? error.message : 'Unable to remove the approved order copy.' });
     }
   };
 
@@ -1061,17 +1048,6 @@ export const OrdersPage = () => {
     }
   };
 
-  const handleAwardSubmit = async (award: Omit<AwardRecord, 'id' | 'status'> | AwardRecord) => {
-    if ('id' in award) {
-      await updateAward(award);
-    } else {
-      await createAward(award);
-    }
-    setAwardFormOpen(false);
-    setEditingAward(null);
-    setToast({ type: 'success', message: 'Award record saved and added to All Orders.' });
-  };
-
   const handleLeaveSubmit = async (leave: LeaveRecord) => {
     if (editingLeave) {
       await updateCalendarLeave(leave);
@@ -1090,11 +1066,10 @@ export const OrdersPage = () => {
     setLeaveFormOpen(true);
   };
 
-  const removeRecord = async (kind: 'order' | 'award' | 'leave', id: string, label: string) => {
+  const removeRecord = async (kind: 'order' | 'leave', id: string, label: string) => {
     // The confirmation is a separate modal. Close the details modal first so
     // deleting never leaves two scroll-locking overlays mounted together.
     if (kind === 'order') setSelectedOrder(null);
-    if (kind === 'award') setSelectedAward(null);
     if (kind === 'leave') setSelectedLeave(null);
     setDeleteTarget({ kind, id, label });
   };
@@ -1104,10 +1079,8 @@ export const OrdersPage = () => {
     setSubmittingDelete(true);
     try {
       if (deleteTarget.kind === 'order') await deleteOrder(deleteTarget.id);
-      if (deleteTarget.kind === 'award') await deleteAward(deleteTarget.id);
       if (deleteTarget.kind === 'leave') await deleteCalendarLeave(deleteTarget.id);
       setSelectedOrder(null);
-      setSelectedAward(null);
       setSelectedLeave(null);
       setDeleteTarget(null);
       setToast({ type: 'success', message: `${deleteTarget.label} deleted successfully.` });
@@ -1122,9 +1095,9 @@ export const OrdersPage = () => {
     { label: 'All records', value: rows.length, icon: ClipboardList },
     { label: 'Administrative orders', value: ordersList.length, icon: FileText },
     { label: 'Generated orders', value: ordersList.filter(hasGeneratedOrderDocument).length, icon: FileText },
-    { label: 'Signed scans', value: ordersList.filter(order => !!order.signedDocument?.storagePath).length, icon: Upload },
-    { label: 'Missing signed scan', value: ordersList.filter(order => !order.signedDocument?.storagePath && !['Archived', 'Revoked'].includes(normalizedOrderStatus(order))).length, icon: Upload },
-    { label: 'Awards', value: awardsList.length, icon: Award },
+    { label: 'Approved Orders', value: ordersList.filter(order => !!order.signedDocument?.storagePath).length, icon: Upload },
+    { label: 'Orders for Approval', value: ordersList.filter(order => !order.issuancePending && !order.signedDocument?.storagePath && !['Archived', 'Revoked'].includes(normalizedOrderStatus(order))).length, icon: Upload },
+    { label: 'Award orders', value: ordersList.filter(order => order.purposeCode === 'AW').length, icon: Award },
     { label: 'Scheduled leaves', value: calendarLeaves.length, icon: CalendarDays },
   ];
   const activeFilterCount = [
@@ -1137,14 +1110,14 @@ export const OrdersPage = () => {
   return (
     <div className="mx-auto w-full max-w-[1600px] space-y-4 sm:space-y-6">
       <PageHeader
-        eyebrow="Orders, awards & leave"
+        eyebrow="Administrative orders & leave"
         title={activeView === 'list' ? 'Administrative Records Register' : activeView === 'calendar' ? 'Leave Calendar' : 'Document Templates'}
         description={activeView === 'list'
-              ? 'Search and review administrative orders, awards, and scheduled leaves in one place.'
+              ? 'Search and review Administrative Orders, including Award orders, and scheduled leaves in one place.'
               : activeView === 'calendar'
                 ? 'A visual overview of approved leave schedules. Leave dates are encoded through the separate form.'
                 : 'Open fixed-format templates, edit allowed fields, and autofill personnel details from system records.'}
-        reference="ORD-AWD-LVE"
+        reference="ORD-LVE"
         actions={<div className="flex flex-wrap gap-2">
           {activeView === 'calendar' ? (
             <>
@@ -1170,14 +1143,9 @@ export const OrdersPage = () => {
                 <CalendarDays size={17} /> View Leave Calendar
               </button>
               {canEdit && (
-                <>
-                  <button type="button" onClick={() => setAdminOrderModeSelectorOpen(true)} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
-                    <FilePlus2 size={17} /> Administrative Order
-                  </button>
-                  <button type="button" onClick={() => setSelectorOpen(true)} className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-800">
-                    <Plus size={17} /> Select Order Type
-                  </button>
-                </>
+                <button type="button" onClick={() => setSelectorOpen(true)} className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-800">
+                  <Plus size={17} /> New Record
+                </button>
               )}
             </>
           )}
@@ -1216,7 +1184,7 @@ export const OrdersPage = () => {
                   <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Order number, title, personnel..." className="w-full rounded-xl border border-slate-300 py-2.5 pl-10 pr-3 text-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" />
                 </div>
               </label>
-              <SearchableSelect label="Record type" value={recordType} onChange={setRecordType} placeholder="All record types" options={['Administrative Order', 'Award', 'Leave Calendar'].map((value) => ({ value, label: value }))} />
+              <SearchableSelect label="Record type" value={recordType} onChange={setRecordType} placeholder="All record types" options={['Administrative Order', 'Leave Calendar'].map((value) => ({ value, label: value }))} />
               <SearchableSelect
                 label="Order / leave type"
                 value={subtypeFilter}
@@ -1255,17 +1223,17 @@ export const OrdersPage = () => {
                   <SearchableSelect label="Purpose code" value={purposeFilter} onChange={setPurposeFilter} placeholder="All purposes" options={ORDER_PURPOSE_OPTIONS.map(option => ({ value: option.value, label: option.label }))} />
                   <SearchableSelect label="Document availability" value={fileFilter} onChange={setFileFilter} placeholder="All document states" options={[
                     { value: 'generated', label: 'Has generated order' },
-                    { value: 'signed', label: 'Has signed scan' },
-                    { value: 'both', label: 'Has generated order and signed scan' },
-                    { value: 'missing-signed', label: 'Missing signed scan' },
+                    { value: 'signed', label: 'Has approved order copy' },
+                    { value: 'both', label: 'Has generated and approved order' },
+                    { value: 'missing-signed', label: 'Orders for Approval' },
                     { value: 'missing-generated', label: 'Missing generated order' },
                     { value: 'none', label: 'Missing both documents' }
                   ]} />
                   <SearchableSelect label="Created by" value={createdByFilter} onChange={setCreatedByFilter} placeholder="All creators" options={Array.from(new Set(ordersList.map(order => order.createdBy).filter(Boolean) as string[])).sort().map(value => ({ value, label: value }))} />
                   <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Effective from</span><input type="date" value={effectiveDateFrom} onChange={event => setEffectiveDateFrom(event.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
                   <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Effective to</span><input type="date" value={effectiveDateTo} onChange={event => setEffectiveDateTo(event.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
-                  <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Signed from</span><input type="date" value={signedDateFrom} onChange={event => setSignedDateFrom(event.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
-                  <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Signed to</span><input type="date" value={signedDateTo} onChange={event => setSignedDateTo(event.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
+                  <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Approved from</span><input type="date" value={signedDateFrom} onChange={event => setSignedDateFrom(event.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
+                  <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Approved to</span><input type="date" value={signedDateTo} onChange={event => setSignedDateTo(event.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
                   <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Released from</span><input type="date" value={releasedDateFrom} onChange={event => setReleasedDateFrom(event.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
                   <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Released to</span><input type="date" value={releasedDateTo} onChange={event => setReleasedDateTo(event.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
                 </div>
@@ -1286,7 +1254,7 @@ export const OrdersPage = () => {
                   <tr>
                     <th className="px-5 py-3">Order</th>
                     <th className="px-5 py-3">Order details</th>
-                    <th className="px-5 py-3">Personnel</th>
+                    <th className="px-5 py-3">Selected Personnel</th>
                     <th className="px-5 py-3">Dates</th>
                     <th className="px-5 py-3">Documents</th>
                     <th className="px-5 py-3">Status</th>
@@ -1313,9 +1281,9 @@ export const OrdersPage = () => {
                         )}
                       </td>
                       <td className="px-5 py-4 align-top text-sm text-slate-700">
-                        {row.kind === 'leave' ? formatDateRange(row.source.startDate, row.source.endDate) : row.kind === 'order' ? (
+                        {row.kind === 'leave' ? formatDateRange(row.source.startDate, row.source.endDate) : (
                           <div className="space-y-1.5 whitespace-nowrap"><p><span className="mr-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">Issued</span>{formatDate(row.source.issuedDate)}</p><p className="text-xs text-slate-500"><span className="mr-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">Effective</span>{formatDate(row.source.effectiveDate)}</p></div>
-                        ) : formatDate(row.date)}
+                        )}
                       </td>
                       <td className="px-5 py-4 align-top text-xs text-slate-600">
                         {row.kind === 'order' ? (
@@ -1323,11 +1291,13 @@ export const OrdersPage = () => {
                             <div className="flex flex-wrap gap-1.5">
                               {hasGeneratedOrderDocument(row.source) && <span className="rounded-full bg-teal-50 px-2 py-1 font-semibold text-teal-700">Generated</span>}
                               {row.source.fileName && <span className="rounded-full bg-slate-100 px-2 py-1 font-semibold text-slate-600">Legacy DOCX</span>}
-                              {row.source.signedDocument?.storagePath && <span className="rounded-full bg-blue-50 px-2 py-1 font-semibold text-blue-700">Signed scan</span>}
+                              {row.source.signedDocument?.storagePath && <span className="rounded-full bg-blue-50 px-2 py-1 font-semibold text-blue-700">Approved</span>}
                               {!hasGeneratedOrderDocument(row.source) && !row.source.fileName && <span className="text-slate-400">No generated order</span>}
                             </div>
-                            {!row.source.signedDocument?.storagePath && <p className="font-medium text-amber-700">Missing signed scan</p>}
-                            {row.source.signedAt && <p>Signed: {formatDate(row.source.signedAt)}</p>}{row.source.releasedAt && <p>Released: {formatDate(row.source.releasedAt)}</p>}
+                            {row.source.issuancePending
+                              ? <p className="font-medium text-slate-500">Draft · official number pending</p>
+                              : !row.source.signedDocument?.storagePath && <p className="font-medium text-amber-700">Orders for Approval</p>}
+                            {row.source.signedAt && <p>Approved: {formatDate(row.source.signedAt)}</p>}{row.source.releasedAt && <p>Released: {formatDate(row.source.releasedAt)}</p>}
                           </div>
                         ) : '—'}
                       </td>
@@ -1395,32 +1365,16 @@ export const OrdersPage = () => {
         onClose={() => setSelectorOpen(false)}
         onSelect={(type) => {
           setSelectorOpen(false);
-          if (type === 'award') setAwardFormOpen(true);
-          else {
+          if (type === 'administrative-order') {
+            resetOrderForm();
+            setOrderFormOpen(true);
+          } else {
             setActiveView('calendar');
             setEditingLeave(null);
             setLeaveFormOpen(true);
           }
         }}
       />
-
-      <AdministrativeOrderModeModal
-        isOpen={adminOrderModeSelectorOpen}
-        onClose={() => setAdminOrderModeSelectorOpen(false)}
-        onSelect={(mode) => {
-          resetOrderForm();
-          setOrderMode(mode);
-          setOrderWizardStep(1);
-          setAdminOrderModeSelectorOpen(false);
-          setOrderFormOpen(true);
-        }}
-      />
-
-      {awardFormOpen && (
-        <ModalShell title={editingAward ? 'Edit Award' : 'Encode Award'} eyebrow="All Orders - Award" onClose={() => { setAwardFormOpen(false); setEditingAward(null); }} maxWidth="max-w-4xl">
-          <AwardForm personnel={personnelList} initialRecord={editingAward || undefined} onSubmit={handleAwardSubmit} onCancel={() => { setAwardFormOpen(false); setEditingAward(null); }} />
-        </ModalShell>
-      )}
 
       {leaveFormOpen && (
         <ModalShell title={editingLeave ? 'Edit Leave Record' : 'Encode Leave Record'} eyebrow="Leave Calendar" onClose={() => { setLeaveFormOpen(false); setEditingLeave(null); }} maxWidth="max-w-2xl">
@@ -1439,7 +1393,7 @@ export const OrdersPage = () => {
                   <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Step {orderWizardStep} of 4</p>
                   <p className="mt-1 text-sm font-bold text-slate-900">{orderWizardStep === 1 ? 'Choose series and purpose' : orderWizardStep === 2 ? 'Complete common order details' : orderWizardStep === 3 ? 'Enter purpose-specific details' : 'Add personnel and review'}</p>
                 </div>
-                {!editingOrder && <span className="w-fit rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 ring-1 ring-slate-200">{backendConnected ? 'Generated order' : 'Session-only save'}</span>}
+                {!editingOrder && <span className="w-fit rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 ring-1 ring-slate-200">{backendConnected ? 'Official number on save' : 'Offline draft'}</span>}
               </div>
               <div className="mt-4 grid grid-cols-4 gap-2">
                 {['Classification', 'Order details', 'Purpose details', 'People & review'].map((label, index) => <div key={label} className={`h-1.5 rounded-full ${index + 1 <= orderWizardStep ? 'bg-teal-600' : 'bg-slate-200'}`} title={label} />)}
@@ -1449,14 +1403,16 @@ export const OrdersPage = () => {
               {orderWizardStep === 1 && <>
               <div className="md:col-span-2 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
                 <p className="font-semibold">Create an unsigned order document from the selected series, purpose, personnel, and order details.</p>
-                <p className="mt-1 text-xs text-blue-700">The official order number is allocated when you save. {backendConnected ? 'The DOCX is generated automatically after the order record is created.' : 'The order can be reviewed in this session, but persistence and DOCX generation require a backend connection.'}</p>
+                <p className="mt-1 text-xs text-blue-700">{backendConnected ? 'This shows the official number format. The database assigns the next number when the order is saved, then generates the DOCX.' : 'This draft stays on this device with no official number. Reconnect and save it to issue the order and generate its DOCX.'}</p>
               </div>
               <label>
                 <span className="mb-1.5 block text-sm font-medium text-slate-700">Order number</span>
                 <div className="rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5 font-mono text-sm font-bold text-slate-800">
-                  {editingOrder ? orderNumber || 'Legacy number unavailable' : generatedOrderNumberPreview}
+                  {editingOrder
+                    ? orderNumber || (editingOrder.issuancePending ? 'Number pending — save after reconnecting to issue' : 'Legacy number unavailable')
+                    : backendConnected ? generatedOrderNumberPreview : 'Number pending — reconnect to issue'}
                 </div>
-                <span className="mt-1 block text-xs text-slate-500">Generated automatically when the new order is saved.</span>
+                <span className="mt-1 block text-xs text-slate-500">The counter is shared by order purposes within the same series and year. This preview does not reserve a number.</span>
               </label>
               <SearchableSelect label="Order series *" value={orderSeries} disabled={!!editingOrder} onChange={(value: string) => setOrderSeries(value as OrderSeries)} options={ORDER_SERIES_OPTIONS.map(option => ({ value: option.value, label: option.label }))} />
               <SearchableSelect label="Order purpose *" value={purposeCode} disabled={!!editingOrder} onChange={updateOrderPurpose} options={ORDER_PURPOSE_OPTIONS.map(option => ({ value: option.value, label: option.label }))} />
@@ -1474,13 +1430,18 @@ export const OrdersPage = () => {
                 <span className="mb-1.5 block text-xs text-slate-500">Displayed in body of Order (effectivity start)</span>
                 <input required={requiresFullMetadata} type="date" value={effectiveDate} onChange={(e) => setEffectiveDate(e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" />
               </label>
-              </> : <div className="md:col-span-2 rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-900"><p className="font-semibold">Minimal upload registration</p><p className="mt-1 text-xs text-emerald-700">Subject and dates will be derived automatically from the DOCX filename and the current date. You can add optional context in the next step.</p></div>}
+              </> : <div className="md:col-span-2 rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-900"><p className="font-semibold">Minimal upload registration</p><p className="mt-1 text-xs text-emerald-700">Subject and dates will be derived automatically from the DOCX filename and the current date. Add optional context in the Description field below.</p></div>}
               <label>
                 <span className="mb-1.5 block text-sm font-medium text-slate-700">Workflow status</span>
                 <div className="rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm font-bold text-slate-800">{status}</div>
                 <span className="mt-1 block text-xs text-slate-500">Controlled from the order details workflow.</span>
               </label>
-              <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Affected personnel count</span><div className="rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm font-bold text-slate-800">{selectedPersonnelIds.length || affectedPersonnelCount}</div><span className="mt-1 block text-xs text-slate-500">Automatically derived from selected personnel.</span></label>
+              <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Selected personnel count</span><div className="rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm font-bold text-slate-800">{selectedPersonnelIds.length || affectedPersonnelCount}</div><span className="mt-1 block text-xs text-slate-500">Automatically derived from selected personnel.</span></label>
+              <label className="md:col-span-2">
+                <span className="mb-1.5 block text-sm font-medium text-slate-700">Description</span>
+                <span className="mb-1.5 block text-xs text-slate-500">Additional context or directives included in the generated order.</span>
+                <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" />
+              </label>
               </>}
               {orderWizardStep === 3 && <>
               <div className="md:col-span-2 rounded-xl border border-teal-100 bg-teal-50 p-4">
@@ -1492,7 +1453,7 @@ export const OrdersPage = () => {
               {orderWizardStep === 4 && <>
               <div className="md:col-span-2">
                 <div className="mb-2 flex items-center justify-between gap-2">
-                  <span className="text-sm font-medium text-slate-700">Personnel involved</span>
+                  <span className="text-sm font-medium text-slate-700">Selected personnel</span>
                   <span className="text-xs font-semibold text-slate-500">{selectedPersonnelIds.length} selected</span>
                 </div>
                 <div className="mb-2 flex flex-col gap-2 sm:flex-row">
@@ -1518,7 +1479,7 @@ export const OrdersPage = () => {
                     </div>
                     {selectedPersonnel.map(person => {
                       if (!person) return null;
-                      const roleOptions = purposeDefinition?.personnelRoles || [{ code: 'affected' as const, label: 'Personnel involved', multiple: true, required: true }];
+                      const roleOptions = purposeDefinition?.personnelRoles || [{ code: 'affected' as const, label: 'Selected personnel', multiple: true, required: true }];
                       return (
                         <div key={`role-${person.id}`} className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                           <span className="min-w-0 truncate text-xs font-semibold text-slate-800">{person.rank} {person.fullName}</span>
@@ -1551,7 +1512,6 @@ export const OrdersPage = () => {
               {editingOrder?.fileName && <div className="md:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-600">
                 This record contains a legacy DOCX attachment. It remains available from the order details view; new changes use the generated order document workflow.
               </div>}
-              <label className="md:col-span-2"><span className="mb-1.5 block text-sm font-medium text-slate-700">Directives and particulars</span><textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
               </>}
             </fieldset>
             <div className="sticky bottom-0 z-10 flex flex-col-reverse gap-2 border-t border-slate-200 bg-white pt-4 sm:flex-row sm:items-center sm:justify-between">
@@ -1560,7 +1520,7 @@ export const OrdersPage = () => {
               </div>
               <div className="flex flex-col-reverse gap-2 sm:flex-row">
               <button type="button" onClick={() => { setOrderFormOpen(false); resetOrderForm(); }} disabled={savingOrder} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700">Cancel</button>
-              {!editingOrderLocked && <button type="submit" disabled={savingOrder} className="inline-flex items-center justify-center gap-2 rounded-xl bg-teal-700 px-5 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">{savingOrder ? (backendConnected ? 'Saving and generating...' : 'Saving locally...') : orderWizardStep < 4 ? 'Continue' : backendConnected ? editingOrder ? 'Update and regenerate' : 'Save and generate' : editingOrder ? 'Update locally' : 'Save locally'}</button>}
+              {!editingOrderLocked && <button type="submit" disabled={savingOrder} className="inline-flex items-center justify-center gap-2 rounded-xl bg-teal-700 px-5 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">{savingOrder ? (backendConnected ? 'Saving and generating...' : 'Saving draft...') : orderWizardStep < 4 ? 'Continue' : backendConnected ? editingOrder?.issuancePending ? 'Issue and generate' : editingOrder ? 'Update and regenerate' : 'Save and generate' : 'Save draft locally'}</button>}
               </div>
             </div>
           </form>
@@ -1568,16 +1528,23 @@ export const OrdersPage = () => {
       )}
 
       {selectedOrder && (
-        <ModalShell title={selectedOrder.orderNumber || selectedOrder.orderNo || 'Administrative Order'} eyebrow="Administrative Order" onClose={() => setSelectedOrder(null)}>
+        <ModalShell title={getOrderNumberDisplay(selectedOrder, 'Administrative Order')} eyebrow="Administrative Order" onClose={() => setSelectedOrder(null)}>
           <div className="grid gap-4 p-6 sm:grid-cols-2">
-            <Detail label="Order classification" value={selectedOrder.purposeCode ? `${selectedOrder.series || 'SO'} — ${selectedOrder.purposeCode} — ${selectedOrder.purposeLabel || getOrderPurposeLabel(selectedOrder.purposeCode)}` : selectedOrder.orderType || selectedOrder.type || 'Administrative Order'} />
+            <Detail label="Order number" value={getOrderNumberDisplay(selectedOrder)} />
+            <Detail label="Order classification" value={selectedOrder.purposeCode ? `${selectedOrder.series || 'SO'} — ${formatOrderPurposeLabel(selectedOrder.purposeCode, selectedOrder.purposeLabel)}` : selectedOrder.orderType || selectedOrder.type || 'Administrative Order'} />
             <Detail label="Status" value={selectedOrderStatus || 'Draft'} />
             <Detail label="Designation Date / Issued Date (Upper-Right Header)" value={formatDate(selectedOrder.issuedDate)} />
             <Detail label="Effective Date of Designation (Order Body)" value={formatDate(selectedOrder.effectiveDate)} />
             <div className="sm:col-span-2"><Detail label="Subject" value={selectedOrder.subject} /></div>
-            <Detail label="Affected personnel" value={selectedOrder.personnelIds?.length ? selectedOrder.personnelIds.map(id => personnelNames.get(id) || 'Unknown personnel').join('\n') : String(selectedOrder.affectedPersonnelCount || 1)} />
+            <Detail label="Selected personnel" value={selectedOrder.personnelIds?.length ? selectedOrder.personnelIds.map(id => personnelNames.get(id) || 'Unknown personnel').join('\n') : String(selectedOrder.affectedPersonnelCount || 1)} />
             <Detail label="Signatory" value={[selectedOrder.signatory, selectedOrder.signatoryTitle].filter(Boolean).join(' - ')} />
-            {selectedOrder.description && <div className="sm:col-span-2"><Detail label="Directives and particulars" value={selectedOrder.description} /></div>}
+            {selectedOrder.issuancePending && <div className="sm:col-span-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">This draft is saved on this device. Its official order number will be assigned when you reconnect and save it to the central register.</div>}
+            {selectedOrder.description && <div className="sm:col-span-2"><Detail label="Description" value={selectedOrder.description} /></div>}
+            {getOrderPurposeDefinition(selectedOrder.purposeCode)?.fields.map(field => {
+              const rawValue = selectedOrder.purposeData?.[field.key];
+              const value = Array.isArray(rawValue) ? rawValue.join(', ') : String(rawValue ?? '').trim();
+              return value ? <div key={field.key} className="sm:col-span-2"><Detail label={field.label} value={value} /></div> : null;
+            })}
             <div className="sm:col-span-2 rounded-xl border border-cyan-200 bg-cyan-50/60 p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
@@ -1687,17 +1654,17 @@ export const OrdersPage = () => {
                 )}
               </div>
               <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
-                <p className="flex items-center gap-2 text-sm font-semibold text-blue-950"><Upload size={16} /> Signed order scan</p>
-                <p className="mt-1 text-xs text-blue-800">Scanned image of the physically wet-signed order. JPEG, PNG, or WEBP.</p>
+                <p className="flex items-center gap-2 text-sm font-semibold text-blue-950"><Upload size={16} /> Approved order copy</p>
+                <p className="mt-1 text-xs text-blue-800">Scanned copy of the approved order. JPEG, PNG, or WEBP.</p>
                 {selectedOrder.signedDocument ? <>
                   <p className="mt-3 truncate text-xs font-semibold text-slate-800" title={selectedOrder.signedDocument.fileName}>{selectedOrder.signedDocument.fileName} · v{selectedOrder.signedDocument.version}</p>
                   <div className="mt-3 grid grid-cols-2 gap-2">
                     <button type="button" onClick={() => openSignedOrderDocument(selectedOrder)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-blue-300 bg-white px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100"><Eye size={15} /> View</button>
                     <button type="button" onClick={() => openSignedOrderDocument(selectedOrder, true)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-blue-300 bg-white px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100"><Download size={15} /> Download</button>
-                    {canEdit && !LOCKED_ORDER_STATUSES.has(selectedOrderStatus || '') && <label className={`col-span-2 inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border border-blue-300 bg-white px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100 ${uploadingSignedDocument ? 'pointer-events-none opacity-60' : ''}`}><Upload size={15} /> {uploadingSignedDocument ? 'Replacing...' : 'Replace scan'}<input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" disabled={uploadingSignedDocument} onChange={event => { void replaceSignedOrderDocument(event.target.files?.[0]); event.currentTarget.value = ''; }} /></label>}
-                    {canEdit && !LOCKED_ORDER_STATUSES.has(selectedOrderStatus || '') && <button type="button" onClick={() => void removeSignedOrderDocument(selectedOrder)} className="col-span-2 inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-rose-300 bg-white px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50"><Trash2 size={15} /> Remove scan</button>}
+                    {canEdit && !LOCKED_ORDER_STATUSES.has(selectedOrderStatus || '') && <label className={`col-span-2 inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border border-blue-300 bg-white px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100 ${uploadingSignedDocument ? 'pointer-events-none opacity-60' : ''}`}><Upload size={15} /> {uploadingSignedDocument ? 'Replacing...' : 'Replace approved copy'}<input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" disabled={uploadingSignedDocument} onChange={event => { void replaceSignedOrderDocument(event.target.files?.[0]); event.currentTarget.value = ''; }} /></label>}
+                    {canEdit && !LOCKED_ORDER_STATUSES.has(selectedOrderStatus || '') && <button type="button" onClick={() => void removeSignedOrderDocument(selectedOrder)} className="col-span-2 inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-rose-300 bg-white px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50"><Trash2 size={15} /> Remove approved copy</button>}
                   </div>
-                </> : <div className="mt-3 rounded-lg border border-dashed border-blue-300 bg-white p-3"><p className="text-xs text-blue-800">No signed scan uploaded. A scan is required before marking this order Signed.</p>{canEdit && !LOCKED_ORDER_STATUSES.has(selectedOrderStatus || '') && <label className={`mt-3 inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border border-blue-300 bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 ${uploadingSignedDocument ? 'pointer-events-none opacity-60' : ''}`}><Upload size={15} /> {uploadingSignedDocument ? 'Uploading...' : 'Upload signed scan'}<input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" disabled={uploadingSignedDocument} onChange={event => { void replaceSignedOrderDocument(event.target.files?.[0]); event.currentTarget.value = ''; }} /></label>}</div>}
+                </> : <div className="mt-3 rounded-lg border border-dashed border-blue-300 bg-white p-3"><p className="text-xs text-blue-800">No approved order copy uploaded. Upload one before marking this order Signed.</p>{canEdit && !LOCKED_ORDER_STATUSES.has(selectedOrderStatus || '') && <label className={`mt-3 inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border border-blue-300 bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 ${uploadingSignedDocument ? 'pointer-events-none opacity-60' : ''}`}><Upload size={15} /> {uploadingSignedDocument ? 'Uploading...' : 'Upload approved copy'}<input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" disabled={uploadingSignedDocument} onChange={event => { void replaceSignedOrderDocument(event.target.files?.[0]); event.currentTarget.value = ''; }} /></label>}</div>}
               </div>
             </div>
             {selectedOrder.fileName && <div className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
@@ -1717,7 +1684,7 @@ export const OrdersPage = () => {
                   <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
                     <button type="button" onClick={() => viewOrderDocument(selectedOrder)} disabled={loadingDocumentPreview} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-teal-300 bg-white px-3 py-2 text-xs font-semibold text-teal-700 transition hover:bg-teal-50 disabled:cursor-not-allowed disabled:opacity-60"><Eye size={15} /> {loadingDocumentPreview ? 'Loading...' : 'View'}</button>
                     <button type="button" onClick={() => openOrderDocument(selectedOrder, true)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"><Download size={15} /> Download</button>
-                    <span className="col-span-2 text-[11px] text-slate-500">Legacy DOCX is read-only. Use the generated order and signed scan sections for current document actions.</span>
+                    <span className="col-span-2 text-[11px] text-slate-500">Legacy DOCX is read-only. Use the generated order and approved copy sections for current document actions.</span>
                   </div>
                 </div>
               ) : (
@@ -1748,14 +1715,14 @@ export const OrdersPage = () => {
             </div>
             {canEdit && (
               <div className="sm:col-span-2 flex justify-end gap-2 border-t border-slate-200 pt-4">
-                {selectedOrderStatus === 'Draft' && <button type="button" onClick={() => transitionSelectedOrder('For Approval')} className="inline-flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-amber-700">Submit for approval</button>}
-                {selectedOrderStatus === 'For Approval' && <button type="button" onClick={() => transitionSelectedOrder('Signed')} disabled={!selectedOrder.signedDocument} title={selectedOrder.signedDocument ? 'Mark this order as signed' : 'Upload the signed order scan first'} className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50">Mark signed</button>}
+                {!selectedOrder.issuancePending && selectedOrderStatus === 'Draft' && <button type="button" onClick={() => transitionSelectedOrder('For Approval')} className="inline-flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-amber-700">Submit for approval</button>}
+                {selectedOrderStatus === 'For Approval' && <button type="button" onClick={() => transitionSelectedOrder('Signed')} disabled={!selectedOrder.signedDocument} title={selectedOrder.signedDocument ? 'Mark this order as signed' : 'Upload the approved order copy first'} className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50">Mark signed</button>}
                 {selectedOrderStatus === 'Signed' && <button type="button" onClick={() => transitionSelectedOrder('Released')} className="inline-flex items-center gap-2 rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-800">Release order</button>}
                 {selectedOrderStatus === 'Released' && <button type="button" onClick={() => transitionSelectedOrder('Archived')} className="inline-flex items-center gap-2 rounded-xl bg-slate-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">Archive order</button>}
                 {['For Approval', 'Signed', 'Released'].includes(selectedOrderStatus || '') && <button type="button" onClick={() => transitionSelectedOrder('Revoked')} className="inline-flex items-center gap-2 rounded-xl border border-rose-300 px-4 py-2.5 text-sm font-semibold text-rose-700 hover:bg-rose-50">Revoke</button>}
                 {selectedOrderStatus === 'Revoked' && <button type="button" onClick={openRestoreOrder} className="inline-flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-800 hover:bg-amber-100"><RotateCcw size={16} /> Restore order</button>}
                 {['Draft', 'Revoked'].includes(selectedOrderStatus || '') && <button type="button" onClick={() => removeRecord('order', selectedOrder.id, 'administrative order')} className="inline-flex items-center gap-2 rounded-xl border border-rose-300 px-4 py-2.5 text-sm font-semibold text-rose-700 hover:bg-rose-50"><Trash2 size={16} /> Delete</button>}
-                {!LOCKED_ORDER_STATUSES.has(selectedOrderStatus || '') && <button type="button" onClick={() => openOrderEdit(selectedOrder)} className="inline-flex items-center gap-2 rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-800"><Edit3 size={16} /> Edit order</button>}
+                {!LOCKED_ORDER_STATUSES.has(selectedOrderStatus || '') && <button type="button" onClick={() => openOrderEdit(selectedOrder)} className="inline-flex items-center gap-2 rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-800"><Edit3 size={16} /> {selectedOrder.issuancePending && backendConnected ? 'Issue pending order' : 'Edit order'}</button>}
               </div>
             )}
           </div>
@@ -1778,7 +1745,7 @@ export const OrdersPage = () => {
       >
         <div className="space-y-4">
           <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">
-            <p className="font-semibold">Revoke {selectedOrder?.orderNumber || 'this order'}?</p>
+            <p className="font-semibold">Revoke {selectedOrder ? getOrderNumberDisplay(selectedOrder, 'this order') : 'this order'}?</p>
             <p className="mt-1 text-xs leading-5 text-rose-800">The order will become read-only. You may provide a reason for the audit trail.</p>
           </div>
           <label className="block">
@@ -1805,7 +1772,7 @@ export const OrdersPage = () => {
       >
         <div className="space-y-4">
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
-            <p className="font-semibold">Restore {selectedOrder?.orderNumber || 'this order'}?</p>
+            <p className="font-semibold">Restore {selectedOrder ? getOrderNumberDisplay(selectedOrder, 'this order') : 'this order'}?</p>
             <p className="mt-1 text-xs leading-5 text-amber-900">It will return to <span className="font-semibold">{revokedReturnStatus}</span>. You may provide a reason for the audit trail.</p>
           </div>
           <label className="block">
@@ -1843,7 +1810,7 @@ export const OrdersPage = () => {
           <div className="flex-1 bg-white dark:bg-[#070d18] rounded-2xl shadow-2xl overflow-hidden flex flex-col">
             <DocumentPageSheet
               htmlContent={documentPreview.html}
-              title={documentPreview.order.orderNumber || documentPreview.order.orderNo || 'Administrative Order'}
+              title={getOrderNumberDisplay(documentPreview.order, 'Administrative Order')}
               onClose={() => setDocumentPreview(null)}
               onEdit={canEdit && !LOCKED_ORDER_STATUSES.has(normalizedOrderStatus(documentPreview.order)) ? () => {
                 const ord = documentPreview.order;
@@ -1853,34 +1820,6 @@ export const OrdersPage = () => {
             />
           </div>
         </div>
-      )}
-
-      {selectedAward && (
-        <ModalShell title={selectedAward.awardName} eyebrow="Award details" onClose={() => setSelectedAward(null)}>
-          <div className="grid gap-4 p-6 sm:grid-cols-2">
-            <Detail label="Order type" value={selectedAward.orderType} />
-            <Detail label="Authority date" value={formatDate(selectedAward.authorityDate)} />
-            <Detail label="Award title" value={selectedAward.title} />
-            <Detail label="Name of personnel" value={selectedAward.personnelName} />
-            <div className="sm:col-span-2"><Detail label="Citation details" value={selectedAward.citationDetails} /></div>
-            {canEdit && (
-              <div className="sm:col-span-2 flex justify-end gap-2 border-t border-slate-200 pt-4">
-                <button type="button" onClick={() => removeRecord('award', selectedAward.id, 'award record')} className="inline-flex items-center gap-2 rounded-xl border border-rose-300 px-4 py-2.5 text-sm font-semibold text-rose-700 hover:bg-rose-50"><Trash2 size={16} /> Delete</button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedAward(null);
-                    setEditingAward(selectedAward);
-                    setAwardFormOpen(true);
-                  }}
-                  className="inline-flex items-center gap-2 rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-800"
-                >
-                  <Edit3 size={16} /> Edit award
-                </button>
-              </div>
-            )}
-          </div>
-        </ModalShell>
       )}
 
       {selectedLeave && (

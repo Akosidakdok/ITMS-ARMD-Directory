@@ -30,6 +30,61 @@ const UNIFORMED_RANKS_ORDER = [
   'Pat', 'PCpl', 'PSSg', 'PMSg', 'PSMS', 'PCMS', 'PEMS',
   'PLT', 'PCPT', 'PMAJ', 'PLTCOL', 'PCOL', 'PBGEN', 'PMGEN', 'PLTGEN', 'PGEN'
 ];
+
+type PersonnelSortField = 'name' | 'birthdate' | 'rank' | 'badge' | 'officeDivision' | 'status' | 'designation' | 'entryDate';
+
+const PERSONNEL_SORT_OPTIONS: Array<{ value: PersonnelSortField; label: string }> = [
+  { value: 'name', label: 'Name' },
+  { value: 'birthdate', label: 'Date of birth' },
+  { value: 'rank', label: 'Rank' },
+  { value: 'badge', label: 'Badge number / salary grade' },
+  { value: 'officeDivision', label: 'Office / division' },
+  { value: 'status', label: 'Duty status' },
+  { value: 'designation', label: 'Designation' },
+  { value: 'entryDate', label: 'Service / entry date' }
+];
+
+const BIRTH_MONTH_OPTIONS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+].map((label, index) => ({ value: String(index + 1), label }));
+
+const parseDateParts = (value?: string): { year: number; month: number; day: number } | null => {
+  const raw = String(value || '').trim();
+  if (!raw) return null;
+
+  const yearFirst = raw.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+  const monthFirst = raw.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
+  let year: number;
+  let month: number;
+  let day: number;
+
+  if (yearFirst) {
+    year = Number(yearFirst[1]);
+    month = Number(yearFirst[2]);
+    day = Number(yearFirst[3]);
+  } else if (monthFirst) {
+    month = Number(monthFirst[1]);
+    day = Number(monthFirst[2]);
+    year = Number(monthFirst[3]);
+  } else {
+    const parsed = new Date(raw);
+    if (Number.isNaN(parsed.getTime())) return null;
+    year = parsed.getFullYear();
+    month = parsed.getMonth() + 1;
+    day = parsed.getDate();
+  }
+
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  if (month < 1 || month > 12 || day < 1 || day > daysInMonth) return null;
+  return { year, month, day };
+};
+
+const getPersonnelBirthDate = (person: Personnel) => person.birthdate || person.birthday || '';
+
+const datePartsSortKey = (parts: { year: number; month: number; day: number } | null) =>
+  parts ? `${String(parts.year).padStart(4, '0')}-${String(parts.month).padStart(2, '0')}-${String(parts.day).padStart(2, '0')}` : '';
+
 import { 
   Users, 
   User,
@@ -203,6 +258,8 @@ export const PersonnelPage: React.FC = () => {
   const [searchSubUnit, setSearchSubUnit] = useState('');
   const [searchStation, setSearchStation] = useState('');
   const [searchPStatus, setSearchPStatus] = useState('Please select');
+  const [searchBirthMonth, setSearchBirthMonth] = useState('');
+  const [searchBirthYear, setSearchBirthYear] = useState('');
 
   // Modals & Action Menus
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -231,17 +288,32 @@ export const PersonnelPage: React.FC = () => {
   const [pageSize, setPageSize] = useState(10);
 
   // Sorting state
-  const [sortField, setSortField] = useState<string>('rank');
+  const [sortField, setSortField] = useState<PersonnelSortField>('name');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
-  const handleSort = (field: string) => {
+  const handleSort = (field: PersonnelSortField) => {
     if (sortField === field) {
       setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
     } else {
       setSortField(field);
       setSortDirection('asc');
     }
+    setCurrentPage(1);
   };
+
+  const handleSortFieldChange = (field: PersonnelSortField) => {
+    setSortField(field);
+    setSortDirection('asc');
+    setCurrentPage(1);
+  };
+
+  const sortDirectionHelp = sortField === 'birthdate'
+    ? 'For birth dates, earliest first means oldest first.'
+    : sortField === 'entryDate'
+      ? 'For service dates, earliest first means longest-serving first.'
+      : sortField === 'rank'
+        ? 'Ascending follows junior-to-senior rank order; NUP follows uniformed ranks.'
+        : 'Click a sortable column heading to change the sort.';
 
   // Personnel Type state for registration form
   const [personnelType, setPersonnelType] = useState<'Uniformed Personnel' | 'Non-Uniformed Personnel'>('Uniformed Personnel');
@@ -410,6 +482,12 @@ export const PersonnelPage: React.FC = () => {
     return [...OFFICE_DIVISION_OPTIONS, ...extra];
   }, [personnelList]);
 
+  const birthYearChoices = useMemo(() => Array.from(new Set(
+    personnelList
+      .map(person => parseDateParts(getPersonnelBirthDate(person))?.year)
+      .filter((year): year is number => Number.isInteger(year))
+  )).sort((a, b) => b - a), [personnelList]);
+
   // Handle Search Reset
   const handleReset = () => {
     setSearchAccountNo('');
@@ -424,6 +502,8 @@ export const PersonnelPage: React.FC = () => {
     setSearchSubUnit('');
     setSearchStation('');
     setSearchPStatus('Please select');
+    setSearchBirthMonth('');
+    setSearchBirthYear('');
     setGlobalSearchQuery('');
     setCurrentPage(1);
     clearSelection();
@@ -432,6 +512,8 @@ export const PersonnelPage: React.FC = () => {
   // REAL-TIME REACTIVE FILTER LOGIC
   const filteredPersonnel = useMemo(() => {
     return personnelList.filter(p => {
+      const birthDateParts = parseDateParts(getPersonnelBirthDate(p));
+
       if (globalSearchQuery && globalSearchQuery.trim().length > 0) {
         const q = globalSearchQuery.toLowerCase().trim();
         const su = (p.sub_unit || p.division || p.subUnit || '').toLowerCase();
@@ -559,6 +641,9 @@ export const PersonnelPage: React.FC = () => {
         if (p.status.toLowerCase() !== searchPStatus.toLowerCase()) return false;
       }
 
+      if (searchBirthMonth && String(birthDateParts?.month || '') !== searchBirthMonth) return false;
+      if (searchBirthYear && String(birthDateParts?.year || '') !== searchBirthYear) return false;
+
       return true;
     });
   }, [
@@ -575,7 +660,9 @@ export const PersonnelPage: React.FC = () => {
     searchUnit,
     searchSubUnit,
     searchStation,
-    searchPStatus
+    searchPStatus,
+    searchBirthMonth,
+    searchBirthYear
   ]);
 
   // Selection helpers (placed after filteredPersonnel)
@@ -590,32 +677,35 @@ export const PersonnelPage: React.FC = () => {
   // Sorted Personnel
   const sortedPersonnel = useMemo(() => {
     return [...filteredPersonnel].sort((a, b) => {
-      let aVal = '';
-      let bVal = '';
-      if (sortField === 'name') {
-        aVal = `${a.lastName || ''} ${a.firstName || ''}`;
-        bVal = `${b.lastName || ''} ${b.firstName || ''}`;
-      } else if (sortField === 'badge') {
-        aVal = a.badgeNo || (a.salaryGrade ? `SG-${a.salaryGrade}` : '');
-        bVal = b.badgeNo || (b.salaryGrade ? `SG-${b.salaryGrade}` : '');
-      } else if (sortField === 'rank') {
-        aVal = a.rank || '';
-        bVal = b.rank || '';
-      } else if (sortField === 'status') {
-        aVal = a.status || '';
-        bVal = b.status || '';
-      } else if (sortField === 'officeDivision') {
-        aVal = a.officeDivision || a.sub_unit || a.division || '';
-        bVal = b.officeDivision || b.sub_unit || b.division || '';
-      } else if (sortField === 'designation') {
-        aVal = a.designation || '';
-        bVal = b.designation || '';
-      } else if (sortField === 'entryDate') {
-        aVal = a.desUp || a.dateOfEntry || '';
-        bVal = b.desUp || b.dateOfEntry || '';
+      const getSortValue = (person: Personnel) => {
+        if (sortField === 'name') return `${person.lastName || ''} ${person.firstName || person.fullName || ''}`.trim();
+        if (sortField === 'birthdate') return datePartsSortKey(parseDateParts(getPersonnelBirthDate(person)));
+        if (sortField === 'badge') return person.badgeNo || (person.salaryGrade ? `SG-${person.salaryGrade}` : '');
+        if (sortField === 'rank') {
+          const rankCode = normalizeRankCode(person.rank || '');
+          const rankIndex = UNIFORMED_RANKS_ORDER.findIndex(rank => normalizeRankCode(rank) === rankCode);
+          return rankIndex >= 0 ? `rank-${String(rankIndex).padStart(2, '0')}` : person.rank ? `rank-99-${person.rank}` : '';
+        }
+        if (sortField === 'status') return person.status || '';
+        if (sortField === 'officeDivision') return person.officeDivision || person.sub_unit || person.division || person.unit || '';
+        if (sortField === 'designation') return person.designation || '';
+        return datePartsSortKey(parseDateParts(person.desUp || person.dateOfEntry || person.dateEnteredService || ''));
+      };
+
+      const aVal = getSortValue(a);
+      const bVal = getSortValue(b);
+      if (!aVal || !bVal) {
+        if (!aVal && bVal) return 1;
+        if (aVal && !bVal) return -1;
       }
-      const cmp = aVal.localeCompare(bVal);
-      return sortDirection === 'asc' ? cmp : -cmp;
+
+      const cmp = aVal.localeCompare(bVal, undefined, { numeric: true, sensitivity: 'base' });
+      if (cmp !== 0) return sortDirection === 'asc' ? cmp : -cmp;
+      return `${a.lastName || ''} ${a.firstName || a.fullName || ''}`.localeCompare(
+        `${b.lastName || ''} ${b.firstName || b.fullName || ''}`,
+        undefined,
+        { numeric: true, sensitivity: 'base' }
+      );
     });
   }, [filteredPersonnel, sortField, sortDirection]);
 
@@ -696,9 +786,9 @@ export const PersonnelPage: React.FC = () => {
     const phoneStr   = (newPersonnelForm.phoneNumber || newPersonnelForm.contactNumber || '').trim();
 
     const bdate = newPersonnelForm.birthdate || newPersonnelForm.birthday || '';
-    const calculatedAge = newPersonnelForm.ageToDate || (bdate ? calculateYearsBetween(bdate) : undefined);
+    const calculatedAge = newPersonnelForm.ageToDate ?? (bdate ? calculateYearsBetween(bdate) ?? undefined : undefined);
     const sdate = newPersonnelForm.dateEnteredService || newPersonnelForm.desUp || newPersonnelForm.dateOfEntry || '';
-    const calculatedService = newPersonnelForm.ageOfServiceToDate || (sdate ? calculateYearsBetween(sdate) : undefined);
+    const calculatedService = newPersonnelForm.ageOfServiceToDate ?? (sdate ? calculateYearsBetween(sdate) ?? undefined : undefined);
 
     const created: Personnel = {
       id: `pnp-${Date.now()}`,
@@ -724,7 +814,7 @@ export const PersonnelPage: React.FC = () => {
       station: stationStr || undefined,
       division: subUnitStr || undefined,
       detail: detailsStr || undefined,
-      designation: (newPersonnelForm.designation || '').trim() || undefined,
+      designation: (newPersonnelForm.designation || '').trim(),
       address: (newPersonnelForm.address || '').trim() || undefined,
       gender: newPersonnelForm.gender || 'Male',
       civilStatus: (newPersonnelForm.civilStatus || '').trim() || undefined,
@@ -851,7 +941,7 @@ export const PersonnelPage: React.FC = () => {
       <PageHeader
         eyebrow="Personnel records"
         title="Personnel Information"
-        description="Search, review, and maintain official PNP–ITMS personnel profiles and service information."
+        description="Search, review, and maintain personnel records. Filter by birth month or year and choose how results are sorted."
         meta={<span className="text-[11px] text-slate-500">{personnelList.length} total records</span>}
         reference="201-MASTER-INDEX"
       />
@@ -1154,6 +1244,64 @@ export const PersonnelPage: React.FC = () => {
               )}
             </div>
           </div>
+
+          <div className="grid grid-cols-1 gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="sm:col-span-2 xl:col-span-4">
+              <h3 className="text-2xs font-extrabold text-slate-700">Birth date and result order</h3>
+              <p className="mt-0.5 text-[10px] text-slate-500">Month and year can be combined. Filters update immediately; sort order applies to the matching records.</p>
+            </div>
+            <div>
+              <label htmlFor="personnel-birth-month" className="mb-1 block text-2xs font-bold text-slate-700">Birth month</label>
+              <select
+                id="personnel-birth-month"
+                value={searchBirthMonth}
+                onChange={event => { setSearchBirthMonth(event.target.value); setCurrentPage(1); }}
+                className="w-full rounded border border-slate-300 bg-white px-2.5 py-1.5 text-xs focus:border-cyan-500 focus:outline-none"
+              >
+                <option value="">Any month</option>
+                {BIRTH_MONTH_OPTIONS.map(month => <option key={month.value} value={month.value}>{month.label}</option>)}
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="personnel-birth-year" className="mb-1 block text-2xs font-bold text-slate-700">Birth year</label>
+              <select
+                id="personnel-birth-year"
+                value={searchBirthYear}
+                onChange={event => { setSearchBirthYear(event.target.value); setCurrentPage(1); }}
+                className="w-full rounded border border-slate-300 bg-white px-2.5 py-1.5 text-xs focus:border-cyan-500 focus:outline-none"
+              >
+                <option value="">Any year</option>
+                {birthYearChoices.map(year => <option key={year} value={year}>{year}</option>)}
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="personnel-sort-field" className="mb-1 block text-2xs font-bold text-slate-700">Sort records by</label>
+              <select
+                id="personnel-sort-field"
+                value={sortField}
+                onChange={event => handleSortFieldChange(event.target.value as PersonnelSortField)}
+                className="w-full rounded border border-slate-300 bg-white px-2.5 py-1.5 text-xs focus:border-cyan-500 focus:outline-none"
+              >
+                {PERSONNEL_SORT_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="personnel-sort-direction" className="mb-1 block text-2xs font-bold text-slate-700">Sort order</label>
+              <select
+                id="personnel-sort-direction"
+                value={sortDirection}
+                onChange={event => { setSortDirection(event.target.value as 'asc' | 'desc'); setCurrentPage(1); }}
+                className="w-full rounded border border-slate-300 bg-white px-2.5 py-1.5 text-xs focus:border-cyan-500 focus:outline-none"
+              >
+                <option value="asc">Ascending (A–Z / earliest first)</option>
+                <option value="desc">Descending (Z–A / latest first)</option>
+              </select>
+              <p className="mt-1 text-[10px] text-slate-500">{sortDirectionHelp}</p>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -1221,7 +1369,9 @@ export const PersonnelPage: React.FC = () => {
                 <th scope="col" className="cursor-pointer hover:text-blue-700 select-none" onClick={() => handleSort('designation')}>
                   Designation {sortField === 'designation' ? (sortDirection === 'asc' ? <ArrowUp className="w-3 h-3 inline text-blue-700" /> : <ArrowDown className="w-3 h-3 inline text-blue-700" />) : <ArrowUpDown className="w-3 h-3 inline text-slate-400 opacity-60" />}
                 </th>
-                <th scope="col">Birthdate &amp; Age</th>
+                <th scope="col" className="cursor-pointer hover:text-blue-700 select-none" onClick={() => handleSort('birthdate')}>
+                  Birthdate &amp; Age {sortField === 'birthdate' ? (sortDirection === 'asc' ? <ArrowUp className="w-3 h-3 inline text-blue-700" /> : <ArrowDown className="w-3 h-3 inline text-blue-700" />) : <ArrowUpDown className="w-3 h-3 inline text-slate-400 opacity-60" />}
+                </th>
                 <th scope="col" className="cursor-pointer hover:text-blue-700 select-none" onClick={() => handleSort('entryDate')}>
                   Service / Entry {sortField === 'entryDate' ? (sortDirection === 'asc' ? <ArrowUp className="w-3 h-3 inline text-blue-700" /> : <ArrowDown className="w-3 h-3 inline text-blue-700" />) : <ArrowUpDown className="w-3 h-3 inline text-slate-400 opacity-60" />}
                 </th>

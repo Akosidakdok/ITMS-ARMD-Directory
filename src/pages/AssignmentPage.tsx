@@ -9,10 +9,28 @@ import { hasManagementAccess } from '../utils/accessControl';
 import { ASSIGNMENT_DIVISION_OPTIONS, POSITION_CATEGORIES, UNIT_CATEGORIES, SUB_UNIT_CATEGORIES } from '../constants/ranks';
 import { getAssignmentStationOptions } from '../utils/assignmentOptions';
 import { AssignmentOverview } from '../components/assignments/AssignmentOverview';
+import { formatOrderPurposeLabel } from '../constants/orders';
+import { getOfficialOrderNumber } from '../utils/orderNumber';
 
 export const AssignmentPage: React.FC = () => {
   const { role, personnelList, assignmentsList, ordersList, addAssignment, updateAssignment, deleteAssignment } = useAuthRole();
   const canManage = hasManagementAccess(role);
+  const hasOrderHistoryLink = (assignment: AssignmentRecord) => {
+    const normalizedOrderRef = assignment.orderRef?.trim().toLowerCase();
+    const orderRefMatchesOrder = Boolean(normalizedOrderRef && ordersList.some(order =>
+      [order.id, order.orderNumber, getOfficialOrderNumber(order)]
+        .some(value => value?.trim().toLowerCase() === normalizedOrderRef)
+    ));
+
+    return Boolean(
+      assignment.orderId ||
+      assignment.endedByOrderId ||
+      assignment.terminationOrderId ||
+      assignment.revokedByOrderId ||
+      assignment.relatedOrderIds?.length ||
+      orderRefMatchesOrder
+    );
+  };
   const [selectedDivision, setSelectedDivision] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [unitCategoryFilter, setUnitCategoryFilter] = useState('ALL');
@@ -256,7 +274,7 @@ export const AssignmentPage: React.FC = () => {
         unit: generatedUnitName,
         position: position.trim(),
         orderId: orderId || undefined,
-        orderRef: orderRef.trim() || selectedOrder?.orderNumber || selectedOrder?.orderNo || '',
+        orderRef: orderRef.trim() || getOfficialOrderNumber(selectedOrder),
         designationDate: designationDate || undefined,
         effectiveDate: effectiveDate || undefined,
         startDate,
@@ -284,6 +302,18 @@ export const AssignmentPage: React.FC = () => {
     setSubUnitCategoryFilter('ALL');
     setPositionCategoryFilter('ALL');
     setCurrentPage(1);
+  };
+
+  const deleteAssignmentRecord = async (assignment: AssignmentRecord) => {
+    if (hasOrderHistoryLink(assignment)) return;
+    if (!window.confirm('Delete this assignment record? This action cannot be undone.')) return;
+
+    try {
+      await deleteAssignment(assignment.id);
+      setSelectedAssignment(current => current?.id === assignment.id ? null : current);
+    } catch {
+      window.alert('The assignment could not be deleted. Please try again.');
+    }
   };
 
   const activeFilterCount = [
@@ -492,6 +522,18 @@ export const AssignmentPage: React.FC = () => {
                             className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1.5 text-[11px] font-bold text-white hover:bg-blue-700"
                           >
                             <Edit3 className="h-3.5 w-3.5" /> Edit
+                          </button>
+                        )}
+                        {canManage && (
+                          <button
+                            type="button"
+                            onClick={() => deleteAssignmentRecord(asg)}
+                            disabled={hasOrderHistoryLink(asg)}
+                            title={hasOrderHistoryLink(asg) ? 'Linked to order history; retained for the audit trail.' : 'Delete assignment'}
+                            aria-label={hasOrderHistoryLink(asg) ? 'Delete unavailable: assignment is linked to order history' : `Delete assignment for ${person?.fullName || 'personnel'}`}
+                            className="inline-flex items-center gap-1 rounded-lg border border-rose-300 px-2.5 py-1.5 text-[11px] font-bold text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400 disabled:hover:bg-transparent"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" /> Delete
                           </button>
                         )}
                       </div>
@@ -818,12 +860,12 @@ export const AssignmentPage: React.FC = () => {
                     const nextOrderId = e.target.value;
                     const linkedOrder = ordersList.find(order => order.id === nextOrderId);
                     setOrderId(nextOrderId);
-                    if (linkedOrder) setOrderRef(linkedOrder.orderNumber || linkedOrder.orderNo || linkedOrder.id);
+                    if (linkedOrder) setOrderRef(getOfficialOrderNumber(linkedOrder));
                   }}
                   className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
                 >
                   <option value="">Manual posting / legacy reference</option>
-                  {ordersList.map(order => <option key={order.id} value={order.id}>{order.orderNumber || order.orderNo || order.id} — {order.purposeLabel || order.subject}</option>)}
+                  {ordersList.filter(order => !order.issuancePending && getOfficialOrderNumber(order)).map(order => <option key={order.id} value={order.id}>{getOfficialOrderNumber(order)} — {order.purposeCode || order.purposeLabel ? formatOrderPurposeLabel(order.purposeCode, order.purposeLabel) : order.subject}</option>)}
                 </select>
               </div>
               <div>
@@ -834,7 +876,7 @@ export const AssignmentPage: React.FC = () => {
                   onChange={e => {
                     setOrderRef(e.target.value);
                     const linkedOrder = ordersList.find(order => order.id === orderId);
-                    if (linkedOrder && e.target.value.trim() !== (linkedOrder.orderNumber || linkedOrder.orderNo || linkedOrder.id)) setOrderId('');
+                    if (linkedOrder && e.target.value.trim() !== getOfficialOrderNumber(linkedOrder)) setOrderId('');
                   }}
                   placeholder="Optional for manual or legacy records"
                   className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
@@ -953,7 +995,7 @@ export const AssignmentPage: React.FC = () => {
             (o.id && selectedAssignment.orderRef && o.id.trim().toLowerCase() === selectedAssignment.orderRef.trim().toLowerCase())
           );
           const relatedOrders = ordersList.filter(order => order.id === selectedAssignment.orderId || order.id === selectedAssignment.endedByOrderId || order.id === selectedAssignment.terminationOrderId || order.id === selectedAssignment.revokedByOrderId || selectedAssignment.relatedOrderIds?.includes(order.id));
-          const hasOrderHistoryLink = Boolean(selectedAssignment.orderId || selectedAssignment.endedByOrderId || selectedAssignment.terminationOrderId || selectedAssignment.relatedOrderIds?.length);
+          const isLinkedToOrderHistory = hasOrderHistoryLink(selectedAssignment);
           return (
             <div className="space-y-3 text-xs">
               {[
@@ -967,7 +1009,7 @@ export const AssignmentPage: React.FC = () => {
                 ['Station', selectedAssignment.station || 'Not recorded (Optional)'],
                 ['Unit / Division', selectedAssignment.unit],
                 ['Order Reference', selectedAssignment.orderRef ? `${selectedAssignment.orderRef} ${connectedOrder ? `(${connectedOrder.documentStatus || connectedOrder.status})` : '(Unlinked)'}` : 'Not recorded'],
-                ['Related Orders', relatedOrders.length ? relatedOrders.map(order => order.orderNumber || order.orderNo || order.id).join(', ') : 'No linked order IDs'],
+                ['Related Orders', relatedOrders.length ? relatedOrders.map(order => getOfficialOrderNumber(order) || 'Number pending').join(', ') : 'No linked order IDs'],
                 ['Designation Date (Date Order Issued)', formatDateSafe(selectedAssignment.designationDate)],
                 ['Effective Date of Designation', formatDateSafe(selectedAssignment.effectiveDate || selectedAssignment.startDate)],
                 ['Start Date', formatDateSafe(selectedAssignment.startDate)],
@@ -980,32 +1022,32 @@ export const AssignmentPage: React.FC = () => {
                   <p className="mt-1 font-bold text-slate-900">{value}</p>
                 </div>
               ))}
-              {canManage && !hasOrderHistoryLink && (
+              {canManage && (
                 <div className="flex justify-end gap-2 border-t border-slate-200 pt-3">
                   <button
                     type="button"
-                    onClick={async () => {
-                      if (!window.confirm('Delete this assignment record?')) return;
-                      await deleteAssignment(selectedAssignment.id);
-                      setSelectedAssignment(null);
-                    }}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-rose-300 px-4 py-2 text-xs font-bold text-rose-700 hover:bg-rose-50"
+                    onClick={() => deleteAssignmentRecord(selectedAssignment)}
+                    disabled={isLinkedToOrderHistory}
+                    title={isLinkedToOrderHistory ? 'Linked to order history; retained for the audit trail.' : 'Delete assignment'}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-rose-300 px-4 py-2 text-xs font-bold text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400 disabled:hover:bg-transparent"
                   >
                     <Trash2 className="h-3.5 w-3.5" /> Delete
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      openEditModal(selectedAssignment);
-                      setSelectedAssignment(null);
-                    }}
-                    className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-700"
-                  >
-                    Edit Assignment
-                  </button>
+                  {!isLinkedToOrderHistory && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        openEditModal(selectedAssignment);
+                        setSelectedAssignment(null);
+                      }}
+                      className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-700"
+                    >
+                      Edit Assignment
+                    </button>
+                  )}
                 </div>
               )}
-              {canManage && hasOrderHistoryLink && <p className="border-t border-slate-200 pt-3 text-right text-[11px] font-semibold text-slate-500">This assignment is linked to order history and is retained for the audit trail.</p>}
+              {canManage && isLinkedToOrderHistory && <p className="text-right text-[11px] font-semibold text-slate-500">This assignment is linked to order history and is retained for the audit trail.</p>}
             </div>
           );
         })()}

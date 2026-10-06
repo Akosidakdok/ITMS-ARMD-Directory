@@ -110,7 +110,6 @@ const HEADER_ALIASES: Record<string, PersonnelImportField> = {
   'rank status':      'rankStatus',
 
   // Badge No / Salary Grade
-  badgenosg:          'badgeNo',
   'badgenosg':        'badgeNo',
   'badgenumber/sg':   'badgeNo',
   badge:              'badgeNo',

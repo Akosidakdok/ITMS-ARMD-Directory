@@ -214,14 +214,14 @@ export const AssignmentOverview: React.FC<AssignmentOverviewProps> = ({ assignme
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
-        {[
+        {([
           ['Unique personnel', uniquePersonnel, Users],
           ['Units represented', summaryRows.length, Building2],
           ['Current assignments', currentAssignments, MapPin],
           ['Main assignments', mainAssignments, Users],
           ['Concurrent assignments', concurrentAssignments, Users],
           ['Multi-assignment personnel', personnelWithMultipleAssignments, Users]
-        ].map(([label, value, Icon]) => {
+        ] as const).map(([label, value, Icon]) => {
           const MetricIcon = Icon as React.ComponentType<{ className?: string }>;
           return <div key={String(label)} className="rounded-xl border border-slate-200 bg-white p-3 shadow-2xs"><MetricIcon className="mb-2 h-4 w-4 text-blue-700" /><div className="font-mono text-xl font-extrabold text-slate-900">{value}</div><div className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{label}</div></div>;
         })}
