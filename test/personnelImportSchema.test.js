@@ -47,6 +47,25 @@ test('backend supports legacy division column alias mapping to sub_unit', () => 
   assert.equal(personnel.sub_unit, 'CSD');
 });
 
+test('backend retains October roster identifiers and keeps PStatus separate from app duty status', () => {
+  const { personnel, errors } = sanitizePersonnelImportRow({
+    rank: 'PCOL',
+    firstName: 'Ana',
+    lastName: 'Santos',
+    gender: 'Female',
+    sourceLink: 'source-001',
+    accountNumber: '00012345',
+    pstatus: 'ON DUTY/ACTIVE'
+  });
+
+  assert.deepEqual(errors, []);
+  assert.equal(personnel.gender, 'Female');
+  assert.equal(personnel.sourceLink, 'source-001');
+  assert.equal(personnel.accountNumber, '00012345');
+  assert.equal(personnel.pstatus, 'ON DUTY/ACTIVE');
+  assert.equal(personnel.status, undefined);
+});
+
 test('backend rejects missing required fields', () => {
   const { errors } = sanitizePersonnelImportRow({
     rank: 'PCPL',

@@ -97,6 +97,10 @@ export interface Personnel {
   subStation?: string;
   dateEnteredService?: string;
   badge_number?: string;
+  /** Source-system link identifier from the October personnel roster. */
+  sourceLink?: string;
+  /** Source-system account number from the October personnel roster. */
+  accountNumber?: string;
 }
 
 export interface AssignmentRecord {

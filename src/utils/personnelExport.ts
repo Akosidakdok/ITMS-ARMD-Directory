@@ -5,6 +5,7 @@
  */
 
 import type { Personnel } from '../types/pais';
+import { OCTOBER_PERSONNEL_ROSTER_COLUMNS, OCTOBER_PERSONNEL_HEADER_ROW } from '../constants/personnelRosterFormat.ts';
 
 // ─── CSV Export ───────────────────────────────────────────────────────────────
 
@@ -49,6 +50,136 @@ export function exportPersonnelCsv(records: Personnel[], filename = 'personnel_r
   }
 
   downloadTextFile(lines.join('\n'), filename, 'text/csv');
+}
+
+const getOctoberRosterValue = (person: Personnel, field: keyof Personnel | null): string => {
+  if (!field) return '';
+  const record = person as Personnel & Record<string, unknown>;
+  let value: unknown = record[field];
+
+  switch (field) {
+    case 'sourceLink':
+      value = record.sourceLink || record.source_link;
+      break;
+    case 'accountNumber':
+      value = record.accountNumber || record.account_number;
+      break;
+    case 'badgeNo':
+      value = record.badgeNo || record.badge_number || (
+        person.rankCategory === 'NUP' || String(person.rank).toUpperCase() === 'NUP'
+          ? person.salaryGrade
+          : ''
+      );
+      break;
+    case 'birthdate':
+      value = record.birthdate || record.birthday;
+      break;
+    case 'dateEnteredService':
+      value = record.dateEnteredService || record.dateOfEntry || record.desUp || record.date_entered_service;
+      break;
+    case 'pstatus':
+      value = record.pstatus || record.status;
+      break;
+    case 'unit':
+      value = record.unit || record.unitCategory;
+      break;
+    case 'sub_unit':
+      value = record.sub_unit || record.subUnit || record.division || record.officeDivision;
+      break;
+    case 'contactNumber':
+      value = record.contactNumber || record.phoneNumber || record.phone_number;
+      break;
+    case 'gsisNumber':
+      value = record.gsisNumber || record.gsis_number;
+      break;
+    case 'philHealthNo':
+      value = record.philHealthNo || record.phil_health_no;
+      break;
+    case 'pagibigNo':
+      value = record.pagibigNo || record.pagibig_no;
+      break;
+  }
+
+  if (value === null || value === undefined) return '';
+  return String(value).trim();
+};
+
+/** Build the October alphalist workbook without copying source-file personnel data. */
+export async function buildPersonnelRosterXlsx(records: Personnel[]) {
+  const { default: ExcelJS } = await import('exceljs');
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = 'PNP-ITMS PAIS';
+  workbook.created = new Date();
+
+  const worksheet = workbook.addWorksheet('AlphalistReport_CompleteGenInfo', {
+    views: [{ state: 'frozen', ySplit: OCTOBER_PERSONNEL_HEADER_ROW }]
+  });
+  worksheet.columns = OCTOBER_PERSONNEL_ROSTER_COLUMNS.map(column => ({ width: column.width }));
+  for (let rowNumber = 1; rowNumber < OCTOBER_PERSONNEL_HEADER_ROW; rowNumber += 1) {
+    worksheet.addRow([]);
+  }
+
+  // Keep the source workbook's header and data row positions without copying its personnel data.
+  worksheet.getCell('B2').value = 'Online PAIS';
+  worksheet.mergeCells('B6:AO6');
+  worksheet.getCell('B6').value = 'Alphalist Report';
+  worksheet.getCell('B6').font = { name: 'Arial', size: 14, bold: true };
+  worksheet.getCell('B6').alignment = { vertical: 'middle', horizontal: 'center' };
+  worksheet.getRow(6).height = 24;
+
+  const headerRow = worksheet.getRow(OCTOBER_PERSONNEL_HEADER_ROW);
+  OCTOBER_PERSONNEL_ROSTER_COLUMNS.forEach((column, index) => {
+    const cell = headerRow.getCell(index + 1);
+    cell.value = column.header;
+    cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF1F2937' } };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8E6DF' } };
+    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+    cell.border = {
+      top: { style: 'thin', color: { argb: 'FFB8B6B0' } },
+      left: { style: 'thin', color: { argb: 'FFB8B6B0' } },
+      bottom: { style: 'thin', color: { argb: 'FFB8B6B0' } },
+      right: { style: 'thin', color: { argb: 'FFB8B6B0' } }
+    };
+  });
+  headerRow.height = 34;
+
+  for (const person of records) {
+    const row = worksheet.addRow(
+      OCTOBER_PERSONNEL_ROSTER_COLUMNS.map(column => getOctoberRosterValue(person, column.field))
+    );
+    row.height = 20;
+    row.eachCell({ includeEmpty: true }, cell => {
+      cell.font = { name: 'Arial', size: 9 };
+      cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FFE2E0DA' } },
+        left: { style: 'thin', color: { argb: 'FFE2E0DA' } },
+        bottom: { style: 'thin', color: { argb: 'FFE2E0DA' } },
+        right: { style: 'thin', color: { argb: 'FFE2E0DA' } }
+      };
+    });
+  }
+
+  return workbook.xlsx.writeBuffer();
+}
+
+/** Download personnel in the October alphalist's 42-column layout. */
+export async function exportPersonnelXlsx(
+  records: Personnel[],
+  filename = 'personnel_roster.xlsx'
+): Promise<void> {
+  const buffer = await buildPersonnelRosterXlsx(records);
+  const blob = new Blob([buffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
 
 // ─── PDF Export ───────────────────────────────────────────────────────────────

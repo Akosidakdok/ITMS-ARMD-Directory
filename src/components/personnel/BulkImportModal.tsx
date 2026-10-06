@@ -245,7 +245,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
             </div>
             <div>
               <h3 className="text-base font-bold text-white tracking-tight">Bulk Personnel Import (PAIS 2.0)</h3>
-              <p className="text-xs text-slate-300">Official 34-Column Excel / CSV Structure · Automated Field Mapping</p>
+              <p className="text-xs text-slate-300">Official 34-Column and October Roster Imports · Automated Field Mapping</p>
             </div>
           </div>
           <button
@@ -306,7 +306,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
             </div>
 
             <p className="text-[11px] text-slate-600 mb-2.5">
-              Files must correspond to the 34 official PNP headers below. Report headers and empty rows are automatically detected and bypassed.
+              The October alphalist workbook (42 columns, including Gender) is supported; its row 8 headers are detected automatically. The 34-column template below remains supported too. Report headings and empty rows are skipped.
             </p>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-1.5 max-h-48 overflow-y-auto p-1 bg-slate-100/50 rounded-xl">
@@ -441,7 +441,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
                     Duplicate Handling Strategy
                   </label>
                   <p className="text-[10px] text-slate-500">
-                    Choose how to handle existing personnel records (matched by Badge No or Name):
+                    Choose how to handle existing personnel records (matched by Link, Account Number, Badge No, or Name and birth date):
                   </p>
                   <select
                     value={duplicateMode}
@@ -449,7 +449,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
                     className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 focus:outline-none focus:border-blue-500 cursor-pointer"
                   >
                     <option value="skip">Skip existing records (Recommended - keeps current database data)</option>
-                    <option value="update">Update existing records (Overwrites existing record with spreadsheet values)</option>
+                    <option value="update">Update matching records (uses nonblank spreadsheet values and preserves fields not in the file)</option>
                     <option value="flag">Flag duplicates for manual review (Do not overwrite or insert)</option>
                   </select>
                 </div>

@@ -80,7 +80,9 @@ export const PERSONNEL_IMPORTABLE_FIELDS: PersonnelImportField[] = [
   'subStationCode',
   'subStation',
   'dateEnteredService',
-  'badge_number'
+  'badge_number',
+  'sourceLink',
+  'accountNumber'
 ];
 
 export const PERSONNEL_REQUIRED_IMPORT_FIELDS: PersonnelImportField[] = [
@@ -102,7 +104,7 @@ const HEADER_ALIASES: Record<string, PersonnelImportField> = {
 
   // Status & PStatus
   status:             'status',
-  pstatus:            'status',
+  pstatus:            'pstatus',
   dutystatus:         'status',
   pstatusdate:        'pstatusDate',
   'pstatus date':     'pstatusDate',
@@ -149,8 +151,8 @@ const HEADER_ALIASES: Record<string, PersonnelImportField> = {
   dateofbirth:        'birthdate',
 
   // Service, Commissionship, & Promotions
-  dateenteredservice: 'dateOfEntry',
-  'date entered service': 'dateOfEntry',
+  dateenteredservice: 'dateEnteredService',
+  'date entered service': 'dateEnteredService',
   dateofentry:        'dateOfEntry',
   'date of entry':    'dateOfEntry',
   entrydate:          'dateOfEntry',
@@ -227,6 +229,10 @@ const HEADER_ALIASES: Record<string, PersonnelImportField> = {
   'pagibig no':       'pagibigNo',
   pagibig:            'pagibigNo',
   pagibignumber:      'pagibigNo',
+  accountnumber:      'accountNumber',
+  link:               'sourceLink',
+  sourcelink:         'sourceLink',
+  sourceidentifier:   'sourceLink',
 
   // Personal Info
   gender:             'gender',
@@ -357,9 +363,9 @@ export const calculateYearsBetween = (startDateStr: string, endDate = new Date()
 };
 
 interface ColumnProjection {
-  index: number;
+  indices: number[];
   field: PersonnelImportField;
-  headerName: string;
+  headerNames: string[];
 }
 
 const createColumnProjections = (
@@ -367,7 +373,7 @@ const createColumnProjections = (
   result: PersonnelCsvResult
 ): ColumnProjection[] => {
   const projections: ColumnProjection[] = [];
-  const usedFields = new Set<PersonnelImportField>();
+  const projectionsByField = new Map<PersonnelImportField, ColumnProjection>();
 
   for (let i = 0; i < headers.length; i += 1) {
     const item = headers[i];
@@ -376,12 +382,19 @@ const createColumnProjections = (
     const header = (value || '').trim();
     if (!header) continue;
     const field = getPersonnelImportField(header);
-    if (!field || usedFields.has(field)) {
+    if (!field) {
       result.ignoredHeaders.push(header || `Column ${index + 1}`);
       continue;
     }
-    usedFields.add(field);
-    projections.push({ index, field, headerName: header });
+    const existingProjection = projectionsByField.get(field);
+    if (existingProjection) {
+      existingProjection.indices.push(index);
+      existingProjection.headerNames.push(header);
+    } else {
+      const projection = { indices: [index], field, headerNames: [header] };
+      projectionsByField.set(field, projection);
+      projections.push(projection);
+    }
     result.acceptedHeaders.push(header);
   }
 
@@ -406,7 +419,15 @@ const projectPersonnelRow = (
   const messages: string[] = [];
 
   for (const projection of projections) {
-    const rawValue = getValue(projection.index).trim();
+    const populatedValues = projection.indices
+      .map(index => getValue(index).trim())
+      .filter(Boolean);
+    const distinctValues = [...new Set(populatedValues)];
+    if (distinctValues.length > 1) {
+      messages.push(`Repeated ${projection.headerNames[0]} columns contain different values`);
+      continue;
+    }
+    const rawValue = distinctValues[0] || '';
     if (!rawValue) continue;
     hasSchemaValue = true;
     (data as Record<string, unknown>)[projection.field] = rawValue;
@@ -451,13 +472,12 @@ const projectPersonnelRow = (
 
   if (data.desUp && !data.dateOfEntry) data.dateOfEntry = data.desUp;
   if (data.dateOfEntry && !data.desUp) data.desUp = data.dateOfEntry;
-  if (data.dateEnteredService && !data.dateOfEntry) {
-    data.dateOfEntry = data.dateEnteredService;
-    data.desUp = data.dateEnteredService;
-  }
+  if (data.dateEnteredService && !data.dateOfEntry) data.dateOfEntry = data.dateEnteredService;
+  if (data.dateEnteredService && !data.desUp) data.desUp = data.dateEnteredService;
+  if (data.dateOfEntry && !data.dateEnteredService) data.dateEnteredService = data.dateOfEntry;
+  if (data.desUp && !data.dateEnteredService) data.dateEnteredService = data.desUp;
 
   if (data.officeDivision && !data.sub_unit) data.sub_unit = data.officeDivision;
-  if (data.pstatus && !data.status) data.status = data.pstatus;
   if (data.status && !data.pstatus) data.pstatus = data.status;
 
   if (data.dateOfOfficershipOrCommission && !data.enterInOfficerPositionDate) {
@@ -486,7 +506,7 @@ const projectPersonnelRow = (
   }
 
   if (!data.fullName) data.fullName = buildFullName(data);
-  if (!data.status) data.status = 'Active';
+  if (!data.status && !data.pstatus) data.status = 'Active';
 
   // Validation
   for (const field of PERSONNEL_REQUIRED_IMPORT_FIELDS) {

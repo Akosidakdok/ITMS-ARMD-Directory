@@ -1,4 +1,3 @@
-import ExcelJS from 'exceljs';
 import { OFFICIAL_34_HEADER_NAMES } from '../constants/personnel34Schema';
 
 export const OFFICIAL_IMPORT_HEADERS = OFFICIAL_34_HEADER_NAMES;
@@ -118,6 +117,7 @@ export const SAMPLE_TEMPLATE_ROWS = [
  * Generates and downloads the official PAIS 2.0 Excel (.xlsx) template with all 34 headers.
  */
 export const downloadOfficialExcelTemplate = async (fileName = 'PAIS_2.0_Official_34_Columns_Import_Template.xlsx') => {
+  const { default: ExcelJS } = await import('exceljs');
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'PNP-ITMS PAIS 2.0';
   workbook.created = new Date();

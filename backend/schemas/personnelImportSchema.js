@@ -57,7 +57,9 @@ export const PERSONNEL_IMPORTABLE_FIELDS = Object.freeze([
   'subStationCode',
   'subStation',
   'dateEnteredService',
-  'badge_number'
+  'badge_number',
+  'sourceLink',
+  'accountNumber'
 ]);
 
 export const PERSONNEL_REQUIRED_IMPORT_FIELDS = Object.freeze([
@@ -240,9 +242,6 @@ export const sanitizePersonnelImportRow = input => {
 
   if (!personnel.fullName) {
     personnel.fullName = buildFullName(personnel);
-  }
-  if (!personnel.status) {
-    personnel.status = 'Active';
   }
   if (!personnel.id) {
     personnel.id = `pnp-${randomUUID()}`;

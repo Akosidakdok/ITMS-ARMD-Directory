@@ -85,11 +85,21 @@ export const createPersonnelBulk = async (req, res) => {
 
     const existingPersonnel = await db.getPersonnel();
     const existingById = new Map();
+    const existingBySourceLink = new Map();
+    const existingByAccountNumber = new Map();
     const existingByBadge = new Map();
     const existingByNameAndBday = new Map();
 
     for (const p of existingPersonnel) {
       if (p.id) existingById.set(String(p.id).toLowerCase(), p);
+      const sourceLink = p.sourceLink || p.source_link;
+      if (sourceLink && String(sourceLink).trim()) {
+        existingBySourceLink.set(String(sourceLink).trim().toLowerCase(), p);
+      }
+      const accountNumber = p.accountNumber || p.account_number;
+      if (accountNumber && String(accountNumber).trim()) {
+        existingByAccountNumber.set(String(accountNumber).trim().toLowerCase(), p);
+      }
       if (p.badgeNo && String(p.badgeNo).trim()) {
         existingByBadge.set(String(p.badgeNo).trim().toUpperCase(), p);
       }
@@ -109,6 +119,8 @@ export const createPersonnelBulk = async (req, res) => {
     // Track identifiers inside this batch to catch in-file duplicates
     const batchSeenBadges = new Set();
     const batchSeenNames = new Set();
+    const batchSeenSourceLinks = new Set();
+    const batchSeenAccountNumbers = new Set();
 
     for (let index = 0; index < submittedRows.length; index += 1) {
       const submitted = submittedRows[index];
@@ -128,6 +140,8 @@ export const createPersonnelBulk = async (req, res) => {
       }
 
       const normalizedBadge = personnel.badgeNo ? String(personnel.badgeNo).trim().toUpperCase() : '';
+      const normalizedSourceLink = personnel.sourceLink ? String(personnel.sourceLink).trim().toLowerCase() : '';
+      const normalizedAccountNumber = personnel.accountNumber ? String(personnel.accountNumber).trim().toLowerCase() : '';
       const bday = personnel.birthdate || personnel.birthday || '';
       const nameKey = `${personnel.lastName}__${personnel.firstName}__${bday}`.toUpperCase().trim();
 
@@ -139,6 +153,14 @@ export const createPersonnelBulk = async (req, res) => {
         });
         continue;
       }
+      if (normalizedSourceLink && batchSeenSourceLinks.has(normalizedSourceLink)) {
+        errors.push({ rowNumber, messages: [`Link value "${personnel.sourceLink}" is duplicated within this import file`] });
+        continue;
+      }
+      if (normalizedAccountNumber && batchSeenAccountNumbers.has(normalizedAccountNumber)) {
+        errors.push({ rowNumber, messages: [`Account Number "${personnel.accountNumber}" is duplicated within this import file`] });
+        continue;
+      }
       if (batchSeenNames.has(nameKey)) {
         errors.push({
           rowNumber,
@@ -148,12 +170,18 @@ export const createPersonnelBulk = async (req, res) => {
       }
 
       if (normalizedBadge) batchSeenBadges.add(normalizedBadge);
+      if (normalizedSourceLink) batchSeenSourceLinks.add(normalizedSourceLink);
+      if (normalizedAccountNumber) batchSeenAccountNumbers.add(normalizedAccountNumber);
       batchSeenNames.add(nameKey);
 
       // Check existing database records
       let matchedExisting = null;
       if (personnel.id && existingById.has(String(personnel.id).toLowerCase())) {
         matchedExisting = existingById.get(String(personnel.id).toLowerCase());
+      } else if (personnel.sourceLink && existingBySourceLink.has(String(personnel.sourceLink).trim().toLowerCase())) {
+        matchedExisting = existingBySourceLink.get(String(personnel.sourceLink).trim().toLowerCase());
+      } else if (personnel.accountNumber && existingByAccountNumber.has(String(personnel.accountNumber).trim().toLowerCase())) {
+        matchedExisting = existingByAccountNumber.get(String(personnel.accountNumber).trim().toLowerCase());
       } else if (normalizedBadge && existingByBadge.has(normalizedBadge)) {
         matchedExisting = existingByBadge.get(normalizedBadge);
       } else if (existingByNameAndBday.has(nameKey)) {
@@ -164,7 +192,12 @@ export const createPersonnelBulk = async (req, res) => {
         if (duplicateMode === 'skip') {
           skippedRecords.push({ rowNumber, existingId: matchedExisting.id, personnel });
         } else if (duplicateMode === 'update') {
-          rowsToUpdate.push({ rowNumber, id: matchedExisting.id, data: personnel });
+          rowsToUpdate.push({
+            rowNumber,
+            id: matchedExisting.id,
+            // Keep PAIS-only fields that aren't present in the uploaded roster.
+            data: { ...matchedExisting, ...personnel, id: matchedExisting.id }
+          });
         } else {
           // 'flag'
           duplicateRecords.push({ rowNumber, existingId: matchedExisting.id, personnel });

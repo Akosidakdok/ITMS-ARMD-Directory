@@ -90,13 +90,14 @@ export class PAISRepository {
       ? detectedCategory
       : (p.rankCategory || detectedCategory);
     const positionCategory = p.positionCategory || 'Main';
-    const unitCategory = p.unitCategory || p.unit || 'ITMS HQ';
+    const unitCategory = p.unitCategory || 'ITMS HQ';
     const subUnitCategory = p.subUnitCategory || 'Division';
     const birthdate = p.birthdate || p.birthday || '';
     const qualification = p.qualification || p.qualifier || '';
     const desUp = p.desUp || p.dateOfEntry || p.dateEnteredService || p.date_entered_service || '';
     const badgeNo = p.badgeNo || p.badge_number || '';
     const status = p.status || p.pstatus || 'Active';
+    const pstatus = p.pstatus ?? status;
     const contactNumber = p.contactNumber || p.phone_number || '';
     const firstName = p.firstName || p.first_name || '';
     const lastName = p.lastName || p.last_name || '';
@@ -155,7 +156,7 @@ export class PAISRepository {
       dateOfOfficershipOrCommission: enterInOfficerPositionDate,
       date_of_officership_or_commission: enterInOfficerPositionDate,
       status,
-      pstatus: status,
+      pstatus,
       pstatusDate: p.pstatusDate || p.pstatus_date || '',
       pstatus_date: p.pstatus_date || p.pstatusDate || '',
       rankStatus: p.rankStatus || p.rank_status || '',
@@ -174,7 +175,11 @@ export class PAISRepository {
       philHealthNo: p.philHealthNo || p.phil_health_no || '',
       phil_health_no: p.phil_health_no || p.philHealthNo || '',
       pagibigNo: p.pagibigNo || p.pagibig_no || '',
-      pagibig_no: p.pagibig_no || p.pagibigNo || ''
+      pagibig_no: p.pagibig_no || p.pagibigNo || '',
+      sourceLink: p.sourceLink || p.source_link || '',
+      source_link: p.source_link || p.sourceLink || '',
+      accountNumber: p.accountNumber || p.account_number || '',
+      account_number: p.account_number || p.accountNumber || ''
     };
   }
 
@@ -188,13 +193,14 @@ export class PAISRepository {
       ? detectedCategory
       : (data.rankCategory || detectedCategory);
     const positionCategory = data.positionCategory || 'Main';
-    const unitCategory = data.unitCategory || data.unit || 'ITMS HQ';
+    const unitCategory = data.unitCategory || 'ITMS HQ';
     const subUnitCategory = data.subUnitCategory || 'Division';
     const birthdate = data.birthdate !== undefined ? data.birthdate : (data.birthday || '');
     const qualification = data.qualification !== undefined ? data.qualification : (data.qualifier || '');
     const desUp = data.desUp !== undefined ? data.desUp : (data.dateOfEntry || data.dateEnteredService || data.date_entered_service || '');
     const badgeNo = data.badgeNo !== undefined ? data.badgeNo : (data.badge_number || '');
-    const status = data.status !== undefined ? data.status : (data.pstatus || 'Active');
+    const status = data.status !== undefined ? data.status : 'Active';
+    const pstatus = data.pstatus !== undefined ? data.pstatus : status;
     const contactNumber = data.contactNumber !== undefined ? data.contactNumber : (data.phone_number || '');
     const firstName = data.firstName !== undefined ? data.firstName : (data.first_name || '');
     const lastName = data.lastName !== undefined ? data.lastName : (data.last_name || '');
@@ -253,7 +259,7 @@ export class PAISRepository {
       dateOfOfficershipOrCommission: enterInOfficerPositionDate,
       date_of_officership_or_commission: enterInOfficerPositionDate,
       status,
-      pstatus: status,
+      pstatus,
       pstatusDate: data.pstatusDate || data.pstatus_date || '',
       pstatus_date: data.pstatus_date || data.pstatusDate || '',
       rankStatus: data.rankStatus || data.rank_status || '',
@@ -272,7 +278,11 @@ export class PAISRepository {
       philHealthNo: data.philHealthNo || data.phil_health_no || '',
       phil_health_no: data.phil_health_no || data.philHealthNo || '',
       pagibigNo: data.pagibigNo || data.pagibig_no || '',
-      pagibig_no: data.pagibig_no || data.pagibigNo || ''
+      pagibig_no: data.pagibig_no || data.pagibigNo || '',
+      sourceLink: data.sourceLink || data.source_link || '',
+      source_link: data.source_link || data.sourceLink || '',
+      accountNumber: data.accountNumber || data.account_number || '',
+      account_number: data.account_number || data.accountNumber || ''
     };
   }
 
@@ -351,30 +361,33 @@ export class PAISRepository {
       'email',
       'birthday', 'birthdate', 'ageToDate',
       'dateOfEntry', 'desUp', 'date_entered_service', 'ageOfServiceToDate',
-      'enterInOfficerPositionDate', 'date_of_officership_or_commission',
-      'source_of_commissionship',
+      'dateEnteredService', 'enterInOfficerPositionDate', 'dateOfOfficershipOrCommission', 'date_of_officership_or_commission',
+      'sourceOfCommissionship', 'source_of_commissionship',
       'status', 'pstatus', 'pstatus_date',
-      'rank', 'rankFullName', 'rankCategory', 'rank_status',
+      'pstatusDate', 'rank', 'rankFullName', 'rankCategory', 'rankStatus', 'rank_status',
       'badgeNo', 'badge_number',
       'salaryGrade', 'plantilla',
       'positionCategory',
-      'unit', 'unit_code', 'unitCategory',
+      'unit', 'unitCode', 'unit_code', 'unitCategory',
       'officeDivision',
-      'sub_unit', 'division', 'sub_unit_code', 'subUnitCategory',
-      'station', 'station_code',
-      'sub_station', 'sub_station_code',
+      'sub_unit', 'division', 'subUnitCode', 'sub_unit_code', 'subUnitCategory',
+      'station', 'stationCode', 'station_code',
+      'subStation', 'subStationCode', 'sub_station', 'sub_station_code',
       'details', 'detail',
       'designation', 'designationDate', 'designation_date',
       'effectiveDate',
       'lastPromotionDate', 'last_promotion_date',
-      'civil_status', 'religion',
+      'civilStatus', 'civil_status', 'religion',
       'tin', 'gsis_number', 'phil_health_no', 'pagibig_no',
+      'gsisNumber', 'philHealthNo', 'pagibigNo',
+      'source_link', 'account_number',
       'pnco', 'nup',
       'createdAt', 'updatedAt'
     ]);
 
     const result = {};
     for (const [key, value] of Object.entries(payload)) {
+      if (['source_link', 'account_number'].includes(key) && !String(value ?? '').trim()) continue;
       if (allowedColumns.has(key) && value !== undefined) {
         result[key] = value;
       }

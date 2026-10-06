@@ -5,7 +5,7 @@ import { BulkImportModal } from '../components/personnel/BulkImportModal';
 import { PersonnelSummaryCard } from '../components/personnel/PersonnelSummaryCard';
 import { PersonnelInfoTab } from '../components/personnel/PersonnelInfoTab';
 import { PageHeader } from '../components/common/SystemUI';
-import { exportPersonnelCsv, exportPersonnelPdf } from '../utils/personnelExport';
+import { exportPersonnelCsv, exportPersonnelPdf, exportPersonnelXlsx } from '../utils/personnelExport';
 import { hasManagementAccess } from '../utils/accessControl';
 import { 
   getRankFullName, 
@@ -48,6 +48,7 @@ const BIRTH_MONTH_OPTIONS = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'
 ].map((label, index) => ({ value: String(index + 1), label }));
+const UNRECORDED_GENDER_FILTER = '__unrecorded_gender__';
 
 const parseDateParts = (value?: string): { year: number; month: number; day: number } | null => {
   const raw = String(value || '').trim();
@@ -81,7 +82,6 @@ const parseDateParts = (value?: string): { year: number; month: number; day: num
 };
 
 const getPersonnelBirthDate = (person: Personnel) => person.birthdate || person.birthday || '';
-
 const datePartsSortKey = (parts: { year: number; month: number; day: number } | null) =>
   parts ? `${String(parts.year).padStart(4, '0')}-${String(parts.month).padStart(2, '0')}-${String(parts.day).padStart(2, '0')}` : '';
 
@@ -126,7 +126,7 @@ import { calculateYearsBetween } from '../utils/personnelCsv';
 
 // ─── Export Modal Component ───────────────────────────────────────────────────
 
-type ExportFormat = 'csv' | 'pdf';
+type ExportFormat = 'csv' | 'pdf' | 'xlsx';
 
 const PersonnelExportModal: React.FC<{
   records: Personnel[];
@@ -143,6 +143,8 @@ const PersonnelExportModal: React.FC<{
     try {
       if (format === 'csv') {
         exportPersonnelCsv(records, `personnel_${now}.csv`);
+      } else if (format === 'xlsx') {
+        await exportPersonnelXlsx(records, `personnel_${now}.xlsx`);
       } else {
         await exportPersonnelPdf(records, `personnel_${now}.pdf`);
       }
@@ -156,7 +158,7 @@ const PersonnelExportModal: React.FC<{
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 border border-slate-200 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 border border-slate-200 overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 bg-white">
           <div className="flex items-center gap-2">
@@ -180,8 +182,8 @@ const PersonnelExportModal: React.FC<{
           {/* Format */}
           <div>
             <p className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider mb-2">File Format</p>
-            <div className="grid grid-cols-2 gap-2">
-              {([['pdf', 'PDF Document', 'Formatted, printable'], ['csv', 'CSV Spreadsheet', 'Raw data for Excel']] as const).map(([key, label, desc]) => (
+            <div className="grid grid-cols-3 gap-2">
+              {([['pdf', 'PDF Document', 'Formatted, printable'], ['xlsx', 'Excel Roster', 'October workbook format'], ['csv', 'CSV Spreadsheet', 'Raw data for Excel']] as const).map(([key, label, desc]) => (
                 <button
                   key={key}
                   onClick={() => setFormat(key as ExportFormat)}
@@ -258,6 +260,7 @@ export const PersonnelPage: React.FC = () => {
   const [searchSubUnit, setSearchSubUnit] = useState('');
   const [searchStation, setSearchStation] = useState('');
   const [searchPStatus, setSearchPStatus] = useState('Please select');
+  const [searchGender, setSearchGender] = useState('');
   const [searchBirthMonth, setSearchBirthMonth] = useState('');
   const [searchBirthYear, setSearchBirthYear] = useState('');
 
@@ -488,6 +491,18 @@ export const PersonnelPage: React.FC = () => {
       .filter((year): year is number => Number.isInteger(year))
   )).sort((a, b) => b - a), [personnelList]);
 
+  const genderFilterOptions = useMemo(() => {
+    const uniqueGenders = new Map<string, string>();
+    personnelList.forEach(person => {
+      const gender = String(person.gender || '').trim();
+      const normalizedGender = gender.toLocaleLowerCase();
+      if (normalizedGender && !uniqueGenders.has(normalizedGender)) {
+        uniqueGenders.set(normalizedGender, gender);
+      }
+    });
+    return Array.from(uniqueGenders.values()).sort((a, b) => a.localeCompare(b));
+  }, [personnelList]);
+
   // Handle Search Reset
   const handleReset = () => {
     setSearchAccountNo('');
@@ -502,6 +517,7 @@ export const PersonnelPage: React.FC = () => {
     setSearchSubUnit('');
     setSearchStation('');
     setSearchPStatus('Please select');
+    setSearchGender('');
     setSearchBirthMonth('');
     setSearchBirthYear('');
     setGlobalSearchQuery('');
@@ -564,7 +580,9 @@ export const PersonnelPage: React.FC = () => {
 
       if (searchAccountNo && searchAccountNo.trim().length > 0) {
         const acc = searchAccountNo.toLowerCase().trim();
-        const matchesAcc = p.id.toLowerCase().includes(acc) || p.badgeNo.toLowerCase().includes(acc);
+        const matchesAcc = String(p.accountNumber || '').toLowerCase().includes(acc) ||
+          p.id.toLowerCase().includes(acc) ||
+          p.badgeNo.toLowerCase().includes(acc);
         if (!matchesAcc) return false;
       }
 
@@ -641,6 +659,10 @@ export const PersonnelPage: React.FC = () => {
         if (p.status.toLowerCase() !== searchPStatus.toLowerCase()) return false;
       }
 
+      const gender = String(p.gender || '').trim();
+      if (searchGender === UNRECORDED_GENDER_FILTER && gender) return false;
+      if (searchGender && searchGender !== UNRECORDED_GENDER_FILTER && gender.toLocaleLowerCase() !== searchGender.toLocaleLowerCase()) return false;
+
       if (searchBirthMonth && String(birthDateParts?.month || '') !== searchBirthMonth) return false;
       if (searchBirthYear && String(birthDateParts?.year || '') !== searchBirthYear) return false;
 
@@ -661,6 +683,7 @@ export const PersonnelPage: React.FC = () => {
     searchSubUnit,
     searchStation,
     searchPStatus,
+    searchGender,
     searchBirthMonth,
     searchBirthYear
   ]);
@@ -1245,10 +1268,10 @@ export const PersonnelPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3 sm:grid-cols-2 xl:grid-cols-4">
-            <div className="sm:col-span-2 xl:col-span-4">
-              <h3 className="text-2xs font-extrabold text-slate-700">Birth date and result order</h3>
-              <p className="mt-0.5 text-[10px] text-slate-500">Month and year can be combined. Filters update immediately; sort order applies to the matching records.</p>
+          <div className="grid grid-cols-1 gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3 sm:grid-cols-2 xl:grid-cols-5">
+            <div className="sm:col-span-2 xl:col-span-5">
+              <h3 className="text-2xs font-extrabold text-slate-700">Personnel filters and result order</h3>
+              <p className="mt-0.5 text-[10px] text-slate-500">Birth month, birth year, and gender filters can be combined. Filters update immediately; sort order applies to the matching records.</p>
             </div>
             <div>
               <label htmlFor="personnel-birth-month" className="mb-1 block text-2xs font-bold text-slate-700">Birth month</label>
@@ -1273,6 +1296,20 @@ export const PersonnelPage: React.FC = () => {
               >
                 <option value="">Any year</option>
                 {birthYearChoices.map(year => <option key={year} value={year}>{year}</option>)}
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="personnel-gender" className="mb-1 block text-2xs font-bold text-slate-700">Gender</label>
+              <select
+                id="personnel-gender"
+                value={searchGender}
+                onChange={event => { setSearchGender(event.target.value); setCurrentPage(1); }}
+                className="w-full rounded border border-slate-300 bg-white px-2.5 py-1.5 text-xs focus:border-cyan-500 focus:outline-none"
+              >
+                <option value="">All genders</option>
+                {genderFilterOptions.map(gender => <option key={gender.toLocaleLowerCase()} value={gender}>{gender}</option>)}
+                <option value={UNRECORDED_GENDER_FILTER}>Not recorded</option>
               </select>
             </div>
 
