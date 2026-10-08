@@ -11,6 +11,8 @@ export const PERSONNEL_IMPORTABLE_FIELDS = Object.freeze([
   'qualifier',
   'qualification',
   'badgeNo',
+  'agencyType',
+  'agencyName',
   'salaryGrade',
   'plantilla',
   'positionCategory',
@@ -250,6 +252,20 @@ export const sanitizePersonnelImportRow = input => {
   for (const field of PERSONNEL_REQUIRED_IMPORT_FIELDS) {
     if (!personnel[field]) {
       errors.push(`${field} is required`);
+    }
+  }
+
+  if (personnel.agencyType !== undefined || personnel.agencyName !== undefined) {
+    const agencyType = String(personnel.agencyType || '').trim().toUpperCase();
+    const agencyName = String(personnel.agencyName || '').trim();
+    if (agencyType !== 'PNP' && agencyType !== 'OTHER_GOVERNMENT') {
+      errors.push('agencyType must be PNP or OTHER_GOVERNMENT when agency fields are supplied');
+    } else {
+      personnel.agencyType = agencyType;
+      personnel.agencyName = agencyType === 'OTHER_GOVERNMENT' ? agencyName : '';
+      if (agencyType === 'OTHER_GOVERNMENT' && !agencyName) {
+        errors.push('agencyName is required for OTHER_GOVERNMENT personnel');
+      }
     }
   }
 

@@ -1,5 +1,7 @@
 export type UserRole = 'admin' | 'user' | 'command' | string;
 
+export type PersonnelAgencyType = 'PNP' | 'OTHER_GOVERNMENT';
+
 export type RankCategory = 'PCO' | 'PNCO' | 'NUP';
 
 export type PositionCategory = 'Main' | 'In Addition/Concurrent';
@@ -31,6 +33,10 @@ export type RankAbbr =
 
 export interface Personnel {
   id: string;
+  /** Owning agency classification. Older records default to PNP. */
+  agencyType?: PersonnelAgencyType;
+  /** Official agency name when agencyType is OTHER_GOVERNMENT. */
+  agencyName?: string;
   rankCategory?: RankCategory;
   rank: RankAbbr;
   rankFullName?: string;

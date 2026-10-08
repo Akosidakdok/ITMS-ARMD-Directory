@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Personnel } from '../../types/pais';
+import { Personnel, PersonnelAgencyType } from '../../types/pais';
 import { useAuthRole } from '../../context/AuthRoleContext';
 import { 
   User, 
@@ -22,6 +22,7 @@ import {
   Mail
 } from 'lucide-react';
 import { Badge } from '../common/Badge';
+import { PersonnelAgencyFields } from './PersonnelAgencyFields';
 import { hasManagementAccess } from '../../utils/accessControl';
 import { 
   getRankFullName, 
@@ -40,6 +41,7 @@ import { calculateYearsBetween } from '../../utils/personnelCsv';
 interface PersonnelInfoTabProps {
   personnel: Personnel;
   isEditing?: boolean;
+  agencyOptions?: string[];
   onToggleEdit?: (editing: boolean) => void;
   onSaved?: (updated: Personnel) => void;
 }
@@ -47,6 +49,7 @@ interface PersonnelInfoTabProps {
 export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({ 
   personnel, 
   isEditing = false,
+  agencyOptions = [],
   onToggleEdit,
   onSaved 
 }) => {
@@ -69,6 +72,8 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
     const sdate = personnel.dateEnteredService || personnel.desUp || personnel.dateOfEntry || '';
     setFormData({
       ...personnel,
+      agencyType: personnel.agencyType === 'OTHER_GOVERNMENT' ? 'OTHER_GOVERNMENT' : 'PNP',
+      agencyName: personnel.agencyName || '',
       rankCategory: derivedCat,
       unit: personnel.unit || personnel.officeDivision || '',
       officeDivision: personnel.unit || personnel.officeDivision || '',
@@ -212,12 +217,32 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
     });
   };
 
+  const handleAgencyTypeChange = (agencyType: PersonnelAgencyType) => {
+    setFormData(current => {
+      const currentUnit = String(current.unit || current.officeDivision || '').trim();
+      const clearPnpDefault = agencyType === 'OTHER_GOVERNMENT' && ['ITMS', 'ITMS HQ'].includes(currentUnit.toUpperCase());
+      const shouldRestorePnpDefault = agencyType === 'PNP' && !currentUnit;
+      return {
+        ...current,
+        agencyType,
+        agencyName: agencyType === 'PNP' ? '' : (current.agencyName || ''),
+        unitCategory: agencyType === 'PNP' ? (current.unitCategory || 'ITMS HQ') : '',
+        subUnitCategory: agencyType === 'PNP' ? (current.subUnitCategory || 'Division') : '',
+        ...(clearPnpDefault ? { unit: '', officeDivision: '' } : {}),
+        ...(shouldRestorePnpDefault ? { unit: 'ITMS', officeDivision: 'ITMS' } : {})
+      };
+    });
+    setErrorMessage(null);
+  };
+
   const handleReset = () => {
     const derivedCat = personnel.rankCategory || getRankCategory(personnel.rank);
     const bdate = personnel.birthdate || personnel.birthday || '';
     const sdate = personnel.dateEnteredService || personnel.desUp || personnel.dateOfEntry || '';
     setFormData({
       ...personnel,
+      agencyType: personnel.agencyType === 'OTHER_GOVERNMENT' ? 'OTHER_GOVERNMENT' : 'PNP',
+      agencyName: personnel.agencyName || '',
       rankCategory: derivedCat,
       unit: personnel.unit || personnel.officeDivision || '',
       officeDivision: personnel.unit || personnel.officeDivision || '',
@@ -293,13 +318,20 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
       return;
     }
 
+    const agencyType = formData.agencyType === 'OTHER_GOVERNMENT' ? 'OTHER_GOVERNMENT' : 'PNP';
+    const agencyName = (formData.agencyName || '').trim();
+    if (agencyType === 'OTHER_GOVERNMENT' && !agencyName) {
+      setErrorMessage('Enter the government agency name before saving this record.');
+      return;
+    }
+
     const isUniformed = formData.rankCategory !== 'NUP';
     if (isUniformed && !formData.badgeNo?.trim()) {
       setErrorMessage('Badge Number is required for Uniformed Personnel.');
       return;
     }
 
-    const unitStr = (formData.unit || formData.officeDivision || 'ITMS').trim();
+    const unitStr = (formData.unit || formData.officeDivision || (agencyType === 'PNP' ? 'ITMS' : '')).trim();
     const subUnitStr = (formData.subUnit || formData.sub_unit || formData.division || '').trim();
     const detailsStr = (formData.details || formData.detail || '').trim();
     const stationStr = (formData.station || '').trim();
@@ -320,6 +352,8 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
 
     const payload: Personnel = {
       ...formData,
+      agencyType,
+      agencyName: agencyType === 'OTHER_GOVERNMENT' ? agencyName : '',
       rankCategory: formData.rankCategory || (isUniformed ? getRankCategory(rankStr) : 'NUP'),
       rank: rankStr,
       rankFullName: rankFull,
@@ -334,8 +368,8 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
       salaryGrade: isUniformed ? undefined : (String(formData.salaryGrade || '').trim() || undefined),
       plantilla: isUniformed ? '' : (formData.plantilla || '').trim(),
       positionCategory: formData.positionCategory || 'Main',
-      unitCategory: formData.unitCategory || 'ITMS HQ',
-      subUnitCategory: formData.subUnitCategory || 'Division',
+      unitCategory: agencyType === 'OTHER_GOVERNMENT' ? '' : (formData.unitCategory || 'ITMS HQ'),
+      subUnitCategory: agencyType === 'OTHER_GOVERNMENT' ? '' : (formData.subUnitCategory || 'Division'),
       officeDivision: unitStr || undefined,
       sub_unit: subUnitStr || undefined,
       details: detailsStr || undefined,
@@ -973,6 +1007,14 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
               <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800 uppercase">Assignment</span>
             </div>
 
+            <PersonnelAgencyFields
+              agencyType={formData.agencyType === 'OTHER_GOVERNMENT' ? 'OTHER_GOVERNMENT' : 'PNP'}
+              agencyName={formData.agencyName || ''}
+              agencyOptions={agencyOptions}
+              onAgencyTypeChange={handleAgencyTypeChange}
+              onAgencyNameChange={value => handleChange('agencyName', value)}
+            />
+
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
               {/* Unit Code */}
               <div>
@@ -988,12 +1030,12 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
 
               {/* Unit */}
               <div>
-                <label className="block text-2xs font-bold text-slate-700 mb-1">Unit</label>
+                <label className="block text-2xs font-bold text-slate-700 mb-1">Office / Unit</label>
                 <input
                   type="text"
                   value={formData.unit || formData.officeDivision || ''}
                   onChange={e => handleChange('unit', e.target.value)}
-                  placeholder="e.g. ITMS"
+                  placeholder={formData.agencyType === 'OTHER_GOVERNMENT' ? 'e.g. Regional Office' : 'e.g. ITMS'}
                   className="w-full p-2 border border-slate-300 rounded font-semibold text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500"
                 />
               </div>
@@ -1087,18 +1129,25 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
               </div>
 
               {/* Unit Category */}
-              <div>
-                <label className="block text-2xs font-bold text-slate-700 mb-1">Unit Category</label>
-                <select
-                  value={formData.unitCategory || 'ITMS HQ'}
-                  onChange={e => handleChange('unitCategory', e.target.value)}
-                  className="w-full p-2 border border-slate-300 rounded font-semibold text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 cursor-pointer"
-                >
-                  {UNIT_CATEGORIES.map(uc => (
-                    <option key={uc} value={uc}>{uc}</option>
-                  ))}
-                </select>
-              </div>
+              {formData.agencyType === 'OTHER_GOVERNMENT' ? (
+                <div>
+                  <label className="block text-2xs font-bold text-slate-700 mb-1">PNP Unit Category</label>
+                  <p className="w-full p-2 border border-slate-200 rounded text-slate-500 bg-slate-100">Not applicable to this agency</p>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-2xs font-bold text-slate-700 mb-1">Unit Category</label>
+                  <select
+                    value={formData.unitCategory || 'ITMS HQ'}
+                    onChange={e => handleChange('unitCategory', e.target.value)}
+                    className="w-full p-2 border border-slate-300 rounded font-semibold text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 cursor-pointer"
+                  >
+                    {UNIT_CATEGORIES.map(uc => (
+                      <option key={uc} value={uc}>{uc}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {/* NUP Specific: Plantilla */}
               {!isUniformed && (
@@ -1317,11 +1366,19 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
               <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 min-w-0 break-words">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Agency</span>
+                <span className="font-semibold text-slate-800 text-xs">
+                  {personnel.agencyType === 'OTHER_GOVERNMENT'
+                    ? personnel.agencyName?.trim() || 'Agency name not recorded'
+                    : 'Philippine National Police (PNP)'}
+                </span>
+              </div>
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 min-w-0 break-words">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Unit Code</span>
                 <span className="font-mono font-bold text-blue-900 text-xs">{personnel.unitCode || '—'}</span>
               </div>
               <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 min-w-0 break-words">
-                <span className="text-[10px] uppercase font-bold text-slate-500 block">Unit / Office Division</span>
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Office / Unit</span>
                 <span className="font-bold text-blue-900 text-xs">{personnel.unit || personnel.officeDivision || '—'}</span>
               </div>
               <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 min-w-0 break-words">
@@ -1356,7 +1413,9 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
               </div>
               <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 min-w-0 break-words">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Unit Category</span>
-                <span className="font-bold text-blue-800 text-xs">{personnel.unitCategory || 'ITMS HQ'}</span>
+                <span className="font-bold text-blue-800 text-xs">
+                  {personnel.agencyType === 'OTHER_GOVERNMENT' ? personnel.unitCategory || 'Not applicable' : personnel.unitCategory || 'ITMS HQ'}
+                </span>
               </div>
               {!isUniformed && (
                 <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 min-w-0 break-words">

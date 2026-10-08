@@ -4,6 +4,7 @@ Project documentation is grouped by topic. The backend guide remains beside the 
 
 ## Project planning and status
 
+- [Shared database integration review and Assignment project checklist](project/SHARED_DATABASE_INTEGRATION_REVIEW_AND_ASSIGNMENT_CHECKLIST.md)
 - [Implementation, UI/UX, and SDLC plan](project/PROJECT_IMPLEMENTATION_UIUX_SDLC_PLAN.md)
 - [Ten-week delivery plan](project/PROJECT_DELIVERY_PLAN_10_WEEKS.md)
 - [Updated implementation and SDLC documentation](project/UPDATED_IMPLEMENTATION_UIUX_SDLC_DOCUMENTATION_2026-08-18.md)

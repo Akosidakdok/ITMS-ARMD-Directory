@@ -34,6 +34,34 @@ const PCO_RANKS_BACKEND = new Set([
 const POSTING_ORDER_CODES = new Set(['DES', 'TDS', 'DO', 'DOX', 'RA', 'UA', 'AO']);
 const ASSIGNMENT_UNIT_CATEGORIES = new Set(['ITMS HQ', 'Command Group', 'P-Staff', 'DIPO/APC', 'D-Staff', 'NOSU', 'NASU', 'PRO']);
 
+const getPersonnelAgencyFields = data => {
+  const rawTypeValue = data?.agencyType == null ? '' : String(data.agencyType).trim();
+  const rawName = String(data?.agencyName || '').trim();
+  if (!rawTypeValue && rawName) {
+    const error = new Error('Select an agency type when entering a government agency name.');
+    error.statusCode = 400;
+    throw error;
+  }
+  const rawType = rawTypeValue ? rawTypeValue.toUpperCase() : 'PNP';
+  if (!['PNP', 'OTHER_GOVERNMENT'].includes(rawType)) {
+    const error = new Error('Agency must be PNP or Other Government Agency.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const agencyName = rawName;
+  if (rawType === 'OTHER_GOVERNMENT' && !agencyName) {
+    const error = new Error('Agency name is required for an Other Government Agency record.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return {
+    agencyType: rawType,
+    agencyName: rawType === 'OTHER_GOVERNMENT' ? agencyName : ''
+  };
+};
+
 function manilaDate() {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit'
@@ -82,6 +110,8 @@ export class PAISRepository {
   // ================= PERSONNEL CRUD =================
   normalizePersonnelRecord(p) {
     if (!p) return p;
+    const agencyType = p.agencyType === 'OTHER_GOVERNMENT' ? 'OTHER_GOVERNMENT' : 'PNP';
+    const agencyName = agencyType === 'OTHER_GOVERNMENT' ? String(p.agencyName || '').trim() : '';
     const sub_unit = p.sub_unit || p.officeDivision || p.division || '';
     const details = p.details || p.detail || '';
     const station = p.station || '';
@@ -90,8 +120,8 @@ export class PAISRepository {
       ? detectedCategory
       : (p.rankCategory || detectedCategory);
     const positionCategory = p.positionCategory || 'Main';
-    const unitCategory = p.unitCategory || 'ITMS HQ';
-    const subUnitCategory = p.subUnitCategory || 'Division';
+    const unitCategory = p.unitCategory || (agencyType === 'OTHER_GOVERNMENT' ? '' : 'ITMS HQ');
+    const subUnitCategory = p.subUnitCategory || (agencyType === 'OTHER_GOVERNMENT' ? '' : 'Division');
     const birthdate = p.birthdate || p.birthday || '';
     const qualification = p.qualification || p.qualifier || '';
     const desUp = p.desUp || p.dateOfEntry || p.dateEnteredService || p.date_entered_service || '';
@@ -110,6 +140,8 @@ export class PAISRepository {
 
     return {
       ...p,
+      agencyType,
+      agencyName,
       fullName,
       firstName,
       first_name: firstName,
@@ -185,6 +217,8 @@ export class PAISRepository {
 
   sanitizePersonnelPayload(data) {
     if (!data) return data;
+    const hasAgencyFields = data.agencyType !== undefined || data.agencyName !== undefined;
+    const agency = hasAgencyFields ? getPersonnelAgencyFields(data) : {};
     const sub_unit = data.sub_unit !== undefined ? data.sub_unit : (data.officeDivision || data.division || '');
     const details = data.details !== undefined ? data.details : (data.detail || '');
     const station = data.station !== undefined ? data.station : '';
@@ -193,8 +227,21 @@ export class PAISRepository {
       ? detectedCategory
       : (data.rankCategory || detectedCategory);
     const positionCategory = data.positionCategory || 'Main';
-    const unitCategory = data.unitCategory || 'ITMS HQ';
-    const subUnitCategory = data.subUnitCategory || 'Division';
+    const unitCategoryFields = data.unitCategory !== undefined
+      ? { unitCategory: data.unitCategory }
+      : data.agencyType !== undefined
+        ? { unitCategory: agency.agencyType === 'OTHER_GOVERNMENT' ? '' : 'ITMS HQ' }
+        : {};
+    const subUnitCategoryFields = data.subUnitCategory !== undefined
+      ? { subUnitCategory: data.subUnitCategory }
+      : data.agencyType !== undefined
+        ? { subUnitCategory: agency.agencyType === 'OTHER_GOVERNMENT' ? '' : 'Division' }
+        : {};
+    const unitFields = data.unit !== undefined
+      ? { unit: data.unit }
+      : data.agencyType !== undefined
+        ? { unit: agency.agencyType === 'OTHER_GOVERNMENT' ? '' : 'ITMS HQ' }
+        : {};
     const birthdate = data.birthdate !== undefined ? data.birthdate : (data.birthday || '');
     const qualification = data.qualification !== undefined ? data.qualification : (data.qualifier || '');
     const desUp = data.desUp !== undefined ? data.desUp : (data.dateOfEntry || data.dateEnteredService || data.date_entered_service || '');
@@ -208,11 +255,14 @@ export class PAISRepository {
     const designationDate = data.designationDate !== undefined ? data.designationDate : (data.designation_date || '');
     const lastPromotionDate = data.lastPromotionDate !== undefined ? data.lastPromotionDate : (data.last_promotion_date || '');
     const enterInOfficerPositionDate = data.enterInOfficerPositionDate !== undefined ? data.enterInOfficerPositionDate : (data.dateOfOfficershipOrCommission || data.date_of_officership_or_commission || '');
-    const unit = data.unit !== undefined ? data.unit : unitCategory;
     const fullName = data.fullName || [firstName, middleName, lastName].filter(Boolean).join(' ') || `${firstName} ${lastName}`.trim();
 
     return {
       ...data,
+      ...agency,
+      ...unitCategoryFields,
+      ...subUnitCategoryFields,
+      ...unitFields,
       fullName,
       firstName,
       first_name: firstName,
@@ -224,9 +274,6 @@ export class PAISRepository {
       badge_number: badgeNo,
       rankCategory,
       positionCategory,
-      unitCategory,
-      subUnitCategory,
-      unit,
       unitCode: data.unitCode || data.unit_code || '',
       unit_code: data.unit_code || data.unitCode || '',
       sub_unit,
@@ -298,7 +345,7 @@ export class PAISRepository {
           req = req.eq('status', query.status);
         }
         if (query.search) {
-          req = req.or(`fullName.ilike.%${query.search}%,badgeNo.ilike.%${query.search}%,sub_unit.ilike.%${query.search}%,details.ilike.%${query.search}%,station.ilike.%${query.search}%,division.ilike.%${query.search}%,designation.ilike.%${query.search}%`);
+          req = req.or(`fullName.ilike.%${query.search}%,badgeNo.ilike.%${query.search}%,agencyName.ilike.%${query.search}%,sub_unit.ilike.%${query.search}%,details.ilike.%${query.search}%,station.ilike.%${query.search}%,division.ilike.%${query.search}%,designation.ilike.%${query.search}%`);
         }
         const { data, error } = await req;
         console.log('--- SUPABASE QUERY RESULT ---', { dataCount: data?.length, error: error?.message });
@@ -315,6 +362,7 @@ export class PAISRepository {
       result = result.filter(p => 
         p.fullName.toLowerCase().includes(q) ||
         p.badgeNo.toLowerCase().includes(q) ||
+        (p.agencyName && p.agencyName.toLowerCase().includes(q)) ||
         (p.sub_unit && p.sub_unit.toLowerCase().includes(q)) ||
         (p.details && p.details.toLowerCase().includes(q)) ||
         (p.station && p.station.toLowerCase().includes(q)) ||
@@ -367,6 +415,7 @@ export class PAISRepository {
       'pstatusDate', 'rank', 'rankFullName', 'rankCategory', 'rankStatus', 'rank_status',
       'badgeNo', 'badge_number',
       'salaryGrade', 'plantilla',
+      'agencyType', 'agencyName',
       'positionCategory',
       'unit', 'unitCode', 'unit_code', 'unitCategory',
       'officeDivision',

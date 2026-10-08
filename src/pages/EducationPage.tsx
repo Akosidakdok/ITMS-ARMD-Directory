@@ -4,7 +4,7 @@ import {
   GraduationCap, BookOpen, Search, ArrowUpDown, Plus,
   Pencil, Trash2, Upload, X, Check, AlertTriangle,
   ChevronDown, Download, FileText, Loader2, CheckSquare,
-  Square, FileSpreadsheet
+  Square, FileSpreadsheet, ShieldCheck
 } from 'lucide-react';
 import { Badge } from '../components/common/Badge';
 import { OperationalSummary, PageHeader } from '../components/common/SystemUI';
@@ -13,6 +13,7 @@ import { parseEducationCsv, generateEducationCsvTemplate } from '../utils/educat
 import { parseTrainingCsv, generateTrainingCsvTemplate } from '../utils/trainingCsv';
 import type { BulkUpsertResult } from '../services/api';
 import { hasManagementAccess } from '../utils/accessControl';
+import { getRankCategory, normalizeRankCode } from '../constants/ranks';
 import {
   exportEducationCsv, exportTrainingCsv, exportCombinedCsv,
   exportEducationPdf, exportTrainingPdf, exportCombinedPdf,
@@ -27,6 +28,59 @@ type ModalMode = 'add-edu' | 'edit-edu' | 'add-trn' | 'edit-trn' | null;
 type BulkTab = 'education' | 'training';
 type ExportContent = 'education' | 'training' | 'both';
 type ExportFormat = 'csv' | 'pdf';
+
+const MANDATORY_PROMOTION_COURSES = [
+  { code: 'PSRBC', promotionRange: 'Patrolman to PSSg', ranks: ['Pat', 'PCpl', 'PSSg'] },
+  { code: 'PSJLC', promotionRange: 'PMSg to PSMS', ranks: ['PMSg', 'PSMS'] },
+  { code: 'PSSLC', promotionRange: 'PCMS to PEMS', ranks: ['PCMS', 'PEMS'] },
+  { code: 'PSOBC', promotionRange: 'PLT to PCPT', ranks: ['PLT', 'PCPT'] },
+  { code: 'PSOOC', promotionRange: 'PLT to PCPT', ranks: ['PLT', 'PCPT'] },
+  { code: 'PSOAC', promotionRange: 'PMAJ to PLTCOL', ranks: ['PMAJ', 'PLTCOL'] },
+  { code: 'PSOSEC', promotionRange: 'PCOL', ranks: ['PCOL'] },
+] as const;
+
+const isNonUniformedPersonnel = (person: { rank?: string; rankCategory?: string }) =>
+  person.rankCategory === 'NUP' || normalizeRankCode(person.rank) === 'NUP' || getRankCategory(person.rank) === 'NUP';
+
+const getApplicablePromotionCourses = (rank?: string) => {
+  const normalizedRank = normalizeRankCode(rank);
+  return MANDATORY_PROMOTION_COURSES.filter(course => (course.ranks as readonly string[]).includes(normalizedRank));
+};
+
+const trainingRecordHasCourseCode = (record: TrainingRecord, code: string) => {
+  const normalized = `${record.courseName || ''} ${record.category || ''}`
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, ' ')
+    .trim()
+    .split(/\s+/);
+  return normalized.includes(code);
+};
+
+const getTrainingCompletionDate = (record: TrainingRecord) =>
+  [record.completionDate, record.endDate].map(value => String(value || '').trim()).find(Boolean) || '';
+
+const STANDARD_TRAINING_TYPES = [
+  'Mandatory Promotion QS',
+  'Career Course',
+  'Specialized',
+  'Specialized IT',
+  'Cyber Security',
+  'Database Admin',
+  'Network & Telecom',
+] as const;
+
+const uniqueTrainingValues = (values: Array<string | undefined>) => {
+  const seen = new Set<string>();
+  return values
+    .map(value => String(value || '').trim())
+    .filter(value => {
+      const key = value.toLocaleLowerCase();
+      if (!value || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((a, b) => a.localeCompare(b));
+};
 
 // ─── Confirm Dialog ──────────────────────────────────────────────────────────
 
@@ -245,13 +299,20 @@ const TrnModal: React.FC<{
   mode: 'add-trn' | 'edit-trn';
   personnelId: string;
   personnelName: string;
+  trainingTypes: string[];
+  trainingTitleOptions: { title: string; category?: string }[];
+  promotionCourses: { code: string; promotionRange: string }[];
+  schools: string[];
   existing?: TrainingRecord;
+  initialCourseName?: string;
+  initialCategory?: string;
+  requireCompletionDate?: boolean;
   onSave: (data: Partial<TrainingRecord>) => Promise<void>;
   onClose: () => void;
-}> = ({ mode, personnelId, personnelName, existing, onSave, onClose }) => {
+}> = ({ mode, personnelId, personnelName, trainingTypes, trainingTitleOptions, promotionCourses, schools, existing, initialCourseName = '', initialCategory = '', requireCompletionDate = false, onSave, onClose }) => {
   const [form, setForm] = useState<TrnFormData>({
-    courseName: existing?.courseName ?? '',
-    category: existing?.category ?? '',
+    courseName: existing?.courseName ?? initialCourseName,
+    category: existing?.category ?? initialCategory,
     provider: existing?.provider ?? '',
     location: existing?.location ?? '',
     startDate: existing?.startDate ?? '',
@@ -265,11 +326,34 @@ const TrnModal: React.FC<{
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const categoryIsKnown = trainingTypes.some(value => value.toLocaleLowerCase() === form.category.trim().toLocaleLowerCase());
+  const [customTrainingTypeSelected, setCustomTrainingTypeSelected] = useState(() => {
+    const selectedCategory = existing?.category ?? initialCategory;
+    return Boolean(selectedCategory) && !trainingTypes.some(value => value.toLocaleLowerCase() === selectedCategory.trim().toLocaleLowerCase());
+  });
+  const isMandatoryPromotionType = form.category.trim().toLocaleLowerCase() === 'mandatory promotion qs';
+  const requiresCompletionDate = requireCompletionDate || isMandatoryPromotionType;
+  const suggestedTrainingTitles = useMemo<Array<{ value: string; label?: string }>>(() => {
+    if (!form.category.trim()) return [];
+    if (isMandatoryPromotionType) return promotionCourses.map(course => ({
+      value: course.code,
+      label: `${course.code} — ${course.promotionRange}`,
+    }));
+    return uniqueTrainingValues(trainingTitleOptions
+      .filter(option => option.category?.trim().toLocaleLowerCase() === form.category.trim().toLocaleLowerCase())
+      .map(option => option.title))
+      .map(title => ({ value: title }));
+  }, [form.category, isMandatoryPromotionType, promotionCourses, trainingTitleOptions]);
 
   const handleSave = async () => {
     if (!form.category.trim()) { setError('Training Type is required.'); return; }
     if (!form.courseName.trim()) { setError('Training Title is required.'); return; }
     if (!form.provider.trim()) { setError('School is required.'); return; }
+    if (form.hours.trim() && (!Number.isFinite(Number(form.hours)) || Number(form.hours) < 0)) {
+      setError('Number of Hours must be a valid number greater than or equal to zero.');
+      return;
+    }
+    if (requiresCompletionDate && !form.completionDate) { setError('Completion Date is required for a mandatory promotion qualification course.'); return; }
     if (form.startDate && form.completionDate && form.startDate > form.completionDate) {
       setError('Inclusive Start Date cannot be later than Inclusive End Date.');
       return;
@@ -285,7 +369,7 @@ const TrnModal: React.FC<{
         location: form.location.trim() || undefined,
         startDate: form.startDate || undefined,
         completionDate: form.completionDate || undefined,
-        hours: form.hours ? parseFloat(form.hours) : undefined,
+        hours: form.hours.trim() ? Number(form.hours) : undefined,
         source: form.source.trim() || undefined,
         certificateNo: form.certificateNo.trim() || undefined,
         authorityDate: form.authorityDate || undefined,
@@ -317,13 +401,89 @@ const TrnModal: React.FC<{
           {error && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="training-type" className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block mb-1">Training Type *</label>
+              <select
+                id="training-type"
+                value={categoryIsKnown ? form.category : customTrainingTypeSelected ? '__custom__' : ''}
+                onChange={e => {
+                  const value = e.target.value;
+                  if (value === '__custom__') {
+                    setCustomTrainingTypeSelected(true);
+                    if (categoryIsKnown) setForm(prev => ({ ...prev, category: '' }));
+                  } else {
+                    setCustomTrainingTypeSelected(false);
+                    setForm(prev => ({ ...prev, category: value }));
+                  }
+                }}
+                required
+                className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition-all bg-white"
+              >
+                <option value="" disabled>Select a training type</option>
+                {trainingTypes.map(type => <option key={type} value={type}>{type}</option>)}
+                <option value="__custom__">Other / custom type</option>
+              </select>
+              {customTrainingTypeSelected && !categoryIsKnown && (
+                <input
+                  autoFocus
+                  type="text"
+                  value={form.category}
+                  onChange={e => setForm(prev => ({ ...prev, category: e.target.value }))}
+                  placeholder="Enter a custom training type"
+                  required
+                  aria-label="Custom training type"
+                  className="mt-2 w-full text-sm border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition-all"
+                />
+              )}
+            </div>
+            <div>
+              <label htmlFor="training-title" className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block mb-1">Training Title *</label>
+              <input
+                id="training-title"
+                type="text"
+                value={form.courseName}
+                onChange={e => setForm(prev => ({ ...prev, courseName: e.target.value }))}
+                list="training-title-suggestions"
+                placeholder={form.category.trim() ? 'Search suggested titles or enter a custom title' : 'Choose a Training Type first'}
+                required
+                className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition-all"
+              />
+              <datalist id="training-title-suggestions">
+                {suggestedTrainingTitles.map(option => <option key={option.value} value={option.value} label={option.label} />)}
+              </datalist>
+              <p className="mt-1 text-[10px] text-slate-400">
+                {isMandatoryPromotionType
+                  ? promotionCourses.length
+                    ? 'Showing mandatory courses mapped to this person’s current rank.'
+                    : 'No mandatory course is mapped to this rank; enter a title manually if needed.'
+                  : form.category.trim()
+                    ? suggestedTrainingTitles.length
+                      ? 'Suggestions come from saved records with this Training Type.'
+                      : 'No saved titles for this type yet. A new title will be suggested after it is saved.'
+                    : 'Select a Training Type to see relevant suggestions.'}
+                {' '}Custom titles are allowed.
+              </p>
+            </div>
+            <div>
+              <label htmlFor="training-school" className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block mb-1">School *</label>
+              <input
+                id="training-school"
+                type="text"
+                value={form.provider}
+                onChange={e => setForm(prev => ({ ...prev, provider: e.target.value }))}
+                list="training-school-suggestions"
+                placeholder="Search saved schools or enter a new one"
+                required
+                className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition-all"
+              />
+              <datalist id="training-school-suggestions">
+                {schools.map(school => <option key={school} value={school} />)}
+              </datalist>
+            </div>
             {[
-              { label: 'Training Type *', key: 'category', placeholder: 'e.g. Specialized, Mandatory, Seminars' },
-              { label: 'Training Title *', key: 'courseName', placeholder: 'e.g. Data Privacy Act Awareness Seminar' },
-              { label: 'School *', key: 'provider', placeholder: 'e.g. ITMS or PNP Training Service' },
               { label: 'Location', key: 'location', placeholder: 'e.g. Camp Crame, Quezon City' },
               { label: 'Inclusive Start Date', key: 'startDate', placeholder: 'YYYY-MM-DD', type: 'date' },
-              { label: 'Inclusive End Date', key: 'completionDate', placeholder: 'YYYY-MM-DD', type: 'date' },
+              { label: requiresCompletionDate ? 'Completion Date *' : 'Inclusive End Date', key: 'completionDate', placeholder: 'YYYY-MM-DD', type: 'date' },
               { label: 'Number of Hours', key: 'hours', placeholder: 'e.g. 112', type: 'number' },
               { label: 'Source', key: 'source', placeholder: 'e.g. GO or CE' },
               { label: 'Auth Number', key: 'certificateNo', placeholder: 'e.g. 2024-286' },
@@ -340,6 +500,7 @@ const TrnModal: React.FC<{
                   placeholder={f.placeholder}
                   min={f.key === 'hours' ? '0' : undefined}
                   step={f.key === 'hours' ? '0.5' : undefined}
+                  required={f.key === 'category' || f.key === 'courseName' || f.key === 'provider' || (f.key === 'completionDate' && requiresCompletionDate)}
                   className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition-all"
                 />
               </div>
@@ -819,6 +980,11 @@ export const EducationPage: React.FC = () => {
   const [activePersonnelId, setActivePersonnelId] = useState('');
   const [editingEdu, setEditingEdu] = useState<EducationRecord | undefined>(undefined);
   const [editingTrn, setEditingTrn] = useState<TrainingRecord | undefined>(undefined);
+  const [trainingPrefill, setTrainingPrefill] = useState({
+    courseName: '',
+    category: '',
+    requireCompletionDate: false
+  });
   const [bulkOpen, setBulkOpen] = useState(false);
 
   // ── Confirm Delete ──
@@ -865,6 +1031,14 @@ export const EducationPage: React.FC = () => {
 
   const totalEdu = educationList.length;
   const totalTrn = trainingList.length;
+  const trainingTypes = useMemo(() => uniqueTrainingValues([
+    ...STANDARD_TRAINING_TYPES,
+    ...trainingList.map(record => record.category),
+  ]), [trainingList]);
+  const trainingTitleOptions = useMemo(() => trainingList
+    .filter(record => Boolean(record.courseName?.trim()))
+    .map(record => ({ title: record.courseName.trim(), category: record.category })), [trainingList]);
+  const trainingSchools = useMemo(() => uniqueTrainingValues(trainingList.map(record => record.provider)), [trainingList]);
   const withEdu = personnelList.filter(p => educationList.some(e => e.personnelId === p.id)).length;
 
   // ── Handlers ──
@@ -929,11 +1103,25 @@ export const EducationPage: React.FC = () => {
   const openEditEdu = (edu: EducationRecord) => {
     setActivePersonnelId(edu.personnelId); setEditingEdu(edu); setModalMode('edit-edu');
   };
-  const openAddTrn = (personnelId: string) => {
-    setActivePersonnelId(personnelId); setEditingTrn(undefined); setModalMode('add-trn');
+  const openAddTrn = (personnelId: string, courseCode?: string) => {
+    setActivePersonnelId(personnelId);
+    setEditingTrn(undefined);
+    setTrainingPrefill({
+      courseName: courseCode || '',
+      category: courseCode ? 'Mandatory Promotion QS' : '',
+      requireCompletionDate: Boolean(courseCode)
+    });
+    setModalMode('add-trn');
   };
-  const openEditTrn = (trn: TrainingRecord) => {
-    setActivePersonnelId(trn.personnelId); setEditingTrn(trn); setModalMode('edit-trn');
+  const openEditTrn = (trn: TrainingRecord, requireCompletionDate = false) => {
+    setActivePersonnelId(trn.personnelId);
+    setEditingTrn(trn);
+    setTrainingPrefill({
+      courseName: '',
+      category: '',
+      requireCompletionDate: requireCompletionDate || trn.category?.toLowerCase() === 'mandatory promotion qs'
+    });
+    setModalMode('edit-trn');
   };
 
   const activePersonnel = personnelList.find(p => p.id === activePersonnelId);
@@ -943,7 +1131,7 @@ export const EducationPage: React.FC = () => {
       <PageHeader
         eyebrow="Education & training records"
         title="Academic & Technical Qualifications"
-        description="Review academic attainment, professional certifications, and completed technical training by personnel record."
+        description="Review academic attainment and training records, including mandatory uniformed promotion courses in the supplied Qualification Standards mapping."
         reference="EDU-TRN-MASTER"
         actions={isAdmin ? (
             <div className="flex flex-wrap gap-2">
@@ -1052,6 +1240,8 @@ export const EducationPage: React.FC = () => {
         {filteredPersonnel.map((person) => {
           const pEdus = educationList.filter(e => e.personnelId === person.id);
           const pTrns = trainingList.filter(t => t.personnelId === person.id);
+          const nonUniformed = isNonUniformedPersonnel(person);
+          const applicableCourses = nonUniformed ? [] : getApplicablePromotionCourses(person.rank);
 
           return (
             <div
@@ -1090,6 +1280,63 @@ export const EducationPage: React.FC = () => {
                   <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100 font-mono font-bold">{pTrns.length} trn</span>
                 </div>
               </div>
+
+              {/* Uniformed promotion qualification standards */}
+              <section className="rounded-xl border border-amber-200 bg-amber-50/50 p-3 space-y-2" aria-label="Mandatory promotion qualification training">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-extrabold text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5 text-amber-700" /> Mandatory Training — Promotion QS
+                  </span>
+                  <span className="text-[10px] font-bold text-amber-800">{nonUniformed ? 'Not applicable to NUP' : `Current rank: ${normalizeRankCode(person.rank) || 'Not recorded'}`}</span>
+                </div>
+
+                {nonUniformed ? (
+                  <p className="text-xs text-slate-600">The course standards listed here apply to uniformed personnel. Continue recording this person’s other training in Training Records below.</p>
+                ) : applicableCourses.length === 0 ? (
+                  <p className="text-xs text-slate-600">No mandatory course is listed for this current rank in the QS mapping provided.</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {applicableCourses.map(course => {
+                      const matchingRecords = pTrns.filter(record => trainingRecordHasCourseCode(record, course.code));
+                      const completedRecord = matchingRecords.find(record => Boolean(getTrainingCompletionDate(record)));
+                      const needsDateRecord = matchingRecords.find(record => !getTrainingCompletionDate(record));
+
+                      return (
+                        <div key={course.code} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white bg-white/80 px-3 py-2">
+                          <div className="min-w-0">
+                            <p className="text-xs font-extrabold text-slate-900">{course.code}</p>
+                            <p className="text-[10px] text-slate-500">Promotion range: {course.promotionRange}</p>
+                            {completedRecord ? (
+                              <p className="mt-0.5 text-[10px] font-semibold text-emerald-700">
+                                Completed{getTrainingCompletionDate(completedRecord) ? ` — ${getTrainingCompletionDate(completedRecord)}` : ''}
+                                {completedRecord.certificateNo ? ` · Certificate ${completedRecord.certificateNo}` : ''}
+                              </p>
+                            ) : needsDateRecord ? (
+                              <p className="mt-0.5 text-[10px] font-semibold text-amber-700">Training record found; completion date is needed to confirm completion.</p>
+                            ) : (
+                              <p className="mt-0.5 text-[10px] font-semibold text-rose-700">No matching completion record found.</p>
+                            )}
+                          </div>
+                          {isAdmin && !completedRecord && (
+                            <button
+                              type="button"
+                              onClick={event => {
+                                event.stopPropagation();
+                                if (needsDateRecord) openEditTrn(needsDateRecord, true);
+                                else openAddTrn(person.id, course.code);
+                              }}
+                              className="shrink-0 rounded-lg border border-amber-300 bg-amber-100 px-2.5 py-1.5 text-[10px] font-bold text-amber-900 hover:bg-amber-200"
+                            >
+                              {needsDateRecord ? 'Add completion date' : 'Record completion'}
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                    <p className="text-[10px] text-slate-500">Completion is counted when a matching course code is recorded with a completion date. The listed rank ranges follow the QS mapping provided.</p>
+                  </div>
+                )}
+              </section>
 
               {/* Degrees */}
               <div className="space-y-2">
@@ -1162,7 +1409,7 @@ export const EducationPage: React.FC = () => {
               <div className="space-y-2 pt-2 border-t border-slate-100">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-extrabold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
-                    <BookOpen className="w-3.5 h-3.5 text-indigo-600" /> Specialized IT Trainings
+                    <BookOpen className="w-3.5 h-3.5 text-indigo-600" /> Training Records
                   </span>
                   {isAdmin && (
                     <button
@@ -1174,7 +1421,7 @@ export const EducationPage: React.FC = () => {
                   )}
                 </div>
                 {pTrns.length === 0 ? (
-                  <p className="text-xs text-slate-400 italic">No completed training bootcamp logs.</p>
+                  <p className="text-xs text-slate-400 italic">No training records found.</p>
                 ) : (
                   pTrns.map(trn => (
                     <div key={trn.id} className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 flex items-start justify-between text-xs gap-2 group">
@@ -1259,7 +1506,14 @@ export const EducationPage: React.FC = () => {
           mode={modalMode}
           personnelId={activePersonnelId}
           personnelName={`${activePersonnel.rank} ${activePersonnel.fullName}`}
+          trainingTypes={trainingTypes}
+          trainingTitleOptions={trainingTitleOptions}
+          promotionCourses={getApplicablePromotionCourses(activePersonnel.rank).map(({ code, promotionRange }) => ({ code, promotionRange }))}
+          schools={trainingSchools}
           existing={editingTrn}
+          initialCourseName={trainingPrefill.courseName}
+          initialCategory={trainingPrefill.category}
+          requireCompletionDate={trainingPrefill.requireCompletionDate}
           onSave={handleSaveTrn}
           onClose={() => setModalMode(null)}
         />

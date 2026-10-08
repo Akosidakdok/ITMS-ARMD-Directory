@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { useAuthRole } from '../context/AuthRoleContext';
-import { Personnel } from '../types/pais';
+import { Personnel, PersonnelAgencyType } from '../types/pais';
 import { BulkImportModal } from '../components/personnel/BulkImportModal';
 import { PersonnelSummaryCard } from '../components/personnel/PersonnelSummaryCard';
 import { PersonnelInfoTab } from '../components/personnel/PersonnelInfoTab';
+import { PersonnelAgencyFields } from '../components/personnel/PersonnelAgencyFields';
 import { PageHeader } from '../components/common/SystemUI';
 import { exportPersonnelCsv, exportPersonnelPdf, exportPersonnelXlsx } from '../utils/personnelExport';
 import { hasManagementAccess } from '../utils/accessControl';
@@ -49,6 +50,7 @@ const BIRTH_MONTH_OPTIONS = [
   'July', 'August', 'September', 'October', 'November', 'December'
 ].map((label, index) => ({ value: String(index + 1), label }));
 const UNRECORDED_GENDER_FILTER = '__unrecorded_gender__';
+const OTHER_AGENCY_FILTER_PREFIX = 'OTHER_AGENCY:';
 
 const parseDateParts = (value?: string): { year: number; month: number; day: number } | null => {
   const raw = String(value || '').trim();
@@ -256,6 +258,7 @@ export const PersonnelPage: React.FC = () => {
   const [searchRank, setSearchRank] = useState('Please select');
   const [searchRankCategory, setSearchRankCategory] = useState('Please select');
   const [searchOfficeDivision, setSearchOfficeDivision] = useState('Please select');
+  const [searchAgencyType, setSearchAgencyType] = useState('');
   const [searchUnit, setSearchUnit] = useState('');
   const [searchSubUnit, setSearchSubUnit] = useState('');
   const [searchStation, setSearchStation] = useState('');
@@ -324,6 +327,8 @@ export const PersonnelPage: React.FC = () => {
 
   // New Personnel Form State — all 34 fields organized by A. Personal Info, B. ID & Contact, C. Career, D. Assignment
   const [newPersonnelForm, setNewPersonnelForm] = useState<Partial<Personnel>>({
+    agencyType: 'PNP',
+    agencyName: '',
     rankCategory: undefined,
     rank: '',
     rankFullName: '',
@@ -381,6 +386,24 @@ export const PersonnelPage: React.FC = () => {
     subStation: '',
     status: 'Active'
   });
+
+  const handleNewPersonnelAgencyTypeChange = (agencyType: PersonnelAgencyType) => {
+    setNewPersonnelForm(current => {
+      const currentUnit = String(current.unit || current.officeDivision || '').trim();
+      const clearPnpDefault = agencyType === 'OTHER_GOVERNMENT' && ['ITMS', 'ITMS HQ'].includes(currentUnit.toUpperCase());
+      const shouldRestorePnpDefault = agencyType === 'PNP' && !currentUnit;
+      return {
+        ...current,
+        agencyType,
+        agencyName: agencyType === 'PNP' ? '' : (current.agencyName || ''),
+        unitCategory: agencyType === 'PNP' ? (current.unitCategory || 'ITMS HQ') : '',
+        subUnitCategory: agencyType === 'PNP' ? (current.subUnitCategory || 'Division') : '',
+        ...(clearPnpDefault ? { unit: '', officeDivision: '' } : {}),
+        ...(shouldRestorePnpDefault ? { unit: 'ITMS', officeDivision: 'ITMS' } : {})
+      };
+    });
+    setAddFormError(null);
+  };
 
   const handleRankCategoryChange = (category: 'PCO' | 'PNCO' | 'NUP' | '') => {
     setAddFormError(null);
@@ -467,7 +490,7 @@ export const PersonnelPage: React.FC = () => {
     const extra: { value: string; label: string }[] = [];
 
     personnelList.forEach(p => {
-      const val = (p.officeDivision || p.division || '').trim();
+      const val = (p.officeDivision || p.sub_unit || p.unit || p.division || '').trim();
       if (
         val &&
         val !== '—' &&
@@ -503,6 +526,20 @@ export const PersonnelPage: React.FC = () => {
     return Array.from(uniqueGenders.values()).sort((a, b) => a.localeCompare(b));
   }, [personnelList]);
 
+  // Reuse agency names from saved personnel records as the shared agency list.
+  // Adding a new personnel record with a custom agency name makes it available
+  // in both the filter and future personnel forms without a separate catalog.
+  const agencyNameChoices = useMemo(() => {
+    const choices = new Map<string, string>();
+    personnelList.forEach(person => {
+      if (person.agencyType !== 'OTHER_GOVERNMENT') return;
+      const name = String(person.agencyName || '').trim();
+      const key = name.toLowerCase();
+      if (name && !choices.has(key)) choices.set(key, name);
+    });
+    return Array.from(choices.values()).sort((a, b) => a.localeCompare(b));
+  }, [personnelList]);
+
   // Handle Search Reset
   const handleReset = () => {
     setSearchAccountNo('');
@@ -513,6 +550,7 @@ export const PersonnelPage: React.FC = () => {
     setSearchRank('Please select');
     setSearchRankCategory('Please select');
     setSearchOfficeDivision('Please select');
+    setSearchAgencyType('');
     setSearchUnit('');
     setSearchSubUnit('');
     setSearchStation('');
@@ -536,6 +574,7 @@ export const PersonnelPage: React.FC = () => {
         const dt = (p.details || p.detail || '').toLowerCase();
         const st = (p.station || '').toLowerCase();
         const od = (p.officeDivision || p.unit || '').toLowerCase();
+        const agency = (p.agencyName || '').toLowerCase();
         const qual = (p.qualification || p.qualifier || '').toLowerCase();
         const sg = (p.salaryGrade ? String(p.salaryGrade) : '').toLowerCase();
         const des = (p.desUp || p.dateOfEntry || p.dateEnteredService || '').toLowerCase();
@@ -557,6 +596,7 @@ export const PersonnelPage: React.FC = () => {
           sg.includes(q) ||
           (p.rank && p.rank.toLowerCase().includes(q)) ||
           od.includes(q) ||
+          agency.includes(q) ||
           su.includes(q) ||
           dt.includes(q) ||
           st.includes(q) ||
@@ -637,6 +677,13 @@ export const PersonnelPage: React.FC = () => {
         if (!matches) return false;
       }
 
+      if (searchAgencyType === 'PNP' && (p.agencyType || 'PNP') !== 'PNP') return false;
+      if (searchAgencyType === 'OTHER_GOVERNMENT' && p.agencyType !== 'OTHER_GOVERNMENT') return false;
+      if (searchAgencyType.startsWith(OTHER_AGENCY_FILTER_PREFIX)) {
+        const selectedAgency = searchAgencyType.slice(OTHER_AGENCY_FILTER_PREFIX.length).toLowerCase();
+        if (p.agencyType !== 'OTHER_GOVERNMENT' || String(p.agencyName || '').trim().toLowerCase() !== selectedAgency) return false;
+      }
+
       if (searchUnit && searchUnit.trim().length > 0) {
         const u = searchUnit.toLowerCase().trim();
         const su = (p.sub_unit || p.division || '').toLowerCase();
@@ -679,6 +726,7 @@ export const PersonnelPage: React.FC = () => {
     searchRank,
     searchRankCategory,
     searchOfficeDivision,
+    searchAgencyType,
     searchUnit,
     searchSubUnit,
     searchStation,
@@ -777,6 +825,13 @@ export const PersonnelPage: React.FC = () => {
       return;
     }
 
+    const agencyType = newPersonnelForm.agencyType === 'OTHER_GOVERNMENT' ? 'OTHER_GOVERNMENT' : 'PNP';
+    const agencyName = (newPersonnelForm.agencyName || '').trim();
+    if (agencyType === 'OTHER_GOVERNMENT' && !agencyName) {
+      setAddFormError('Enter the government agency name before saving this record.');
+      return;
+    }
+
     const isUniformed = newPersonnelForm.rankCategory !== 'NUP';
     const trimmedBadge = (newPersonnelForm.badgeNo || '').trim();
     if (isUniformed) {
@@ -802,7 +857,7 @@ export const PersonnelPage: React.FC = () => {
     const qStr    = (newPersonnelForm.qualification || newPersonnelForm.qualifier || '').toUpperCase();
     const full    = `${rankStr} ${fnStr}${mnStr ? ' ' + mnStr[0] + '.' : ''} ${lnStr}${qStr ? ' ' + qStr : ''}`.trim();
 
-    const unitStr = (newPersonnelForm.unit || newPersonnelForm.officeDivision || 'ITMS').trim();
+    const unitStr = (newPersonnelForm.unit || newPersonnelForm.officeDivision || (agencyType === 'PNP' ? 'ITMS' : '')).trim();
     const subUnitStr = (newPersonnelForm.subUnit || newPersonnelForm.sub_unit || newPersonnelForm.division || '').trim();
     const detailsStr = (newPersonnelForm.details || newPersonnelForm.detail || '').trim();
     const stationStr = (newPersonnelForm.station || '').trim();
@@ -815,6 +870,8 @@ export const PersonnelPage: React.FC = () => {
 
     const created: Personnel = {
       id: `pnp-${Date.now()}`,
+      agencyType,
+      agencyName: agencyType === 'OTHER_GOVERNMENT' ? agencyName : '',
       rankCategory: rankCat,
       rank: rankStr,
       rankFullName: rankFull,
@@ -829,8 +886,8 @@ export const PersonnelPage: React.FC = () => {
       salaryGrade: isUniformed ? undefined : (String(newPersonnelForm.salaryGrade || '').trim() || undefined),
       plantilla: isUniformed ? '' : (newPersonnelForm.plantilla || '').trim(),
       positionCategory: newPersonnelForm.positionCategory || 'Main',
-      unitCategory: newPersonnelForm.unitCategory || 'ITMS HQ',
-      subUnitCategory: newPersonnelForm.subUnitCategory || 'Division',
+      unitCategory: agencyType === 'OTHER_GOVERNMENT' ? '' : (newPersonnelForm.unitCategory || 'ITMS HQ'),
+      subUnitCategory: agencyType === 'OTHER_GOVERNMENT' ? '' : (newPersonnelForm.subUnitCategory || 'Division'),
       officeDivision: unitStr || undefined,
       sub_unit: subUnitStr || undefined,
       details: detailsStr || undefined,
@@ -881,6 +938,8 @@ export const PersonnelPage: React.FC = () => {
     setPersonnelType('Uniformed Personnel');
     setAddFormError(null);
     setNewPersonnelForm({
+      agencyType: 'PNP',
+      agencyName: '',
       rankCategory: undefined,
       rank: '',
       rankFullName: '',
@@ -1070,7 +1129,7 @@ export const PersonnelPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Row 2: Rank Category, Rank, Office / Division, Sub-Unit, Details, Station, Status + Action Buttons */}
+          {/* Row 2: Rank Category, Rank, Office / Division, Agency, Sub-Unit, Details, Station, Status + Actions */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-12 gap-3 items-end">
             <div className="lg:col-span-2">
               <label className="block text-2xs font-bold text-slate-700 mb-1">Rank Category</label>
@@ -1134,6 +1193,28 @@ export const PersonnelPage: React.FC = () => {
                 {officeDivisionChoices.map(opt => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
+              </select>
+            </div>
+
+            <div className="lg:col-span-2">
+              <label className="block text-2xs font-bold text-slate-700 mb-1">Agency</label>
+              <select
+                value={searchAgencyType}
+                onChange={e => { setSearchAgencyType(e.target.value); setCurrentPage(1); }}
+                className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded focus:border-cyan-500 focus:outline-none font-semibold text-slate-800"
+              >
+                <option value="">All Agencies</option>
+                <option value="PNP">Philippine National Police (PNP)</option>
+                <option value="OTHER_GOVERNMENT">All Other Government Agencies</option>
+                {agencyNameChoices.length > 0 && (
+                  <optgroup label="Filter by specific agency">
+                    {agencyNameChoices.map(name => (
+                      <option key={name.toLowerCase()} value={`${OTHER_AGENCY_FILTER_PREFIX}${name}`}>
+                        {name}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
               </select>
             </div>
 
@@ -1219,6 +1300,8 @@ export const PersonnelPage: React.FC = () => {
                       setPersonnelType('Uniformed Personnel');
                       setAddFormError(null);
                       setNewPersonnelForm({
+                        agencyType: 'PNP',
+                        agencyName: '',
                         rankCategory: undefined,
                         rank: '',
                         rankFullName: '',
@@ -1488,8 +1571,11 @@ export const PersonnelPage: React.FC = () => {
                     {/* Office / Division */}
                     <td>
                       <p className="font-semibold text-slate-900 text-[11px]">
-                        {person.officeDivision?.trim() || '—'}
+                        {person.officeDivision?.trim() || person.unit?.trim() || '—'}
                       </p>
+                      {person.agencyType === 'OTHER_GOVERNMENT' && person.agencyName?.trim() && (
+                        <p className="mt-0.5 text-[10px] font-medium text-indigo-700">{person.agencyName.trim()}</p>
+                      )}
                     </td>
 
                     {/* Sub-Unit */}
@@ -1793,6 +1879,7 @@ export const PersonnelPage: React.FC = () => {
               {inspectActiveTab === 'personnel' ? (
                 <PersonnelInfoTab
                   personnel={selectedPerson}
+                  agencyOptions={agencyNameChoices}
                   isEditing={isEditingProfile}
                   onToggleEdit={editing => setIsEditingProfile(editing)}
                   onSaved={() => {
@@ -2393,6 +2480,14 @@ export const PersonnelPage: React.FC = () => {
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800 uppercase">Assignment</span>
                 </div>
 
+                <PersonnelAgencyFields
+                  agencyType={newPersonnelForm.agencyType === 'OTHER_GOVERNMENT' ? 'OTHER_GOVERNMENT' : 'PNP'}
+                  agencyName={newPersonnelForm.agencyName || ''}
+                  agencyOptions={agencyNameChoices}
+                  onAgencyTypeChange={handleNewPersonnelAgencyTypeChange}
+                  onAgencyNameChange={agencyName => setNewPersonnelForm(current => ({ ...current, agencyName }))}
+                />
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                   {/* Unit Code */}
                   <div>
@@ -2408,7 +2503,7 @@ export const PersonnelPage: React.FC = () => {
 
                   {/* Unit */}
                   <div>
-                    <label className="block text-2xs font-bold text-slate-700 mb-1">Unit</label>
+                    <label className="block text-2xs font-bold text-slate-700 mb-1">Office / Unit</label>
                     <input
                       type="text"
                       value={newPersonnelForm.unit || newPersonnelForm.officeDivision || ''}
@@ -2418,7 +2513,7 @@ export const PersonnelPage: React.FC = () => {
                         officeDivision: e.target.value
                       })}
                       className="w-full p-2 border border-slate-300 rounded font-semibold bg-white focus:outline-none focus:border-blue-500"
-                      placeholder="e.g. ITMS"
+                      placeholder={newPersonnelForm.agencyType === 'OTHER_GOVERNMENT' ? 'e.g. Regional Office' : 'e.g. ITMS'}
                     />
                   </div>
 
@@ -2520,18 +2615,25 @@ export const PersonnelPage: React.FC = () => {
                   </div>
 
                   {/* Unit Category */}
-                  <div>
-                    <label className="block text-2xs font-bold text-slate-700 mb-1">Unit Category</label>
-                    <select
-                      value={newPersonnelForm.unitCategory || 'ITMS HQ'}
-                      onChange={e => setNewPersonnelForm({...newPersonnelForm, unitCategory: e.target.value as any})}
-                      className="w-full p-2 border border-slate-300 rounded font-semibold bg-white focus:outline-none focus:border-blue-500 cursor-pointer"
-                    >
-                      {UNIT_CATEGORIES.map(uc => (
-                        <option key={uc} value={uc}>{uc}</option>
-                      ))}
-                    </select>
-                  </div>
+                  {newPersonnelForm.agencyType === 'OTHER_GOVERNMENT' ? (
+                    <div>
+                      <label className="block text-2xs font-bold text-slate-700 mb-1">PNP Unit Category</label>
+                      <p className="w-full p-2 border border-slate-200 rounded text-slate-500 bg-slate-100">Not applicable to this agency</p>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block text-2xs font-bold text-slate-700 mb-1">Unit Category</label>
+                      <select
+                        value={newPersonnelForm.unitCategory || 'ITMS HQ'}
+                        onChange={e => setNewPersonnelForm({...newPersonnelForm, unitCategory: e.target.value as any})}
+                        className="w-full p-2 border border-slate-300 rounded font-semibold bg-white focus:outline-none focus:border-blue-500 cursor-pointer"
+                      >
+                        {UNIT_CATEGORIES.map(uc => (
+                          <option key={uc} value={uc}>{uc}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
 
                   {/* Plantilla Item (For NUP) */}
                   {newPersonnelForm.rankCategory === 'NUP' && (

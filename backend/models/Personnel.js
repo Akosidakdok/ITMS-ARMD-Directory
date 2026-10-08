@@ -10,6 +10,8 @@ const PersonnelSchema = new mongoose.Schema({
   qualifier: { type: String, default: '' },
   fullName: { type: String, default: '' },
   badgeNo: { type: String, default: '' },
+  agencyType: { type: String, enum: ['PNP', 'OTHER_GOVERNMENT'], default: 'PNP' },
+  agencyName: { type: String, default: '' },
   rankCategory: { type: String, enum: ['PCO', 'PNCO', 'NUP'], default: 'PNCO' },
   salaryGrade: { type: String, default: '' },
   plantilla: { type: String },

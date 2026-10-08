@@ -42,10 +42,13 @@ export const PersonnelSummaryCard: React.FC<PersonnelSummaryCardProps> = ({ pers
   };
 
   const summaryItems: [string, string][] = [
+    ['Agency', personnel.agencyType === 'OTHER_GOVERNMENT'
+      ? (personnel.agencyName || 'Agency name not recorded')
+      : 'Philippine National Police (PNP)'],
     ['Rank Category', personnel.rankCategory || getRankCategory(personnel.rank)],
     ['Rank', isUniformed ? personnel.rank : (personnel.rankFullName || personnel.rank)],
-    ['Unit Category', personnel.unitCategory || 'ITMS HQ'],
-    ['Sub-Unit Category', personnel.subUnitCategory || 'Division'],
+    ['Unit Category', personnel.agencyType === 'OTHER_GOVERNMENT' ? personnel.unitCategory || 'Not applicable' : personnel.unitCategory || 'ITMS HQ'],
+    ['Sub-Unit Category', personnel.agencyType === 'OTHER_GOVERNMENT' ? personnel.subUnitCategory || 'Not applicable' : personnel.subUnitCategory || 'Division'],
     ['Sub-Unit', personnel.sub_unit || personnel.division || 'Not recorded'],
     ['Details', personnel.details || personnel.detail || 'Not recorded'],
     ['Station', personnel.station || 'Not recorded (Optional)'],

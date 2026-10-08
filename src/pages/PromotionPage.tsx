@@ -1,42 +1,54 @@
 import React, { useState, useMemo } from 'react';
 import { useAuthRole } from '../context/AuthRoleContext';
 import { 
-  Award, 
   Clock, 
   Search, 
-  Filter, 
   Plus, 
   ShieldCheck, 
   TrendingUp, 
-  Calendar, 
   Users, 
-  CheckCircle2, 
   AlertCircle, 
   Edit3, 
   Trash2, 
   Info,
-  ChevronRight,
-  ArrowUpDown,
   History
 } from 'lucide-react';
 import { Badge } from '../components/common/Badge';
 import { Modal } from '../components/common/Modal';
 import { NotificationToast } from '../components/common/NotificationToast';
 import { EmptyState, PageHeader } from '../components/common/SystemUI';
-import { calculateTimeInGrade } from '../utils/timeInGrade';
+import { calculateTimeInGrade, parseCalendarDate, type TimeInGrade } from '../utils/timeInGrade';
 import { hasManagementAccess } from '../utils/accessControl';
-import { PNP_RANKS, getRankFullName, getNextRank, getMinimumTigYears } from '../constants/ranks';
+import { PNP_RANKS, getRankFullName, getNextRank, getMinimumTigYears, getRankCategory } from '../constants/ranks';
 import { Personnel, PromotionRecord, RankAbbr } from '../types/pais';
 
-type TabView = 'roster' | 'history';
+type TabView = 'uniformed' | 'nonuniformed' | 'history';
 type SortOrder = 'tig-desc' | 'tig-asc' | 'name-asc' | 'date-desc';
 
+const isNonUniformedPersonnel = (person: Personnel) =>
+  person.rankCategory === 'NUP' || getRankCategory(person.rank) === 'NUP';
+
+const formatDateLabel = (value: string) => {
+  const parsed = parseCalendarDate(value);
+  if (!parsed) return value || 'Not recorded';
+  return new Intl.DateTimeFormat('en-PH', {
+    day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC'
+  }).format(parsed);
+};
+
+const getTipLabel = (tip: TimeInGrade | null, effectiveDate: string) => {
+  if (!effectiveDate) return 'Not recorded';
+  if (tip?.isFuture) return 'Pending effective date';
+  if (tip?.isInvalid) return 'Invalid effective date';
+  return tip?.formatted || 'Not available';
+};
+
 export const PromotionPage: React.FC = () => {
-  const { role, personnelList, promotionsList, addPromotion, updatePromotion, deletePromotion } = useAuthRole();
+  const { role, personnelList, assignmentsList, promotionsList, addPromotion, updatePromotion, deletePromotion } = useAuthRole();
   const canManage = hasManagementAccess(role);
 
   // Active Tab
-  const [activeTab, setActiveTab] = useState<TabView>('roster');
+  const [activeTab, setActiveTab] = useState<TabView>('uniformed');
 
   // Search and Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -66,51 +78,76 @@ export const PromotionPage: React.FC = () => {
   const divisions = useMemo(() => {
     const set = new Set<string>();
     personnelList.forEach(p => {
-      const div = p.sub_unit || p.division;
+      const div = p.sub_unit || p.subUnit || p.division || p.officeDivision || p.unit;
       if (div) set.add(div);
     });
     return Array.from(set).sort();
   }, [personnelList]);
 
-  // Personnel TIG Roster computation
+  // The active main assignment is the most reliable source for a current
+  // designation's effective date. Fall back to the personnel field for older records.
+  const designationEffectiveDates = useMemo(() => {
+    const dates = new Map<string, string>();
+    const currentMainAssignments = assignmentsList
+      .filter(assignment => assignment.status === 'Current' && assignment.positionCategory !== 'In Addition/Concurrent')
+      .sort((a, b) => String(b.effectiveDate || b.startDate || '').localeCompare(String(a.effectiveDate || a.startDate || '')));
+
+    currentMainAssignments.forEach(assignment => {
+      const date = String(assignment.effectiveDate || assignment.startDate || '').slice(0, 10);
+      if (date && !dates.has(assignment.personnelId)) dates.set(assignment.personnelId, date);
+    });
+    return dates;
+  }, [assignmentsList]);
+
+  // TIG remains a rank-based metric for uniformed personnel. TIP is calculated
+  // independently from the effective date of the current main designation.
   const tigRoster = useMemo(() => {
     return personnelList.map(p => {
       const requiredYears = getMinimumTigYears(p.rank);
       const tig = calculateTimeInGrade(p.lastPromotionDate ?? '', undefined, requiredYears);
       const pPromotions = promotionsList.filter(prom => prom.personnelId === p.id);
       const rankInfo = PNP_RANKS.find(r => r.code === p.rank);
-      const category = rankInfo?.category || 'PCO';
+      const category = p.rankCategory === 'NUP' || getRankCategory(p.rank) === 'NUP'
+        ? 'NUP'
+        : rankInfo?.category || getRankCategory(p.rank);
+      const designationEffectiveDate = designationEffectiveDates.get(p.id) || String(p.effectiveDate || '').slice(0, 10);
+      const timeInPosition = designationEffectiveDate
+        ? calculateTimeInGrade(designationEffectiveDate)
+        : null;
 
       return {
         personnel: p,
         tig,
+        timeInPosition,
+        designationEffectiveDate,
         requiredYears,
         promotions: pPromotions,
         category
       };
     });
-  }, [personnelList, promotionsList]);
+  }, [personnelList, assignmentsList, designationEffectiveDates, promotionsList]);
+
+  const uniformedRoster = useMemo(() => tigRoster.filter(item => item.category !== 'NUP'), [tigRoster]);
+  const nonUniformedRoster = useMemo(() => tigRoster.filter(item => item.category === 'NUP'), [tigRoster]);
 
   // Summary Metrics
   const metrics = useMemo(() => {
-    const totalPersonnel = tigRoster.length;
-    const eligibleCount = tigRoster.filter(item => item.tig.eligibleForPromotion).length;
-    const accruingCount = tigRoster.filter(item => !item.tig.eligibleForPromotion && !item.tig.isFuture && item.tig.totalDays > 0).length;
-    const pendingFutureCount = tigRoster.filter(item => item.tig.isFuture).length;
+    const eligibleCount = uniformedRoster.filter(item => item.tig.eligibleForPromotion).length;
+    const accruingCount = uniformedRoster.filter(item => !item.tig.eligibleForPromotion && !item.tig.isFuture && item.tig.totalDays > 0).length;
     const totalPromotions = promotionsList.length;
 
     return {
-      totalPersonnel,
+      uniformedCount: uniformedRoster.length,
+      nonUniformedCount: tigRoster.length - uniformedRoster.length,
       eligibleCount,
       accruingCount,
-      pendingFutureCount,
       totalPromotions
     };
-  }, [tigRoster, promotionsList]);
+  }, [tigRoster, uniformedRoster, promotionsList]);
 
-  // Filtered TIG Roster
+  // Uniformed promotion roster filters
   const filteredRoster = useMemo(() => {
-    return tigRoster.filter(item => {
+    return uniformedRoster.filter(item => {
       const p = item.personnel;
       const q = searchQuery.toLowerCase().trim();
 
@@ -119,14 +156,14 @@ export const PromotionPage: React.FC = () => {
         const matchesName = (p.fullName || `${p.firstName} ${p.lastName}`).toLowerCase().includes(q);
         const matchesBadge = (p.badgeNo || '').toLowerCase().includes(q);
         const matchesRank = (p.rank || '').toLowerCase().includes(q) || (p.rankFullName || '').toLowerCase().includes(q);
-        const matchesDiv = (p.sub_unit || p.division || '').toLowerCase().includes(q);
+        const matchesDiv = (p.sub_unit || p.subUnit || p.division || p.officeDivision || p.unit || '').toLowerCase().includes(q);
         const matchesDesig = (p.designation || '').toLowerCase().includes(q);
         if (!matchesName && !matchesBadge && !matchesRank && !matchesDiv && !matchesDesig) return false;
       }
 
       // Division filter
       if (selectedDivision !== 'all') {
-        const div = p.sub_unit || p.division;
+        const div = p.sub_unit || p.subUnit || p.division || p.officeDivision || p.unit;
         if (div !== selectedDivision) return false;
       }
 
@@ -152,7 +189,24 @@ export const PromotionPage: React.FC = () => {
       }
       return 0;
     });
-  }, [tigRoster, searchQuery, selectedDivision, selectedCategory, selectedEligibility, sortOrder]);
+  }, [uniformedRoster, searchQuery, selectedDivision, selectedCategory, selectedEligibility, sortOrder]);
+
+  const filteredNonUniformedRoster = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    return nonUniformedRoster.filter(item => {
+      const p = item.personnel;
+      if (selectedDivision !== 'all' && (p.sub_unit || p.subUnit || p.division || p.officeDivision || p.unit) !== selectedDivision) return false;
+      if (!q) return true;
+      return [p.fullName, `${p.firstName} ${p.lastName}`, p.badgeNo, p.plantilla, p.sub_unit, p.subUnit, p.division, p.officeDivision, p.unit, p.designation]
+        .some(value => String(value || '').toLowerCase().includes(q));
+    }).sort((a, b) => {
+      if (sortOrder === 'tig-desc') return (b.timeInPosition?.totalDays || 0) - (a.timeInPosition?.totalDays || 0);
+      if (sortOrder === 'tig-asc') return (a.timeInPosition?.totalDays || 0) - (b.timeInPosition?.totalDays || 0);
+      if (sortOrder === 'name-asc') return a.personnel.lastName.localeCompare(b.personnel.lastName);
+      if (sortOrder === 'date-desc') return b.designationEffectiveDate.localeCompare(a.designationEffectiveDate);
+      return 0;
+    });
+  }, [nonUniformedRoster, searchQuery, selectedDivision, sortOrder]);
 
   // Filtered History Log
   const filteredHistory = useMemo(() => {
@@ -177,6 +231,7 @@ export const PromotionPage: React.FC = () => {
 
   // Quick Action: Open Modal from Roster for a specific personnel
   const handleOpenPromote = (person: Personnel) => {
+    if (isNonUniformedPersonnel(person)) return;
     setSelectedPersonnelId(person.id);
     setRankFrom(person.rank);
     setRankTo(getNextRank(person.rank) || 'PCOL');
@@ -190,7 +245,7 @@ export const PromotionPage: React.FC = () => {
 
   // Open Modal from Top Button
   const handleOpenNewPromotion = () => {
-    const firstPerson = personnelList[0];
+    const firstPerson = uniformedRoster[0]?.personnel;
     if (firstPerson) {
       setSelectedPersonnelId(firstPerson.id);
       setRankFrom(firstPerson.rank);
@@ -252,6 +307,10 @@ export const PromotionPage: React.FC = () => {
     }
 
     const p = personnelList.find(item => item.id === selectedPersonnelId);
+    if (!p || isNonUniformedPersonnel(p)) {
+      setFormError('Only uniformed personnel can be recorded in the rank promotion workflow.');
+      return;
+    }
     const tigAtPromotion = calculateTimeInGrade(p?.lastPromotionDate ?? p?.dateOfEntry ?? '', promotionDate);
 
     const record: PromotionRecord = {
@@ -306,16 +365,16 @@ export const PromotionPage: React.FC = () => {
       <PageHeader
         eyebrow="Personnel records & career progression"
         title="Time-in-Grade & Promotion Module"
-        description="Monitor automated Time-in-Grade service counters, evaluate promotion board eligibility benchmarks, and track comprehensive rank advancement histories."
+        description="Review uniformed rank-promotion eligibility separately from non-uniformed personnel, with Time in Position based on the effective date of the current designation."
         meta={<span className="text-[11px] text-slate-500 font-medium">DPRM & NAPOLCOM Standard Criteria</span>}
         reference="PNP-ITMS-PROMOTIONS-WEEK7"
         actions={
           <div className="flex items-center gap-3">
             <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200">
               <Clock className="h-4 w-4 text-emerald-700" />
-              <span className="text-xs font-bold text-emerald-800">Automatic TIG Engine Active</span>
+              <span className="text-xs font-bold text-emerald-800">Automatic TIG & TIP Counters Active</span>
             </div>
-            {canManage && (
+            {canManage && activeTab === 'uniformed' && (
               <button
                 type="button"
                 onClick={handleOpenNewPromotion}
@@ -329,14 +388,23 @@ export const PromotionPage: React.FC = () => {
       />
 
       {/* Metric Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
         <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-2xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Personnel</span>
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Uniformed Personnel</span>
             <Users className="w-5 h-5 text-blue-600" />
           </div>
-          <div className="mt-2 text-2xl font-black text-slate-900 font-mono">{metrics.totalPersonnel}</div>
-          <div className="mt-1 text-[11px] text-slate-500 font-medium">Active roster members tracked</div>
+          <div className="mt-2 text-2xl font-black text-slate-900 font-mono">{metrics.uniformedCount}</div>
+          <div className="mt-1 text-[11px] text-slate-500 font-medium">Rank based roster</div>
+        </div>
+
+        <div className="p-4 rounded-xl bg-indigo-50/70 border border-indigo-200 shadow-2xs">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-indigo-700 uppercase tracking-wider">Non-Uniformed Personnel</span>
+            <Users className="w-5 h-5 text-indigo-600" />
+          </div>
+          <div className="mt-2 text-2xl font-black text-indigo-900 font-mono">{metrics.nonUniformedCount}</div>
+          <div className="mt-1 text-[11px] text-indigo-700 font-medium">Separate position tenure roster</div>
         </div>
 
         <div className="p-4 rounded-xl bg-emerald-50/70 border border-emerald-200 shadow-2xs">
@@ -345,7 +413,7 @@ export const PromotionPage: React.FC = () => {
             <ShieldCheck className="w-5 h-5 text-emerald-600" />
           </div>
           <div className="mt-2 text-2xl font-black text-emerald-900 font-mono">{metrics.eligibleCount}</div>
-          <div className="mt-1 text-[11px] text-emerald-700 font-medium">Satisfied minimum TIG for review</div>
+          <div className="mt-1 text-[11px] text-emerald-700 font-medium">Uniformed personnel meeting minimum TIG</div>
         </div>
 
         <div className="p-4 rounded-xl bg-blue-50/70 border border-blue-200 shadow-2xs">
@@ -368,20 +436,36 @@ export const PromotionPage: React.FC = () => {
       </div>
 
       {/* Tabs Navigation */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-2">
         <button
           type="button"
-          onClick={() => setActiveTab('roster')}
+          onClick={() => setActiveTab('uniformed')}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-            activeTab === 'roster'
+            activeTab === 'uniformed'
               ? 'bg-blue-600 text-white shadow-xs'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
           }`}
         >
           <Clock className="w-4 h-4" />
-          Time-in-Grade & Board Eligibility Roster
-          <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === 'roster' ? 'bg-blue-700 text-white' : 'bg-slate-200 text-slate-700'}`}>
+          Uniformed Promotions
+          <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === 'uniformed' ? 'bg-blue-700 text-white' : 'bg-slate-200 text-slate-700'}`}>
             {filteredRoster.length}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('nonuniformed')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+            activeTab === 'nonuniformed'
+              ? 'bg-indigo-600 text-white shadow-xs'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+          }`}
+        >
+          <Users className="w-4 h-4" />
+          Non-Uniformed Personnel (TIP)
+          <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === 'nonuniformed' ? 'bg-indigo-700 text-white' : 'bg-slate-200 text-slate-700'}`}>
+            {filteredNonUniformedRoster.length}
           </span>
         </button>
 
@@ -409,14 +493,18 @@ export const PromotionPage: React.FC = () => {
             <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
             <input
               type="text"
-              placeholder={activeTab === 'roster' ? "Search personnel by name, badge, rank, or sub-unit..." : "Search promotion orders, personnel, or remarks..."}
+              placeholder={activeTab === 'history'
+                ? 'Search promotion orders, personnel, or remarks...'
+                : activeTab === 'uniformed'
+                  ? 'Search uniformed personnel by name, badge, rank, or sub-unit...'
+                  : 'Search non-uniformed personnel by name, plantilla, position, or sub-unit...'}
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-4 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-medium focus:outline-none focus:border-blue-500"
             />
           </div>
 
-          {activeTab === 'roster' && (
+          {activeTab !== 'history' && (
             <div className="flex flex-wrap items-center gap-2">
               <select
                 value={selectedDivision}
@@ -430,62 +518,65 @@ export const PromotionPage: React.FC = () => {
                 ))}
               </select>
 
-              <select
-                value={selectedCategory}
-                onChange={e => setSelectedCategory(e.target.value)}
-                aria-label="Filter by Rank Group"
-                className="px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
-              >
-                <option value="all">All Rank Groups</option>
-                <option value="PCO">Commissioned Officers (PCO)</option>
-                <option value="PNCO">Non-Commissioned Officers (PNCO)</option>
-                <option value="NUP">Non-Uniformed Personnel (NUP)</option>
-              </select>
+              {activeTab === 'uniformed' && (
+                <>
+                  <select
+                    value={selectedCategory}
+                    onChange={e => setSelectedCategory(e.target.value)}
+                    aria-label="Filter by Uniformed Rank Group"
+                    className="px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="all">All Uniformed Rank Groups</option>
+                    <option value="PCO">Commissioned Officers (PCO)</option>
+                    <option value="PNCO">Non-Commissioned Officers (PNCO)</option>
+                  </select>
 
-              <select
-                value={selectedEligibility}
-                onChange={e => setSelectedEligibility(e.target.value)}
-                aria-label="Filter by Board Eligibility"
-                className="px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
-              >
-                <option value="all">All Eligibility Statuses</option>
-                <option value="eligible">Eligible for Board Review</option>
-                <option value="accruing">Accruing Service Time</option>
-                <option value="future">Pending Future Effective Date</option>
-              </select>
+                  <select
+                    value={selectedEligibility}
+                    onChange={e => setSelectedEligibility(e.target.value)}
+                    aria-label="Filter by Board Eligibility"
+                    className="px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="all">All Eligibility Statuses</option>
+                    <option value="eligible">Eligible for Board Review</option>
+                    <option value="accruing">Accruing Service Time</option>
+                    <option value="future">Pending Future Effective Date</option>
+                  </select>
+                </>
+              )}
 
               <select
                 value={sortOrder}
                 onChange={e => setSortOrder(e.target.value as SortOrder)}
-                aria-label="Sort Order"
+                aria-label={activeTab === 'uniformed' ? 'Sort uniformed personnel' : 'Sort non-uniformed personnel'}
                 className="px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
               >
-                <option value="tig-desc">Longest TIG First</option>
-                <option value="tig-asc">Shortest TIG First</option>
+                <option value="tig-desc">Longest {activeTab === 'uniformed' ? 'TIG' : 'TIP'} First</option>
+                <option value="tig-asc">Shortest {activeTab === 'uniformed' ? 'TIG' : 'TIP'} First</option>
                 <option value="name-asc">Personnel Name (A-Z)</option>
-                <option value="date-desc">Latest Promotion Date</option>
+                <option value="date-desc">Latest {activeTab === 'uniformed' ? 'Promotion' : 'Designation Effective'} Date</option>
               </select>
             </div>
           )}
         </div>
       </div>
 
-      {/* TAB 1: ROSTER VIEW */}
-      {activeTab === 'roster' && (
+      {/* Uniformed rank-promotion roster */}
+      {activeTab === 'uniformed' && (
         <section className="app-surface overflow-hidden shadow-2xs" aria-labelledby="tig-roster-heading">
           <div className="border-b border-slate-200 px-4 py-3.5 flex items-center justify-between bg-slate-50/50">
             <div>
-              <h2 id="tig-roster-heading" className="app-section-title">Time-in-Grade & Eligibility Roster</h2>
-              <p className="mt-0.5 text-xs text-slate-500">Live service accumulation against statutory PNP promotion board benchmarks</p>
+              <h2 id="tig-roster-heading" className="app-section-title">Uniformed Personnel Promotion Roster</h2>
+              <p className="mt-0.5 text-xs text-slate-500">Rank-based TIG eligibility with TIP measured from the current designation's effective date</p>
             </div>
             <span className="text-xs font-mono font-bold text-slate-600 bg-white border border-slate-200 px-2.5 py-1 rounded-md">
-              Showing {filteredRoster.length} of {tigRoster.length} personnel
+              Showing {filteredRoster.length} of {uniformedRoster.length} uniformed personnel
             </span>
           </div>
 
           {filteredRoster.length ? (
             <div className="overflow-x-auto">
-              <table className="record-table min-w-[980px] text-xs">
+              <table className="record-table min-w-[1180px] text-xs">
                 <thead className="bg-slate-100 uppercase text-slate-700 font-bold border-b border-slate-200">
                   <tr>
                     <th className="px-4 py-3 text-left">Personnel</th>
@@ -493,13 +584,14 @@ export const PromotionPage: React.FC = () => {
                     <th className="px-4 py-3 text-left">Last Promotion Date</th>
                     <th className="px-4 py-3 text-left">Accrued Time-in-Grade</th>
                     <th className="px-4 py-3 text-center">Req. TIG</th>
+                    <th className="px-4 py-3 text-left">Time in Position (TIP)</th>
                     <th className="px-4 py-3 text-center">History</th>
                     <th className="px-4 py-3 text-center">Promotion Board Status</th>
                     {canManage && <th className="px-4 py-3 text-right">Action</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white">
-                  {filteredRoster.map(({ personnel: person, tig, requiredYears, promotions }) => (
+                  {filteredRoster.map(({ personnel: person, tig, timeInPosition, designationEffectiveDate, requiredYears, promotions }) => (
                     <tr key={person.id} className="hover:bg-blue-50/30 transition-colors">
                       <td className="px-4 py-3">
                         <p className="font-bold text-slate-900 flex items-center gap-1.5">
@@ -534,6 +626,14 @@ export const PromotionPage: React.FC = () => {
                       </td>
                       <td className="px-4 py-3 text-center font-mono font-bold text-slate-700">
                         {requiredYears} yrs
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className={`font-mono font-bold ${timeInPosition?.isFuture ? 'text-amber-700' : timeInPosition?.isInvalid ? 'text-rose-700' : 'text-indigo-800'}`}>
+                          {getTipLabel(timeInPosition, designationEffectiveDate)}
+                        </p>
+                        <p className="mt-0.5 text-[10px] text-slate-500">
+                          {designationEffectiveDate ? `Effective ${formatDateLabel(designationEffectiveDate)}` : 'No effective designation date recorded'}
+                        </p>
                       </td>
                       <td className="px-4 py-3 text-center">
                         <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700">
@@ -570,8 +670,70 @@ export const PromotionPage: React.FC = () => {
           ) : (
             <EmptyState
               title="No personnel found matching filters"
-              description="Adjust your search criteria, division, or eligibility status to view personnel records."
+              description="Adjust your search, division, rank group, or eligibility filters to view uniformed personnel."
               icon={Clock}
+            />
+          )}
+        </section>
+      )}
+
+      {/* Non-uniformed position-tenure roster */}
+      {activeTab === 'nonuniformed' && (
+        <section className="app-surface overflow-hidden shadow-2xs" aria-labelledby="nup-roster-heading">
+          <div className="border-b border-indigo-200 px-4 py-3.5 flex items-center justify-between bg-indigo-50/60">
+            <div>
+              <h2 id="nup-roster-heading" className="app-section-title">Non-Uniformed Personnel Position Roster</h2>
+              <p className="mt-0.5 text-xs text-slate-600">Time in Position (TIP) is counted from the effective date of the current main designation. This roster does not apply uniformed rank TIG rules.</p>
+            </div>
+            <span className="text-xs font-mono font-bold text-indigo-800 bg-white border border-indigo-200 px-2.5 py-1 rounded-md">
+              Showing {filteredNonUniformedRoster.length} of {nonUniformedRoster.length} personnel
+            </span>
+          </div>
+
+          {filteredNonUniformedRoster.length ? (
+            <div className="overflow-x-auto">
+              <table className="record-table min-w-[900px] text-xs">
+                <thead className="bg-indigo-50 uppercase text-indigo-900 font-bold border-b border-indigo-200">
+                  <tr>
+                    <th className="px-4 py-3 text-left">Personnel</th>
+                    <th className="px-4 py-3 text-left">Badge / Plantilla</th>
+                    <th className="px-4 py-3 text-left">Division / Office</th>
+                    <th className="px-4 py-3 text-left">Current Designation</th>
+                    <th className="px-4 py-3 text-left">Designation Effective Date</th>
+                    <th className="px-4 py-3 text-left">Time in Position (TIP)</th>
+                    <th className="px-4 py-3 text-center">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 bg-white">
+                  {filteredNonUniformedRoster.map(({ personnel: person, designationEffectiveDate, timeInPosition }) => (
+                    <tr key={person.id} className="hover:bg-indigo-50/30 transition-colors">
+                      <td className="px-4 py-3">
+                        <p className="font-bold text-slate-900">{person.fullName || `${person.firstName} ${person.lastName}`}</p>
+                        <p className="mt-0.5 text-[10px] text-indigo-700 font-bold">Non-Uniformed Personnel</p>
+                      </td>
+                      <td className="px-4 py-3 font-mono text-slate-700">
+                        <p>{person.badgeNo || 'No badge number'}</p>
+                        {person.plantilla && <p className="mt-0.5 text-[10px] text-slate-500">Plantilla: {person.plantilla}</p>}
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">{person.sub_unit || person.division || person.officeDivision || 'Unassigned'}</td>
+                      <td className="px-4 py-3 font-semibold text-indigo-800">{person.designation || 'Not recorded'}</td>
+                      <td className="px-4 py-3 font-mono text-slate-700">{designationEffectiveDate ? formatDateLabel(designationEffectiveDate) : 'Not recorded'}</td>
+                      <td className="px-4 py-3">
+                        <p className={`font-mono font-bold ${timeInPosition?.isFuture ? 'text-amber-700' : timeInPosition?.isInvalid ? 'text-rose-700' : 'text-indigo-800'}`}>
+                          {getTipLabel(timeInPosition, designationEffectiveDate)}
+                        </p>
+                      </td>
+                      <td className="px-4 py-3 text-center"><Badge variant={person.status === 'Active' ? 'success' : 'neutral'} size="sm">{person.status || 'Not recorded'}</Badge></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <EmptyState
+              title="No non-uniformed personnel found"
+              description="Adjust your search or division filter. TIP is unavailable until the current designation has an effective date recorded."
+              icon={Users}
             />
           )}
         </section>
@@ -614,6 +776,9 @@ export const PromotionPage: React.FC = () => {
                             <div>
                               <p className="font-bold text-slate-900">{person.fullName || `${person.firstName} ${person.lastName}`}</p>
                               <p className="text-[10px] text-slate-500 font-mono">Badge: {person.badgeNo || 'None'}</p>
+                              <span className={`mt-1 inline-flex rounded px-1.5 py-0.5 text-[9px] font-bold ${isNonUniformedPersonnel(person) ? 'bg-indigo-50 text-indigo-700' : 'bg-blue-50 text-blue-700'}`}>
+                                {isNonUniformedPersonnel(person) ? 'Non-Uniformed' : 'Uniformed'}
+                              </span>
                             </div>
                           ) : (
                             <span className="text-slate-400 italic">Personnel ID: {prom.personnelId}</span>
@@ -644,25 +809,29 @@ export const PromotionPage: React.FC = () => {
                           {prom.remarks || '—'}
                         </td>
                         {canManage && (
-                          <td className="px-4 py-3 text-right">
-                            <div className="flex items-center justify-end gap-1">
-                              <button
-                                type="button"
-                                onClick={() => handleOpenEdit(prom)}
-                                className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                title="Edit promotion record"
-                              >
-                                <Edit3 className="w-4 h-4" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setDeletingPromotion(prom)}
-                                className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                                title="Delete promotion (will roll back active rank)"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
+                        <td className="px-4 py-3 text-right">
+                            {person && isNonUniformedPersonnel(person) ? (
+                              <span className="text-[10px] text-slate-400">Read only</span>
+                            ) : (
+                              <div className="flex items-center justify-end gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenEdit(prom)}
+                                  className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                  title="Edit promotion record"
+                                >
+                                  <Edit3 className="w-4 h-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setDeletingPromotion(prom)}
+                                  className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                                  title="Delete promotion (will roll back active rank)"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            )}
                           </td>
                         )}
                       </tr>
@@ -697,7 +866,7 @@ export const PromotionPage: React.FC = () => {
           )}
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Personnel *</label>
+            <label className="block text-xs font-bold text-slate-700 mb-1">Uniformed Personnel *</label>
             <select
               value={selectedPersonnelId}
               onChange={e => handlePersonnelChange(e.target.value)}
@@ -705,13 +874,14 @@ export const PromotionPage: React.FC = () => {
               className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500 disabled:opacity-60"
               required
             >
-              <option value="">Select Personnel...</option>
-              {personnelList.map(p => (
+              <option value="">Select uniformed personnel...</option>
+              {uniformedRoster.map(({ personnel: p }) => (
                 <option key={p.id} value={p.id}>
                   {p.rank} {p.lastName}, {p.firstName} (Badge: {p.badgeNo || 'N/A'}) - {p.sub_unit || p.division}
                 </option>
               ))}
             </select>
+            <p className="mt-1 text-[10px] text-slate-500">Non-uniformed personnel are tracked in the separate TIP roster and do not use this rank-promotion form.</p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -723,7 +893,7 @@ export const PromotionPage: React.FC = () => {
                 className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
                 required
               >
-                {PNP_RANKS.map(r => (
+                {PNP_RANKS.filter(r => r.category !== 'NUP').map(r => (
                   <option key={r.code} value={r.code}>
                     {r.code} — {r.name}
                   </option>
@@ -739,7 +909,7 @@ export const PromotionPage: React.FC = () => {
                 className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
                 required
               >
-                {PNP_RANKS.map(r => (
+                {PNP_RANKS.filter(r => r.category !== 'NUP').map(r => (
                   <option key={r.code} value={r.code}>
                     {r.code} — {r.name}
                   </option>

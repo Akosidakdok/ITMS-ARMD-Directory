@@ -24,7 +24,7 @@ function buildCsvRow(cells: unknown[]): string {
 export function exportPersonnelCsv(records: Personnel[], filename = 'personnel_records.csv'): void {
   const headers = [
     'Personnel ID', 'Rank', 'Rank Full Name', 'First Name', 'Middle Name', 'Last Name',
-    'Qualifier', 'Full Name', 'Badge No.', 'Salary Grade', 'Plantilla',
+    'Qualifier', 'Full Name', 'Badge No.', 'Agency Type', 'Agency Name', 'Salary Grade', 'Plantilla',
     'Sub-Unit', 'Details', 'Station', 'Designation', 'Address', 'Gender',
     'Contact Number', 'Birthday', 'Date of Entry', 'Designation Date',
     'Last Promotion Date', 'Status'
@@ -37,6 +37,7 @@ export function exportPersonnelCsv(records: Personnel[], filename = 'personnel_r
       p.id, p.rank, p.rankFullName ?? '',
       p.firstName, p.middleName ?? '', p.lastName,
       p.qualifier ?? '', p.fullName, p.badgeNo,
+      p.agencyType || 'PNP', p.agencyType === 'OTHER_GOVERNMENT' ? p.agencyName ?? '' : '',
       p.salaryGrade ?? '', p.plantilla ?? '',
       p.sub_unit ?? p.division ?? '',
       p.details ?? p.detail ?? '',
@@ -197,6 +198,7 @@ export async function exportPersonnelPdf(
 
   const tableData = records.map(p => [
     `${p.rank} ${p.fullName}`,
+    p.agencyType === 'OTHER_GOVERNMENT' ? p.agencyName || 'Agency name not recorded' : 'PNP',
     p.badgeNo,
     p.sub_unit ?? p.division ?? '—',
     p.designation,
@@ -212,7 +214,7 @@ export async function exportPersonnelPdf(
   autoTable(doc, {
     startY: 38,
     head: [[
-      'Name', 'Badge No.', 'Sub-Unit', 'Designation', 'Details', 'Station',
+      'Name', 'Agency', 'Badge No.', 'Sub-Unit', 'Designation', 'Details', 'Station',
       'Gender', 'Contact', 'Birthday', 'Date of Entry', 'Status'
     ]],
     body: tableData,
@@ -220,16 +222,18 @@ export async function exportPersonnelPdf(
     headStyles: { fillColor: [70, 130, 180], textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
     alternateRowStyles: { fillColor: [245, 248, 252] },
     columnStyles: {
-      0: { cellWidth: 48 },
-      1: { cellWidth: 22 },
-      2: { cellWidth: 22 },
-      3: { cellWidth: 38 },
-      4: { cellWidth: 28 },
-      5: { cellWidth: 14 },
-      6: { cellWidth: 26 },
-      7: { cellWidth: 20 },
-      8: { cellWidth: 22 },
-      9: { cellWidth: 22 },
+      0: { cellWidth: 37 },
+      1: { cellWidth: 31 },
+      2: { cellWidth: 17 },
+      3: { cellWidth: 19 },
+      4: { cellWidth: 31 },
+      5: { cellWidth: 21 },
+      6: { cellWidth: 14 },
+      7: { cellWidth: 15 },
+      8: { cellWidth: 17 },
+      9: { cellWidth: 18 },
+      10: { cellWidth: 18 },
+      11: { cellWidth: 17 },
     },
     margin: { left: 10, right: 10 },
     didDrawPage: (data) => drawPdfFooter(doc, data.pageNumber),

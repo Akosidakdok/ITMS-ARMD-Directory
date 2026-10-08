@@ -50,7 +50,7 @@ export const createPersonnel = async (req, res) => {
       data: created
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message, error: error.message });
+    res.status(error.statusCode || 500).json({ success: false, message: error.message, error: error.message });
   }
 };
 
@@ -265,7 +265,7 @@ export const updatePersonnel = async (req, res) => {
       data: updated
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message, error: error.message });
+    res.status(error.statusCode || 500).json({ success: false, message: error.message, error: error.message });
   }
 };
 

@@ -34,6 +34,8 @@ export const PERSONNEL_IMPORTABLE_FIELDS: PersonnelImportField[] = [
   'qualifier',
   'qualification',
   'badgeNo',
+  'agencyType',
+  'agencyName',
   'salaryGrade',
   'plantilla',
   'positionCategory',
@@ -93,6 +95,12 @@ export const PERSONNEL_REQUIRED_IMPORT_FIELDS: PersonnelImportField[] = [
 
 // Header aliases mapped to approved schema fields
 const HEADER_ALIASES: Record<string, PersonnelImportField> = {
+  agencytype:         'agencyType',
+  'agency type':     'agencyType',
+  agencyname:         'agencyName',
+  'agency name':     'agencyName',
+  governmentagency:   'agencyName',
+  governmentagencyname: 'agencyName',
   // Rank
   rank:               'rank',
   rankabbr:           'rank',
@@ -434,6 +442,20 @@ const projectPersonnelRow = (
   }
 
   if (!hasSchemaValue) return {};
+
+  if (data.agencyType !== undefined || data.agencyName !== undefined) {
+    const agencyType = String(data.agencyType || '').trim().toUpperCase();
+    const agencyName = String(data.agencyName || '').trim();
+    if (agencyType !== 'PNP' && agencyType !== 'OTHER_GOVERNMENT') {
+      messages.push('Agency Type must be PNP or OTHER_GOVERNMENT when agency fields are supplied');
+    } else {
+      data.agencyType = agencyType;
+      data.agencyName = agencyType === 'OTHER_GOVERNMENT' ? agencyName : '';
+      if (agencyType === 'OTHER_GOVERNMENT' && !agencyName) {
+        messages.push('Agency Name is required for OTHER_GOVERNMENT personnel');
+      }
+    }
+  }
 
   // Ignore footer summary rows (e.g. "Count: 600", "Total: 100", etc.)
   const isNumericRank = !data.rank || /^\d+$/.test(String(data.rank).trim());
