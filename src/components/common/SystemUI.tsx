@@ -13,11 +13,11 @@ interface PageHeaderProps {
 export const PageHeader: React.FC<PageHeaderProps> = ({ eyebrow, title, description, meta, actions, reference }) => (
   <section className="app-page-header app-surface flex flex-col gap-4 px-4 pb-4 pt-5 sm:px-5 md:flex-row md:items-center md:justify-between" aria-labelledby="page-heading">
     <div className="min-w-0">
-      <div className="mb-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+      {(eyebrow || reference || meta) && <div className="mb-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
         {eyebrow && <span className="record-kicker">{eyebrow}</span>}
         {reference && <span className="record-reference">REF: {reference}</span>}
         {meta && <span className="text-[11px] text-slate-500">{meta}</span>}
-      </div>
+      </div>}
       <h1 id="page-heading" className="text-xl font-bold tracking-[-0.018em] text-slate-900 sm:text-[1.45rem]">{title}</h1>
       {description && <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-600 sm:text-[13px]">{description}</p>}
     </div>
@@ -34,7 +34,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 
 export const Button: React.FC<ButtonProps> = ({ variant = 'secondary', icon: Icon, className = '', children, ...props }) => {
   const styles: Record<ButtonVariant, string> = {
-    primary: 'border-blue-800 bg-blue-800 text-white hover:border-blue-900 hover:bg-blue-900',
+    primary: 'border-blue-600 bg-blue-600 text-white hover:border-blue-700 hover:bg-blue-700',
     secondary: 'border-slate-300 bg-white text-slate-700 hover:border-blue-400 hover:bg-blue-50',
     danger: 'border-rose-600 bg-rose-600 text-white hover:border-rose-700 hover:bg-rose-700',
     ghost: 'border-transparent bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900'
@@ -42,7 +42,7 @@ export const Button: React.FC<ButtonProps> = ({ variant = 'secondary', icon: Ico
   return (
     <button
       {...props}
-      className={`inline-flex min-h-10 items-center justify-center gap-2 rounded border px-3.5 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${styles[variant]} ${className}`}
+      className={`pais-button pais-button-${variant} inline-flex min-h-10 items-center justify-center gap-2 rounded border px-3.5 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${styles[variant]} ${className}`}
     >
       {Icon && <Icon aria-hidden="true" className="h-4 w-4 shrink-0" />}
       {children}

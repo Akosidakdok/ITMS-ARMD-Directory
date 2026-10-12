@@ -20,6 +20,7 @@ const pageTitles: Record<string, string> = {
   '/education': 'Education & Training',
   '/promotion': 'Promotion & Time-in-Grade',
   '/reports': 'Reports',
+  '/documents': 'Document Editor',
   '/admin-accounts': 'Administrator Accounts',
   '/excel-integration': 'Interactive Excel Worksheets'
 };
@@ -61,7 +62,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick, onSidebarToggle, si
   }, []);
 
   return (
-    <header role="banner" className="no-print sticky top-0 z-40 flex h-[4.5rem] items-center border-b border-slate-300 bg-[#fcfbf7] px-3 sm:px-5">
+    <header role="banner" className="pais-app-header no-print sticky top-0 z-40 flex h-[4.5rem] items-center border-b border-slate-300 bg-white px-3 sm:px-5">
       <button
         type="button"
         onClick={onMenuClick}

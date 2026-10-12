@@ -1,8 +1,6 @@
-@import "../../tokens.css";
-
 /* Hallmark · pre-emit critique: P4 H5 E4 S4 R5 V4
  * Operate · workbench and expandable personnel register · PAIS navy and white.
- * Scoped to Orders and Education & Training; shared PAIS tokens remain authoritative.
+ * Shared record modules use the app-wide PAIS palette imported by src/index.css.
  */
 .records-module .record-kicker, .records-module .record-reference { display: none; }
 .records-module .app-page-header { align-items: flex-start; }

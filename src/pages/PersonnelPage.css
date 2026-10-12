@@ -1,22 +1,9 @@
-/* Hallmark · pre-emit critique: P4 H5 E4 S4 R5 V4
- * Personnel workbench · incumbent PAIS palette, typography, and controls.
- */
+/* Directory workbench: clear categories, simple filters, readable records. */
 .personnel-page {
   color: var(--foreground);
   caret-color: var(--ring);
 }
 
-.personnel-page .app-page-header {
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  padding: 0.25rem 0 0.5rem;
-  box-shadow: none;
-}
-
-.personnel-page .app-page-header::before { content: none; }
-
-.personnel-page .app-page-header h1 { font-size: 1.5rem; }
 .personnel-page-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .personnel-page button { white-space: nowrap; }
 .personnel-page :is(button, input, select, summary, [tabindex]):focus-visible {
@@ -38,7 +25,10 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  border-bottom: 1px solid var(--border);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  padding-inline: 0.375rem 1rem;
 }
 .personnel-category-tabs { display: flex; flex-wrap: wrap; gap: 0.25rem; }
 .personnel-category-tabs button {
@@ -53,19 +43,19 @@
   font-weight: 600;
 }
 .personnel-category-tabs button:hover { color: var(--foreground); background: var(--accent); }
-.personnel-category-tabs button[aria-pressed="true"] { border-bottom-color: var(--primary); color: var(--foreground); }
+.personnel-category-tabs button[aria-pressed="true"] { border-bottom-color: var(--color-data-blue); color: var(--color-data-blue); }
 .personnel-category-tabs button span {
   padding: 0.125rem 0.375rem;
-  border-radius: var(--radius-lg);
+  border-radius: 4px;
   background: var(--secondary);
   font-size: 0.6875rem;
   font-variant-numeric: tabular-nums;
 }
-.personnel-category-tabs button[aria-pressed="true"] span { background: var(--accent); color: var(--accent-foreground); }
-.personnel-duty-count { display: inline-flex; align-items: center; gap: 0.5rem; color: var(--muted-foreground); white-space: nowrap; }
+.personnel-category-tabs button[aria-pressed="true"] span { background: var(--primary); color: var(--primary-foreground); }
+.personnel-duty-count { display: inline-flex; align-items: center; gap: 0.5rem; color: var(--muted-foreground); white-space: nowrap; font-size: 0.75rem; font-variant-numeric: tabular-nums; }
 .personnel-duty-count > span { width: 6px; height: 6px; border-radius: 50%; background: var(--success); }
 
-.personnel-page .record-toolbar { background: var(--card); }
+.personnel-page :is(.record-toolbar, .personnel-directory) { background: var(--card); border-radius: 8px; box-shadow: none; }
 .personnel-search-bar { display: flex; gap: 0.75rem; align-items: center; padding: 1rem; }
 .personnel-search-input { position: relative; flex: 1; min-width: 0; }
 .personnel-search-input > svg { position: absolute; top: 50%; left: 0.875rem; transform: translateY(-50%); color: var(--muted-foreground); pointer-events: none; }
@@ -74,7 +64,7 @@
   min-height: 44px;
   padding: 0.625rem 1rem 0.625rem 2.5rem;
   border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
+  border-radius: 6px;
   background: var(--input);
   color: var(--foreground);
   font-size: 0.8125rem;
@@ -84,13 +74,16 @@
 .personnel-reset:hover { background: var(--secondary); color: var(--foreground); }
 .personnel-filter-disclosure { border-top: 1px solid var(--border); }
 .personnel-filter-disclosure summary { display: flex; align-items: center; gap: 0.625rem; min-height: 48px; padding: 0.75rem 1rem; cursor: pointer; list-style: none; color: var(--foreground); }
+.personnel-filter-disclosure summary:hover { background: var(--accent); }
+.personnel-filter-disclosure[open] summary { background: var(--secondary); }
+.personnel-filter-disclosure summary > svg:first-child { color: var(--color-data-blue); }
 .personnel-filter-disclosure summary::-webkit-details-marker { display: none; }
 .personnel-filter-disclosure summary h2 { font-size: 0.75rem; font-weight: 600; }
 .personnel-filter-hint { margin-left: auto; color: var(--muted-foreground); font-size: 0.6875rem; }
 .personnel-filter-count { padding: 0.125rem 0.375rem; background: var(--accent); color: var(--accent-foreground); border-radius: var(--radius-lg); font-size: 0.6875rem; white-space: nowrap; }
 .personnel-filter-disclosure[open] .personnel-disclosure-chevron { transform: rotate(180deg); }
 .personnel-filter-fields { border-top: 1px solid var(--border); }
-.personnel-filter-fields :is(input, select) { min-height: 40px; padding: 0.5rem 0.625rem; background: var(--input); color: var(--foreground); border-color: var(--border); font-weight: 400; font-size: 0.8125rem; }
+.personnel-filter-fields :is(input, select) { min-height: 40px; padding: 0.5rem 0.625rem; background: var(--input); color: var(--foreground); border-color: var(--border); border-radius: 6px; font-weight: 400; font-size: 0.8125rem; }
 .personnel-filter-fields label { color: var(--muted-foreground); font-size: 0.75rem; font-weight: 500; margin-bottom: 0.375rem; }
 .personnel-demographic-filters { border-top: 1px solid var(--border); padding-top: 1.25rem; }
 .personnel-demographic-filters h3 { font-size: 0.8125rem; font-weight: 600; }
@@ -103,8 +96,15 @@
 .personnel-page .record-table :is(th, td) { border-bottom-color: var(--border); padding: 0.875rem 1rem; }
 .personnel-page .record-table thead th { background: var(--secondary); color: var(--muted-foreground); font-size: 0.6875rem; font-weight: 600; text-transform: none; letter-spacing: 0; }
 .personnel-page .record-table th:first-child { min-width: 250px; }
+.personnel-page .record-table th.w-8 { min-width: 48px; }
+.personnel-page .record-table { font-variant-numeric: tabular-nums; }
+.personnel-page .record-table td { font-size: 0.8125rem; }
+.personnel-page .record-table .font-mono { font-family: var(--font-sans); font-variant-numeric: tabular-nums; }
 .personnel-page .record-table td p { line-height: 1.55; }
+.personnel-page .record-table td :is(p, span)[class*="text-[10px]"], .personnel-page .record-table td :is(p, span)[class*="text-[11px]"] { font-size: 0.75rem; }
 .personnel-page .record-table td:first-child p:first-of-type { font-size: 0.8125rem; }
+.personnel-page .record-table td p.uppercase { text-transform: none; font-weight: 600; color: var(--foreground); }
+.personnel-page .record-table .text-violet-600 { color: var(--color-data-blue); }
 .personnel-page .record-table td p.text-slate-400 { color: var(--muted-foreground); font-style: normal; }
 .personnel-page .record-table tbody tr:hover { background: var(--accent); }
 .personnel-page .record-table tbody tr[aria-selected="true"] { background: var(--accent); box-shadow: none; }
@@ -112,21 +112,21 @@
 .personnel-sort-button:hover { color: var(--accent-foreground); }
 .personnel-pagination { background: var(--card); padding: 0.875rem 1rem; }
 .personnel-pagination button { display: inline-flex; align-items: center; justify-content: center; min-width: 34px; min-height: 34px; }
-.personnel-pagination select { min-height: 34px; padding: 0.25rem 0.5rem; }
+.personnel-pagination select { min-height: 34px; padding: 0.25rem 0.5rem; border-radius: 6px; background: var(--input); border-color: var(--border); color: var(--foreground); }
 .personnel-pagination [aria-current="page"] { display: inline-flex; align-items: center; justify-content: center; min-width: 34px; min-height: 34px; }
 .personnel-empty-state { display: flex; flex-direction: column; align-items: center; gap: 0.625rem; padding: 2rem 1rem; color: var(--muted-foreground); }
 .personnel-empty-state h3 { color: var(--foreground); font-size: 0.875rem; font-weight: 600; }
 .personnel-empty-state p { font-size: 0.8125rem; font-weight: 400; }
 .personnel-empty-state button { min-height: 36px; padding: 0.5rem 0.875rem; border: 1px solid var(--border); border-radius: var(--radius-lg); color: var(--accent-foreground); }
 
-.personnel-page [role="dialog"] { border-radius: var(--radius-3xl); }
+.personnel-page [role="dialog"] { border-radius: 8px; }
 .personnel-page [role="dialog"] :is(input:not([type="checkbox"]):not([type="radio"]), select) { min-height: 40px; font-size: 0.8125rem; }
 .personnel-page [role="dialog"] button { min-height: 36px; }
 .personnel-page [role="dialog"] h3 { font-weight: 600; }
-.personnel-page .selection-toolbar { max-width: calc(100vw - 2rem); width: max-content; }
+.personnel-page .selection-toolbar { max-width: calc(100vw - 2rem); width: max-content; border-color: var(--color-data-blue); border-radius: 8px; background: var(--primary); color: var(--primary-foreground); box-shadow: 0 8px 24px color-mix(in srgb, var(--foreground) 16%, transparent); }
 
 @media (max-width: 767px) {
-  .personnel-strength { align-items: flex-start; flex-direction: column; gap: 0.5rem; }
+  .personnel-strength { align-items: flex-start; flex-direction: column; gap: 0.5rem; padding-inline: 0; }
   .personnel-duty-count { padding: 0 0.875rem 0.75rem; }
   .personnel-category-tabs { width: 100%; gap: 0; }
   .personnel-category-tabs button { padding: 0.5rem 0.625rem; gap: 0.375rem; font-size: 0.75rem; }

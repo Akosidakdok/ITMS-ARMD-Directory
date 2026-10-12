@@ -187,7 +187,7 @@ export const LoginPage: React.FC = () => {
               onClick={toggleTheme}
               aria-label={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
               title={isDark ? 'Current theme: Dark Mode' : 'Current theme: Light Mode'}
-              className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-slate-300 bg-white/90 px-2.5 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-100"
+              className="pais-login__theme-toggle"
             >
               {isDark ? (
                 <>

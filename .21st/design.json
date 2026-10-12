@@ -11,7 +11,8 @@
   },
   "sources": {
     "tokens": [
-      "src/index.css"
+      "src/index.css",
+      "tokens.css"
     ],
     "components": [],
     "assets": [
@@ -23,91 +24,91 @@
     "colorMode": "light-and-dark",
     "colors": {
       "--color-slate-50": {
-        "value": "#f8f7f2",
+        "value": "#f5f8fc",
         "source": "src/index.css"
       },
       "--color-slate-100": {
-        "value": "#f0eee7",
+        "value": "#edf3fa",
         "source": "src/index.css"
       },
       "--color-slate-200": {
-        "value": "#dedbd1",
+        "value": "#dbe5f0",
         "source": "src/index.css"
       },
       "--color-slate-300": {
-        "value": "#c9c7bf",
+        "value": "#bdcee2",
         "source": "src/index.css"
       },
       "--color-slate-400": {
-        "value": "#94a3b8",
+        "value": "#7e93ae",
         "source": "src/index.css"
       },
       "--color-slate-500": {
-        "value": "#64748b",
+        "value": "#526581",
         "source": "src/index.css"
       },
       "--color-slate-600": {
-        "value": "#475569",
+        "value": "#405572",
         "source": "src/index.css"
       },
       "--color-slate-700": {
-        "value": "#334155",
+        "value": "#294363",
         "source": "src/index.css"
       },
       "--color-slate-800": {
-        "value": "#243247",
+        "value": "#1d3558",
         "source": "src/index.css"
       },
       "--color-slate-900": {
-        "value": "#1e293b",
+        "value": "#172b4d",
         "source": "src/index.css"
       },
       "--color-slate-950": {
-        "value": "#142033",
+        "value": "#0c182b",
         "source": "src/index.css"
       },
       "--color-blue-50": {
-        "value": "#edf3f7",
+        "value": "#eaf2ff",
         "source": "src/index.css"
       },
       "--color-blue-100": {
-        "value": "#dce8f0",
+        "value": "#dceaff",
         "source": "src/index.css"
       },
       "--color-blue-200": {
-        "value": "#bfd2df",
+        "value": "#b9d4ff",
         "source": "src/index.css"
       },
       "--color-blue-300": {
-        "value": "#91afc3",
+        "value": "#8bb8fa",
         "source": "src/index.css"
       },
       "--color-blue-400": {
-        "value": "#668da8",
+        "value": "#5999f4",
         "source": "src/index.css"
       },
       "--color-blue-500": {
-        "value": "#376d92",
+        "value": "#357de8",
         "source": "src/index.css"
       },
       "--color-blue-600": {
-        "value": "#24577e",
+        "value": "#175cd3",
         "source": "src/index.css"
       },
       "--color-blue-700": {
-        "value": "#163f61",
+        "value": "#144db0",
         "source": "src/index.css"
       },
       "--color-blue-800": {
-        "value": "#102f4a",
+        "value": "#16458f",
         "source": "src/index.css"
       },
       "--color-blue-900": {
-        "value": "#0a243a",
+        "value": "#123c7a",
         "source": "src/index.css"
       },
       "--color-blue-950": {
-        "value": "#061a2b",
+        "value": "#0a254f",
         "source": "src/index.css"
       },
       "--color-emerald-50": {
@@ -143,35 +144,35 @@
         "source": "src/index.css"
       },
       "--color-amber-50": {
-        "value": "#fbf3e7",
+        "value": "#fffbeb",
         "source": "src/index.css"
       },
       "--color-amber-100": {
-        "value": "#f5e5ca",
+        "value": "#fff7d6",
         "source": "src/index.css"
       },
       "--color-amber-200": {
-        "value": "#e9cca0",
+        "value": "#ffeb99",
         "source": "src/index.css"
       },
       "--color-amber-500": {
-        "value": "#d18a2c",
+        "value": "#d49d13",
         "source": "src/index.css"
       },
       "--color-amber-600": {
-        "value": "#c47a18",
+        "value": "#946800",
         "source": "src/index.css"
       },
       "--color-amber-700": {
-        "value": "#9e6114",
+        "value": "#765200",
         "source": "src/index.css"
       },
       "--color-amber-800": {
-        "value": "#7b4c16",
+        "value": "#604200",
         "source": "src/index.css"
       },
       "--color-amber-900": {
-        "value": "#633e16",
+        "value": "#493600",
         "source": "src/index.css"
       },
       "--color-rose-50": {
@@ -407,31 +408,31 @@
         "source": "src/index.css"
       },
       "--color-yellow-50": {
-        "value": "#fbf3e7",
+        "value": "#fffbeb",
         "source": "src/index.css"
       },
       "--color-yellow-100": {
-        "value": "#f5e5ca",
+        "value": "#fff7d6",
         "source": "src/index.css"
       },
       "--color-yellow-200": {
-        "value": "#e9cca0",
+        "value": "#ffeb99",
         "source": "src/index.css"
       },
       "--color-yellow-400": {
-        "value": "#d18a2c",
+        "value": "#f4c542",
         "source": "src/index.css"
       },
       "--color-yellow-500": {
-        "value": "#c47a18",
+        "value": "#e3b027",
         "source": "src/index.css"
       },
       "--color-yellow-600": {
-        "value": "#9e6114",
+        "value": "#946800",
         "source": "src/index.css"
       },
       "--color-yellow-700": {
-        "value": "#7b4c16",
+        "value": "#765200",
         "source": "src/index.css"
       },
       "--background": {
@@ -508,6 +509,18 @@
       },
       "--table-border": {
         "value": "#223448",
+        "source": "src/index.css"
+      },
+      "--color-yellow-300": {
+        "value": "#f8d96e",
+        "source": "src/index.css"
+      },
+      "--color-amber-300": {
+        "value": "#f8d96e",
+        "source": "src/index.css"
+      },
+      "--color-amber-400": {
+        "value": "#f4c542",
         "source": "src/index.css"
       }
     },
@@ -633,6 +646,12 @@
       "decision": "Extend the confirmed clean navy and white operational style. Compact summaries, search-first filters, readable report tables, wrapping report tabs, structured document library rows, restrained spreadsheet ribbon and accessible worksheet controls, and searchable administrator profiles. Preserve existing routes, permissions, data logic and export workflows.",
       "source": "User screenshot and request to apply the same redesign to these modules, 2026-10-12",
       "inspiration": "Existing PAIS PageHeader, RecordsModules and ModulePages conventions; 21st grounded table, spreadsheet and admin library searches."
+    },
+    {
+      "scope": "whole-project",
+      "decision": "Clean blue, white and yellow throughout PAIS. Cool white canvas and white work areas; clear blue primary controls and data emphasis; yellow current navigation and key measures. Flat bordered records, readable Segoe type, consistent controls, simple login, preserved dark theme and print workflows. Green and red reserved for semantic state.",
+      "source": "Explicit whole-project blue/white/yellow redesign request, 2026-10-12",
+      "inspiration": "21st grounded dashboard-sidebar/data-table search; existing PAIS components reused."
     }
   ],
   "evidence": [

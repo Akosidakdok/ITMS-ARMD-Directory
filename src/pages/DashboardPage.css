@@ -1,10 +1,5 @@
-/* Hallmark · pre-emit critique: P4 H5 E4 S4 R5 V4
- * PAIS operations dashboard · existing navy and paper tokens, compact workbench.
- */
+/* Personnel operations: blue measures, white work surfaces, one yellow total. */
 .dashboard-page { color: var(--foreground); caret-color: var(--ring); }
-.dashboard-page .app-page-header { border: 0; border-radius: 0; background: transparent; padding: 0.25rem 0 0.5rem; box-shadow: none; }
-.dashboard-page .app-page-header::before { content: none; }
-.dashboard-page .app-page-header h1 { font-size: 1.5rem; }
 .dashboard-date { display: inline-flex; align-items: center; gap: 0.625rem; color: var(--muted-foreground); font-size: 0.8125rem; }
 .dashboard-page button { white-space: nowrap; }
 .dashboard-page :is(button, select, summary, [tabindex]):focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
@@ -13,9 +8,12 @@
 .dashboard-page .app-section-title { font-size: 0.875rem; font-weight: 600; }
 .dashboard-page .record-section-header button { display: inline-flex; align-items: center; gap: 0.375rem; min-height: 36px; font-size: 0.75rem; }
 .dashboard-page > section[aria-label="Operational summary"] { border-color: var(--border); background: var(--card); }
-.dashboard-page > section[aria-label="Operational summary"] button { padding: 1rem 1.25rem; min-height: 106px; text-align: left; }
+.dashboard-page > section[aria-label="Operational summary"] button { padding: 1rem 1.25rem; min-height: 94px; text-align: left; }
 .dashboard-page > section[aria-label="Operational summary"] .record-kicker { font-size: 0.6875rem; font-weight: 500; letter-spacing: 0; text-transform: none; }
-.dashboard-page > section[aria-label="Operational summary"] strong { color: var(--foreground); font-size: 1.75rem; font-weight: 600; }
+.dashboard-page > section[aria-label="Operational summary"] strong { color: var(--color-data-blue); font-size: 1.625rem; font-weight: 650; }
+.dashboard-page > section[aria-label="Operational summary"] button:first-child { background: var(--pais-gold-soft); }
+.dashboard-page > section[aria-label="Operational summary"] button:first-child :is(strong, small, .record-kicker, svg) { color: var(--color-brand-yellow-ink); }
+.dashboard-page > section[aria-label="Operational summary"] button:first-child:hover { background: color-mix(in srgb, var(--pais-gold-soft) 85%, var(--pais-gold)); }
 .dashboard-page > section[aria-label="Operational summary"] small { font-size: 0.6875rem; }
 .dashboard-page > section[aria-label="Operational summary"] button > span:last-child { flex-wrap: wrap; row-gap: 0.375rem; }
 
@@ -23,11 +21,11 @@
 .dashboard-analytics-header h2 { font-size: 1rem; font-weight: 600; color: var(--foreground); }
 .dashboard-analytics-header p { margin-top: 0.25rem; font-size: 0.8125rem; color: var(--muted-foreground); }
 .dashboard-matching-count { display: inline-flex; align-items: baseline; gap: 0.375rem; font-size: 0.75rem; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
-.dashboard-matching-count strong { font-weight: 600; color: var(--foreground); }
+.dashboard-matching-count strong { font-weight: 650; color: var(--color-data-blue); }
 .dashboard-quick-filters { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-.dashboard-quick-filters button { min-height: 34px; padding: 0.375rem 0.75rem; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--card); color: var(--muted-foreground); font-size: 0.75rem; font-weight: 500; }
+.dashboard-quick-filters button { min-height: 36px; padding: 0.375rem 0.75rem; border: 1px solid var(--border); border-radius: 6px; background: var(--card); color: var(--muted-foreground); font-size: 0.75rem; font-weight: 500; }
 .dashboard-quick-filters button:hover { background: var(--accent); color: var(--accent-foreground); }
-.dashboard-quick-filters button[aria-pressed="true"] { border-color: var(--primary); background: var(--primary); color: var(--primary-foreground); }
+.dashboard-quick-filters button[aria-pressed="true"] { border-color: var(--color-data-blue); background: var(--primary); color: var(--primary-foreground); }
 .dashboard-filter-disclosure { border-block: 1px solid var(--border); }
 .dashboard-filter-disclosure summary { display: flex; align-items: center; gap: 0.625rem; min-height: 46px; padding: 0.625rem 0; cursor: pointer; list-style: none; font-size: 0.75rem; font-weight: 500; }
 .dashboard-filter-disclosure summary::-webkit-details-marker { display: none; }
@@ -36,32 +34,32 @@
 .dashboard-filter-count { border-radius: var(--radius-lg); padding: 0.125rem 0.375rem; background: var(--accent); color: var(--accent-foreground); font-size: 0.6875rem; }
 .dashboard-filter-fields { padding: 0.25rem 0 1rem; }
 .dashboard-filter-fields label { margin-bottom: 0.375rem; color: var(--muted-foreground); font-weight: 500; font-size: 0.75rem; }
-.dashboard-filter-fields select { min-width: 0; min-height: 40px; background: var(--input); color: var(--foreground); border-color: var(--border); font-weight: 400; font-size: 0.8125rem; }
+.dashboard-filter-fields select { min-width: 0; min-height: 40px; background: var(--input); color: var(--foreground); border-color: var(--border); border-radius: 6px; font-weight: 400; font-size: 0.8125rem; }
 .dashboard-filter-reset { display: flex; align-items: center; gap: 0.375rem; min-height: 34px; margin: 0 0 0.75rem auto; padding: 0.375rem 0.5rem; font-size: 0.75rem; color: var(--accent-foreground); }
 .dashboard-filter-reset:hover { background: var(--accent); }
 
 .dashboard-strength-summary {
-  --strength-raised-shadow: inset 0 1px 0 color-mix(in srgb, var(--card) 90%, var(--primary-foreground)), var(--shadow-sm);
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 0.75rem;
+  gap: 0;
+  padding-block: 0.875rem;
+  border-block: 1px solid var(--border);
 }
 .dashboard-strength-summary > div {
   min-width: 0;
-  padding: 1rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
-  background: var(--card);
-  box-shadow: var(--strength-raised-shadow);
+  padding: 0.25rem 1rem;
+  border-right: 1px solid var(--border);
 }
+.dashboard-strength-summary > div:first-child { padding-left: 0; }
+.dashboard-strength-summary > div:last-child { border-right: 0; }
 .dashboard-strength-summary dt { color: var(--muted-foreground); font-size: 0.6875rem; font-weight: 500; }
-.dashboard-strength-summary dd { margin-top: 0.375rem; color: var(--foreground); font-size: 1.375rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.dashboard-strength-summary dd { margin-top: 0.375rem; color: var(--color-data-blue); font-size: 1.375rem; font-weight: 650; font-variant-numeric: tabular-nums; }
 .dashboard-strength-summary small { color: var(--muted-foreground); font-size: 0.875rem; font-weight: 400; }
-.dashboard-strength-summary div > span { display: block; margin-top: 0.125rem; color: var(--muted-foreground); font-size: 0.625rem; }
+.dashboard-strength-summary div > span { display: block; margin-top: 0.25rem; color: var(--muted-foreground); font-size: 0.6875rem; line-height: 1.45; }
 .dashboard-analysis-views { display: flex; flex-wrap: wrap; gap: 0.25rem; border-bottom: 1px solid var(--border); }
 .dashboard-analysis-views button { min-height: 42px; padding: 0.5rem 0.75rem; border-bottom: 2px solid transparent; font-size: 0.75rem; font-weight: 500; color: var(--muted-foreground); }
 .dashboard-analysis-views button:hover { background: var(--accent); color: var(--accent-foreground); }
-.dashboard-analysis-views button[aria-pressed="true"] { border-bottom-color: var(--primary); color: var(--foreground); font-weight: 600; }
+.dashboard-analysis-views button[aria-pressed="true"] { border-bottom-color: var(--color-data-blue); color: var(--color-data-blue); font-weight: 600; }
 .dashboard-analysis-content { min-width: 0; }
 .dashboard-breakdown { min-width: 0; padding: 0.375rem 0; }
 .dashboard-breakdown h3 { color: var(--foreground); font-size: 0.8125rem; font-weight: 600; }
@@ -69,15 +67,21 @@
 .dashboard-breakdown .flex.justify-between { gap: 0.75rem; }
 .dashboard-breakdown .flex.justify-between > span:last-child { flex-shrink: 0; font-variant-numeric: tabular-nums; }
 .dashboard-breakdown .font-mono { font-family: var(--font-sans); font-variant-numeric: tabular-nums; }
+.dashboard-breakdown :is(.bg-blue-600, .bg-emerald-600), .dashboard-subunit-bar { background: var(--primary); }
+.dashboard-breakdown :is(.bg-slate-100, .bg-slate-800), .dashboard-subunit-track { background: var(--secondary); }
+.dashboard-breakdown :is(.bg-blue-50, .bg-emerald-50) { background: var(--accent); color: var(--color-data-blue); }
+.dashboard-analysis-content td:is(.text-purple-700, .text-sky-700, .text-emerald-700, .text-rose-700) { color: var(--foreground); font-weight: 500; }
+.dashboard-page .record-section { border-radius: 8px; box-shadow: none; }
+.dashboard-page .record-table .font-mono { font-family: var(--font-sans); font-variant-numeric: tabular-nums; }
 .dashboard-table-scroll { max-width: 100%; scrollbar-width: thin; scrollbar-color: var(--pais-line-strong) var(--muted); }
 .dashboard-page .record-table { font-variant-numeric: tabular-nums; }
 .dashboard-page .record-table :is(th, td) { padding: 0.875rem 1rem; border-bottom-color: var(--border); }
 .dashboard-page .record-table th { background: var(--secondary); color: var(--muted-foreground); font-size: 0.6875rem; font-weight: 600; letter-spacing: 0; text-transform: none; }
-.dashboard-page .record-table td { font-size: 0.75rem; }
+.dashboard-page .record-table td { font-size: 0.8125rem; }
 .dashboard-page .record-table td button { min-height: 36px; font-weight: 500; }
 .dashboard-page .record-table tbody tr:hover { background: var(--accent); }
 .dashboard-page .record-table p { line-height: 1.5; }
-.dashboard-page .dashboard-activity-row { padding-block: 1rem; }
+.dashboard-page .dashboard-activity-row { padding-block: 0.875rem; }
 .dashboard-page .dashboard-activity-row > div { min-width: 0; }
 .dashboard-page .dashboard-activity-row p { line-height: 1.6; }
 .dashboard-page .dashboard-activity-row time { font-size: 0.6875rem; }
@@ -85,6 +89,8 @@
 
 @media (max-width: 1100px) {
   .dashboard-strength-summary { grid-template-columns: repeat(4, minmax(0, 1fr)); row-gap: 1rem; }
+  .dashboard-strength-summary > div:nth-child(4) { border-right: 0; }
+  .dashboard-strength-summary > div:nth-child(5) { padding-left: 0; }
 }
 @media (max-width: 639px) {
   .dashboard-page > section[aria-label="Operational summary"] > div { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -93,6 +99,9 @@
   .dashboard-page > section[aria-label="Operational summary"] button:last-child { grid-column: span 2; border: 0; }
 
   .dashboard-strength-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dashboard-strength-summary > div { padding: 0.25rem 0.875rem; }
+  .dashboard-strength-summary > div:nth-child(odd) { padding-left: 0; }
+  .dashboard-strength-summary > div:nth-child(even) { border-right: 0; }
   .dashboard-strength-summary > div:last-child { grid-column: span 2; }
   .dashboard-analysis-views { gap: 0; }
   .dashboard-analysis-views button { padding-inline: 0.625rem; }

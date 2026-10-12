@@ -88,7 +88,7 @@ export const Layout: React.FC = () => {
             <Outlet />
           </div>
         </main>
-        <footer className="no-print flex min-h-10 items-center justify-between gap-3 border-t border-slate-300 bg-[#fcfbf7] px-4 text-[10px] text-slate-500 sm:px-6">
+        <footer className="pais-app-footer no-print flex min-h-10 items-center justify-between gap-3 border-t border-slate-300 bg-white px-4 text-[10px] text-slate-500 sm:px-6">
           <span className="font-mono">PAIS 2.0 · PERSONNEL RECORDS DESK</span>
           <span className="hidden sm:inline">PNP Information Technology Management Service</span>
         </footer>

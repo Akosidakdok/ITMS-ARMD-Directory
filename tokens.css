@@ -8,3 +8,114 @@
   --font-records-body: var(--font-sans);
   --radius-records-panel: var(--pais-radius-panel);
 }
+
+/* Hallmark · modern-minimal operations workbench · custom blue, white and yellow.
+ * Shared app palette. Yellow identifies current navigation and key measures.
+ * Semantic green/red remain reserved for success and errors.
+ */
+:root {
+  --color-brand-blue: #175cd3;
+  --color-data-blue: #175cd3;
+  --color-on-yellow: #172b4d;
+  --color-brand-blue-hover: #144db0;
+  --color-brand-navy: #123c7a;
+  --color-brand-yellow: #f4c542;
+  --color-brand-yellow-soft: #fff7d6;
+  --color-brand-yellow-ink: #493600;
+  --color-paper: #ffffff;
+  --color-paper-2: #f5f8fc;
+  --color-ink: #172b4d;
+  --color-ink-2: #526581;
+  --color-rule: #dbe5f0;
+  --color-accent: var(--color-brand-blue);
+  --color-accent-ink: #ffffff;
+  --color-focus: #175cd3;
+  --font-display: "Segoe UI", "Arial Nova", Arial, system-ui, sans-serif;
+  --font-body: var(--font-display);
+  --space-xs: 0.5rem;
+  --space-sm: 0.75rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --text-body: 0.875rem;
+  --text-label: 0.75rem;
+  --text-heading: 1.5rem;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-short: 140ms;
+  --radius-control: 0.375rem;
+  --radius-panel: 0.5rem;
+
+  --background: var(--color-paper-2);
+  --foreground: var(--color-ink);
+  --card: var(--color-paper);
+  --card-foreground: var(--color-ink);
+  --popover: var(--color-paper);
+  --popover-foreground: var(--color-ink);
+  --primary: var(--color-brand-blue);
+  --primary-foreground: #ffffff;
+  --secondary: #f0f5fc;
+  --secondary-foreground: #294363;
+  --muted: #f0f5fc;
+  --muted-foreground: var(--color-ink-2);
+  --accent: #eaf2ff;
+  --accent-foreground: #144db0;
+  --border: var(--color-rule);
+  --input: var(--color-paper);
+  --ring: var(--color-focus);
+  --warning: #946800;
+  --pais-navy-950: #0a254f;
+  --pais-navy-900: var(--color-brand-navy);
+  --pais-navy-800: #164c99;
+  --pais-navy-700: var(--color-brand-blue);
+  --pais-gold: var(--color-brand-yellow);
+  --pais-gold-soft: var(--color-brand-yellow-soft);
+  --pais-paper: var(--color-paper);
+  --pais-paper-strong: var(--color-paper);
+  --pais-canvas: var(--color-paper-2);
+  --pais-ink: var(--color-ink);
+  --pais-muted: var(--color-ink-2);
+  --pais-line: var(--color-rule);
+  --pais-line-strong: #bdcee2;
+  --pais-focus: var(--color-focus);
+  --pais-radius-control: var(--radius-control);
+  --pais-radius-panel: var(--radius-panel);
+  --bg-main: var(--background);
+  --bg-card: var(--card);
+  --bg-input: var(--input);
+  --border-color: var(--border);
+  --text-primary: var(--foreground);
+  --text-secondary: var(--muted-foreground);
+  --table-header: #f0f5fc;
+  --table-hover: #f4f8ff;
+  --table-border: var(--border);
+  --sidebar-bg: var(--color-brand-navy);
+  --header-bg: var(--card);
+}
+.dark, [data-theme="dark"] {
+  --color-paper: #14243a;
+  --color-paper-2: #0c182b;
+  --color-ink: #edf3ff;
+  --color-ink-2: #a5b6cf;
+  --color-rule: #2b405d;
+  --color-accent: #75a9ff;
+  --color-data-blue: #8bb8fa;
+  --color-focus: #83b4ff;
+  --color-brand-yellow-soft: #382f16;
+  --color-brand-yellow-ink: #ffe28c;
+  --primary: #286de0;
+  --secondary: #1b2e48;
+  --secondary-foreground: #d6e4f9;
+  --muted: #1b2e48;
+  --accent: #203a60;
+  --accent-foreground: #a9ccff;
+  --input: #101e32;
+  --warning: #f4c542;
+  --pais-navy-950: #081326;
+  --pais-navy-900: #102b54;
+  --pais-navy-800: #163b70;
+  --pais-navy-700: #75a9ff;
+  --pais-line-strong: #3d5677;
+  --table-header: #1b2e48;
+  --table-hover: #203653;
+  --sidebar-bg: #102b54;
+}

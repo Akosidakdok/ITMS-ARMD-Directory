@@ -160,8 +160,8 @@ export const DashboardPage: React.FC = () => {
                     <span className="font-semibold text-slate-700">{item.subUnit}</span>
                     <span className="shrink-0 tabular-nums text-[11px] text-slate-500">{item.count} ({percentage}%)</span>
                   </div>
-                  <div className="h-1.5 overflow-hidden rounded-full bg-slate-100" aria-label={`${item.subUnit}: ${item.count} personnel`}>
-                    <div className="h-full rounded-full bg-blue-600" style={{ width: `${percentage}%` }} />
+                  <div className="dashboard-subunit-track h-1.5 overflow-hidden rounded-full" aria-label={`${item.subUnit}: ${item.count} personnel`}>
+                    <div className="dashboard-subunit-bar h-full rounded-full" style={{ width: `${percentage}%` }} />
                   </div>
                 </div>
               );
