@@ -384,17 +384,3 @@
   .pais-splash--session .pais-splash__progress-fill { transition: none !important; }
 }
 
-/* Clean application loading state, aligned with the shared brand palette. */
-.pais-splash, .pais-splash.pais-splash--session { background: var(--color-brand-navy); }
-.pais-splash::before, .pais-splash.pais-splash--session::before,
-.pais-splash__logo-edge, .pais-splash__logo-highlight, .pais-splash__logo-shadow,
-.pais-splash__logo--back { display: none; }
-.pais-splash__logo-stage, .pais-splash__logo-rotator, .pais-splash__wordmark,
-.pais-splash__progress { animation: none; }
-.pais-splash__logo-rotator { transform: none; }
-.pais-splash__logo { filter: none; }
-.pais-splash__wordmark h1 span, .pais-splash--session .pais-splash__wordmark h1 span { color: var(--color-brand-yellow); }
-.pais-splash__progress-fill, .pais-splash--session .pais-splash__progress-fill { background: var(--color-brand-yellow); box-shadow: none; }
-.pais-splash__eyebrow, .pais-splash__subtitle, .pais-splash__progress-copy span,
-.pais-splash--session .pais-splash__eyebrow, .pais-splash--session .pais-splash__subtitle,
-.pais-splash--session .pais-splash__progress-copy span { color: #dceaff; }
