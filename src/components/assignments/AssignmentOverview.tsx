@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Building2, Filter, MapPin, RotateCcw, Search, Users } from 'lucide-react';
+import { Building2, Filter, MapPin, RotateCcw, Search, Users, ChevronDown } from 'lucide-react';
 import type { AssignmentRecord, Personnel } from '../../types/pais';
 import { resolvePersonnelRankCategory } from '../../utils/personnelCounting';
 import { Badge } from '../common/Badge';
@@ -150,6 +150,8 @@ export const AssignmentOverview: React.FC<AssignmentOverviewProps> = ({ assignme
     return Array.from(groups.values()).sort((a, b) => a.subUnit.localeCompare(b.subUnit));
   }, [filteredRows]);
 
+  const activeFilterCount = Object.entries(filters).filter(([key, value]) => key !== 'search' && value !== initialFilters[key as keyof OverviewFilters]).length;
+
   const uniquePersonnel = new Set(filteredRows.map(row => row.person.id)).size;
   const assignmentRowsByPersonnel = new Map<string, number>();
   filteredRows.forEach(row => assignmentRowsByPersonnel.set(row.person.id, (assignmentRowsByPersonnel.get(row.person.id) || 0) + 1));
@@ -168,9 +170,9 @@ export const AssignmentOverview: React.FC<AssignmentOverviewProps> = ({ assignme
     setSelectedGroup('ALL');
   };
 
-  const selectClass = 'w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs font-semibold text-slate-800 focus:border-blue-500 focus:outline-none';
+  const selectClass = 'w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs font-semibold text-slate-800 focus:border-blue-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500';
   const filterSelect = (label: string, key: keyof OverviewFilters, values: readonly string[], labels: Record<string, string> = {}) => (
-    <label className="min-w-[150px] flex-1">
+    <label className="min-w-0 flex-1">
       <span className="mb-1 block text-[10px] font-extrabold uppercase tracking-wide text-slate-500">{label}</span>
       <select value={filters[key]} onChange={event => updateFilter(key, event.target.value)} className={selectClass}>
         <option value="ALL">All {label.toLowerCase()}</option>
@@ -180,7 +182,7 @@ export const AssignmentOverview: React.FC<AssignmentOverviewProps> = ({ assignme
   );
 
   return (
-    <div className="space-y-4">
+    <div className="assignment-overview space-y-4">
       <div className="record-toolbar space-y-3 p-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-xs font-extrabold text-slate-700">
@@ -193,12 +195,14 @@ export const AssignmentOverview: React.FC<AssignmentOverviewProps> = ({ assignme
 
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input value={filters.search} onChange={event => updateFilter('search', event.target.value)} placeholder="Search personnel, badge, position, or unit..." className={`${selectClass} pl-9`} />
+          <input aria-label="Search unit personnel" type="search" value={filters.search} onChange={event => updateFilter('search', event.target.value)} placeholder="Search personnel, badge, position, or unit..." className={`${selectClass} pl-9`} />
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <details className="module-filter-disclosure">
+          <summary><Filter aria-hidden="true" className="h-4 w-4" /><span>Advanced filters</span><span className="module-filter-count">{filters.status === 'ALL' ? 'All assignments' : filters.status}{activeFilterCount > 0 ? ` · ${activeFilterCount} active` : ''}</span><ChevronDown aria-hidden="true" className="module-filter-chevron h-4 w-4" /></summary>
+        <div className="module-filter-fields grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filterSelect('Assignment view', 'status', ['As of date', 'Current', 'Scheduled', 'Completed', 'Terminated'])}
-          <label className="min-w-[150px] flex-1">
+          <label className="min-w-0 flex-1">
             <span className="mb-1 block text-[10px] font-extrabold uppercase tracking-wide text-slate-500">As-of date</span>
             <input type="date" value={filters.asOfDate} onChange={event => updateFilter('asOfDate', event.target.value)} className={selectClass} />
           </label>
@@ -211,9 +215,10 @@ export const AssignmentOverview: React.FC<AssignmentOverviewProps> = ({ assignme
           {filterSelect('Rank category', 'rankCategory', ['PCO', 'PNCO', 'NUP'])}
           {filterSelect('Personnel status', 'personnelStatus', choices.personnelStatuses)}
         </div>
+        </details>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
+      <div className="module-overview-summary grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6" aria-label="Filtered assignment strength">
         {([
           ['Unique personnel', uniquePersonnel, Users],
           ['Units represented', summaryRows.length, Building2],
@@ -232,11 +237,11 @@ export const AssignmentOverview: React.FC<AssignmentOverviewProps> = ({ assignme
           <div><h3 className="text-sm font-extrabold text-slate-900">Personnel by unit</h3><p className="text-[11px] text-slate-500">Select a row to inspect the personnel assigned to that unit.</p></div>
           <span className="text-xs font-semibold text-slate-500">{summaryRows.length} unit groups</span>
         </div>
-        <div className="overflow-x-auto">
+        <div className="module-table-scroll" tabIndex={0} role="region" aria-label="Assignment overview table">
           <table className="record-table text-xs">
-            <thead><tr className="bg-slate-50 text-[10px] font-extrabold uppercase text-slate-600"><th>Unit category</th><th>Sub-unit</th><th>Station / region</th><th>PCO</th><th>PNCO</th><th>NUP</th><th>Total</th></tr></thead>
+            {summaryRows.length > 0 && <thead><tr className="bg-slate-50 text-[10px] font-extrabold uppercase text-slate-600"><th scope="col">Unit category</th><th scope="col">Sub-unit</th><th scope="col">Station / region</th><th scope="col">PCO</th><th scope="col">PNCO</th><th scope="col">NUP</th><th scope="col">Total</th></tr></thead>}
             <tbody className="font-semibold text-slate-800">
-              {summaryRows.map(group => <tr key={group.key} onClick={() => setSelectedGroup(selectedGroup === group.key ? 'ALL' : group.key)} aria-selected={selectedGroup === group.key} className="cursor-pointer hover:bg-slate-50"><td>{group.unitCategory}<div className="text-[10px] text-slate-500">{group.subUnitCategory}</div></td><td className="font-extrabold text-blue-700">{group.subUnit}</td><td>{group.station}<div className="text-[10px] text-slate-500">{group.region}</div></td><td>{group.pco}</td><td>{group.pnco}</td><td>{group.nup}</td><td className="font-extrabold">{group.personnelIds.size}</td></tr>)}
+              {summaryRows.map(group => <tr key={group.key} tabIndex={0} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelectedGroup(selectedGroup === group.key ? 'ALL' : group.key); } }} onClick={() => setSelectedGroup(selectedGroup === group.key ? 'ALL' : group.key)} aria-selected={selectedGroup === group.key} className="cursor-pointer hover:bg-slate-50"><td>{group.unitCategory}<div className="text-[10px] text-slate-500">{group.subUnitCategory}</div></td><td className="font-extrabold text-blue-700">{group.subUnit}</td><td>{group.station}<div className="text-[10px] text-slate-500">{group.region}</div></td><td>{group.pco}</td><td>{group.pnco}</td><td>{group.nup}</td><td className="font-extrabold">{group.personnelIds.size}</td></tr>)}
               {!summaryRows.length && <tr><td colSpan={7} className="py-8 text-center text-slate-500">No unit groups match the selected filters.</td></tr>}
             </tbody>
           </table>
@@ -245,9 +250,9 @@ export const AssignmentOverview: React.FC<AssignmentOverviewProps> = ({ assignme
 
       <section className="record-section overflow-hidden">
         <div className="flex items-center justify-between border-b border-slate-200 bg-white p-3"><div><h3 className="flex items-center gap-2 text-sm font-extrabold text-slate-900"><Users className="h-4 w-4 text-blue-700" /> Personnel roster</h3><p className="text-[10px] text-slate-500">Unique personnel: {uniquePersonnel} · Assignment rows: {filteredRows.length} · Personnel with multiple matching assignments: {personnelWithMultipleAssignments}</p></div><span className="text-xs font-semibold text-slate-500">As of {filters.asOfDate}</span></div>
-        <div className="overflow-x-auto">
+        <div className="module-table-scroll" tabIndex={0} role="region" aria-label="Assignment overview table">
           <table className="record-table text-xs">
-            <thead><tr className="bg-slate-50 text-[10px] font-extrabold uppercase text-slate-600"><th>Personnel</th><th>Rank category</th><th>Unit / sub-unit</th><th>Position</th><th>Type</th><th>Station</th><th>Status</th><th>Start date</th><th>Order ref</th></tr></thead>
+            {filteredRows.length > 0 && <thead><tr className="bg-slate-50 text-[10px] font-extrabold uppercase text-slate-600"><th scope="col">Personnel</th><th scope="col">Rank category</th><th scope="col">Unit / sub-unit</th><th scope="col">Position</th><th scope="col">Type</th><th scope="col">Station</th><th scope="col">Status</th><th scope="col">Start date</th><th scope="col">Order ref</th></tr></thead>}
             <tbody className="font-semibold text-slate-800">
               {filteredRows.map(row => <tr key={row.assignment.id} className="hover:bg-slate-50"><td><div className="font-extrabold text-slate-900">{row.person.rank} {row.person.lastName}, {row.person.firstName}</div><div className="font-mono text-[10px] text-slate-500">Badge #{row.person.badgeNo} · {row.person.status}</div></td><td>{row.rankCategory}</td><td><div>{row.subUnit}</div><div className="text-[10px] text-slate-500">{row.unitCategory}</div></td><td className="font-extrabold text-blue-700">{row.assignment.position}</td><td>{valueOr(row.assignment.positionCategory, 'Main')}</td><td>{row.station}<div className="text-[10px] text-slate-500">{row.region}</div></td><td><Badge variant={row.assignment.status === 'Current' ? 'primary' : 'neutral'} size="sm">{row.assignment.status}</Badge></td><td className="font-mono">{row.assignment.startDate || '—'}</td><td className="font-mono text-sky-700">{row.assignment.orderRef || '—'}</td></tr>)}
               {!filteredRows.length && <tr><td colSpan={9} className="py-10 text-center text-slate-500">No personnel assignments match the selected filters.</td></tr>}

@@ -615,6 +615,12 @@
       "decision": "Continue the personnel module refinement: compact operational summary, neutral filtered strength strip, collapsible labeled filters, and a single set of analysis view controls. Preserve PAIS tokens, data sources, and module navigation.",
       "source": "User request: apply same clean professional treatment to dashboard",
       "inspiration": "21st dashboard analytics tabs search; existing SystemUI and Badge components reused"
+    },
+    {
+      "scope": "management-and-assignments",
+      "decision": "Continue PAIS module styling with bordered raised summaries, clear search, collapsible labeled filters, readable tables, and shared scoped controls. Management records are paginated; existing data and permission rules are retained.",
+      "source": "User request: extend styling to Management Center and Assignment module; previous request for embossed summary borders",
+      "inspiration": "21st records-table and administration filters search; existing SystemUI, Modal, and Badge reused"
     }
   ],
   "evidence": [

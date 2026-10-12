@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useAuthRole } from '../context/AuthRoleContext';
-import { ChevronDown, Edit3, Eye, Plus, Search, Trash2, X } from 'lucide-react';
+import { ChevronDown, Edit3, Eye, Plus, Search, Trash2, X, SlidersHorizontal, ArrowUp, ArrowDown, Briefcase } from 'lucide-react';
 import { Badge } from '../components/common/Badge';
 import { Modal } from '../components/common/Modal';
-import { Button, PageHeader } from '../components/common/SystemUI';
+import './ModulePages.css';
+import { Button, EmptyState, PageHeader } from '../components/common/SystemUI';
 import type { AssignmentRecord, PositionCategory, UnitCategory, SubUnitCategory } from '../types/pais';
 import { hasManagementAccess } from '../utils/accessControl';
 import { ASSIGNMENT_DIVISION_OPTIONS, POSITION_CATEGORIES, UNIT_CATEGORIES, SUB_UNIT_CATEGORIES } from '../constants/ranks';
@@ -326,36 +327,38 @@ export const AssignmentPage: React.FC = () => {
   ].filter(Boolean).length;
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="module-page assignment-page space-y-5">
       <PageHeader
-        eyebrow="Personnel records"
         title="Duty Postings & Assignments"
         description="Manage unit assignments, position designations, duty periods, and regional details."
-        meta={<span className="text-[11px] text-slate-500">PNP–ITMS personnel postings</span>}
-        reference="ASN-CURRENT-ROSTER"
         actions={canManage ? <Button variant="primary" icon={Plus} onClick={openCreateModal}>Add assignment</Button> : undefined}
       />
 
-      <div className="record-section flex gap-1 overflow-x-auto p-1" role="tablist" aria-label="Assignment views">
+      <dl className="module-summary" aria-label="Assignment summary">
+        {([
+          ['Recorded assignments', assignmentsList.length],
+          ['Current', assignmentsList.filter(assignment => assignment.status === 'Current').length],
+          ['Scheduled', assignmentsList.filter(assignment => assignment.status === 'Scheduled').length],
+          ['Completed', assignmentsList.filter(assignment => assignment.status === 'Completed').length]
+        ] as const).map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
+      </dl>
+
+      <div className="module-view-tabs" role="group" aria-label="Assignment views">
         <button
           type="button"
-          role="tab"
-          aria-selected={activeTab === 'records'}
+          aria-pressed={activeTab === 'records'}
           onClick={() => setActiveTab('records')}
           className={`rounded-lg px-4 py-2.5 text-left text-xs font-extrabold transition-colors ${activeTab === 'records' ? 'bg-blue-50 text-blue-800' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
         >
           Assignment records
-          <span className="mt-0.5 block text-[10px] font-semibold text-slate-500">Manage duty postings and history</span>
         </button>
         <button
           type="button"
-          role="tab"
-          aria-selected={activeTab === 'overview'}
+          aria-pressed={activeTab === 'overview'}
           onClick={() => setActiveTab('overview')}
           className={`rounded-lg px-4 py-2.5 text-left text-xs font-extrabold transition-colors ${activeTab === 'overview' ? 'bg-blue-50 text-blue-800' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
         >
           Unit personnel overview
-          <span className="mt-0.5 block text-[10px] font-semibold text-slate-500">Headcount and filtered roster</span>
         </button>
       </div>
 
@@ -363,16 +366,16 @@ export const AssignmentPage: React.FC = () => {
         <AssignmentOverview assignments={assignmentsList} personnel={personnelList} />
       ) : <>
         {/* Comprehensive Search & Multi-Filter Bar */}
-        <div className="p-4 rounded-xl border border-slate-200 bg-white space-y-3 shadow-2xs">
-          <div className="flex flex-col lg:flex-row gap-3">
-            <div className="relative flex-1 min-w-[240px]">
+        <div className="module-filter-panel record-toolbar">
+          <div className="module-search-toolbar">
+            <div className="module-search-input">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-                placeholder="Search by personnel name, badge #, designation, sub-unit, station, order ref..."
-                className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
+                aria-label="Search assignments" placeholder="Search by personnel, position, unit, or order…"
+                className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 focus:border-blue-500"
               />
             </div>
             {activeFilterCount > 0 && (
@@ -386,13 +389,15 @@ export const AssignmentPage: React.FC = () => {
             )}
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 pt-1 border-t border-slate-100">
+          <details className="module-filter-disclosure">
+            <summary><SlidersHorizontal aria-hidden="true" className="h-4 w-4" /><span>Advanced filters</span>{activeFilterCount > 0 && <span className="module-filter-count">{activeFilterCount} active</span>}<ChevronDown aria-hidden="true" className="module-filter-chevron h-4 w-4" /></summary>
+          <div className="module-filter-fields grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
-              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Status</label>
-              <select
+              <label htmlFor="assignment-filter-status" className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Status</label>
+              <select id="assignment-filter-status"
                 value={statusFilter}
                 onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
-                className="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-bold focus:outline-none focus:border-blue-500"
+                className="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 focus:border-blue-500"
               >
                 <option value="ALL">All Statuses</option>
                 <option value="Current">Current</option>
@@ -403,11 +408,11 @@ export const AssignmentPage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Position Category</label>
-              <select
+              <label htmlFor="assignment-filter-position-category" className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Position Category</label>
+              <select id="assignment-filter-position-category"
                 value={positionCategoryFilter}
                 onChange={(e) => { setPositionCategoryFilter(e.target.value); setCurrentPage(1); }}
-                className="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-bold focus:outline-none focus:border-blue-500"
+                className="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 focus:border-blue-500"
               >
                 <option value="ALL">All Positions</option>
                 {POSITION_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
@@ -415,11 +420,11 @@ export const AssignmentPage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Unit Category</label>
-              <select
+              <label htmlFor="assignment-filter-unit-category" className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Unit Category</label>
+              <select id="assignment-filter-unit-category"
                 value={unitCategoryFilter}
                 onChange={(e) => { setUnitCategoryFilter(e.target.value); setCurrentPage(1); }}
-                className="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-bold focus:outline-none focus:border-blue-500"
+                className="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 focus:border-blue-500"
               >
                 <option value="ALL">All Unit Categories</option>
                 {UNIT_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
@@ -427,11 +432,11 @@ export const AssignmentPage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Sub-Unit Category</label>
-              <select
+              <label htmlFor="assignment-filter-sub-unit-category" className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Sub-Unit Category</label>
+              <select id="assignment-filter-sub-unit-category"
                 value={subUnitCategoryFilter}
                 onChange={(e) => { setSubUnitCategoryFilter(e.target.value); setCurrentPage(1); }}
-                className="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-bold focus:outline-none focus:border-blue-500"
+                className="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 focus:border-blue-500"
               >
                 <option value="ALL">All Sub-Unit Categories</option>
                 {SUB_UNIT_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
@@ -439,11 +444,11 @@ export const AssignmentPage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Division</label>
-              <select
+              <label htmlFor="assignment-filter-division" className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Division</label>
+              <select id="assignment-filter-division"
                 value={selectedDivision}
                 onChange={(e) => { setSelectedDivision(e.target.value); setCurrentPage(1); }}
-                className="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-bold focus:outline-none focus:border-blue-500"
+                className="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 focus:border-blue-500"
               >
                 <option value="ALL">All Divisions</option>
                 {ASSIGNMENT_DIVISION_OPTIONS.map(option => (
@@ -452,29 +457,25 @@ export const AssignmentPage: React.FC = () => {
               </select>
             </div>
           </div>
+          </details>
         </div>
 
         {/* Assignments Table with Sorting */}
-        <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-2xs">
-        <div className="overflow-x-auto">
+        <div className="module-records record-section">
+        <div className="record-section-header"><h2 className="app-section-title">Assignment records</h2><span className="module-result-count" aria-live="polite">{filteredAssignments.length} of {assignmentsList.length} records</span></div>
+        <div className="module-table-scroll" tabIndex={0} role="region" aria-label="Assignment records">
           <table className="record-table text-xs">
-            <thead>
+            {paginatedAssignments.length > 0 && <thead>
               <tr className="bg-slate-50 text-slate-700 font-extrabold border-b border-slate-200 uppercase text-[11px]">
-                <th className="py-3 px-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => toggleSort('personnelName')}>
-                  Personnel {sortField === 'personnelName' && (sortDirection === 'asc' ? '▲' : '▼')}
-                </th>
-                <th className="py-3 px-4">Assigned Position</th>
-                <th className="py-3 px-4">Unit / Division</th>
-                <th className="py-3 px-4">Order Ref</th>
-                <th className="py-3 px-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => toggleSort('effectiveDate')}>
-                  Dates {sortField === 'effectiveDate' && (sortDirection === 'asc' ? '▲' : '▼')}
-                </th>
-                <th className="py-3 px-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => toggleSort('status')}>
-                  Status {sortField === 'status' && (sortDirection === 'asc' ? '▲' : '▼')}
-                </th>
-                <th className="py-3 px-4 text-right">Action</th>
+                <th scope="col" aria-sort={sortField === 'personnelName' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}><button type="button" className="module-sort-button" onClick={() => toggleSort('personnelName')}> Personnel {sortField === 'personnelName' && (sortDirection === 'asc' ? <ArrowUp aria-hidden="true" className="h-3 w-3" /> : <ArrowDown aria-hidden="true" className="h-3 w-3" />)}</button></th>
+                <th scope="col" className="py-3 px-4">Assigned Position</th>
+                <th scope="col" className="py-3 px-4">Unit / Division</th>
+                <th scope="col" className="py-3 px-4">Order Ref</th>
+                <th scope="col" aria-sort={sortField === 'effectiveDate' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}><button type="button" className="module-sort-button" onClick={() => toggleSort('effectiveDate')}> Dates {sortField === 'effectiveDate' && (sortDirection === 'asc' ? <ArrowUp aria-hidden="true" className="h-3 w-3" /> : <ArrowDown aria-hidden="true" className="h-3 w-3" />)}</button></th>
+                <th scope="col" aria-sort={sortField === 'status' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}><button type="button" className="module-sort-button" onClick={() => toggleSort('status')}> Status {sortField === 'status' && (sortDirection === 'asc' ? <ArrowUp aria-hidden="true" className="h-3 w-3" /> : <ArrowDown aria-hidden="true" className="h-3 w-3" />)}</button></th>
+                <th scope="col" className="py-3 px-4 text-right">Action</th>
               </tr>
-            </thead>
+            </thead>}
             <tbody className="divide-y divide-slate-100 text-slate-900 font-bold">
               {paginatedAssignments.map((asg) => {
                 const person = personnelList.find(p => p.id === asg.personnelId);
@@ -510,6 +511,7 @@ export const AssignmentPage: React.FC = () => {
                       <div className="flex justify-end gap-1.5">
                         <button
                           type="button"
+                          aria-label={`View assignment for ${person?.fullName || 'personnel'}`}
                           onClick={() => setSelectedAssignment(asg)}
                           className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-[11px] font-bold text-slate-700 hover:border-blue-400 hover:text-blue-700"
                         >
@@ -518,6 +520,7 @@ export const AssignmentPage: React.FC = () => {
                         {canManage && (
                           <button
                             type="button"
+                            aria-label={`Edit assignment for ${person?.fullName || 'personnel'}`}
                             onClick={() => openEditModal(asg)}
                             className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1.5 text-[11px] font-bold text-white hover:bg-blue-700"
                           >
@@ -544,7 +547,7 @@ export const AssignmentPage: React.FC = () => {
               {!paginatedAssignments.length && (
                 <tr>
                   <td colSpan={7} className="px-4 py-12 text-center text-xs font-semibold text-slate-500">
-                    No assignment records match the selected filters.
+                    <EmptyState title="No assignments found" description={assignmentsList.length ? 'Try another search or reset your filters.' : 'Duty postings will appear here once assignments are recorded.'} icon={Briefcase} />
                   </td>
                 </tr>
               )}
@@ -553,7 +556,7 @@ export const AssignmentPage: React.FC = () => {
         </div>
 
         {/* Pagination Controls */}
-        <div className="p-3 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600 font-semibold">
+        <div className="module-pagination p-3 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600 font-semibold">
           <div>
             Showing <span className="font-bold text-slate-900">{sortedAssignments.length ? (currentPage - 1) * pageSize + 1 : 0}</span> to <span className="font-bold text-slate-900">{Math.min(currentPage * pageSize, sortedAssignments.length)}</span> of <span className="font-bold text-slate-900">{sortedAssignments.length}</span> assignments
           </div>
@@ -561,9 +564,10 @@ export const AssignmentPage: React.FC = () => {
             <div className="flex items-center gap-1.5">
               <span>Per page:</span>
               <select
+                aria-label="Assignments per page"
                 value={pageSize}
                 onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
-                className="px-2 py-1 text-xs bg-white border border-slate-300 rounded font-bold text-slate-900 focus:outline-none"
+                className="px-2 py-1 text-xs bg-white border border-slate-300 rounded font-bold text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
               >
                 <option value={10}>10</option>
                 <option value={25}>25</option>
@@ -605,16 +609,16 @@ export const AssignmentPage: React.FC = () => {
         <form onSubmit={handleSaveAssignment} className="space-y-4">
           {/* Searchable Personnel Picker */}
           <div>
-            <label className="block text-xs font-bold text-slate-600 mb-1">Select Personnel</label>
+            <label htmlFor="assignment-personnel-picker" className="block text-xs font-bold text-slate-600 mb-1">Select Personnel</label>
             <div className="relative" ref={personnelDropdownRef}>
               {/* Trigger button */}
-              <button
+              <button id="assignment-personnel-picker" aria-expanded={isPersonnelDropdownOpen}
                 type="button"
                 onClick={() => {
                   setIsPersonnelDropdownOpen(prev => !prev);
                   setPersonnelSearch('');
                 }}
-                className="w-full flex items-center justify-between px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-bold focus:outline-none focus:border-blue-500 hover:border-blue-400 transition-colors"
+                className="w-full flex items-center justify-between px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 focus:border-blue-500 hover:border-blue-400 transition-colors"
               >
                 <span className="truncate">
                   {selectedPersonnel
@@ -636,13 +640,13 @@ export const AssignmentPage: React.FC = () => {
                         type="text"
                         value={personnelSearch}
                         onChange={e => setPersonnelSearch(e.target.value)}
-                        placeholder="Search by name, rank, badge, or division..."
-                        className="w-full pl-7 pr-7 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
+                        aria-label="Search personnel options" placeholder="Search by name, rank, badge, or division..."
+                        className="w-full pl-7 pr-7 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 focus:border-blue-500"
                       />
                       {personnelSearch && (
                         <button
                           type="button"
-                          onClick={() => setPersonnelSearch('')}
+                          aria-label="Clear personnel search" onClick={() => setPersonnelSearch('')}
                           className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
                         >
                           <X className="w-3 h-3" />
@@ -688,11 +692,11 @@ export const AssignmentPage: React.FC = () => {
           {/* Position Category & Position Title */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-slate-600 mb-1">Position Category *</label>
-              <select
+              <label htmlFor="assignment-form-position-category" className="block text-xs font-bold text-slate-600 mb-1">Position Category *</label>
+              <select id="assignment-form-position-category"
                 value={positionCategory}
                 onChange={e => setPositionCategory(e.target.value as any)}
-                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-bold focus:outline-none focus:border-blue-500 cursor-pointer"
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 focus:border-blue-500 cursor-pointer"
               >
                 {POSITION_CATEGORIES.map(pc => (
                   <option key={pc} value={pc}>{pc}</option>
@@ -700,13 +704,13 @@ export const AssignmentPage: React.FC = () => {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-600 mb-1">Position / Designation *</label>
-              <input
+              <label htmlFor="assignment-form-position-designation" className="block text-xs font-bold text-slate-600 mb-1">Position / Designation *</label>
+              <input id="assignment-form-position-designation"
                 type="text"
                 value={position}
                 onChange={e => setPosition(e.target.value)}
                 placeholder="e.g. Lead Software Engineer"
-                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 focus:border-blue-500"
                 required
               />
             </div>
@@ -715,11 +719,11 @@ export const AssignmentPage: React.FC = () => {
           {/* Unit Category & Sub-unit Category */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-slate-600 mb-1">Unit Category *</label>
-              <select
+              <label htmlFor="assignment-form-unit-category" className="block text-xs font-bold text-slate-600 mb-1">Unit Category *</label>
+              <select id="assignment-form-unit-category"
                 value={unitCategory}
                 onChange={e => setUnitCategory(e.target.value as any)}
-                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500 cursor-pointer"
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 focus:border-blue-500 cursor-pointer"
               >
                 {UNIT_CATEGORIES.map(uc => (
                   <option key={uc} value={uc}>{uc}</option>
@@ -727,11 +731,11 @@ export const AssignmentPage: React.FC = () => {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-600 mb-1">Sub-Unit Category *</label>
-              <select
+              <label htmlFor="assignment-form-sub-unit-category" className="block text-xs font-bold text-slate-600 mb-1">Sub-Unit Category *</label>
+              <select id="assignment-form-sub-unit-category"
                 value={subUnitCategory}
                 onChange={e => setSubUnitCategory(e.target.value as any)}
-                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500 cursor-pointer"
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 focus:border-blue-500 cursor-pointer"
               >
                 {SUB_UNIT_CATEGORIES.map(sc => (
                   <option key={sc} value={sc}>{sc}</option>
@@ -759,7 +763,7 @@ export const AssignmentPage: React.FC = () => {
                       setSubUnit(e.target.value);
                     }
                   }}
-                  className="min-w-0 flex-1 px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
+                  className="min-w-0 flex-1 px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 focus:border-blue-500"
                 >
                   <option value="">Not recorded / review required</option>
                   {subUnitOptions.map(option => <option key={option} value={option}>{option}</option>)}
@@ -769,19 +773,19 @@ export const AssignmentPage: React.FC = () => {
               </div>
               {isCustomSubUnitEntry && (
                 <div className="mt-2 flex gap-2">
-                  <input autoFocus type="text" value={sub_unit} onChange={e => setSubUnit(e.target.value)} placeholder="Enter custom sub-unit name" className="min-w-0 flex-1 px-3 py-2 text-xs bg-white border border-blue-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500" />
+                  <input autoFocus type="text" value={sub_unit} onChange={e => setSubUnit(e.target.value)} placeholder="Enter custom sub-unit name" className="min-w-0 flex-1 px-3 py-2 text-xs bg-white border border-blue-300 rounded-lg text-slate-900 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 focus:border-blue-500" />
                   <button type="button" onClick={() => { setSubUnit(''); setIsCustomSubUnitEntry(false); }} className="shrink-0 rounded-lg border border-slate-200 px-2.5 py-2 text-[11px] font-bold text-slate-600 hover:border-slate-300">Use list</button>
                 </div>
               )}
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-600 mb-1">Details</label>
-              <input
+              <label htmlFor="assignment-form-details" className="block text-xs font-bold text-slate-600 mb-1">Details</label>
+              <input id="assignment-form-details"
                 type="text"
                 value={details}
                 onChange={e => setDetails(e.target.value)}
                 placeholder="e.g. Network Monitoring Desk"
-                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 focus:border-blue-500"
               />
             </div>
           </div>
@@ -805,7 +809,7 @@ export const AssignmentPage: React.FC = () => {
                       setStation(e.target.value);
                     }
                   }}
-                  className="min-w-0 flex-1 px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
+                  className="min-w-0 flex-1 px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 focus:border-blue-500"
                 >
                   <option value="">Not recorded / review required</option>
                   {stationOptions.map(option => <option key={option} value={option}>{option}</option>)}
@@ -827,7 +831,7 @@ export const AssignmentPage: React.FC = () => {
                     value={station}
                     onChange={e => setStation(e.target.value)}
                     placeholder="Enter custom station name"
-                    className="min-w-0 flex-1 px-3 py-2 text-xs bg-white border border-blue-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
+                    className="min-w-0 flex-1 px-3 py-2 text-xs bg-white border border-blue-300 rounded-lg text-slate-900 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 focus:border-blue-500"
                   />
                   <button
                     type="button"
@@ -853,8 +857,8 @@ export const AssignmentPage: React.FC = () => {
             <p className="text-[10px] font-extrabold uppercase tracking-wider text-cyan-800">Administrative Order Context</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Link official order</label>
-                <select
+                <label htmlFor="assignment-form-link-official-order" className="block text-xs font-bold text-slate-700 mb-1">Link official order</label>
+                <select id="assignment-form-link-official-order"
                   value={orderId}
                   onChange={e => {
                     const nextOrderId = e.target.value;
@@ -862,15 +866,15 @@ export const AssignmentPage: React.FC = () => {
                     setOrderId(nextOrderId);
                     if (linkedOrder) setOrderRef(getOfficialOrderNumber(linkedOrder));
                   }}
-                  className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
+                  className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg text-slate-900 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 focus:border-blue-500"
                 >
                   <option value="">Manual posting / legacy reference</option>
                   {ordersList.filter(order => !order.issuancePending && getOfficialOrderNumber(order)).map(order => <option key={order.id} value={order.id}>{getOfficialOrderNumber(order)} — {order.purposeCode || order.purposeLabel ? formatOrderPurposeLabel(order.purposeCode, order.purposeLabel) : order.subject}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Order reference</label>
-                <input
+                <label htmlFor="assignment-form-order-reference" className="block text-xs font-bold text-slate-700 mb-1">Order reference</label>
+                <input id="assignment-form-order-reference"
                   type="text"
                   value={orderRef}
                   onChange={e => {
@@ -879,28 +883,28 @@ export const AssignmentPage: React.FC = () => {
                     if (linkedOrder && e.target.value.trim() !== getOfficialOrderNumber(linkedOrder)) setOrderId('');
                   }}
                   placeholder="Optional for manual or legacy records"
-                  className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
+                  className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg text-slate-900 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 focus:border-blue-500"
                 />
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Designation Date</label>
-                <input
+                <label htmlFor="assignment-form-designation-date" className="block text-xs font-bold text-slate-700 mb-1">Designation Date</label>
+                <input id="assignment-form-designation-date"
                   type="date"
                   value={designationDate}
                   onChange={e => setDesignationDate(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
+                  className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg text-slate-900 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 focus:border-blue-500"
                   title="Date Order Issued (Upper-right header)"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Effective Date of Designation</label>
-                <input
+                <label htmlFor="assignment-form-effective-date-of-designation" className="block text-xs font-bold text-slate-700 mb-1">Effective Date of Designation</label>
+                <input id="assignment-form-effective-date-of-designation"
                   type="date"
                   value={effectiveDate}
                   onChange={e => setEffectiveDate(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
+                  className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg text-slate-900 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 focus:border-blue-500"
                   title="Effective Date (Order body)"
                 />
               </div>
@@ -908,8 +912,8 @@ export const AssignmentPage: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-600 mb-1">Geographic Region</label>
-            <select value={region} onChange={e => setRegion(e.target.value)} className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500">
+            <label htmlFor="assignment-form-geographic-region" className="block text-xs font-bold text-slate-600 mb-1">Geographic Region</label>
+            <select id="assignment-form-geographic-region" value={region} onChange={e => setRegion(e.target.value)} className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 focus:border-blue-500">
               <option value="">Not recorded / review required</option>
               <option value="Luzon">Luzon</option>
               <option value="Visayas">Visayas</option>
@@ -920,30 +924,30 @@ export const AssignmentPage: React.FC = () => {
           {/* Timeline: Start Date, End Date, Status */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-bold text-slate-600 mb-1">Start Date *</label>
-              <input
+              <label htmlFor="assignment-form-start-date" className="block text-xs font-bold text-slate-600 mb-1">Start Date *</label>
+              <input id="assignment-form-start-date"
                 type="date"
                 value={startDate}
                 onChange={e => setStartDate(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 focus:border-blue-500"
                 required
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-600 mb-1">End Date</label>
-              <input
+              <label htmlFor="assignment-form-end-date" className="block text-xs font-bold text-slate-600 mb-1">End Date</label>
+              <input id="assignment-form-end-date"
                 type="date"
                 value={endDate}
                 onChange={e => setEndDate(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 focus:border-blue-500"
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-600 mb-1">Status</label>
-              <select
+              <label htmlFor="assignment-form-status" className="block text-xs font-bold text-slate-600 mb-1">Status</label>
+              <select id="assignment-form-status"
                 value={status}
                 onChange={e => setStatus(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-bold focus:outline-none focus:border-blue-500 cursor-pointer"
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 focus:border-blue-500 cursor-pointer"
               >
                 <option value="Current">Current</option>
                 <option value="Scheduled">Scheduled</option>
@@ -954,12 +958,12 @@ export const AssignmentPage: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-600 mb-1">Remarks</label>
-            <textarea
+            <label htmlFor="assignment-form-remarks" className="block text-xs font-bold text-slate-600 mb-1">Remarks</label>
+            <textarea id="assignment-form-remarks"
               value={remarks}
               onChange={e => setRemarks(e.target.value)}
               placeholder="Specific duty context or directives..."
-              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold h-20 focus:outline-none focus:border-blue-500"
+              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold h-20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 focus:border-blue-500"
             />
           </div>
 
