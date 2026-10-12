@@ -90,6 +90,15 @@
   --table-border: var(--border);
   --sidebar-bg: var(--color-brand-navy);
   --header-bg: var(--card);
+  --rank-pco-bg: #eff6ff;
+  --rank-pco-ink: #1d4ed8;
+  --rank-pco-border: #bfdbfe;
+  --rank-pnco-bg: #f8fafc;
+  --rank-pnco-ink: #334155;
+  --rank-pnco-border: #cbd5e1;
+  --rank-nup-bg: #fefce8;
+  --rank-nup-ink: #854d0e;
+  --rank-nup-border: #fef08a;
 }
 .dark, [data-theme="dark"] {
   --color-paper: #14243a;
@@ -118,4 +127,13 @@
   --table-header: #1b2e48;
   --table-hover: #203653;
   --sidebar-bg: #102b54;
+  --rank-pco-bg: #1e3a5f;
+  --rank-pco-ink: #93c5fd;
+  --rank-pco-border: #2563eb;
+  --rank-pnco-bg: #1e293b;
+  --rank-pnco-ink: #cbd5e1;
+  --rank-pnco-border: #475569;
+  --rank-nup-bg: #362d16;
+  --rank-nup-ink: #fef08a;
+  --rank-nup-border: #71581e;
 }

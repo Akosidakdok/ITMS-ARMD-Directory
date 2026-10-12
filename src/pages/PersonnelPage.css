@@ -5,7 +5,8 @@
 }
 
 .personnel-page-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-.personnel-page button { white-space: nowrap; }
+.personnel-page button:not([role="dialog"] button, .whitespace-normal) { white-space: nowrap; }
+.personnel-page [role="dialog"] button { white-space: normal; }
 .personnel-page :is(button, input, select, summary, [tabindex]):focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 3px;

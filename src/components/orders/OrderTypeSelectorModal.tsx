@@ -61,7 +61,7 @@ export const OrderTypeSelectorModal: React.FC<OrderTypeSelectorModalProps> = ({
             className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs outline-none focus:border-blue-500 focus:bg-white"
           />
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {filteredOptions.map(option => {
             const Icon = option.icon;
             return (
@@ -72,15 +72,15 @@ export const OrderTypeSelectorModal: React.FC<OrderTypeSelectorModalProps> = ({
                   onSelect(option.id);
                   setQuery('');
                 }}
-                className="p-4 rounded-2xl border border-slate-200 bg-white hover:border-blue-400 hover:shadow-sm transition-all text-left group"
+                className="group flex flex-col justify-start w-full min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 text-left whitespace-normal transition-all hover:border-blue-400 hover:shadow-sm dark:border-slate-800 dark:bg-slate-900"
               >
-                <span className={`w-10 h-10 rounded-xl border flex items-center justify-center ${option.color}`}>
-                  <Icon className="w-5 h-5" />
+                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${option.color}`}>
+                  <Icon className="h-5 w-5" />
                 </span>
-                <span className="block mt-3 text-sm font-extrabold text-slate-900 group-hover:text-blue-700">
+                <span className="mt-3 block text-sm font-bold text-slate-900 group-hover:text-blue-700 whitespace-normal dark:text-slate-100">
                   {option.label}
                 </span>
-                <span className="block mt-1 text-xs leading-relaxed text-slate-500">
+                <span className="mt-1 block text-xs leading-relaxed text-slate-500 whitespace-normal break-words dark:text-slate-400">
                   {option.description}
                 </span>
               </button>

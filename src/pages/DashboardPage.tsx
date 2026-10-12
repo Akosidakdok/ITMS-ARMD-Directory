@@ -8,6 +8,13 @@ import { EmptyState, OperationalSummary, PageHeader, SectionHeader } from '../co
 import { calculateTimeInGrade } from '../utils/timeInGrade';
 import { AutomatedPersonnelCounter } from '../components/dashboard/AutomatedPersonnelCounter';
 import { getOrderNumberDisplay } from '../utils/orderNumber';
+import { PNP_RANKS, type RankInfo } from '../constants/ranks';
+
+const getRankCategory = (rankAbbr?: string): 'PCO' | 'PNCO' | 'NUP' => {
+  if (!rankAbbr) return 'PNCO';
+  const found = PNP_RANKS.find((r: RankInfo) => r.code === rankAbbr);
+  return found?.category || (rankAbbr === 'NUP' ? 'NUP' : 'PNCO');
+};
 
 const formatDate = (value?: string) => {
   if (!value) return 'Date not recorded';
@@ -127,22 +134,36 @@ export const DashboardPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-700">
-                {personnelList.slice(0, 6).map(person => (
-                  <tr key={person.id}>
-                    <td className="px-4 py-3">
-                      <p className="font-semibold text-slate-900">{person.rank} {person.lastName}, {person.firstName}</p>
-                      <p className="mt-0.5 text-[10px] text-slate-500">{person.rankFullName}</p>
-                    </td>
-                    <td className="px-4 py-3 font-mono text-[11px]">{person.badgeNo || '—'}</td>
-                    <td className="px-4 py-3 font-semibold text-blue-700">{person.sub_unit || person.division || '—'}</td>
-                    <td className="px-4 py-3">{person.designation || 'Not assigned'}</td>
-                    <td className="px-4 py-3 text-right">
-                      <button onClick={() => handleSelectPersonnel(person.id)} aria-label={`View profile for ${person.rank} ${person.lastName}, ${person.firstName}`} className="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-blue-800 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700">
-                        View profile
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {personnelList.slice(0, 6).map(person => {
+                  const category = getRankCategory(person.rank);
+                  return (
+                    <tr key={person.id} className="transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <span className={`rank-badge ${category === 'PCO' ? 'rank-badge--pco' : category === 'NUP' ? 'rank-badge--nup' : 'rank-badge--pnco'}`}>
+                            {category}
+                          </span>
+                          <div>
+                            <p className="font-semibold text-slate-900 dark:text-slate-100">{person.rank} {person.lastName}, {person.firstName}</p>
+                            <p className="mt-0.5 text-[10px] text-slate-500 dark:text-slate-400">{person.rankFullName}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 font-mono text-[11px] text-slate-600 dark:text-slate-300">{person.badgeNo || '—'}</td>
+                      <td className="px-4 py-3 font-semibold text-blue-700 dark:text-blue-400">{person.sub_unit || person.division || '—'}</td>
+                      <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{person.designation || 'Not assigned'}</td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          onClick={() => handleSelectPersonnel(person.id)}
+                          aria-label={`View profile for ${person.rank} ${person.lastName}, ${person.firstName}`}
+                          className="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-blue-800 shadow-2xs transition-all hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 active:scale-95 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                        >
+                          View profile
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>}
             {!personnelList.length && <EmptyState title="No personnel records found" description="Personnel records will appear here after they are added to the directory." icon={Users} />}

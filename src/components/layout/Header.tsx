@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ChevronDown, ChevronRight, Database, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, ShieldCheck, Sun, UserRound } from 'lucide-react';
+import { ChevronDown, ChevronRight, Database, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Search, ShieldCheck, Sun, UserRound } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { useAuthRole } from '../../context/AuthRoleContext';
 import { useTheme } from '../../context/ThemeContext';
 import { getRoleDescription, getRoleLabel } from '../../utils/accessControl';
+import { CommandPaletteModal } from '../common/CommandPaletteModal';
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -31,6 +32,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick, onSidebarToggle, si
   const isDark = theme === 'dark';
   const { pathname } = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [commandOpen, setCommandOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const pageTitle = pageTitles[pathname] || 'Personnel Administration';
   const supabaseConnected = Boolean(backendHealth?.database?.supabase?.isConnected);
@@ -44,7 +46,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick, onSidebarToggle, si
     .slice(0, 2)
     .toUpperCase() || 'U';
   const systemLabel = checkingBackend ? 'Checking system' : supabaseConnected ? 'Supabase connected' : backendConnected ? 'Database unavailable' : 'System offline';
-  const statusTone = supabaseConnected ? 'bg-emerald-600' : checkingBackend ? 'bg-slate-400' : 'bg-amber-600';
+  const statusTone = supabaseConnected ? 'bg-emerald-500' : checkingBackend ? 'bg-slate-400' : 'bg-amber-500';
 
   useEffect(() => {
     const handlePointerDown = (event: MouseEvent) => {
@@ -52,6 +54,10 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick, onSidebarToggle, si
     };
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setMenuOpen(false);
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setCommandOpen(open => !open);
+      }
     };
     document.addEventListener('mousedown', handlePointerDown);
     document.addEventListener('keydown', handleKeyDown);
@@ -62,15 +68,26 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick, onSidebarToggle, si
   }, []);
 
   return (
-    <header role="banner" className="pais-app-header no-print sticky top-0 z-40 flex h-[4.5rem] items-center border-b border-slate-300 bg-white px-3 sm:px-5">
-      <button
-        type="button"
-        onClick={onMenuClick}
-        className="mr-3 inline-flex h-10 w-10 items-center justify-center rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 lg:hidden"
-        aria-label="Open navigation menu"
-      >
-        <Menu aria-hidden="true" className="h-5 w-5" />
-      </button>
+    <>
+      <header role="banner" className="pais-app-header no-print sticky top-0 z-40 flex h-[4.5rem] items-center border-b border-slate-200/90 bg-white/95 backdrop-blur-md px-3 sm:px-5 dark:border-slate-800 dark:bg-[#0c182b]/95">
+        <button
+          type="button"
+          onClick={onMenuClick}
+          className="mr-2 inline-flex h-10 w-10 items-center justify-center rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 lg:hidden dark:border-slate-700 dark:bg-[#162436] dark:text-slate-200"
+          aria-label="Open navigation menu"
+        >
+          <Menu aria-hidden="true" className="h-5 w-5" />
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setCommandOpen(true)}
+          className="mr-3 inline-flex h-10 w-10 items-center justify-center rounded border border-slate-300 bg-white text-slate-700 hover:border-blue-300 hover:bg-blue-50 md:hidden dark:border-slate-700 dark:bg-[#162436] dark:text-slate-200"
+          aria-label="Search personnel or module (Ctrl+K)"
+          title="Quick search (Ctrl+K)"
+        >
+          <Search aria-hidden="true" className="h-4 w-4" />
+        </button>
 
       <button
         type="button"
@@ -90,17 +107,32 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick, onSidebarToggle, si
         <div className="hidden items-center gap-1 text-[10px] font-medium uppercase tracking-[0.08em] text-slate-500 sm:flex">
           PNP–ITMS <ChevronRight aria-hidden="true" className="h-3 w-3" /> Personnel Administration
         </div>
-        <p className="truncate text-sm font-semibold tracking-tight text-slate-900 sm:text-base">{pageTitle}</p>
+        <p className="truncate text-sm font-semibold tracking-tight text-slate-900 sm:text-base dark:text-slate-100">{pageTitle}</p>
+      </div>
+
+      {/* Desktop Search Trigger */}
+      <div className="mx-auto hidden md:flex items-center px-4">
+        <button
+          type="button"
+          onClick={() => setCommandOpen(true)}
+          className="pais-search-trigger"
+          aria-label="Quick search personnel or module (Ctrl+K)"
+          title="Quick search (Ctrl+K)"
+        >
+          <Search aria-hidden="true" className="h-3.5 w-3.5" />
+          <span>Quick search personnel or module...</span>
+          <kbd>Ctrl+K</kbd>
+        </button>
       </div>
 
       <div className="ml-auto flex items-center gap-2 sm:gap-3">
         <div
-          className="hidden items-center gap-2 px-1 text-[10px] font-semibold text-slate-600 md:flex"
+          className="hidden items-center gap-2 px-1 text-[10px] font-semibold text-slate-600 dark:text-slate-400 md:flex"
           title={systemLabel}
           role="status"
         >
           <Database aria-hidden="true" className="h-3.5 w-3.5 text-slate-500" />
-          <span className={`h-2 w-2 rounded-full ${statusTone}`} />
+          <span className={`status-pulse-dot ${statusTone}`} />
           <span>{systemLabel}</span>
         </div>
 
@@ -182,5 +214,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick, onSidebarToggle, si
         </div>
       </div>
     </header>
+    <CommandPaletteModal isOpen={commandOpen} onClose={() => setCommandOpen(false)} />
+  </>
   );
 };

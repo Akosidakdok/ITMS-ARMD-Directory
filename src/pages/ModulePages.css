@@ -4,8 +4,8 @@
 .module-page { min-width: 0; color: var(--foreground); caret-color: var(--ring); }
 .module-page .app-page-header { border: 0; border-radius: 0; background: transparent; padding: 0.25rem 0 0.5rem; box-shadow: none; }
 .module-page .app-page-header::before { content: none; }
-.module-page .app-page-header h1 { font-size: 1.5rem; overflow-wrap: anywhere; }
-.module-page button { white-space: nowrap; }
+.module-page button:not([role="dialog"] button, .whitespace-normal) { white-space: nowrap; }
+.module-page [role="dialog"] button { white-space: normal; }
 .module-page :is(button, input, select, textarea, summary, [tabindex]):focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
 .module-page :is(input, select, textarea) { min-width: 0; min-height: 40px; font-size: 0.8125rem; }
 .module-page input::placeholder { color: var(--muted-foreground); opacity: 1; font-weight: 400; }

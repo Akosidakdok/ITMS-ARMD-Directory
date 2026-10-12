@@ -26,12 +26,12 @@ export const AdministrativeOrderModeModal = ({ isOpen, onClose, onSelect }: Admi
       {options.map(option => {
         const Icon = option.icon;
         return (
-          <button key={option.mode} type="button" onClick={() => onSelect(option.mode)} className="group rounded-2xl border border-slate-200 bg-white p-4 text-left transition hover:-translate-y-0.5 hover:border-blue-400 hover:shadow-md">
+          <button key={option.mode} type="button" onClick={() => onSelect(option.mode)} className="group w-full min-w-0 rounded-2xl border border-slate-200 bg-white p-4 text-left whitespace-normal transition hover:-translate-y-0.5 hover:border-blue-400 hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
             <span className={`flex h-11 w-11 items-center justify-center rounded-xl border ${option.className}`}><Icon size={20} /></span>
-            <span className="mt-4 block text-sm font-bold text-slate-900 group-hover:text-blue-800">{option.title}</span>
-            <span className="mt-2 block min-h-[60px] text-xs leading-relaxed text-slate-500">{option.description}</span>
-            <span className="mt-4 block border-t border-slate-100 pt-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Required</span>
-            <span className="mt-1 block text-xs font-medium text-slate-700">{option.required}</span>
+            <span className="mt-4 block text-sm font-bold text-slate-900 group-hover:text-blue-800 whitespace-normal dark:text-slate-100">{option.title}</span>
+            <span className="mt-2 block min-h-[60px] text-xs leading-relaxed text-slate-500 whitespace-normal break-words dark:text-slate-400">{option.description}</span>
+            <span className="mt-4 block border-t border-slate-100 pt-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:text-slate-400">Required</span>
+            <span className="mt-1 block text-xs font-medium text-slate-700 whitespace-normal dark:text-slate-300">{option.required}</span>
           </button>
         );
       })}

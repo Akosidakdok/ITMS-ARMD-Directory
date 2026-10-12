@@ -74,10 +74,14 @@ interface EmptyStateProps {
 }
 
 export const EmptyState: React.FC<EmptyStateProps> = ({ title, description, icon: Icon, action }) => (
-  <div className="flex flex-col items-center justify-center px-5 py-10 text-center">
-    {Icon && <Icon aria-hidden="true" className="mb-3 h-6 w-6 text-slate-400" />}
-    <p className="text-sm font-semibold text-slate-700">{title}</p>
-    {description && <p className="mt-1 max-w-sm text-xs leading-5 text-slate-500">{description}</p>}
+  <div className="flex flex-col items-center justify-center px-5 py-12 text-center">
+    {Icon && (
+      <div className="mb-3.5 flex h-12 w-12 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-400 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-500">
+        <Icon aria-hidden="true" className="h-6 w-6" />
+      </div>
+    )}
+    <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{title}</p>
+    {description && <p className="mt-1 max-w-sm text-xs leading-5 text-slate-500 dark:text-slate-400">{description}</p>}
     {action && <div className="mt-4">{action}</div>}
   </div>
 );
@@ -98,30 +102,33 @@ interface SummaryItem {
 }
 
 export const OperationalSummary: React.FC<{ items: SummaryItem[]; label?: string }> = ({ items, label = 'Operational summary' }) => (
-  <section aria-label={label} className="overflow-hidden rounded-md border border-slate-300 bg-white">
-    <div className="grid divide-y divide-slate-200 sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-5">
+  <section aria-label={label} className="overflow-hidden rounded-md border border-slate-300 bg-white dark:border-slate-800 dark:bg-[#0c182b]">
+    <div className="grid divide-y divide-slate-200 dark:divide-slate-800 sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-5">
       {items.map((item) => {
         const Icon = item.icon;
         const toneStyles = {
-          neutral: 'text-blue-800',
-          success: 'text-emerald-700',
-          warning: 'text-amber-800',
-          attention: 'text-rose-700'
+          neutral: 'text-blue-700 dark:text-blue-400',
+          success: 'text-emerald-700 dark:text-emerald-400',
+          warning: 'text-amber-700 dark:text-amber-400',
+          attention: 'text-rose-700 dark:text-rose-400'
         }[item.tone || 'neutral'];
         const content = (
           <>
             <span className="flex items-center justify-between gap-2">
-              <span className="record-kicker text-slate-500">{item.label}</span>
+              <span className="flex items-center gap-1.5">
+                <span className="record-kicker text-slate-500 dark:text-slate-400">{item.label}</span>
+                {item.tone === 'success' && <span className="status-pulse-dot bg-emerald-500" title="Active on duty" />}
+              </span>
               {Icon && <Icon aria-hidden="true" className={`h-4 w-4 ${toneStyles}`} />}
             </span>
             <span className="mt-2 flex items-end gap-2">
               <strong className={`text-[1.65rem] font-bold leading-none tabular-nums ${toneStyles}`}>{item.value}</strong>
-              {item.detail && <small className="pb-0.5 text-[10px] leading-3 text-slate-500">{item.detail}</small>}
+              {item.detail && <small className="pb-0.5 text-[10px] leading-3 text-slate-500 dark:text-slate-400">{item.detail}</small>}
             </span>
           </>
         );
         return item.onClick ? (
-          <button key={item.label} type="button" onClick={item.onClick} className="min-h-[82px] p-3.5 text-left hover:bg-blue-50/60">
+          <button key={item.label} type="button" onClick={item.onClick} className="min-h-[82px] p-3.5 text-left transition-all hover:bg-blue-50/70 dark:hover:bg-slate-800/60 active:scale-[0.99]">
             {content}
           </button>
         ) : (
