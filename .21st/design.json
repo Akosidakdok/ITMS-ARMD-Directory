@@ -1,0 +1,643 @@
+{
+  "version": 1,
+  "project": {
+    "name": "pnp-itms-pais",
+    "productType": null,
+    "stack": [
+      "react",
+      "tailwind-v4",
+      "vite"
+    ]
+  },
+  "sources": {
+    "tokens": [
+      "src/index.css"
+    ],
+    "components": [],
+    "assets": [
+      "src/assets"
+    ],
+    "instructions": []
+  },
+  "design": {
+    "colorMode": "light-and-dark",
+    "colors": {
+      "--color-slate-50": {
+        "value": "#f8f7f2",
+        "source": "src/index.css"
+      },
+      "--color-slate-100": {
+        "value": "#f0eee7",
+        "source": "src/index.css"
+      },
+      "--color-slate-200": {
+        "value": "#dedbd1",
+        "source": "src/index.css"
+      },
+      "--color-slate-300": {
+        "value": "#c9c7bf",
+        "source": "src/index.css"
+      },
+      "--color-slate-400": {
+        "value": "#94a3b8",
+        "source": "src/index.css"
+      },
+      "--color-slate-500": {
+        "value": "#64748b",
+        "source": "src/index.css"
+      },
+      "--color-slate-600": {
+        "value": "#475569",
+        "source": "src/index.css"
+      },
+      "--color-slate-700": {
+        "value": "#334155",
+        "source": "src/index.css"
+      },
+      "--color-slate-800": {
+        "value": "#243247",
+        "source": "src/index.css"
+      },
+      "--color-slate-900": {
+        "value": "#1e293b",
+        "source": "src/index.css"
+      },
+      "--color-slate-950": {
+        "value": "#142033",
+        "source": "src/index.css"
+      },
+      "--color-blue-50": {
+        "value": "#edf3f7",
+        "source": "src/index.css"
+      },
+      "--color-blue-100": {
+        "value": "#dce8f0",
+        "source": "src/index.css"
+      },
+      "--color-blue-200": {
+        "value": "#bfd2df",
+        "source": "src/index.css"
+      },
+      "--color-blue-300": {
+        "value": "#91afc3",
+        "source": "src/index.css"
+      },
+      "--color-blue-400": {
+        "value": "#668da8",
+        "source": "src/index.css"
+      },
+      "--color-blue-500": {
+        "value": "#376d92",
+        "source": "src/index.css"
+      },
+      "--color-blue-600": {
+        "value": "#24577e",
+        "source": "src/index.css"
+      },
+      "--color-blue-700": {
+        "value": "#163f61",
+        "source": "src/index.css"
+      },
+      "--color-blue-800": {
+        "value": "#102f4a",
+        "source": "src/index.css"
+      },
+      "--color-blue-900": {
+        "value": "#0a243a",
+        "source": "src/index.css"
+      },
+      "--color-blue-950": {
+        "value": "#061a2b",
+        "source": "src/index.css"
+      },
+      "--color-emerald-50": {
+        "value": "#eaf6f1",
+        "source": "src/index.css"
+      },
+      "--color-emerald-100": {
+        "value": "#d7ede4",
+        "source": "src/index.css"
+      },
+      "--color-emerald-200": {
+        "value": "#acd9c8",
+        "source": "src/index.css"
+      },
+      "--color-emerald-500": {
+        "value": "#23946a",
+        "source": "src/index.css"
+      },
+      "--color-emerald-600": {
+        "value": "#16845b",
+        "source": "src/index.css"
+      },
+      "--color-emerald-700": {
+        "value": "#126b4b",
+        "source": "src/index.css"
+      },
+      "--color-emerald-800": {
+        "value": "#10553e",
+        "source": "src/index.css"
+      },
+      "--color-emerald-900": {
+        "value": "#0d4433",
+        "source": "src/index.css"
+      },
+      "--color-amber-50": {
+        "value": "#fbf3e7",
+        "source": "src/index.css"
+      },
+      "--color-amber-100": {
+        "value": "#f5e5ca",
+        "source": "src/index.css"
+      },
+      "--color-amber-200": {
+        "value": "#e9cca0",
+        "source": "src/index.css"
+      },
+      "--color-amber-500": {
+        "value": "#d18a2c",
+        "source": "src/index.css"
+      },
+      "--color-amber-600": {
+        "value": "#c47a18",
+        "source": "src/index.css"
+      },
+      "--color-amber-700": {
+        "value": "#9e6114",
+        "source": "src/index.css"
+      },
+      "--color-amber-800": {
+        "value": "#7b4c16",
+        "source": "src/index.css"
+      },
+      "--color-amber-900": {
+        "value": "#633e16",
+        "source": "src/index.css"
+      },
+      "--color-rose-50": {
+        "value": "#faeded",
+        "source": "src/index.css"
+      },
+      "--color-rose-100": {
+        "value": "#f4dada",
+        "source": "src/index.css"
+      },
+      "--color-rose-200": {
+        "value": "#e9b7b7",
+        "source": "src/index.css"
+      },
+      "--color-rose-500": {
+        "value": "#c94c4c",
+        "source": "src/index.css"
+      },
+      "--color-rose-600": {
+        "value": "#b83a3a",
+        "source": "src/index.css"
+      },
+      "--color-rose-700": {
+        "value": "#982f2f",
+        "source": "src/index.css"
+      },
+      "--color-rose-800": {
+        "value": "#7d2929",
+        "source": "src/index.css"
+      },
+      "--color-rose-900": {
+        "value": "#682626",
+        "source": "src/index.css"
+      },
+      "--color-sky-50": {
+        "value": "#e8f1f8",
+        "source": "src/index.css"
+      },
+      "--color-sky-100": {
+        "value": "#d8e8f4",
+        "source": "src/index.css"
+      },
+      "--color-sky-200": {
+        "value": "#b8d2e7",
+        "source": "src/index.css"
+      },
+      "--color-sky-500": {
+        "value": "#3476ac",
+        "source": "src/index.css"
+      },
+      "--color-sky-600": {
+        "value": "#2563a6",
+        "source": "src/index.css"
+      },
+      "--color-sky-700": {
+        "value": "#163a5f",
+        "source": "src/index.css"
+      },
+      "--color-cyan-50": {
+        "value": "#e8f1f8",
+        "source": "src/index.css"
+      },
+      "--color-cyan-100": {
+        "value": "#d8e8f4",
+        "source": "src/index.css"
+      },
+      "--color-cyan-200": {
+        "value": "#b8d2e7",
+        "source": "src/index.css"
+      },
+      "--color-cyan-500": {
+        "value": "#3476ac",
+        "source": "src/index.css"
+      },
+      "--color-cyan-600": {
+        "value": "#2563a6",
+        "source": "src/index.css"
+      },
+      "--color-cyan-700": {
+        "value": "#163a5f",
+        "source": "src/index.css"
+      },
+      "--color-indigo-50": {
+        "value": "#e8f1f8",
+        "source": "src/index.css"
+      },
+      "--color-indigo-100": {
+        "value": "#d8e8f4",
+        "source": "src/index.css"
+      },
+      "--color-indigo-200": {
+        "value": "#b8d2e7",
+        "source": "src/index.css"
+      },
+      "--color-indigo-500": {
+        "value": "#3476ac",
+        "source": "src/index.css"
+      },
+      "--color-indigo-600": {
+        "value": "#2563a6",
+        "source": "src/index.css"
+      },
+      "--color-indigo-700": {
+        "value": "#163a5f",
+        "source": "src/index.css"
+      },
+      "--color-purple-50": {
+        "value": "#e8f1f8",
+        "source": "src/index.css"
+      },
+      "--color-purple-100": {
+        "value": "#d8e8f4",
+        "source": "src/index.css"
+      },
+      "--color-purple-200": {
+        "value": "#b8d2e7",
+        "source": "src/index.css"
+      },
+      "--color-purple-500": {
+        "value": "#3476ac",
+        "source": "src/index.css"
+      },
+      "--color-purple-600": {
+        "value": "#2563a6",
+        "source": "src/index.css"
+      },
+      "--color-purple-700": {
+        "value": "#163a5f",
+        "source": "src/index.css"
+      },
+      "--color-violet-50": {
+        "value": "#e8f1f8",
+        "source": "src/index.css"
+      },
+      "--color-violet-100": {
+        "value": "#d8e8f4",
+        "source": "src/index.css"
+      },
+      "--color-violet-500": {
+        "value": "#3476ac",
+        "source": "src/index.css"
+      },
+      "--color-violet-600": {
+        "value": "#2563a6",
+        "source": "src/index.css"
+      },
+      "--color-violet-700": {
+        "value": "#163a5f",
+        "source": "src/index.css"
+      },
+      "--color-teal-50": {
+        "value": "#e8f1f8",
+        "source": "src/index.css"
+      },
+      "--color-teal-100": {
+        "value": "#d8e8f4",
+        "source": "src/index.css"
+      },
+      "--color-teal-200": {
+        "value": "#b8d2e7",
+        "source": "src/index.css"
+      },
+      "--color-teal-500": {
+        "value": "#3476ac",
+        "source": "src/index.css"
+      },
+      "--color-teal-600": {
+        "value": "#2563a6",
+        "source": "src/index.css"
+      },
+      "--color-teal-700": {
+        "value": "#163a5f",
+        "source": "src/index.css"
+      },
+      "--color-teal-800": {
+        "value": "#12314f",
+        "source": "src/index.css"
+      },
+      "--color-red-50": {
+        "value": "#faeded",
+        "source": "src/index.css"
+      },
+      "--color-red-100": {
+        "value": "#f4dada",
+        "source": "src/index.css"
+      },
+      "--color-red-200": {
+        "value": "#e9b7b7",
+        "source": "src/index.css"
+      },
+      "--color-red-500": {
+        "value": "#c94c4c",
+        "source": "src/index.css"
+      },
+      "--color-red-600": {
+        "value": "#b83a3a",
+        "source": "src/index.css"
+      },
+      "--color-red-700": {
+        "value": "#982f2f",
+        "source": "src/index.css"
+      },
+      "--color-red-800": {
+        "value": "#7d2929",
+        "source": "src/index.css"
+      },
+      "--color-orange-50": {
+        "value": "#fbf3e7",
+        "source": "src/index.css"
+      },
+      "--color-orange-100": {
+        "value": "#f5e5ca",
+        "source": "src/index.css"
+      },
+      "--color-orange-200": {
+        "value": "#e9cca0",
+        "source": "src/index.css"
+      },
+      "--color-orange-500": {
+        "value": "#d18a2c",
+        "source": "src/index.css"
+      },
+      "--color-orange-600": {
+        "value": "#c47a18",
+        "source": "src/index.css"
+      },
+      "--color-orange-700": {
+        "value": "#9e6114",
+        "source": "src/index.css"
+      },
+      "--color-orange-800": {
+        "value": "#7b4c16",
+        "source": "src/index.css"
+      },
+      "--color-yellow-50": {
+        "value": "#fbf3e7",
+        "source": "src/index.css"
+      },
+      "--color-yellow-100": {
+        "value": "#f5e5ca",
+        "source": "src/index.css"
+      },
+      "--color-yellow-200": {
+        "value": "#e9cca0",
+        "source": "src/index.css"
+      },
+      "--color-yellow-400": {
+        "value": "#d18a2c",
+        "source": "src/index.css"
+      },
+      "--color-yellow-500": {
+        "value": "#c47a18",
+        "source": "src/index.css"
+      },
+      "--color-yellow-600": {
+        "value": "#9e6114",
+        "source": "src/index.css"
+      },
+      "--color-yellow-700": {
+        "value": "#7b4c16",
+        "source": "src/index.css"
+      },
+      "--background": {
+        "value": "#0b131e",
+        "source": "src/index.css"
+      },
+      "--foreground": {
+        "value": "#f1f5f9",
+        "source": "src/index.css"
+      },
+      "--card-foreground": {
+        "value": "#f1f5f9",
+        "source": "src/index.css"
+      },
+      "--popover-foreground": {
+        "value": "#f1f5f9",
+        "source": "src/index.css"
+      },
+      "--primary": {
+        "value": "#2d6b9f",
+        "source": "src/index.css"
+      },
+      "--primary-foreground": {
+        "value": "#ffffff",
+        "source": "src/index.css"
+      },
+      "--secondary": {
+        "value": "#182638",
+        "source": "src/index.css"
+      },
+      "--secondary-foreground": {
+        "value": "#cbd5e1",
+        "source": "src/index.css"
+      },
+      "--muted": {
+        "value": "#152335",
+        "source": "src/index.css"
+      },
+      "--muted-foreground": {
+        "value": "#94a3b8",
+        "source": "src/index.css"
+      },
+      "--accent": {
+        "value": "#1c3046",
+        "source": "src/index.css"
+      },
+      "--accent-foreground": {
+        "value": "#93c5fd",
+        "source": "src/index.css"
+      },
+      "--border": {
+        "value": "#223448",
+        "source": "src/index.css"
+      },
+      "--ring": {
+        "value": "#38bdf8",
+        "source": "src/index.css"
+      },
+      "--pais-muted": {
+        "value": "#94a3b8",
+        "source": "src/index.css"
+      },
+      "--border-color": {
+        "value": "var(--border)",
+        "source": "src/index.css"
+      },
+      "--text-primary": {
+        "value": "var(--foreground)",
+        "source": "src/index.css"
+      },
+      "--text-secondary": {
+        "value": "var(--muted-foreground)",
+        "source": "src/index.css"
+      },
+      "--table-border": {
+        "value": "#223448",
+        "source": "src/index.css"
+      }
+    },
+    "typography": {
+      "--font-sans": {
+        "value": "\"Segoe UI\", \"Arial Nova\", Arial, system-ui, sans-serif",
+        "source": "src/index.css"
+      },
+      "--font-mono": {
+        "value": "\"JetBrains Mono\", ui-monospace, SFMono-Regular, Consolas, monospace",
+        "source": "src/index.css"
+      }
+    },
+    "spacing": {},
+    "radius": {
+      "--radius-lg": {
+        "value": "0.25rem",
+        "source": "src/index.css"
+      },
+      "--radius-xl": {
+        "value": "0.375rem",
+        "source": "src/index.css"
+      },
+      "--radius-2xl": {
+        "value": "0.375rem",
+        "source": "src/index.css"
+      },
+      "--radius-3xl": {
+        "value": "0.5rem",
+        "source": "src/index.css"
+      },
+      "--pais-radius-control": {
+        "value": "0.25rem",
+        "source": "src/index.css"
+      },
+      "--pais-radius-panel": {
+        "value": "0.375rem",
+        "source": "src/index.css"
+      }
+    },
+    "shadows": {
+      "--shadow-2xs": {
+        "value": "0 1px 2px rgb(15 23 42 / 0.03)",
+        "source": "src/index.css"
+      },
+      "--shadow-xs": {
+        "value": "0 1px 2px rgb(15 23 42 / 0.04)",
+        "source": "src/index.css"
+      },
+      "--shadow-sm": {
+        "value": "0 1px 3px rgb(15 23 42 / 0.06)",
+        "source": "src/index.css"
+      },
+      "--shadow-md": {
+        "value": "0 4px 12px rgb(15 23 42 / 0.08)",
+        "source": "src/index.css"
+      },
+      "--shadow-lg": {
+        "value": "0 10px 24px rgb(15 23 42 / 0.11)",
+        "source": "src/index.css"
+      },
+      "--shadow-xl": {
+        "value": "0 16px 32px rgb(15 23 42 / 0.14)",
+        "source": "src/index.css"
+      },
+      "--shadow-2xl": {
+        "value": "0 18px 40px rgb(15 23 42 / 0.16)",
+        "source": "src/index.css"
+      },
+      "--pais-shadow-float": {
+        "value": "0 14px 36px rgb(0 0 0 / 0.55)",
+        "source": "src/index.css"
+      }
+    },
+    "motion": {
+      "--pais-motion-fast": {
+        "value": "140ms",
+        "source": "src/index.css"
+      },
+      "--pais-motion-standard": {
+        "value": "200ms",
+        "source": "src/index.css"
+      }
+    },
+    "density": "unknown"
+  },
+  "components": {
+    "installed": [],
+    "preferredPrimitives": [],
+    "patterns": []
+  },
+  "constraints": {
+    "must": [],
+    "avoid": []
+  },
+  "decisions": [
+    {
+      "scope": "personnel",
+      "decision": "Refine existing PAIS styling with a clear search toolbar, category counts, collapsible advanced filters, readable directory rows, and consistent dialog controls. Preserve existing tokens, permissions, and data workflows.",
+      "source": "User request: clean and professional personnel module",
+      "inspiration": "21st Filter Toolbar search; existing project primitives reused"
+    },
+    {
+      "scope": "dashboard",
+      "decision": "Continue the personnel module refinement: compact operational summary, neutral filtered strength strip, collapsible labeled filters, and a single set of analysis view controls. Preserve PAIS tokens, data sources, and module navigation.",
+      "source": "User request: apply same clean professional treatment to dashboard",
+      "inspiration": "21st dashboard analytics tabs search; existing SystemUI and Badge components reused"
+    }
+  ],
+  "evidence": [
+    {
+      "fact": "design.colorMode:light-and-dark",
+      "source": "src/index.css"
+    },
+    {
+      "fact": "design.tokens",
+      "source": "src/index.css"
+    },
+    {
+      "fact": "project.stack:react",
+      "source": "package.json"
+    },
+    {
+      "fact": "project.stack:tailwind-v4",
+      "source": "package.json"
+    },
+    {
+      "fact": "project.stack:vite",
+      "source": "package.json"
+    }
+  ],
+  "generatedAt": "2026-10-12T05:05:23.095Z"
+}

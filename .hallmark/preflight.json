@@ -1,0 +1,20 @@
+{
+  "scope": "personnel module refinement",
+  "font": {
+    "value": "Segoe UI, Arial Nova, Arial, system-ui, sans-serif",
+    "source": "src/index.css:5"
+  },
+  "palette": {
+    "value": "Existing PAIS navy, paper, semantic status tokens; light and dark modes",
+    "source": "src/index.css:135"
+  },
+  "motion": "CSS transitions only; respect reduced motion",
+  "spacing": "Existing Tailwind scale",
+  "framework": "React 19, Tailwind 4, Vite 8",
+  "preserve": [
+    "fonts",
+    "palette",
+    "routes",
+    "data and permissions"
+  ]
+}
