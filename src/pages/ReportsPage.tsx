@@ -18,6 +18,9 @@ import { Button, PageHeader } from '../components/common/SystemUI';
 import { resolvePersonnelRankCategory } from '../utils/personnelCounting';
 import { AutomatedPersonnelCounter } from '../components/dashboard/AutomatedPersonnelCounter';
 import { getOrderNumberDisplay } from '../utils/orderNumber';
+import './ModulePages.css';
+import './RecordsModules.css';
+import './ReportsPage.css';
 
 type ReportTab = 'alpha_list' | 'strength_counting' | 'leave' | 'education' | 'training' | 'promotion' | 'orders' | 'awards';
 
@@ -319,21 +322,31 @@ export const ReportsPage: React.FC = () => {
   };
 
   const currentExportConfig = getExportConfig();
+  const activeReport = reportTabs.find(tab => tab.key === activeReportTab)!;
+
+  const handleReportKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
+    let nextIndex = index;
+    if (event.key === 'ArrowRight') nextIndex = (index + 1) % reportTabs.length;
+    else if (event.key === 'ArrowLeft') nextIndex = (index - 1 + reportTabs.length) % reportTabs.length;
+    else if (event.key === 'Home') nextIndex = 0;
+    else if (event.key === 'End') nextIndex = reportTabs.length - 1;
+    else return;
+    event.preventDefault();
+    setActiveReportTab(reportTabs[nextIndex].key);
+    document.getElementById(`report-tab-${reportTabs[nextIndex].key}`)?.focus();
+  };
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="module-page records-module reports-page space-y-6">
       <PageHeader
-        eyebrow="Official reporting module"
-        title="Administrative Reports"
-        description="Review filtered personnel, leave, education, training, orders, awards, and time-in-grade records in a print-ready format."
-        meta={<span className="text-[11px] text-slate-500">PNP–ITMS administrative records</span>}
-        reference="RPT-GENERATION-DESK"
+        title="Reports"
+        description="Choose a report, review its records, and export or print the current results."
         actions={<Button variant="primary" icon={Printer} onClick={() => setIsExportOpen(true)}>Export / print report</Button>}
       />
 
       {/* Report Selection Tabs Bar */}
-      <div className="record-section flex gap-0 overflow-x-auto p-1" role="tablist" aria-label="Report type">
-        {reportTabs.map(tab => {
+      <div className="reports-navigation" role="tablist" aria-label="Report type">
+        {reportTabs.map((tab, index) => {
           const Icon = tab.icon;
           const active = activeReportTab === tab.key;
           return (
@@ -341,33 +354,37 @@ export const ReportsPage: React.FC = () => {
               key={tab.key}
               type="button"
               role="tab"
+              id={`report-tab-${tab.key}`}
               aria-selected={active}
+              aria-controls="report-panel"
+              tabIndex={active ? 0 : -1}
               onClick={() => setActiveReportTab(tab.key)}
-              className={`flex min-w-32 flex-1 items-center gap-2 rounded border-b-2 px-3 py-2.5 text-left ${active ? 'border-blue-700 bg-blue-50 text-blue-800' : 'border-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
+              onKeyDown={(event) => handleReportKeyDown(event, index)}
+              className="reports-tab"
             >
-              <Icon className={`h-4 w-4 shrink-0 ${active ? 'text-blue-700' : 'text-slate-400'}`} />
-              <span>
-                <span className="block text-xs font-semibold">{tab.label}</span>
-                <span className="block text-[10px] text-slate-500">{tab.description}</span>
-              </span>
+              <Icon aria-hidden="true" className="h-4 w-4 shrink-0" />
+              <span>{tab.label}</span>
             </button>
           );
         })}
       </div>
 
+      <section id="report-panel" role="tabpanel" aria-labelledby={`report-tab-${activeReportTab}`} tabIndex={0} className="reports-panel space-y-5">
       {/* Dynamic Filter Controls per Report */}
-      <div className="record-toolbar flex flex-wrap items-center justify-between gap-4 p-3">
-        <div className="flex items-center gap-2 text-xs font-semibold text-slate-700">
-          <Filter className="w-4 h-4 text-blue-700" /> Report filters
+      <div className="record-toolbar reports-filters">
+        <div className="reports-context">
+          <h2>{activeReport.label}</h2>
+          <p>{activeReport.description}</p>
         </div>
 
         {activeReportTab === 'alpha_list' && (
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-slate-600 font-bold">Filter by Sub-Unit:</span>
+          <div className="reports-filter-field">
+            <label htmlFor="report-sub-unit"><Filter aria-hidden="true" className="h-3.5 w-3.5" /> Sub-unit</label>
             <select
+              id="report-sub-unit"
               value={divisionFilter}
               onChange={(e) => setDivisionFilter(e.target.value)}
-              className="px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-extrabold focus:outline-none focus:border-blue-500"
+              className="reports-filter-control"
             >
               <option value="ALL">All Sub-Units & Offices</option>
               <option value="ITSD">ITSD – Information Technology Support Division</option>
@@ -381,24 +398,26 @@ export const ReportsPage: React.FC = () => {
         )}
 
         {activeReportTab === 'leave' && (
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-slate-600 font-bold">Inspect Personnel on Leave on Date:</span>
+          <div className="reports-filter-field">
+            <label htmlFor="report-leave-date">Personnel on leave as of</label>
             <input
+              id="report-leave-date"
               type="date"
               value={leaveDateFilter}
               onChange={(e) => setLeaveDateFilter(e.target.value)}
-              className="px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-mono font-bold focus:outline-none focus:border-blue-500"
+              className="reports-filter-control"
             />
           </div>
         )}
 
         {activeReportTab === 'education' && (
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-slate-600 font-bold">Filter by Course / Certification:</span>
+          <div className="reports-filter-field">
+            <label htmlFor="report-course">Course / certification</label>
             <select
+              id="report-course"
               value={courseFilter}
               onChange={(e) => setCourseFilter(e.target.value)}
-              className="px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-extrabold focus:outline-none focus:border-blue-500"
+              className="reports-filter-control"
             >
               <option value="ALL">All Qualifications & Courses</option>
               {courseOptions.map((c, i) => (
@@ -409,14 +428,14 @@ export const ReportsPage: React.FC = () => {
         )}
 
         {activeReportTab === 'strength_counting' && (
-          <div className="flex items-center gap-2 text-xs text-slate-600 font-medium">
+          <div className="reports-filter-note">
             <span>Aggregated by Unit Category, Sub-Unit Category, Sub-Unit, and Station across PCO, PNCO, NUP, and Gender.</span>
           </div>
         )}
 
         {activeReportTab === 'promotion' && (
-          <div className="flex items-center gap-2 text-xs text-slate-600 font-medium">
-            <span>Auto-Calculated Benchmark: <strong className="text-blue-700 font-mono font-bold">≥ 3.0 Years (1,095 Days)</strong> for Promotion Board</span>
+          <div className="reports-filter-note">
+            <span>Promotion board benchmark: <strong>≥ 3 years (1,095 days)</strong></span>
           </div>
         )}
       </div>
@@ -426,22 +445,21 @@ export const ReportsPage: React.FC = () => {
       )}
 
       {/* Report Data Table Display */}
-      <div className="record-section">
-        <div className="flex items-center justify-between border-b border-slate-200 bg-white p-4">
-          <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-            <FileText className="h-4 w-4 text-blue-700" />
+      <div className="record-section reports-results">
+        <div className="reports-results-heading">
+          <h3>
             {currentExportConfig.title}
           </h3>
-          <span className="text-xs text-slate-500">Record count: <strong className="font-mono font-semibold text-slate-800">{currentExportConfig.data.length}</strong></span>
+          <span className="reports-record-count" aria-live="polite"><strong>{currentExportConfig.data.length}</strong> records</span>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="module-table-scroll" role="region" aria-label={`${activeReport.label} records`} tabIndex={0}>
           <table className="record-table text-xs">
             <thead>
               <tr className="bg-slate-50 text-slate-700 font-extrabold border-b border-slate-200 uppercase text-[11px]">
-                <th className="py-3.5 px-4">#</th>
+                <th scope="col" className="py-3.5 px-4">#</th>
                 {currentExportConfig.columns.map((col) => (
-                  <th key={col.key} className="py-3.5 px-4">{col.label}</th>
+                  <th scope="col" key={col.key} className="py-3.5 px-4">{col.label}</th>
                 ))}
               </tr>
             </thead>
@@ -467,11 +485,11 @@ export const ReportsPage: React.FC = () => {
                         ) : col.key === 'fullName' ? (
                           <span className="font-extrabold text-slate-900">{row[col.key]}</span>
                         ) : col.key === 'badgeNo' ? (
-                          <span className="font-mono text-slate-600 font-semibold">{row[col.key]}</span>
+                            <span className="reports-tabular">{row[col.key]}</span>
                         ) : col.key === 'timeInGrade' ? (
-                          <span className="font-mono font-extrabold text-sky-700">{row[col.key]}</span>
+                          <span className="reports-tabular">{row[col.key]}</span>
                         ) : col.key === 'total' ? (
-                          <span className="font-mono font-extrabold text-blue-800 text-sm">{row[col.key]}</span>
+                          <span className="reports-tabular font-semibold">{row[col.key]}</span>
                         ) : (
                           <span className="text-slate-800">{String(row[col.key] ?? '—')}</span>
                         )}
@@ -484,6 +502,7 @@ export const ReportsPage: React.FC = () => {
           </table>
         </div>
       </div>
+      </section>
 
       {/* Export / Print Preview Modal */}
       <ExportPrintModal

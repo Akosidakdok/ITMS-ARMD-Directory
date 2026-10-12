@@ -67,12 +67,12 @@ export const ExcelRibbon: React.FC<ExcelRibbonProps> = ({
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   return (
-    <div className="border-b border-slate-200 bg-[#f3f4f6] dark:border-slate-800 dark:bg-[#0c1624] text-xs">
+    <div className="worksheet-ribbon border-b border-slate-200 bg-[#f3f4f6] dark:border-slate-800 dark:bg-[#0c1624] text-xs">
       {/* Top Quick Access Toolbar & Tabs Bar */}
-      <div className="flex items-center justify-between px-3 border-b border-slate-200 dark:border-slate-800">
-        <div className="flex items-center gap-2">
+      <div className="worksheet-ribbon-toolbar flex items-center justify-between px-3 border-b border-slate-200 dark:border-slate-800">
+        <div className="worksheet-ribbon-navigation flex items-center gap-2">
           {/* Excel Brand & Quick Access */}
-          <div className="flex items-center gap-1 pr-3 border-r border-slate-300 dark:border-slate-700 py-1.5">
+          <div className="worksheet-quick-actions flex items-center gap-1 pr-3 border-r border-slate-300 dark:border-slate-700 py-1.5">
             <div className="rounded bg-emerald-600 p-1 text-white shadow-xs">
               <FileSpreadsheet className="h-4 w-4" />
             </div>
@@ -114,7 +114,7 @@ export const ExcelRibbon: React.FC<ExcelRibbonProps> = ({
           </div>
 
           {/* Ribbon Tabs Switcher */}
-          <div className="flex items-center gap-0.5">
+          <div className="worksheet-ribbon-tabs flex items-center gap-0.5" aria-label="Worksheet tools">
             {[
               { id: 'home', label: 'Home' },
               { id: 'insert', label: 'Insert' },
@@ -126,6 +126,7 @@ export const ExcelRibbon: React.FC<ExcelRibbonProps> = ({
             ].map(tab => (
               <button
                 key={tab.id}
+                aria-pressed={activeTab === tab.id && !isCollapsed}
                 onClick={() => {
                   onChangeTab(tab.id as RibbonTabType);
                   if (isCollapsed) setIsCollapsed(false);
@@ -143,7 +144,7 @@ export const ExcelRibbon: React.FC<ExcelRibbonProps> = ({
         </div>
 
         {/* Right side: Save state & Ribbon Collapse */}
-        <div className="flex items-center gap-3">
+        <div className="worksheet-save-status flex items-center gap-3">
           {saveStatus === 'saving' && (
             <span className="flex items-center gap-1 text-[11px] font-semibold text-blue-600 dark:text-sky-400">
               <Loader2 className="h-3 w-3 animate-spin" />
@@ -171,6 +172,7 @@ export const ExcelRibbon: React.FC<ExcelRibbonProps> = ({
 
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
+            aria-expanded={!isCollapsed}
             title={isCollapsed ? 'Expand Ribbon' : 'Collapse Ribbon'}
             className="p-1 rounded text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800"
           >
@@ -181,7 +183,7 @@ export const ExcelRibbon: React.FC<ExcelRibbonProps> = ({
 
       {/* Active Ribbon Panel */}
       {!isCollapsed && (
-        <div className="bg-white dark:bg-[#101b2b] py-1 shadow-inner min-h-[48px] flex items-center">
+        <div className="worksheet-ribbon-panel bg-white dark:bg-[#101b2b] py-1 shadow-inner min-h-[48px] flex items-center">
           {activeTab === 'home' && <RibbonHomeTab {...homeProps} />}
           {activeTab === 'insert' && <RibbonInsertTab {...insertProps} />}
           {activeTab === 'pageLayout' && <RibbonPageLayoutTab {...pageLayoutProps} />}

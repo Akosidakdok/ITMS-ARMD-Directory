@@ -1,0 +1,10 @@
+/* Orders and Education & Training: aliases of the existing PAIS theme. */
+.records-module {
+  --color-records-surface: var(--card);
+  --color-records-ink: var(--foreground);
+  --color-records-muted: var(--muted-foreground);
+  --color-records-rule: var(--border);
+  --color-records-subtle: var(--secondary);
+  --font-records-body: var(--font-sans);
+  --radius-records-panel: var(--pais-radius-panel);
+}

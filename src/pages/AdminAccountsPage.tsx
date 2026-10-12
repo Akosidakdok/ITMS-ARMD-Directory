@@ -1,15 +1,20 @@
 import { FormEvent, useEffect, useState } from 'react';
-import { LoaderCircle, RefreshCw, ShieldAlert, ShieldCheck, UserCog, UserPlus } from 'lucide-react';
+import { LoaderCircle, RefreshCw, ShieldAlert, ShieldCheck, UserCog, UserPlus, Search, X } from 'lucide-react';
 import { createAdminAccount, fetchAdminAccounts, syncAdminProfiles, type AdminAccount } from '../services/api';
 import { useAuthRole } from '../context/AuthRoleContext';
 import { Badge } from '../components/common/Badge';
 import { Modal } from '../components/common/Modal';
 import { Button, EmptyState, FormSection, PageHeader, TableLoadingState } from '../components/common/SystemUI';
 
-const fieldClass = 'mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100';
+import './ModulePages.css';
+import './RecordsModules.css';
+import './AdminAccountsPage.css';
+
+const fieldClass = 'mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-600 focus:ring-2 focus:ring-blue-100';
 
 export const AdminAccountsPage = () => {
   const { role } = useAuthRole();
+  const [search, setSearch] = useState('');
   const [accounts, setAccounts] = useState<AdminAccount[]>([]);
   const [form, setForm] = useState({ displayName: '', email: '', password: '', division: 'ARMD' });
   const [loading, setLoading] = useState(true);
@@ -82,14 +87,16 @@ export const AdminAccountsPage = () => {
     }
   };
 
+  const query = search.trim().toLocaleLowerCase();
+  const filteredAccounts = accounts.filter(account => !query ||
+    [account.displayName, account.email, account.division, account.role, account.status]
+      .some(value => String(value || '').toLocaleLowerCase().includes(query)));
+
   return (
-    <div className="mx-auto max-w-[1680px] space-y-5">
+    <div className="module-page records-module accounts-page mx-auto w-full max-w-[1680px] space-y-5">
       <PageHeader
-        eyebrow="System administration"
         title="Administrator Accounts"
         description="Manage authorized administrator profiles linked to Supabase Auth. Access to this module is restricted to Superadmins."
-        meta={<Badge variant="primary" size="sm"><ShieldCheck aria-hidden="true" className="h-3 w-3" /> Superadmin only</Badge>}
-        reference="SYS-ACCESS-REGISTER"
         actions={
           <>
             <Button variant="secondary" icon={RefreshCw} onClick={sync} disabled={syncing}>
@@ -102,21 +109,39 @@ export const AdminAccountsPage = () => {
         }
       />
 
+      <div className="module-access-status"><ShieldCheck size={15} aria-hidden="true" /><span>Superadmin access · Authorized administrator profiles</span></div>
+      <dl className="records-summary accounts-summary" aria-label="Administrator account summary">
+        {[
+          { label: 'Authorized accounts', value: accounts.length },
+          { label: 'Active accounts', value: accounts.filter(account => account.status.toLowerCase() === 'active').length },
+          { label: 'Superadmins', value: accounts.filter(account => account.role.toLowerCase() === 'superadmin').length },
+        ].map(({ label, value }) => <div key={label}><dt>{label}</dt><dd>{loading ? '—' : value}</dd></div>)}
+      </dl>
+
       {error && <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-medium text-rose-800">{error}</div>}
       {message && <div role="status" className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-medium text-emerald-800">{message}</div>}
 
-      <section className="app-surface overflow-hidden" aria-labelledby="account-table-heading">
-        <div className="flex items-center gap-2 border-b border-slate-200 px-4 py-3.5">
+      <section className="record-section" aria-labelledby="account-table-heading">
+        <div className="record-section-header">
           <UserCog aria-hidden="true" className="h-4 w-4 text-blue-700" />
           <div>
             <h2 id="account-table-heading" className="app-section-title">Admin and Superadmin profiles</h2>
             <p className="mt-0.5 text-xs text-slate-500">{accounts.length} authorized account{accounts.length === 1 ? '' : 's'}</p>
           </div>
         </div>
+        <div className="module-search-toolbar">
+          <label className="module-search-input">
+            <span className="sr-only">Search administrator accounts</span><Search size={16} aria-hidden="true" />
+            <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search name, email, division, or role…" />
+          </label>
+          <span className="module-result-count" aria-live="polite">{loading ? 'Loading accounts…' : `${filteredAccounts.length} of ${accounts.length} accounts`}</span>
+          {search && <button type="button" className="module-reset" onClick={() => setSearch('')}><X size={15} />Clear</button>}
+          <button type="button" className="module-reset" onClick={() => void load()} disabled={loading}><RefreshCw size={15} />Refresh</button>
+        </div>
         {loading ? (
           <TableLoadingState columns={6} rows={5} />
-        ) : accounts.length ? (
-          <div className="overflow-x-auto">
+        ) : filteredAccounts.length ? (
+          <div className="module-table-scroll">
             <table className="record-table min-w-[900px] text-xs">
               <thead className="bg-slate-50 uppercase">
                 <tr className="border-b border-slate-200">
@@ -129,7 +154,7 @@ export const AdminAccountsPage = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {accounts.map(account => {
+                {filteredAccounts.map(account => {
                   const isSuperadmin = account.role.toLowerCase() === 'superadmin';
                   const active = account.status.toLowerCase() === 'active';
                   return (
@@ -154,7 +179,7 @@ export const AdminAccountsPage = () => {
             </table>
           </div>
         ) : (
-          <EmptyState title="No administrator accounts found" description="Create an administrator account or synchronize existing Supabase Auth profiles." icon={UserCog} />
+          <EmptyState title={search ? 'No matching accounts' : 'No administrator accounts found'} description={search ? 'Try another name, email, division, or role.' : 'Create an administrator account or synchronize existing Supabase Auth profiles.'} icon={UserCog} action={search ? <Button type="button" onClick={() => setSearch('')}>Clear search</Button> : undefined} />
         )}
       </section>
 

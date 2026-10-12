@@ -7,7 +7,9 @@ import {
   Square, FileSpreadsheet, ShieldCheck
 } from 'lucide-react';
 import { Badge } from '../components/common/Badge';
-import { OperationalSummary, PageHeader } from '../components/common/SystemUI';
+import './ModulePages.css';
+import './RecordsModules.css';
+import { PageHeader } from '../components/common/SystemUI';
 import type { EducationRecord, TrainingRecord } from '../types/pais';
 import { parseEducationCsv, generateEducationCsvTemplate } from '../utils/educationCsv';
 import { parseTrainingCsv, generateTrainingCsvTemplate } from '../utils/trainingCsv';
@@ -232,7 +234,7 @@ const EduModal: React.FC<{
                       <select
                         value={form.academicLevel}
                         onChange={event => updateForm(index, { academicLevel: event.target.value })}
-                        className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold normal-case tracking-normal text-slate-800 outline-none focus:border-blue-500"
+                        className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold normal-case tracking-normal text-slate-800 focus:border-blue-500"
                       >
                         <option value="">Select level</option>
                         {ACADEMIC_LEVELS.map(level => <option key={level} value={level}>{level}</option>)}
@@ -270,7 +272,7 @@ const EduModal: React.FC<{
                         onChange={event => updateForm(index, { [field.key]: event.target.value })}
                         placeholder={field.placeholder}
                         min={field.type === 'number' ? '0' : undefined}
-                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition-all focus:border-blue-400 focus:ring-2 focus:ring-blue-300"
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm transition-colors focus:border-blue-400 focus:ring-2 focus:ring-blue-300"
                       />
                     </div>
                   ))}
@@ -417,7 +419,7 @@ const TrnModal: React.FC<{
                   }
                 }}
                 required
-                className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition-all bg-white"
+                className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition-colors bg-white"
               >
                 <option value="" disabled>Select a training type</option>
                 {trainingTypes.map(type => <option key={type} value={type}>{type}</option>)}
@@ -432,7 +434,7 @@ const TrnModal: React.FC<{
                   placeholder="Enter a custom training type"
                   required
                   aria-label="Custom training type"
-                  className="mt-2 w-full text-sm border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition-all"
+                  className="mt-2 w-full text-sm border border-slate-200 rounded-xl px-3 py-2 focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition-colors"
                 />
               )}
             </div>
@@ -446,7 +448,7 @@ const TrnModal: React.FC<{
                 list="training-title-suggestions"
                 placeholder={form.category.trim() ? 'Search suggested titles or enter a custom title' : 'Choose a Training Type first'}
                 required
-                className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition-all"
+                className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition-colors"
               />
               <datalist id="training-title-suggestions">
                 {suggestedTrainingTitles.map(option => <option key={option.value} value={option.value} label={option.label} />)}
@@ -474,7 +476,7 @@ const TrnModal: React.FC<{
                 list="training-school-suggestions"
                 placeholder="Search saved schools or enter a new one"
                 required
-                className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition-all"
+                className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition-colors"
               />
               <datalist id="training-school-suggestions">
                 {schools.map(school => <option key={school} value={school} />)}
@@ -501,7 +503,7 @@ const TrnModal: React.FC<{
                   min={f.key === 'hours' ? '0' : undefined}
                   step={f.key === 'hours' ? '0.5' : undefined}
                   required={f.key === 'category' || f.key === 'courseName' || f.key === 'provider' || (f.key === 'completionDate' && requiresCompletionDate)}
-                  className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition-all"
+                  className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition-colors"
                 />
               </div>
             ))}
@@ -645,7 +647,7 @@ const BulkUploadModal: React.FC<{
               <button
                 key={t}
                 onClick={() => { setTab(t); resetFile(); }}
-                className={`px-4 py-1.5 text-xs font-extrabold rounded-lg transition-all capitalize ${tab === t ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                className={`px-4 py-1.5 text-xs font-extrabold rounded-lg transition-colors capitalize ${tab === t ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
               >
                 {t}
               </button>
@@ -678,7 +680,7 @@ const BulkUploadModal: React.FC<{
             <div
               onDrop={handleDrop}
               onDragOver={e => e.preventDefault()}
-              className="border-2 border-dashed border-slate-200 rounded-2xl p-8 text-center hover:border-emerald-400 hover:bg-emerald-50/30 transition-all cursor-pointer"
+              className="border-2 border-dashed border-slate-200 rounded-2xl p-8 text-center hover:border-emerald-400 hover:bg-emerald-50/30 transition-colors cursor-pointer"
               onClick={() => fileRef.current?.click()}
             >
               <input
@@ -859,7 +861,7 @@ const ExportModal: React.FC<{
                 <button
                   key={opt.key}
                   onClick={() => setContent(opt.key)}
-                  className={`w-full text-left px-4 py-3 rounded-xl border-2 transition-all flex items-center gap-3 ${
+                  className={`w-full text-left px-4 py-3 rounded-xl border-2 transition-colors flex items-center gap-3 ${
                     content === opt.key
                       ? 'border-violet-500 bg-violet-50'
                       : 'border-slate-200 hover:border-slate-300 bg-white'
@@ -887,7 +889,7 @@ const ExportModal: React.FC<{
                 <button
                   key={key}
                   onClick={() => setFormat(key as ExportFormat)}
-                  className={`px-4 py-3 rounded-xl border-2 transition-all text-left ${
+                  className={`px-4 py-3 rounded-xl border-2 transition-colors text-left ${
                     format === key ? 'border-violet-500 bg-violet-50' : 'border-slate-200 hover:border-slate-300'
                   }`}
                 >
@@ -1127,12 +1129,10 @@ export const EducationPage: React.FC = () => {
   const activePersonnel = personnelList.find(p => p.id === activePersonnelId);
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="module-page records-module education-page space-y-5">
       <PageHeader
-        eyebrow="Education & training records"
-        title="Academic & Technical Qualifications"
-        description="Review academic attainment and training records, including mandatory uniformed promotion courses in the supplied Qualification Standards mapping."
-        reference="EDU-TRN-MASTER"
+        title="Education & Training"
+        description="Manage academic qualifications, training records, and mandatory promotion courses by personnel."
         actions={isAdmin ? (
             <div className="flex flex-wrap gap-2">
               <button
@@ -1163,35 +1163,40 @@ export const EducationPage: React.FC = () => {
           ) : undefined}
       />
 
-      <OperationalSummary label="Education and training summary" items={[
-        { label: 'Personnel files', value: personnelList.length, detail: 'in directory', icon: GraduationCap },
-        { label: 'With education', value: withEdu, detail: 'recorded', icon: GraduationCap, tone: 'success' },
-        { label: 'Education entries', value: totalEdu, detail: 'academic', icon: BookOpen },
-        { label: 'Training entries', value: totalTrn, detail: 'technical', icon: BookOpen },
-        { label: 'Without education', value: Math.max(0, personnelList.length - withEdu), detail: 'for review', icon: AlertTriangle, tone: personnelList.length - withEdu > 0 ? 'warning' : 'success' }
-      ]} />
-
+      <dl className="records-summary" aria-label="Education and training summary">
+        {[
+          { label: 'Personnel files', value: personnelList.length },
+          { label: 'With education', value: withEdu },
+          { label: 'Education entries', value: totalEdu },
+          { label: 'Training entries', value: totalTrn },
+          { label: 'Without education', value: Math.max(0, personnelList.length - withEdu) },
+        ].map(({ label, value }) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
+      </dl>
+      <section className="record-section education-directory" aria-label="Personnel qualifications">
+      <div className="record-section-header"><div><h2>Personnel qualifications</h2><p>Expand a personnel file to review or update records.</p></div></div>
       {/* ── Toolbar: Search + Sort ── */}
-      <div className="flex flex-col sm:flex-row gap-3">
+      <div className="module-search-toolbar">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
           <input
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
+            aria-label="Search personnel qualifications"
             placeholder="Search by name, rank, division…"
-            className="w-full pl-9 pr-4 py-2.5 text-sm border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition-all bg-white"
+            className="w-full pl-9 pr-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition-colors bg-white"
           />
           {search && (
-            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+            <button aria-label="Clear personnel search" onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
               <X className="w-3.5 h-3.5" />
             </button>
           )}
         </div>
         <div className="relative">
           <button
+            aria-expanded={sortOpen}
             onClick={() => setSortOpen(v => !v)}
-            className="flex items-center gap-2 px-4 py-2.5 text-sm border border-slate-200 rounded-xl bg-white hover:bg-slate-50 font-semibold text-slate-700 transition-all whitespace-nowrap"
+            className="flex items-center gap-2 px-4 py-2.5 text-sm border border-slate-200 rounded-xl bg-white hover:bg-slate-50 font-semibold text-slate-700 transition-colors whitespace-nowrap"
           >
             <ArrowUpDown className="w-4 h-4 text-slate-400" />
             Sort: {sortOptions.find(s => s.key === sortKey)?.label}
@@ -1221,7 +1226,7 @@ export const EducationPage: React.FC = () => {
       </div>
 
       {/* Results count + selection bar */}
-      <div className="flex items-center justify-between -mt-3">
+      <div className="education-results">
         <p className="text-xs text-slate-500">
           Showing {filteredPersonnel.length} of {personnelList.length} personnel
           {selectedIds.size > 0 && <span className="ml-2 font-bold text-violet-600">• {selectedIds.size} selected</span>}
@@ -1236,7 +1241,7 @@ export const EducationPage: React.FC = () => {
       </div>
 
       {/* ── Personnel Cards Grid ── */}
-      <div className="grid grid-cols-1 gap-3">
+      <div className="education-personnel-list">
         {filteredPersonnel.map((person) => {
           const pEdus = educationList.filter(e => e.personnelId === person.id);
           const pTrns = trainingList.filter(t => t.personnelId === person.id);
@@ -1244,24 +1249,16 @@ export const EducationPage: React.FC = () => {
           const applicableCourses = nonUniformed ? [] : getApplicablePromotionCourses(person.rank);
 
           return (
-            <div
-              key={person.id}
-              onClick={() => selectMode && toggleSelect(person.id)}
-              className={`record-section space-y-4 p-4 ${
-                selectMode ? 'cursor-pointer' : ''
-              } ${
-                selectedIds.has(person.id)
-                  ? 'border-blue-500 bg-blue-50/40 shadow-[inset_3px_0_#163f61]'
-                  : 'hover:border-slate-400'
-              }`}
-            >
+            <details key={person.id} className={`education-personnel ${selectedIds.has(person.id) ? 'is-selected' : ''}`}>
               {/* Card Header */}
-              <div className="pb-3 border-b border-slate-100 flex items-start justify-between gap-2">
+              <summary className="education-personnel-heading">
                 <div className="flex items-center gap-2 min-w-0">
                   {/* Selection checkbox */}
                   {selectMode && (
                     <button
-                      onClick={e => { e.stopPropagation(); toggleSelect(person.id); }}
+                      aria-label={`Select ${person.rank} ${person.fullName}`}
+                      aria-pressed={selectedIds.has(person.id)}
+                      onClick={e => { e.preventDefault(); e.stopPropagation(); toggleSelect(person.id); }}
                       className="flex-shrink-0 mt-0.5"
                     >
                       {selectedIds.has(person.id)
@@ -1275,14 +1272,16 @@ export const EducationPage: React.FC = () => {
                     <div className="text-xs text-blue-700 font-bold">{person.designation} • {person.division}</div>
                   </div>
                 </div>
-                <div className="flex gap-1 flex-shrink-0">
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100 font-mono font-bold">{pEdus.length} edu</span>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100 font-mono font-bold">{pTrns.length} trn</span>
+                <div className="education-personnel-counts">
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100 font-mono font-bold">{pEdus.length} education</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100 font-mono font-bold">{pTrns.length} training</span>
                 </div>
-              </div>
+              <ChevronDown size={16} className="education-expand-icon" aria-hidden="true" />
+              </summary>
+              <div className="education-personnel-content">
 
               {/* Uniformed promotion qualification standards */}
-              <section className="rounded-xl border border-amber-200 bg-amber-50/50 p-3 space-y-2" aria-label="Mandatory promotion qualification training">
+              <section className="education-qualification space-y-2" aria-label="Mandatory promotion qualification training">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-[11px] font-extrabold text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
                     <ShieldCheck className="w-3.5 h-3.5 text-amber-700" /> Mandatory Training — Promotion QS
@@ -1339,7 +1338,7 @@ export const EducationPage: React.FC = () => {
               </section>
 
               {/* Degrees */}
-              <div className="space-y-2">
+              <div className="education-academic space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-extrabold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
                     <GraduationCap className="w-3.5 h-3.5 text-blue-600" /> Academic Attainment
@@ -1375,8 +1374,8 @@ export const EducationPage: React.FC = () => {
                           )}
                           {edu.highest && <Badge variant="info" size="sm">Highest</Badge>}
                           {isAdmin && (
-                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button onClick={() => openEditEdu(edu)} className="p-1 rounded-lg hover:bg-blue-100 text-blue-500 transition-colors" title="Edit">
+                            <div className="flex gap-1 education-entry-actions">
+                              <button onClick={() => openEditEdu(edu)} className="p-1 rounded-lg hover:bg-blue-100 text-blue-500 transition-colors" aria-label="Edit record" title="Edit">
                                 <Pencil className="w-3 h-3" />
                               </button>
                               <button
@@ -1385,7 +1384,7 @@ export const EducationPage: React.FC = () => {
                                   id: edu.id,
                                   label: [edu.academicLevel, edu.degree, edu.institution].filter(Boolean).join(' — ') || 'this academic record'
                                 })}
-                                className="p-1 rounded-lg hover:bg-red-100 text-red-400 transition-colors" title="Delete"
+                                className="p-1 rounded-lg hover:bg-red-100 text-red-400 transition-colors" aria-label="Delete record" title="Delete"
                               >
                                 <Trash2 className="w-3 h-3" />
                               </button>
@@ -1406,7 +1405,7 @@ export const EducationPage: React.FC = () => {
               </div>
 
               {/* Training */}
-              <div className="space-y-2 pt-2 border-t border-slate-100">
+              <div className="education-training space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-extrabold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
                     <BookOpen className="w-3.5 h-3.5 text-indigo-600" /> Training Records
@@ -1438,13 +1437,13 @@ export const EducationPage: React.FC = () => {
                       <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
                         {trn.hours && <Badge variant="info" size="sm">{trn.hours} hrs</Badge>}
                         {isAdmin && (
-                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onClick={() => openEditTrn(trn)} className="p-1 rounded-lg hover:bg-indigo-100 text-indigo-500 transition-colors" title="Edit">
+                          <div className="flex gap-1 education-entry-actions">
+                            <button onClick={() => openEditTrn(trn)} className="p-1 rounded-lg hover:bg-indigo-100 text-indigo-500 transition-colors" aria-label="Edit record" title="Edit">
                               <Pencil className="w-3 h-3" />
                             </button>
                             <button
                               onClick={() => setConfirmDelete({ type: 'trn', id: trn.id, label: trn.courseName })}
-                              className="p-1 rounded-lg hover:bg-red-100 text-red-400 transition-colors" title="Delete"
+                              className="p-1 rounded-lg hover:bg-red-100 text-red-400 transition-colors" aria-label="Delete record" title="Delete"
                             >
                               <Trash2 className="w-3 h-3" />
                             </button>
@@ -1455,18 +1454,21 @@ export const EducationPage: React.FC = () => {
                   ))
                 )}
               </div>
-            </div>
+              </div>
+            </details>
           );
         })}
 
         {filteredPersonnel.length === 0 && (
-          <div className="col-span-2 py-16 text-center">
+          <div className="py-16 text-center">
             <Search className="w-10 h-10 text-slate-200 mx-auto mb-3" />
             <p className="text-slate-400 font-semibold">No personnel found matching "{search}"</p>
             <button onClick={() => setSearch('')} className="mt-2 text-sm text-blue-600 hover:underline">Clear search</button>
           </div>
         )}
       </div>
+
+      </section>
 
       {/* ── Floating Selection Toolbar ── */}
       {selectMode && selectedIds.size > 0 && (

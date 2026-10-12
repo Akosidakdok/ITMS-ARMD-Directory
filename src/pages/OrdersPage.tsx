@@ -38,7 +38,9 @@ import { OrderTypeSelectorModal } from '../components/orders/OrderTypeSelectorMo
 import { NotificationToast } from '../components/common/NotificationToast';
 import { Modal } from '../components/common/Modal';
 import { SearchableSelect } from '../components/common/SearchableSelect';
-import { OperationalSummary, PageHeader } from '../components/common/SystemUI';
+import './ModulePages.css';
+import './RecordsModules.css';
+import { PageHeader } from '../components/common/SystemUI';
 import { useAuthRole } from '../context/AuthRoleContext';
 import { hasManagementAccess } from '../utils/accessControl';
 import { useBodyScrollLock } from '../utils/useBodyScrollLock';
@@ -180,7 +182,7 @@ const ModalShell = ({
 
   return (
   <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto overscroll-contain bg-slate-950/60 p-2 sm:p-4" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onCloseRef.current(); }}>
-    <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} className={`my-2 flex max-h-[calc(100vh-1rem)] w-full ${maxWidth} flex-col overflow-hidden rounded-md border border-slate-300 bg-white shadow-2xl outline-none sm:my-4 sm:max-h-[92vh]`}>
+    <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} className={`my-2 flex max-h-[calc(100vh-1rem)] w-full ${maxWidth} flex-col overflow-hidden rounded-md border border-slate-300 bg-white shadow-2xl sm:my-4 sm:max-h-[92vh]`}>
       <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200 bg-white px-4 py-4 sm:px-6">
         <div>
           {eyebrow && <p className="record-kicker">{eyebrow}</p>}
@@ -380,7 +382,7 @@ export const OrdersPage = () => {
   const unitOptions = useMemo(() => Array.from(new Set(personnelList.flatMap(person => [person.sub_unit, person.division, person.unitCategory].filter(Boolean) as string[]))).sort().map(value => ({ value, label: value })), [personnelList]);
   const renderPurposeField = (field: NonNullable<typeof purposeDefinition>['fields'][number]) => {
     const value = purposeData[field.key] || '';
-    const fieldClass = 'w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100';
+    const fieldClass = 'w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:border-teal-600 focus:ring-2 focus:ring-teal-100';
     if (field.type === 'textarea') return <label key={field.key} className="md:col-span-2"><span className="mb-1.5 block text-sm font-medium text-slate-700">{field.label}{field.required && ' *'}</span><textarea required={field.required} value={value} onChange={event => updatePurposeField(field.key, event.target.value)} rows={4} className={fieldClass} /></label>;
     if (field.type === 'select') return <label key={field.key}><span className="mb-1.5 block text-sm font-medium text-slate-700">{field.label}{field.required && ' *'}</span><select required={field.required} value={value} onChange={event => updatePurposeField(field.key, event.target.value)} className={fieldClass}><option value="">Select {field.label.toLowerCase()}</option>{(field.key === 'leaveType' ? LEAVE_TYPES : []).map(option => <option key={option} value={option}>{option}</option>)}</select></label>;
     if (field.type === 'unit') return <label key={field.key}><span className="mb-1.5 block text-sm font-medium text-slate-700">{field.label}{field.required && ' *'}</span><input required={field.required} list={`order-units-${field.key}`} value={value} onChange={event => updatePurposeField(field.key, event.target.value)} placeholder="Select or enter a unit" className={fieldClass} /><datalist id={`order-units-${field.key}`}>{unitOptions.map(option => <option key={option.value} value={option.value} />)}</datalist></label>;
@@ -1108,16 +1110,14 @@ export const OrdersPage = () => {
   ].filter(Boolean).length;
 
   return (
-    <div className="mx-auto w-full max-w-[1600px] space-y-4 sm:space-y-6">
+    <div className="module-page records-module orders-page mx-auto w-full max-w-[1600px] space-y-5">
       <PageHeader
-        eyebrow="Administrative orders & leave"
-        title={activeView === 'list' ? 'Administrative Records Register' : activeView === 'calendar' ? 'Leave Calendar' : 'Document Templates'}
+        title={activeView === 'list' ? 'Orders & Leave' : activeView === 'calendar' ? 'Leave Calendar' : 'Document Templates'}
         description={activeView === 'list'
               ? 'Search and review Administrative Orders, including Award orders, and scheduled leaves in one place.'
               : activeView === 'calendar'
                 ? 'A visual overview of approved leave schedules. Leave dates are encoded through the separate form.'
                 : 'Open fixed-format templates, edit allowed fields, and autofill personnel details from system records.'}
-        reference="ORD-LVE"
         actions={<div className="flex flex-wrap gap-2">
           {activeView === 'calendar' ? (
             <>
@@ -1169,21 +1169,25 @@ export const OrdersPage = () => {
         />
       ) : (
         <>
-          <OperationalSummary label="Administrative record summary" items={stats.map(({ label, value, icon }) => ({ label, value, icon, detail: 'records' }))} />
+          <dl className="records-summary orders-summary" aria-label="Administrative record summary">
+            {stats.map(({ label, value }) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
+          </dl>
 
           <section className="record-section">
-            <div className="flex items-center gap-2 border-b border-slate-200 px-5 py-4">
-              <Filter size={18} className="text-blue-800" />
-              <h2 className="font-bold text-slate-900">Search and filters</h2>
-            </div>
-            <div className="grid gap-4 p-5 md:grid-cols-2 xl:grid-cols-6">
-              <label className="xl:col-span-2">
-                <span className="mb-1.5 block text-sm font-medium text-slate-700">Search records</span>
-                <div className="relative">
-                  <Search size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Order number, title, personnel..." className="w-full rounded-xl border border-slate-300 py-2.5 pl-10 pr-3 text-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" />
-                </div>
+            <div className="module-search-toolbar">
+              <label className="module-search-input">
+                <span className="sr-only">Search records</span>
+                <Search size={17} aria-hidden="true" />
+                <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search order number, title, or personnel…" />
               </label>
+              <span className="module-result-count">{filteredRows.length} records</span>
+              <button type="button" onClick={resetFilters} disabled={activeFilterCount === 0} className="module-reset">
+                <RotateCcw size={15} /> Reset{activeFilterCount > 0 && ` (${activeFilterCount})`}
+              </button>
+            </div>
+            <details className="module-filter-disclosure">
+              <summary><Filter size={15} /> Filter records {activeFilterCount > 0 && <span className="module-filter-count">{activeFilterCount} active</span>}<ChevronRight size={15} className="records-disclosure-chevron" /></summary>
+              <div className="module-filter-fields grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               <SearchableSelect label="Record type" value={recordType} onChange={setRecordType} placeholder="All record types" options={['Administrative Order', 'Leave Calendar'].map((value) => ({ value, label: value }))} />
               <SearchableSelect
                 label="Order / leave type"
@@ -1197,27 +1201,23 @@ export const OrdersPage = () => {
               />
               <SearchableSelect label="Personnel" value={personnelFilter} onChange={setPersonnelFilter} placeholder="All personnel" options={personnelList.map((person) => ({ value: person.id, label: `${person.rank} ${person.fullName}`, description: person.badgeNo || person.division }))} />
               <SearchableSelect label="Status" value={statusFilter} onChange={setStatusFilter} placeholder="All statuses" options={ORDER_STATUSES.map((value) => ({ value, label: value }))} />
-              <div className="flex items-end">
-                <button type="button" onClick={resetFilters} disabled={activeFilterCount === 0} className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">
-                  <RotateCcw size={16} /> Reset{activeFilterCount > 0 && <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px]">{activeFilterCount}</span>}
-                </button>
-              </div>
               <label>
                 <span className="mb-1.5 block text-sm font-medium text-slate-700">Date from</span>
-                <input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" />
+                <input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:border-teal-600 focus:ring-2 focus:ring-teal-100" />
               </label>
               <label>
                 <span className="mb-1.5 block text-sm font-medium text-slate-700">Date to</span>
-                <input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" />
+                <input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:border-teal-600 focus:ring-2 focus:ring-teal-100" />
               </label>
             </div>
+            </details>
             {(recordType === '' || recordType === 'Administrative Order') && (
-              <details className="border-t border-slate-200 bg-slate-50/70 px-5 py-3">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-xs font-bold uppercase tracking-wide text-slate-500 marker:hidden"><span>Administrative order filters <span className="ml-2 font-normal normal-case tracking-normal text-slate-400">(optional)</span></span>{activeFilterCount > 0 && <span className="rounded-full bg-blue-100 px-2 py-1 text-[10px] font-bold text-blue-700">{activeFilterCount} active</span>}</summary>
-                <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <details className="module-filter-disclosure">
+                <summary><FileText size={15} /> Advanced order filters<ChevronRight size={15} className="records-disclosure-chevron" /></summary>
+                <div className="module-filter-fields grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                   <label>
                     <span className="mb-1.5 block text-sm font-medium text-slate-700">Order number</span>
-                    <input value={orderNumberFilter} onChange={event => setOrderNumberFilter(event.target.value)} placeholder="ITMS-SO-DES-2026-0001" className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-mono outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" />
+                    <input value={orderNumberFilter} onChange={event => setOrderNumberFilter(event.target.value)} placeholder="ITMS-SO-DES-2026-0001" className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-mono focus:border-teal-600 focus:ring-2 focus:ring-teal-100" />
                   </label>
                   <SearchableSelect label="Series" value={seriesFilter} onChange={setSeriesFilter} placeholder="All series" options={ORDER_SERIES_OPTIONS.map(option => ({ value: option.value, label: option.label }))} />
                   <SearchableSelect label="Purpose code" value={purposeFilter} onChange={setPurposeFilter} placeholder="All purposes" options={ORDER_PURPOSE_OPTIONS.map(option => ({ value: option.value, label: option.label }))} />
@@ -1230,25 +1230,25 @@ export const OrdersPage = () => {
                     { value: 'none', label: 'Missing both documents' }
                   ]} />
                   <SearchableSelect label="Created by" value={createdByFilter} onChange={setCreatedByFilter} placeholder="All creators" options={Array.from(new Set(ordersList.map(order => order.createdBy).filter(Boolean) as string[])).sort().map(value => ({ value, label: value }))} />
-                  <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Effective from</span><input type="date" value={effectiveDateFrom} onChange={event => setEffectiveDateFrom(event.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
-                  <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Effective to</span><input type="date" value={effectiveDateTo} onChange={event => setEffectiveDateTo(event.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
-                  <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Approved from</span><input type="date" value={signedDateFrom} onChange={event => setSignedDateFrom(event.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
-                  <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Approved to</span><input type="date" value={signedDateTo} onChange={event => setSignedDateTo(event.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
-                  <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Released from</span><input type="date" value={releasedDateFrom} onChange={event => setReleasedDateFrom(event.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
-                  <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Released to</span><input type="date" value={releasedDateTo} onChange={event => setReleasedDateTo(event.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
+                  <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Effective from</span><input type="date" value={effectiveDateFrom} onChange={event => setEffectiveDateFrom(event.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
+                  <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Effective to</span><input type="date" value={effectiveDateTo} onChange={event => setEffectiveDateTo(event.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
+                  <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Approved from</span><input type="date" value={signedDateFrom} onChange={event => setSignedDateFrom(event.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
+                  <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Approved to</span><input type="date" value={signedDateTo} onChange={event => setSignedDateTo(event.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
+                  <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Released from</span><input type="date" value={releasedDateFrom} onChange={event => setReleasedDateFrom(event.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
+                  <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Released to</span><input type="date" value={releasedDateTo} onChange={event => setReleasedDateTo(event.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
                 </div>
               </details>
             )}
           </section>
 
           <section className="record-section">
-            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+            <div className="record-section-header">
               <div>
                 <h2 className="font-bold text-slate-900">Order records</h2>
                 <p className="text-sm text-slate-500">{filteredRows.length} of {rows.length} records</p>
               </div>
             </div>
-            <div className="overflow-x-auto">
+            <div className="module-table-scroll">
               <table className="record-table min-w-[980px]">
                 <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
                   <tr>
@@ -1303,7 +1303,7 @@ export const OrdersPage = () => {
                       </td>
                       <td className="px-5 py-4 align-top"><span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700"><span className="h-1.5 w-1.5 rounded-full bg-slate-500" />{row.status}</span></td>
                       <td className="px-5 py-4 text-right align-top">
-                        <button type="button" onClick={() => openRecord(row)} aria-label={`View ${row.reference}`} className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-white px-3.5 py-2 text-xs font-semibold text-blue-800 shadow-sm hover:border-blue-500 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
+                        <button type="button" onClick={() => openRecord(row)} aria-label={`View ${row.reference}`} className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-white px-3.5 py-2 text-xs font-semibold text-blue-800 shadow-sm hover:border-blue-500 hover:bg-blue-50 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
                           <Eye size={15} /> View
                         </button>
                       </td>
@@ -1317,7 +1317,7 @@ export const OrdersPage = () => {
             </div>
 
             {/* Pagination Controls */}
-            <div className="border-t border-slate-200 bg-slate-50 px-5 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600 font-semibold">
+            <div className="module-pagination">
               <div>
                 Showing <span className="font-bold text-slate-900">{filteredRows.length ? (orderPage - 1) * orderPageSize + 1 : 0}</span> to <span className="font-bold text-slate-900">{Math.min(orderPage * orderPageSize, filteredRows.length)}</span> of <span className="font-bold text-slate-900">{filteredRows.length}</span> records
               </div>
@@ -1327,7 +1327,7 @@ export const OrdersPage = () => {
                   <select
                     value={orderPageSize}
                     onChange={(e) => { setOrderPageSize(Number(e.target.value)); setOrderPage(1); }}
-                    className="px-2 py-1 text-xs bg-white border border-slate-300 rounded font-bold text-slate-900 focus:outline-none"
+                    className="px-2 py-1 text-xs bg-white border border-slate-300 rounded font-bold text-slate-900 "
                   >
                     <option value={10}>10</option>
                     <option value={25}>25</option>
@@ -1419,16 +1419,16 @@ export const OrdersPage = () => {
               </>}
               {orderWizardStep === 2 && <>
               {requiresFullMetadata ? <>
-              <label className="md:col-span-2"><span className="mb-1.5 block text-sm font-medium text-slate-700">Subject {requiresFullMetadata && '*'}</span><textarea required={requiresFullMetadata} value={subject} onChange={(e) => setSubject(e.target.value)} rows={3} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
+              <label className="md:col-span-2"><span className="mb-1.5 block text-sm font-medium text-slate-700">Subject {requiresFullMetadata && '*'}</span><textarea required={requiresFullMetadata} value={subject} onChange={(e) => setSubject(e.target.value)} rows={3} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
               <label>
                 <span className="mb-1 block text-sm font-medium text-slate-700">Designation Date / Date Order Issued {requiresFullMetadata && '*'}</span>
                 <span className="mb-1.5 block text-xs text-slate-500">Displayed in upper-right header of Order</span>
-                <input required={requiresFullMetadata} disabled={!!editingOrder} type="date" value={issuedDate} onChange={(e) => setIssuedDate(e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500" />
+                <input required={requiresFullMetadata} disabled={!!editingOrder} type="date" value={issuedDate} onChange={(e) => setIssuedDate(e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-teal-600 focus:ring-2 focus:ring-teal-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500" />
               </label>
               <label>
                 <span className="mb-1 block text-sm font-medium text-slate-700">Effective Date of Designation {requiresFullMetadata && '*'}</span>
                 <span className="mb-1.5 block text-xs text-slate-500">Displayed in body of Order (effectivity start)</span>
-                <input required={requiresFullMetadata} type="date" value={effectiveDate} onChange={(e) => setEffectiveDate(e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" />
+                <input required={requiresFullMetadata} type="date" value={effectiveDate} onChange={(e) => setEffectiveDate(e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-teal-600 focus:ring-2 focus:ring-teal-100" />
               </label>
               </> : <div className="md:col-span-2 rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-900"><p className="font-semibold">Minimal upload registration</p><p className="mt-1 text-xs text-emerald-700">Subject and dates will be derived automatically from the DOCX filename and the current date. Add optional context in the Description field below.</p></div>}
               <label>
@@ -1440,7 +1440,7 @@ export const OrdersPage = () => {
               <label className="md:col-span-2">
                 <span className="mb-1.5 block text-sm font-medium text-slate-700">Description</span>
                 <span className="mb-1.5 block text-xs text-slate-500">Additional context or directives included in the generated order.</span>
-                <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" />
+                <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-teal-600 focus:ring-2 focus:ring-teal-100" />
               </label>
               </>}
               {orderWizardStep === 3 && <>
@@ -1459,7 +1459,7 @@ export const OrdersPage = () => {
                 <div className="mb-2 flex flex-col gap-2 sm:flex-row">
                   <div className="relative min-w-0 flex-1">
                     <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input value={personnelSearch} onChange={event => setPersonnelSearch(event.target.value)} placeholder="Search name, rank, badge, or unit..." className="w-full rounded-xl border border-slate-300 py-2.5 pl-9 pr-3 text-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" />
+                    <input value={personnelSearch} onChange={event => setPersonnelSearch(event.target.value)} placeholder="Search name, rank, badge, or unit..." className="w-full rounded-xl border border-slate-300 py-2.5 pl-9 pr-3 text-sm focus:border-teal-600 focus:ring-2 focus:ring-teal-100" />
                   </div>
                   <button type="button" onClick={toggleAllFilteredPersonnel} className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
                     {filteredPersonnel.length > 0 && filteredPersonnel.every(person => selectedPersonnelIds.includes(person.id)) ? 'Clear visible' : 'Select visible'}
@@ -1483,7 +1483,7 @@ export const OrdersPage = () => {
                       return (
                         <div key={`role-${person.id}`} className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                           <span className="min-w-0 truncate text-xs font-semibold text-slate-800">{person.rank} {person.fullName}</span>
-                          <select value={personnelRoleAssignments[person.id] || defaultPersonnelRole} onChange={event => setPersonnelRoleAssignments(previous => ({ ...previous, [person.id]: event.target.value as OrderPersonnelRoleCode }))} className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-xs text-slate-700 outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100 sm:w-64">
+                          <select value={personnelRoleAssignments[person.id] || defaultPersonnelRole} onChange={event => setPersonnelRoleAssignments(previous => ({ ...previous, [person.id]: event.target.value as OrderPersonnelRoleCode }))} className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-xs text-slate-700 focus:border-teal-600 focus:ring-2 focus:ring-teal-100 sm:w-64">
                             {roleOptions.map(role => <option key={role.code} value={role.code}>{role.label}{role.required ? ' *' : ''}</option>)}
                           </select>
                         </div>
@@ -1507,8 +1507,8 @@ export const OrdersPage = () => {
                   {!filteredPersonnel.length && <p className="px-3 py-6 text-center text-sm text-slate-500">No personnel records match this search.</p>}
                 </div>
               </div>
-              <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Signatory {requiresFullMetadata && '*'}</span><input required={requiresFullMetadata} value={signatory} onChange={(e) => setSignatory(e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
-              <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Signatory title {requiresFullMetadata && '*'}</span><input required={requiresFullMetadata} value={signatoryTitle} onChange={(e) => setSignatoryTitle(e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
+              <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Signatory {requiresFullMetadata && '*'}</span><input required={requiresFullMetadata} value={signatory} onChange={(e) => setSignatory(e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
+              <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Signatory title {requiresFullMetadata && '*'}</span><input required={requiresFullMetadata} value={signatoryTitle} onChange={(e) => setSignatoryTitle(e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
               {editingOrder?.fileName && <div className="md:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-600">
                 This record contains a legacy DOCX attachment. It remains available from the order details view; new changes use the generated order document workflow.
               </div>}
@@ -1750,7 +1750,7 @@ export const OrdersPage = () => {
           </div>
           <label className="block">
             <span className="mb-1.5 block text-sm font-semibold text-slate-700">Reason <span className="font-normal text-slate-400">(optional)</span></span>
-            <textarea value={revokeReason} onChange={event => setRevokeReason(event.target.value)} rows={4} maxLength={500} autoFocus placeholder="Explain why this order is being revoked..." className="w-full resize-y rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-100" />
+            <textarea value={revokeReason} onChange={event => setRevokeReason(event.target.value)} rows={4} maxLength={500} autoFocus placeholder="Explain why this order is being revoked..." className="w-full resize-y rounded-lg border border-slate-300 px-3 py-2.5 text-sm transition focus:border-rose-500 focus:ring-2 focus:ring-rose-100" />
             <span className="mt-1 block text-right text-[11px] text-slate-400">{revokeReason.length}/500</span>
           </label>
         </div>
@@ -1777,7 +1777,7 @@ export const OrdersPage = () => {
           </div>
           <label className="block">
             <span className="mb-1.5 block text-sm font-semibold text-slate-700">Reason <span className="font-normal text-slate-400">(optional)</span></span>
-            <textarea value={restoreReason} onChange={event => setRestoreReason(event.target.value)} rows={4} maxLength={500} autoFocus placeholder="Explain why this order is being restored..." className="w-full resize-y rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-100" />
+            <textarea value={restoreReason} onChange={event => setRestoreReason(event.target.value)} rows={4} maxLength={500} autoFocus placeholder="Explain why this order is being restored..." className="w-full resize-y rounded-lg border border-slate-300 px-3 py-2.5 text-sm transition focus:border-amber-500 focus:ring-2 focus:ring-amber-100" />
             <span className="mt-1 block text-right text-[11px] text-slate-400">{restoreReason.length}/500</span>
           </label>
         </div>

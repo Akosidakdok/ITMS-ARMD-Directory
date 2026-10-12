@@ -1,0 +1,33 @@
+/* PAIS worksheet workbench: real workbook tools within the shared navy-and-white shell. */
+.worksheets-page .excel-worksheet-card { min-width: 0; border-color: var(--color-records-rule); border-radius: var(--radius-records-panel); background: var(--color-records-surface); box-shadow: none; }
+.worksheets-page .worksheet-ribbon { background: var(--color-records-subtle); color: var(--color-records-ink); border-color: var(--color-records-rule); }
+.worksheet-ribbon-toolbar { flex-wrap: wrap; gap: 0.5rem; padding-block: 0.375rem; }
+.worksheet-ribbon-navigation { min-width: 0; flex: 1; overflow-x: auto; scrollbar-width: thin; }
+.worksheet-quick-actions { flex-shrink: 0; }
+.worksheet-ribbon-tabs { flex-shrink: 0; }
+.worksheets-page .worksheet-quick-actions > div { background: var(--primary); box-shadow: none; }
+.worksheets-page .worksheet-ribbon-tabs button { min-height: 36px; padding-inline: 0.75rem; font-weight: 500; }
+.worksheets-page .worksheet-ribbon-tabs button[aria-pressed="true"] { border-color: var(--primary); color: var(--primary); background: var(--color-records-surface); }
+.worksheet-save-status { flex-shrink: 0; }
+.worksheets-page .worksheet-ribbon-panel { max-width: 100%; overflow-x: auto; background: var(--color-records-surface); box-shadow: none; scrollbar-width: thin; }
+.worksheet-ribbon-panel > div { min-width: max-content; }
+.worksheets-page .worksheet-ribbon :is(input, select) { min-height: 28px; font-size: 0.75rem; }
+.worksheets-page .worksheet-ribbon button { min-width: 28px; }
+.worksheets-page .worksheet-formula-bar { background: var(--color-records-surface); border-color: var(--color-records-rule); }
+.worksheet-formula-bar > div:last-child { min-width: 0; }
+.worksheets-page .worksheet-formula-bar input { min-height: 32px; font-size: 0.75rem; }
+.worksheets-page .spreadsheet-grid-container { scrollbar-width: thin; scrollbar-color: var(--pais-line-strong) var(--muted); }
+.worksheets-page .spreadsheet-grid-container :is(input, select, textarea) { min-height: 0; font-size: inherit; }
+.worksheets-page .worksheet-sheet-bar { flex-wrap: wrap; gap: 0.5rem; padding: 0.5rem; background: var(--color-records-subtle); border-color: var(--color-records-rule); }
+.worksheet-sheet-bar > div:first-child { min-width: 0; flex: 1 1 60%; }
+.worksheets-page .worksheet-sheet-bar [role="button"] { min-height: 32px; }
+.worksheets-page .worksheet-sheet-bar [aria-pressed="true"] { border-color: var(--primary); color: var(--primary); background: var(--color-records-surface); box-shadow: none; }
+.worksheets-page .worksheet-sheet-bar [role="button"] > svg { color: var(--primary); }
+@media (max-width: 639px) {
+  .worksheet-ribbon-navigation { flex-basis: 100%; }
+  .worksheet-save-status { margin-left: auto; }
+  .worksheet-sheet-bar > div:first-child { flex-basis: 100%; }
+}
+@media print {
+  .worksheets-page .spreadsheet-grid-container { scrollbar-width: none; }
+}

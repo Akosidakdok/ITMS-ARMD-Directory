@@ -1,0 +1,76 @@
+@import "../../tokens.css";
+
+/* Hallmark · pre-emit critique: P4 H5 E4 S4 R5 V4
+ * Operate · workbench and expandable personnel register · PAIS navy and white.
+ * Scoped to Orders and Education & Training; shared PAIS tokens remain authoritative.
+ */
+.records-module .record-kicker, .records-module .record-reference { display: none; }
+.records-module .app-page-header { align-items: flex-start; }
+.records-module .app-page-header h1 { font-size: 1.5rem; font-weight: 600; }
+.records-module .app-page-header p { max-width: 66ch; }
+.records-module .record-page-actions button { min-height: 40px; font-size: 0.75rem; border-radius: var(--pais-radius-control); }
+.records-module .record-section { border-color: var(--color-records-rule); background: var(--color-records-surface); box-shadow: none; }
+.records-module .record-section-header h2 { font-size: 0.875rem; font-weight: 600; color: var(--color-records-ink); }
+.records-module .record-section-header p { margin-top: 0.25rem; font-size: 0.75rem; color: var(--color-records-muted); }
+.records-summary { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border: 1px solid var(--color-records-rule); border-radius: var(--radius-records-panel); background: var(--color-records-surface); }
+.orders-summary { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.records-summary > div { min-width: 0; padding: 1rem; }
+.records-summary > div + div { border-left: 1px solid var(--color-records-rule); }
+.records-summary dt { font-size: 0.6875rem; font-weight: 500; color: var(--color-records-muted); line-height: 1.5; }
+.records-summary dd { margin-top: 0.5rem; font-size: 1.5rem; font-weight: 600; line-height: 1.2; color: var(--color-records-ink); font-variant-numeric: tabular-nums; }
+.records-module .module-search-toolbar { flex-wrap: wrap; }
+.records-disclosure-chevron { margin-left: auto; transition: transform var(--pais-motion-fast); }
+.module-filter-disclosure[open] > summary .records-disclosure-chevron { transform: rotate(90deg); }
+.records-module .module-filter-fields { background: var(--color-records-surface); }
+.records-module .module-filter-fields :is(input, button) { border-radius: var(--pais-radius-control); }
+.records-module .module-table-scroll .record-table { min-width: 1080px; }
+.records-module .record-table th:first-child { min-width: 175px; }
+.records-module .record-table td { vertical-align: top; }
+.education-directory { overflow: visible; }
+.education-directory .module-search-toolbar { border-bottom: 1px solid var(--color-records-rule); }
+.education-directory .module-search-toolbar > div:first-child { flex-basis: 240px; }
+.education-directory .module-search-toolbar button { min-height: 40px; font-size: 0.75rem; }
+.education-results { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.75rem 1rem; background: var(--color-records-subtle); }
+.education-personnel + .education-personnel { border-top: 1px solid var(--color-records-rule); }
+.education-personnel.is-selected { background: var(--accent); }
+.education-personnel-heading { display: flex; align-items: center; gap: 1rem; padding: 1rem; cursor: pointer; list-style: none; }
+.education-personnel-heading::-webkit-details-marker { display: none; }
+.education-personnel-heading:hover { background: var(--accent); }
+.education-personnel-heading > div:first-child { flex: 1; }
+.education-personnel-heading .font-extrabold { font-weight: 600; }
+.education-personnel-heading .text-blue-700 { margin-top: 0.25rem; color: var(--color-records-muted); font-weight: 400; }
+.education-personnel-counts { display: flex; gap: 0.5rem; flex-shrink: 0; }
+.education-personnel-counts > span { border: 0; border-radius: var(--pais-radius-control); padding: 0.25rem 0.5rem; background: var(--color-records-subtle); color: var(--color-records-muted); font: 500 0.6875rem var(--font-records-body); font-variant-numeric: tabular-nums; }
+.education-expand-icon { flex-shrink: 0; color: var(--color-records-muted); transition: transform var(--pais-motion-fast); }
+.education-personnel[open] .education-expand-icon { transform: rotate(180deg); }
+.education-personnel[open] > summary { border-bottom: 1px solid var(--color-records-rule); }
+.education-personnel-content { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1.5rem; padding: 1.25rem; background: var(--color-records-surface); }
+.education-qualification { grid-column: 1 / -1; padding-bottom: 1rem; border-bottom: 1px solid var(--color-records-rule); }
+.education-qualification > div:first-child { flex-wrap: wrap; }
+.education-personnel-content :is(.education-academic, .education-training) { min-width: 0; }
+.education-personnel-content :is(.uppercase, .tracking-wider) { text-transform: none; letter-spacing: 0; }
+.education-personnel-content .font-extrabold { font-weight: 600; }
+.education-personnel-content :is(.text-slate-400, .text-amber-900, .text-amber-800) { color: var(--color-records-muted); }
+.education-personnel-content .truncate { overflow: visible; white-space: normal; overflow-wrap: anywhere; }
+.education-personnel-content .group { border: 0; border-bottom: 1px solid var(--color-records-rule); border-radius: 0; padding: 0.75rem 0; background: transparent; }
+.education-entry-actions button { min-width: 32px; min-height: 32px; display: inline-flex; align-items: center; justify-content: center; }
+.education-entry-actions svg { width: 14px; height: 14px; }
+.education-page .selection-toolbar { max-width: calc(100vw - 2rem); width: max-content; }
+@media (max-width: 1199px) {
+  .orders-summary { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .orders-summary > div:nth-child(5) { border-left: 0; }
+  .orders-summary > div:nth-child(n+5) { border-top: 1px solid var(--color-records-rule); }
+  .records-module .app-page-header { flex-direction: column; }
+}
+@media (max-width: 639px) {
+  .records-summary, .orders-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .records-summary > div:nth-child(odd) { border-left: 0; }
+  .records-summary > div:nth-child(n+3) { border-top: 1px solid var(--color-records-rule); }
+  .records-summary > div { padding: 0.875rem; }
+  .education-personnel-heading { flex-wrap: wrap; gap: 0.5rem; }
+  .education-personnel-heading > div:first-child { flex-basis: calc(100% - 2rem); order: 0; }
+  .education-expand-icon { order: 1; }
+  .education-personnel-counts { order: 2; width: 100%; }
+  .education-personnel-content { grid-template-columns: minmax(0, 1fr); padding: 1rem; }
+  .education-qualification { grid-column: auto; }
+}

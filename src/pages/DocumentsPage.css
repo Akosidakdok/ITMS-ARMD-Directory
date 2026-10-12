@@ -1,0 +1,69 @@
+.documents-page .documents-library {
+  overflow: hidden;
+  border: 1px solid var(--color-records-rule);
+  border-radius: var(--radius-records-panel);
+}
+.documents-page .documents-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 40px;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-records-rule);
+  border-radius: var(--pais-radius-control);
+  background: var(--color-records-surface);
+  color: var(--color-records-ink);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+.documents-page .documents-button:hover { background: var(--accent); }
+.documents-page .documents-button-primary { border-color: var(--primary); background: var(--primary); color: var(--primary-foreground); }
+.documents-page .documents-button-primary:hover { background: color-mix(in srgb, var(--primary) 88%, var(--foreground)); }
+.documents-page .documents-button:disabled { opacity: 0.5; }
+.documents-page .documents-tabs { padding-inline: 0.75rem; }
+.documents-page .module-search-input input { border-radius: var(--pais-radius-control); }
+.documents-page .module-search-toolbar { border-bottom: 1px solid var(--color-records-rule); }
+.documents-page .module-result-count { white-space: nowrap; }
+.documents-page .documents-list { padding: 0; margin: 0; list-style: none; }
+.documents-page .documents-row { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto auto; align-items: center; gap: 1rem; padding: 1.125rem 1rem; }
+.documents-page .documents-row + .documents-row { border-top: 1px solid var(--color-records-rule); }
+.documents-page .documents-row:hover { background: color-mix(in srgb, var(--accent) 45%, var(--color-records-surface)); }
+.documents-page .documents-row-icon { color: var(--color-records-muted); align-self: start; margin-top: 0.125rem; }
+.documents-page .documents-row-content { min-width: 0; }
+.documents-page .documents-title { padding: 0; text-align: left; white-space: normal; overflow-wrap: anywhere; color: var(--color-records-ink); font-size: 0.875rem; font-weight: 600; line-height: 1.5; }
+.documents-page .documents-title:hover { text-decoration: underline; text-underline-offset: 3px; }
+.documents-page .documents-description { margin-top: 0.25rem; max-width: 72ch; font-size: 0.75rem; line-height: 1.6; color: var(--color-records-muted); overflow-wrap: anywhere; }
+.documents-page .documents-metadata { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; margin-top: 0.5rem; color: var(--color-records-muted); font-size: 0.6875rem; overflow-wrap: anywhere; }
+.documents-page .documents-row-details { display: flex; align-items: flex-start; flex-direction: column; gap: 0.25rem; min-width: 145px; color: var(--color-records-muted); font-size: 0.6875rem; font-variant-numeric: tabular-nums; }
+.documents-page .documents-status { padding: 0.125rem 0.375rem; border-radius: var(--pais-radius-control); background: var(--color-records-subtle); color: var(--color-records-ink); font-weight: 500; }
+.documents-page .documents-status.is-final { background: var(--accent); color: var(--accent-foreground); }
+.documents-page .documents-row-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.375rem; }
+.documents-page .documents-icon-button { min-width: 36px; min-height: 36px; padding: 0.5rem; color: var(--color-records-muted); }
+.documents-page .documents-delete:hover { color: var(--destructive); }
+.documents-page .documents-empty { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; padding: 3.5rem 1.25rem; text-align: center; color: var(--color-records-muted); font-size: 0.8125rem; }
+.documents-page .documents-empty h2 { font-size: 0.875rem; font-weight: 600; color: var(--color-records-ink); }
+.documents-page .documents-empty p { max-width: 55ch; }
+.documents-page .documents-empty .documents-button { margin-top: 0.25rem; }
+.documents-page .documents-error { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 1rem; border-bottom: 1px solid var(--color-records-rule); color: var(--color-records-ink); font-size: 0.8125rem; background: var(--color-records-subtle); }
+.documents-page .documents-catalogue-heading { border-bottom: 1px solid var(--color-records-rule); }
+.documents-page .documents-templates { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; padding: 1rem; }
+.documents-page .documents-template { display: flex; flex-direction: column; justify-content: space-between; gap: 1.25rem; min-width: 0; padding: 1.25rem; border: 1px solid var(--color-records-rule); border-radius: var(--radius-records-panel); }
+.documents-page .documents-category { color: var(--color-records-muted); font-size: 0.6875rem; }
+.documents-page .documents-template h3 { margin-top: 0.375rem; color: var(--color-records-ink); font-size: 0.875rem; font-weight: 600; overflow-wrap: anywhere; }
+.documents-page .documents-template p { margin-top: 0.5rem; color: var(--color-records-muted); font-size: 0.75rem; line-height: 1.6; }
+.documents-page .documents-template-footer { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.75rem; padding-top: 1rem; border-top: 1px solid var(--color-records-rule); }
+.documents-page .documents-template-footer > span { color: var(--color-records-muted); font-size: 0.6875rem; }
+@media (max-width: 1000px) {
+  .documents-page .documents-row { grid-template-columns: 20px minmax(0, 1fr) auto; }
+  .documents-page .documents-row-details { grid-column: 2; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; }
+  .documents-page .documents-row-actions { grid-column: 3; grid-row: 1 / span 2; }
+}
+@media (max-width: 639px) {
+  .documents-page .documents-tabs { padding-inline: 0.5rem; }
+  .documents-page .documents-row { grid-template-columns: 20px minmax(0, 1fr); gap: 0.625rem 0.75rem; }
+  .documents-page .documents-row-details { min-width: 0; }
+  .documents-page .documents-row-actions { grid-column: 2; grid-row: auto; margin-top: 0.25rem; }
+  .documents-page .documents-templates { grid-template-columns: minmax(0, 1fr); }
+  .documents-page .documents-template { padding: 1rem; }
+}

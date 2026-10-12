@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-12T00:00:00+08:00",
+  "title": "Design System: PAIS Orders and Education & Training",
+  "extensions": {
+    "scope": ["Orders", "Education & Training"],
+    "authority": {
+      "implementation": "src/pages/RecordsModules.css",
+      "aliases": "tokens.css",
+      "theme": "src/index.css",
+      "otherPages": "Incumbent components, global CSS, and .21st/design.json decisions remain authoritative. This sidecar grants no wider redesign authority.",
+      "generatedReference": ".21st/DESIGN.md is preserved."
+    },
+    "themeAliases": {
+      "--color-records-surface": "var(--card)",
+      "--color-records-ink": "var(--foreground)",
+      "--color-records-muted": "var(--muted-foreground)",
+      "--color-records-rule": "var(--border)",
+      "--color-records-subtle": "var(--secondary)",
+      "--font-records-body": "var(--font-sans)",
+      "--radius-records-panel": "var(--pais-radius-panel)"
+    },
+    "colorMeta": {
+      "primary-light": { "role": "primary", "displayName": "PAIS navy", "theme": "light", "sourceToken": "--primary" },
+      "primary-dark": { "role": "primary", "displayName": "PAIS dark-mode blue", "theme": "dark", "sourceToken": "--primary" }
+    },
+    "shadows": [{ "name": "record-section", "value": "none", "purpose": "Scoped sections use borders and tonal grouping." }],
+    "motion": [{ "name": "--pais-motion-fast", "value": "140ms", "purpose": "Disclosure chevron transform transitions." }],
+    "breakpoints": [
+      { "name": "orders-summary-and-header", "value": "1199px", "query": "max-width" },
+      { "name": "records-mobile", "value": "639px", "query": "max-width" }
+    ],
+    "focus": { "outline": "2px solid var(--pais-focus)", "outlineOffset": "2px", "source": "src/index.css" },
+    "review": {
+      "disposition": "Ship at bounded scope",
+      "reportedVerification": ["Typecheck passed", "Build passed", "9 targeted tests passed", "Overflow detector returned []", "21st: zero errors; existing advisory warnings"],
+      "limitations": ["Screenshot cropping", "No populated academic/training entries available for review", "Mutation flows not checked"]
+    }
+  },
+  "components": [],
+  "narrative": {
+    "overview": "Confirmed clean, professional navy-and-white direction for Orders and Education & Training only. Compact summaries, clear search, restrained borders, and readable operational records inherit the existing PAIS light and dark themes.",
+    "keyCharacteristics": ["Orders: seven summary cells, search first, collapsed general and advanced filters, scrolling table", "Education & Training: five summary cells, native personnel details, academic and training columns stacking on mobile", "Selection separate from disclosure; entry actions remain visible"],
+    "rules": [{ "name": "Bounded module scope", "body": "Preserve the incumbent design authority for all other pages and the existing PAIS theme, permissions, data, and document workflows.", "section": "layout" }],
+    "dos": ["Do use live PAIS aliases for light and dark themes", "Do keep search prominent and record copy readable"],
+    "donts": ["Don't widen the redesign to other modules", "Don't claim populated-entry or mutation-flow verification from this review"]
+  }
+}

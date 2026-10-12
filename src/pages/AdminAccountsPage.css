@@ -1,0 +1,17 @@
+/* PAIS access register: neutral account summaries and readable administrator records. */
+.accounts-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.accounts-page .module-access-status { gap: 0.5rem; color: var(--color-records-muted); }
+.accounts-page .record-section-header { justify-content: flex-start; }
+.accounts-page .module-search-toolbar { border-top: 1px solid var(--color-records-rule); border-bottom: 1px solid var(--color-records-rule); }
+.accounts-page .module-table-scroll .record-table { min-width: 900px; }
+.accounts-page .record-table th:first-child { min-width: 210px; }
+.accounts-page .record-table td { vertical-align: middle; }
+.accounts-page .record-table tbody tr { background: var(--color-records-surface); }
+.accounts-page .record-table tbody tr:hover { background: var(--accent); }
+.accounts-page .record-table td:nth-child(3) { overflow-wrap: anywhere; }
+@media (max-width: 639px) {
+  .accounts-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .accounts-summary > div:nth-child(n) { border-top: 0; }
+  .accounts-summary > div + div { border-left: 1px solid var(--color-records-rule); }
+  .accounts-summary > div { padding: 0.75rem; }
+}

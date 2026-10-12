@@ -1,24 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import {
-  FileText,
-  FilePlus,
-  Search,
-  Filter,
-  Eye,
-  Edit3,
-  Copy,
-  Trash2,
-  Archive,
-  Download,
-  Printer,
-  History,
-  Clock,
-  User,
-  Layout,
-  RefreshCw,
-  Plus
-} from 'lucide-react';
+import { FileText, Search, Edit3, Copy, Trash2, Archive, RefreshCw, Plus } from 'lucide-react';
 import {
   fetchDocumentsApi,
   createDocumentApi,
@@ -31,8 +13,12 @@ import {
 import { DocumentEditorModule } from '../components/document/DocumentEditorModule';
 import { DocumentErrorBoundary } from '../components/document/DocumentErrorBoundary';
 import { NewDocumentModal } from '../components/document/dialogs/NewDocumentModal';
-import { DEFAULT_TEMPLATES, TemplatePreset } from '../components/document/utils/defaultTemplates';
+import { DEFAULT_TEMPLATES } from '../components/document/utils/defaultTemplates';
 import { useAuthRole } from '../context/AuthRoleContext';
+import { PageHeader } from '../components/common/SystemUI';
+import './ModulePages.css';
+import './RecordsModules.css';
+import './DocumentsPage.css';
 
 type DocumentTab = 'all' | 'my' | 'templates' | 'recent' | 'archived';
 
@@ -227,105 +213,69 @@ export const DocumentsPage: React.FC = () => {
   }
 
   return (
-    <div className="mx-auto max-w-[1680px] space-y-5">
-      {/* Top Banner */}
-      <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white px-6 py-5 shadow-xs dark:bg-[#101b2b] dark:border-slate-800">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="rounded-md bg-teal-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-teal-800 dark:bg-teal-900/60 dark:text-teal-200">
-              PAIS 2.0 Document Center
-            </span>
-            <span className="text-xs text-slate-400">Â·</span>
-            <span className="text-xs font-semibold text-slate-500">Official Document Management & Editor</span>
-          </div>
-          <h1 className="mt-1 text-2xl font-black tracking-tight text-slate-900 dark:text-white">
-            Documents & Orders Editor
-          </h1>
-          <p className="mt-1 text-xs text-slate-500">
-            Native Microsoft Word-style administrative document creation, template auto-fill, and record generation.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={loadDocuments}
-            disabled={loading}
-            className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 disabled:opacity-50"
-            title="Refresh documents list"
-          >
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+    <div className="module-page records-module documents-page mx-auto w-full max-w-[1600px] space-y-5">
+      <PageHeader
+        title="Document Editor"
+        description="Create documents from templates, edit administrative records, and manage your document library."
+        actions={<>
+          <button type="button" onClick={loadDocuments} disabled={loading} className="documents-button" aria-label="Refresh documents" title="Refresh documents">
+            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} /> Refresh
           </button>
-
-          <button
-            type="button"
-            onClick={() => setIsNewDocModalOpen(true)}
-            className="inline-flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-teal-700 transition"
-          >
-            <Plus size={16} />
-            <span>New Document</span>
+          <button type="button" onClick={() => setIsNewDocModalOpen(true)} className="documents-button documents-button-primary">
+            <Plus size={16} /> New Document
           </button>
-        </div>
-      </section>
+        </>}
+      />
 
-      {/* Tabs and Search Bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
-        <div className="flex gap-1 overflow-x-auto text-xs font-bold text-slate-600 dark:text-slate-400">
+      <section className="record-section documents-library" aria-label="Document library">
+        <div className="module-view-tabs documents-tabs" aria-label="Document views">
           {(['all', 'my', 'templates', 'recent', 'archived'] as DocumentTab[]).map(tab => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => setActiveTab(tab)}
-              className={`rounded-lg px-3.5 py-1.5 capitalize transition ${
-                activeTab === tab
-                  ? 'bg-teal-600 text-white shadow-xs'
-                  : 'hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800'
-              }`}
-            >
-              {tab === 'all' ? 'All Documents' : tab === 'my' ? 'My Documents' : tab}
+            <button key={tab} type="button" onClick={() => setActiveTab(tab)} aria-pressed={activeTab === tab}>
+              {tab === 'all' ? 'All Documents' : tab === 'my' ? 'My Documents' : tab === 'templates' ? 'Templates' : tab === 'recent' ? 'Recent' : 'Archived'}
             </button>
           ))}
         </div>
 
-        <div className="relative min-w-[260px]">
-          <Search size={15} className="absolute left-3 top-2.5 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search documents by title or author..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 pl-9 pr-4 py-1.5 text-xs text-slate-900 dark:text-white outline-none focus:border-teal-500"
-          />
-        </div>
-      </div>
+        {activeTab !== 'templates' ? (
+          <div className="module-search-toolbar">
+            <div className="module-search-input">
+              <Search size={16} aria-hidden="true" />
+              <input type="search" aria-label="Search documents by title, type, or author" placeholder="Search by title, type, or author…" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+            </div>
+            {searchQuery && <button type="button" onClick={() => setSearchQuery('')} className="module-reset">Clear search</button>}
+            <span className="module-result-count" role="status">{loading ? 'Loading…' : `${filteredDocuments.length} ${filteredDocuments.length === 1 ? 'document' : 'documents'}`}</span>
+          </div>
+        ) : (
+          <div className="record-section-header documents-catalogue-heading">
+            <h2>Start with a template</h2>
+            <p>Choose a format to open a new document in the editor.</p>
+          </div>
+        )}
 
-      {/* Document Grid / List */}
-      {loading ? (
-        <div className="py-20 text-center text-xs font-semibold text-slate-500">
-          <RefreshCw size={24} className="mx-auto mb-2 animate-spin text-teal-600" />
-          Loading PAIS documents...
-        </div>
-      ) : activeTab === 'templates' ? (
-        /* Templates Tab */
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {DEFAULT_TEMPLATES.map(tmpl => (
-            <div
-              key={tmpl.id}
-              className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-[#101b2b] flex flex-col justify-between"
-            >
-              <div>
-                <span className="rounded-md bg-teal-100 dark:bg-teal-900/60 px-2 py-0.5 text-[10px] font-bold text-teal-800 dark:text-teal-200 uppercase">
-                  {tmpl.category}
-                </span>
-                <h3 className="mt-2 text-sm font-bold text-slate-900 dark:text-white">{tmpl.name}</h3>
-                <p className="mt-1 text-xs text-slate-500 line-clamp-2">{tmpl.description}</p>
-              </div>
+        {error && (
+          <div className="documents-error" role="alert">
+            <p>{error}</p>
+            <button type="button" onClick={loadDocuments} disabled={loading} className="documents-button">Try again</button>
+          </div>
+        )}
 
-              <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                <span className="text-[11px] text-slate-400">{tmpl.pageSize} Â· {tmpl.orientation}</span>
-                <button
-                  type="button"
-                  onClick={() => {
+        {loading ? (
+          <div className="documents-empty" role="status">
+            <RefreshCw size={24} className="animate-spin" aria-hidden="true" />
+            <p>Loading documents…</p>
+          </div>
+        ) : activeTab === 'templates' ? (
+          <div className="documents-templates">
+            {DEFAULT_TEMPLATES.map(tmpl => (
+              <article key={tmpl.id} className="documents-template">
+                <div>
+                  <span className="documents-category">{tmpl.category}</span>
+                  <h3>{tmpl.name}</h3>
+                  <p>{tmpl.description}</p>
+                </div>
+                <div className="documents-template-footer">
+                  <span>{tmpl.pageSize} · {tmpl.orientation}</span>
+                  <button type="button" className="documents-button documents-button-primary" onClick={() => {
                     setEditingDocument({
                       title: `${tmpl.name} - ${new Date().toISOString().slice(0, 10)}`,
                       document_type: tmpl.documentType,
@@ -337,123 +287,54 @@ export const DocumentsPage: React.FC = () => {
                       margin_left: tmpl.marginLeft,
                       margin_right: tmpl.marginRight
                     });
-                  }}
-                  className="rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-teal-700"
-                >
-                  Use Template
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : filteredDocuments.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 p-12 text-center bg-white dark:bg-[#101b2b]">
-          <FileText size={32} className="mx-auto text-slate-300 dark:text-slate-600 mb-2" />
-          <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300">No documents found</h3>
-          <p className="mt-1 text-xs text-slate-400">
-            {searchQuery ? 'Try adjusting your search criteria.' : 'Create your first document or open an Administrative Order to edit.'}
-          </p>
-          <button
-            type="button"
-            onClick={() => setIsNewDocModalOpen(true)}
-            className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-teal-600 px-4 py-2 text-xs font-semibold text-white hover:bg-teal-700"
-          >
-            <Plus size={14} /> New Document
-          </button>
-        </div>
-      ) : (
-        /* Regular Document Cards */
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredDocuments.map(doc => {
-            const updatedDateStr = new Date(doc.updated_at).toLocaleDateString('en-PH', {
-              month: 'short',
-              day: 'numeric',
-              year: 'numeric'
-            });
-
-            return (
-              <div
-                key={doc.id}
-                className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs hover:shadow-md transition-shadow dark:border-slate-800 dark:bg-[#101b2b] flex flex-col justify-between"
-              >
-                <div>
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <span className="rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[10px] font-bold text-slate-600 dark:text-slate-300">
-                      {doc.document_type || 'Administrative Order'}
-                    </span>
-                    <span className={`rounded-md px-2 py-0.5 text-[10px] font-bold ${
-                      doc.status === 'Final'
-                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200'
-                        : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200'
-                    }`}>
-                      {doc.status}
-                    </span>
-                  </div>
-
-                  <h3
-                    onClick={() => setEditingDocument(doc)}
-                    className="cursor-pointer font-bold text-sm text-slate-900 dark:text-white hover:text-teal-600 dark:hover:text-teal-400 line-clamp-1"
-                    title={doc.title}
-                  >
-                    {doc.title}
-                  </h3>
-
-                  {doc.description && (
-                    <p className="mt-1 text-xs text-slate-500 line-clamp-2">{doc.description}</p>
-                  )}
-
-                  <div className="mt-4 flex items-center gap-3 text-[11px] text-slate-400">
-                    <span className="flex items-center gap-1">
-                      <Clock size={12} /> {updatedDateStr}
-                    </span>
-                    <span>v{doc.version || 1}</span>
-                    {doc.order_id && (
-                      <span className="rounded bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 px-1 font-mono text-[10px]">
-                        Linked Order
-                      </span>
-                    )}
-                  </div>
+                  }}>Use Template</button>
                 </div>
-
-                <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                  <span className="text-[11px] text-slate-400 truncate max-w-[120px]">
-                    By {doc.created_by || 'System'}
-                  </span>
-
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => handleDuplicate(doc)}
-                      className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800"
-                      title="Duplicate Document"
-                    >
-                      <Copy size={14} />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(doc.id, activeTab === 'archived')}
-                      className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40"
-                      title={activeTab === 'archived' ? 'Delete Permanently' : 'Archive Document'}
-                    >
-                      <Trash2 size={14} />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setEditingDocument(doc)}
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-teal-700 transition ml-1"
-                    >
-                      <Edit3 size={13} />
-                      <span>Edit</span>
-                    </button>
+              </article>
+            ))}
+          </div>
+        ) : filteredDocuments.length === 0 ? (
+          <div className="documents-empty">
+            <FileText size={28} aria-hidden="true" />
+            <h2>No documents found</h2>
+            <p>{searchQuery ? 'Try a different title, document type, or author.' : 'Create a document or open an Administrative Order to edit.'}</p>
+            <button type="button" onClick={() => setIsNewDocModalOpen(true)} className="documents-button documents-button-primary">
+              <Plus size={16} /> New Document
+            </button>
+          </div>
+        ) : (
+          <ul className="documents-list" aria-label="Documents">
+            {filteredDocuments.map(doc => {
+              const updatedDateStr = new Date(doc.updated_at).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
+              return (
+                <li key={doc.id} className="documents-row">
+                  <FileText size={20} className="documents-row-icon" aria-hidden="true" />
+                  <div className="documents-row-content">
+                    <h2><button type="button" onClick={() => setEditingDocument(doc)} className="documents-title">{doc.title}</button></h2>
+                    {doc.description && <p className="documents-description">{doc.description}</p>}
+                    <div className="documents-metadata">
+                      <span>{doc.document_type || 'Administrative Order'}</span>
+                      <span>By {doc.created_by || 'System'}</span>
+                      {doc.order_id && <span>Linked Order</span>}
+                    </div>
                   </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+                  <div className="documents-row-details">
+                    <span className={`documents-status ${doc.status === 'Final' ? 'is-final' : ''}`}>{doc.status}</span>
+                    <span>Updated {updatedDateStr}</span>
+                    <span>Version {doc.version || 1}</span>
+                  </div>
+                  <div className="documents-row-actions">
+                    <button type="button" onClick={() => handleDuplicate(doc)} className="documents-button documents-icon-button" aria-label={`Duplicate ${doc.title}`} title="Duplicate Document"><Copy size={16} /></button>
+                    <button type="button" onClick={() => handleDelete(doc.id, activeTab === 'archived')} className={`documents-button documents-icon-button ${activeTab === 'archived' ? 'documents-delete' : ''}`} aria-label={`${activeTab === 'archived' ? 'Permanently delete' : 'Archive'} ${doc.title}`} title={activeTab === 'archived' ? 'Delete Permanently' : 'Archive Document'}>
+                      {activeTab === 'archived' ? <Trash2 size={16} /> : <Archive size={16} />}
+                    </button>
+                    <button type="button" onClick={() => setEditingDocument(doc)} className="documents-button"><Edit3 size={14} /> Edit</button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
 
       {/* New Document Modal */}
       <NewDocumentModal

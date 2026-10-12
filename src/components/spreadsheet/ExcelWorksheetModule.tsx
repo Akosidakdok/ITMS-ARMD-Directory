@@ -1513,16 +1513,18 @@ export const ExcelWorksheetModule: React.FC = () => {
       </div>
 
       {/* 4. EXCEL 13-WORKSHEET TABS BAR */}
-      <div className="no-print flex items-center justify-between border-t border-slate-200 bg-[#f8f9fa] px-2 py-1 dark:border-slate-800 dark:bg-[#0c1624]">
+      <div className="worksheet-sheet-bar no-print flex items-center justify-between border-t border-slate-200 bg-[#f8f9fa] px-2 py-1 dark:border-slate-800 dark:bg-[#0c1624]">
         <div className="flex items-center gap-1 overflow-hidden">
           {/* Scroll left/right tabs buttons */}
           <button
+            aria-label="Scroll worksheet tabs left"
             onClick={() => tabScrollRef.current?.scrollBy({ left: -150, behavior: 'smooth' })}
             className="p-1 rounded text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
           <button
+            aria-label="Scroll worksheet tabs right"
             onClick={() => tabScrollRef.current?.scrollBy({ left: 150, behavior: 'smooth' })}
             className="p-1 rounded text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800"
           >
@@ -1548,6 +1550,16 @@ export const ExcelWorksheetModule: React.FC = () => {
               return (
                 <div
                   key={sheet.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Open worksheet ${sheet.name}`}
+                  aria-pressed={isActive}
+                  onKeyDown={event => {
+                    if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) {
+                      event.preventDefault();
+                      setActiveSheetId(sheet.id);
+                    }
+                  }}
                   onClick={() => {
                     if (activeSheetId !== sheet.id) {
                       setActiveSheetId(sheet.id);

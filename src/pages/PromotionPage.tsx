@@ -4,14 +4,14 @@ import {
   Clock, 
   Search, 
   Plus, 
-  ShieldCheck, 
   TrendingUp, 
   Users, 
   AlertCircle, 
   Edit3, 
   Trash2, 
   Info,
-  History
+  History,
+  ChevronDown
 } from 'lucide-react';
 import { Badge } from '../components/common/Badge';
 import { Modal } from '../components/common/Modal';
@@ -21,6 +21,9 @@ import { calculateTimeInGrade, parseCalendarDate, type TimeInGrade } from '../ut
 import { hasManagementAccess } from '../utils/accessControl';
 import { PNP_RANKS, getRankFullName, getNextRank, getMinimumTigYears, getRankCategory } from '../constants/ranks';
 import { Personnel, PromotionRecord, RankAbbr } from '../types/pais';
+import './ModulePages.css';
+import './RecordsModules.css';
+import './PromotionPage.css';
 
 type TabView = 'uniformed' | 'nonuniformed' | 'history';
 type SortOrder = 'tig-desc' | 'tig-asc' | 'name-asc' | 'date-desc';
@@ -359,26 +362,19 @@ export const PromotionPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="module-page records-module promotion-page space-y-6">
       {toast && <NotificationToast type={toast.type} message={toast.message} onClose={() => setToast(null)} />}
 
       <PageHeader
-        eyebrow="Personnel records & career progression"
-        title="Time-in-Grade & Promotion Module"
+        title="Promotion & Tenure"
         description="Review uniformed rank-promotion eligibility separately from non-uniformed personnel, with Time in Position based on the effective date of the current designation."
-        meta={<span className="text-[11px] text-slate-500 font-medium">DPRM & NAPOLCOM Standard Criteria</span>}
-        reference="PNP-ITMS-PROMOTIONS-WEEK7"
         actions={
           <div className="flex items-center gap-3">
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200">
-              <Clock className="h-4 w-4 text-emerald-700" />
-              <span className="text-xs font-bold text-emerald-800">Automatic TIG & TIP Counters Active</span>
-            </div>
             {canManage && activeTab === 'uniformed' && (
               <button
                 type="button"
                 onClick={handleOpenNewPromotion}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-colors"
+                className="promotion-primary-action flex items-center gap-1.5 px-3.5 py-2 text-xs"
               >
                 <Plus className="w-4 h-4" /> Record Promotion
               </button>
@@ -387,112 +383,34 @@ export const PromotionPage: React.FC = () => {
         }
       />
 
-      {/* Metric Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
-        <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-2xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Uniformed Personnel</span>
-            <Users className="w-5 h-5 text-blue-600" />
-          </div>
-          <div className="mt-2 text-2xl font-black text-slate-900 font-mono">{metrics.uniformedCount}</div>
-          <div className="mt-1 text-[11px] text-slate-500 font-medium">Rank based roster</div>
-        </div>
+      <dl className="records-summary promotion-summary" aria-label="Promotion and tenure summary">
+        <div><dt>Uniformed personnel</dt><dd>{metrics.uniformedCount}</dd></div>
+        <div><dt>Non-uniformed personnel</dt><dd>{metrics.nonUniformedCount}</dd></div>
+        <div><dt>Board eligible · minimum TIG</dt><dd>{metrics.eligibleCount}</dd></div>
+        <div><dt>Accruing TIG</dt><dd>{metrics.accruingCount}</dd></div>
+        <div><dt>Promotions logged</dt><dd>{metrics.totalPromotions}</dd></div>
+      </dl>
 
-        <div className="p-4 rounded-xl bg-indigo-50/70 border border-indigo-200 shadow-2xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-indigo-700 uppercase tracking-wider">Non-Uniformed Personnel</span>
-            <Users className="w-5 h-5 text-indigo-600" />
-          </div>
-          <div className="mt-2 text-2xl font-black text-indigo-900 font-mono">{metrics.nonUniformedCount}</div>
-          <div className="mt-1 text-[11px] text-indigo-700 font-medium">Separate position tenure roster</div>
-        </div>
-
-        <div className="p-4 rounded-xl bg-emerald-50/70 border border-emerald-200 shadow-2xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Board Eligible</span>
-            <ShieldCheck className="w-5 h-5 text-emerald-600" />
-          </div>
-          <div className="mt-2 text-2xl font-black text-emerald-900 font-mono">{metrics.eligibleCount}</div>
-          <div className="mt-1 text-[11px] text-emerald-700 font-medium">Uniformed personnel meeting minimum TIG</div>
-        </div>
-
-        <div className="p-4 rounded-xl bg-blue-50/70 border border-blue-200 shadow-2xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-blue-700 uppercase tracking-wider">Accruing TIG</span>
-            <Clock className="w-5 h-5 text-blue-600" />
-          </div>
-          <div className="mt-2 text-2xl font-black text-blue-900 font-mono">{metrics.accruingCount}</div>
-          <div className="mt-1 text-[11px] text-blue-700 font-medium">Building required service period</div>
-        </div>
-
-        <div className="p-4 rounded-xl bg-purple-50/70 border border-purple-200 shadow-2xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-purple-700 uppercase tracking-wider">Promotions Logged</span>
-            <TrendingUp className="w-5 h-5 text-purple-600" />
-          </div>
-          <div className="mt-2 text-2xl font-black text-purple-900 font-mono">{metrics.totalPromotions}</div>
-          <div className="mt-1 text-[11px] text-purple-700 font-medium">Historical Special Orders recorded</div>
-        </div>
-      </div>
-
-      {/* Tabs Navigation */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-2">
-        <button
-          type="button"
-          onClick={() => setActiveTab('uniformed')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-            activeTab === 'uniformed'
-              ? 'bg-blue-600 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-          }`}
-        >
-          <Clock className="w-4 h-4" />
-          Uniformed Promotions
-          <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === 'uniformed' ? 'bg-blue-700 text-white' : 'bg-slate-200 text-slate-700'}`}>
-            {filteredRoster.length}
-          </span>
+      <nav className="module-view-tabs" aria-label="Promotion views">
+        <button type="button" aria-pressed={activeTab === 'uniformed'} onClick={() => setActiveTab('uniformed')}>
+          Uniformed <span className="promotion-tab-count">{filteredRoster.length}</span>
         </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('nonuniformed')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-            activeTab === 'nonuniformed'
-              ? 'bg-indigo-600 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-          }`}
-        >
-          <Users className="w-4 h-4" />
-          Non-Uniformed Personnel (TIP)
-          <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === 'nonuniformed' ? 'bg-indigo-700 text-white' : 'bg-slate-200 text-slate-700'}`}>
-            {filteredNonUniformedRoster.length}
-          </span>
+        <button type="button" aria-pressed={activeTab === 'nonuniformed'} onClick={() => setActiveTab('nonuniformed')}>
+          Non-uniformed · TIP <span className="promotion-tab-count">{filteredNonUniformedRoster.length}</span>
         </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('history')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-            activeTab === 'history'
-              ? 'bg-blue-600 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-          }`}
-        >
-          <History className="w-4 h-4" />
-          Organization Promotion History Log
-          <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === 'history' ? 'bg-blue-700 text-white' : 'bg-slate-200 text-slate-700'}`}>
-            {filteredHistory.length}
-          </span>
+        <button type="button" aria-pressed={activeTab === 'history'} onClick={() => setActiveTab('history')}>
+          Promotion history <span className="promotion-tab-count">{filteredHistory.length}</span>
         </button>
-      </div>
+      </nav>
 
       {/* Filter and Search Bar */}
-      <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-2xs space-y-3">
-        <div className="flex flex-col md:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+      <section className="record-section promotion-search" aria-label="Search and filter personnel">
+        <div className="module-search-toolbar">
+          <div className="module-search-input">
+            <Search className="w-4 h-4" aria-hidden="true" />
             <input
-              type="text"
+              type="search"
+              aria-label={activeTab === 'history' ? 'Search promotion history' : 'Search personnel'}
               placeholder={activeTab === 'history'
                 ? 'Search promotion orders, personnel, or remarks...'
                 : activeTab === 'uniformed'
@@ -504,10 +422,22 @@ export const PromotionPage: React.FC = () => {
             />
           </div>
 
+          {(searchQuery || selectedDivision !== 'all' || selectedCategory !== 'all' || selectedEligibility !== 'all' || sortOrder !== 'tig-desc') && (
+            <button type="button" className="module-reset" onClick={() => {
+              setSearchQuery(''); setSelectedDivision('all'); setSelectedCategory('all'); setSelectedEligibility('all'); setSortOrder('tig-desc');
+            }}>Reset filters</button>
+          )}
+        </div>
           {activeTab !== 'history' && (
-            <div className="flex flex-wrap items-center gap-2">
-              <select
-                value={selectedDivision}
+            <details className="module-filter-disclosure">
+              <summary>Advanced filters & sorting
+                {(selectedDivision !== 'all' || (activeTab === 'uniformed' && (selectedCategory !== 'all' || selectedEligibility !== 'all'))) && <span className="module-filter-count">Filters active</span>}
+                <ChevronDown className="module-filter-chevron w-4 h-4" aria-hidden="true" />
+              </summary>
+            <div className="module-filter-fields promotion-filter-fields">
+              <label><span>Division / sub-unit</span>
+                <select
+                  value={selectedDivision}
                 onChange={e => setSelectedDivision(e.target.value)}
                 aria-label="Filter by Sub-Unit / Division"
                 className="px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
@@ -517,10 +447,12 @@ export const PromotionPage: React.FC = () => {
                   <option key={div} value={div}>{div}</option>
                 ))}
               </select>
+              </label>
 
               {activeTab === 'uniformed' && (
                 <>
-                  <select
+                  <label><span>Rank group</span>
+                    <select
                     value={selectedCategory}
                     onChange={e => setSelectedCategory(e.target.value)}
                     aria-label="Filter by Uniformed Rank Group"
@@ -530,8 +462,10 @@ export const PromotionPage: React.FC = () => {
                     <option value="PCO">Commissioned Officers (PCO)</option>
                     <option value="PNCO">Non-Commissioned Officers (PNCO)</option>
                   </select>
+              </label>
 
-                  <select
+                  <label><span>Board eligibility</span>
+                    <select
                     value={selectedEligibility}
                     onChange={e => setSelectedEligibility(e.target.value)}
                     aria-label="Filter by Board Eligibility"
@@ -542,11 +476,13 @@ export const PromotionPage: React.FC = () => {
                     <option value="accruing">Accruing Service Time</option>
                     <option value="future">Pending Future Effective Date</option>
                   </select>
+              </label>
                 </>
               )}
 
-              <select
-                value={sortOrder}
+              <label><span>Sort order</span>
+                <select
+                  value={sortOrder}
                 onChange={e => setSortOrder(e.target.value as SortOrder)}
                 aria-label={activeTab === 'uniformed' ? 'Sort uniformed personnel' : 'Sort non-uniformed personnel'}
                 className="px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
@@ -556,15 +492,16 @@ export const PromotionPage: React.FC = () => {
                 <option value="name-asc">Personnel Name (A-Z)</option>
                 <option value="date-desc">Latest {activeTab === 'uniformed' ? 'Promotion' : 'Designation Effective'} Date</option>
               </select>
+              </label>
             </div>
+            </details>
           )}
-        </div>
-      </div>
+      </section>
 
       {/* Uniformed rank-promotion roster */}
       {activeTab === 'uniformed' && (
-        <section className="app-surface overflow-hidden shadow-2xs" aria-labelledby="tig-roster-heading">
-          <div className="border-b border-slate-200 px-4 py-3.5 flex items-center justify-between bg-slate-50/50">
+        <section className="record-section app-surface overflow-hidden" aria-labelledby="tig-roster-heading">
+          <div className="record-section-header promotion-section-header">
             <div>
               <h2 id="tig-roster-heading" className="app-section-title">Uniformed Personnel Promotion Roster</h2>
               <p className="mt-0.5 text-xs text-slate-500">Rank-based TIG eligibility with TIP measured from the current designation's effective date</p>
@@ -575,7 +512,7 @@ export const PromotionPage: React.FC = () => {
           </div>
 
           {filteredRoster.length ? (
-            <div className="overflow-x-auto">
+            <div className="module-table-scroll" tabIndex={0} role="region" aria-label="Scrollable personnel records">
               <table className="record-table min-w-[1180px] text-xs">
                 <thead className="bg-slate-100 uppercase text-slate-700 font-bold border-b border-slate-200">
                   <tr>
@@ -679,8 +616,8 @@ export const PromotionPage: React.FC = () => {
 
       {/* Non-uniformed position-tenure roster */}
       {activeTab === 'nonuniformed' && (
-        <section className="app-surface overflow-hidden shadow-2xs" aria-labelledby="nup-roster-heading">
-          <div className="border-b border-indigo-200 px-4 py-3.5 flex items-center justify-between bg-indigo-50/60">
+        <section className="record-section app-surface overflow-hidden" aria-labelledby="nup-roster-heading">
+          <div className="record-section-header promotion-section-header">
             <div>
               <h2 id="nup-roster-heading" className="app-section-title">Non-Uniformed Personnel Position Roster</h2>
               <p className="mt-0.5 text-xs text-slate-600">Time in Position (TIP) is counted from the effective date of the current main designation. This roster does not apply uniformed rank TIG rules.</p>
@@ -691,7 +628,7 @@ export const PromotionPage: React.FC = () => {
           </div>
 
           {filteredNonUniformedRoster.length ? (
-            <div className="overflow-x-auto">
+            <div className="module-table-scroll" tabIndex={0} role="region" aria-label="Scrollable personnel records">
               <table className="record-table min-w-[900px] text-xs">
                 <thead className="bg-indigo-50 uppercase text-indigo-900 font-bold border-b border-indigo-200">
                   <tr>
@@ -741,8 +678,8 @@ export const PromotionPage: React.FC = () => {
 
       {/* TAB 2: HISTORY LOG VIEW */}
       {activeTab === 'history' && (
-        <section className="app-surface overflow-hidden shadow-2xs" aria-labelledby="promotion-history-heading">
-          <div className="border-b border-slate-200 px-4 py-3.5 flex items-center justify-between bg-slate-50/50">
+        <section className="record-section app-surface overflow-hidden" aria-labelledby="promotion-history-heading">
+          <div className="record-section-header promotion-section-header">
             <div>
               <h2 id="promotion-history-heading" className="app-section-title">Organization Promotion Records Log</h2>
               <p className="mt-0.5 text-xs text-slate-500">Official Special Orders, rank advancement histories, and NAPOLCOM resolutions</p>
@@ -753,7 +690,7 @@ export const PromotionPage: React.FC = () => {
           </div>
 
           {filteredHistory.length ? (
-            <div className="overflow-x-auto">
+            <div className="module-table-scroll" tabIndex={0} role="region" aria-label="Scrollable personnel records">
               <table className="record-table min-w-[980px] text-xs">
                 <thead className="bg-slate-100 uppercase text-slate-700 font-bold border-b border-slate-200">
                   <tr>
@@ -789,7 +726,7 @@ export const PromotionPage: React.FC = () => {
                             <span className="font-mono font-bold px-2 py-0.5 rounded bg-slate-800 text-white text-[11px]">
                               {prom.rankFrom}
                             </span>
-                            <span className="text-blue-600 font-bold">➔</span>
+                            <TrendingUp className="w-3.5 h-3.5 promotion-rank-arrow" aria-label="to" />
                             <span className="font-mono font-bold px-2 py-0.5 rounded bg-blue-600 text-white text-[11px]">
                               {prom.rankTo}
                             </span>
@@ -805,7 +742,7 @@ export const PromotionPage: React.FC = () => {
                         <td className="px-4 py-3 font-mono text-slate-700">
                           {prom.timeInGradeAtPromotion || '—'}
                         </td>
-                        <td className="px-4 py-3 text-slate-600 max-w-xs truncate">
+                        <td className="px-4 py-3 text-slate-600 promotion-remarks">
                           {prom.remarks || '—'}
                         </td>
                         {canManage && (

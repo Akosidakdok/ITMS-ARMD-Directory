@@ -39,7 +39,7 @@ export const FormulaBar: React.FC<FormulaBarProps> = ({
   };
 
   return (
-    <div className="flex items-center gap-1 border-b border-slate-200 bg-white px-3 py-1.5 dark:border-slate-800 dark:bg-[#101b2b] text-xs">
+    <div className="worksheet-formula-bar flex items-center gap-1 border-b border-slate-200 bg-white px-3 py-1.5 dark:border-slate-800 dark:bg-[#101b2b] text-xs">
       {/* Excel Name Box */}
       <div className="relative flex items-center">
         <input
@@ -48,6 +48,7 @@ export const FormulaBar: React.FC<FormulaBarProps> = ({
           onChange={e => setNameBoxValue(e.target.value.toUpperCase())}
           onKeyDown={handleNameBoxKeyDown}
           onBlur={() => setNameBoxValue(selectedAddress)}
+          aria-label="Cell reference"
           title="Name Box: Enter a cell reference (e.g. B15) to jump to it"
           className="w-20 rounded border border-slate-300 bg-slate-50 px-2 py-1 text-center font-mono font-bold text-slate-800 transition focus:border-blue-500 focus:bg-white focus:outline-hidden dark:border-slate-700 dark:bg-[#142232] dark:text-slate-200"
         />
@@ -102,6 +103,7 @@ export const FormulaBar: React.FC<FormulaBarProps> = ({
               onCancel();
             }
           }}
+          aria-label="Cell value or formula"
           placeholder="Enter text, numbers, or formula starting with ="
           className="w-full rounded border border-transparent bg-transparent px-2.5 py-1 font-mono text-xs text-slate-900 focus:border-blue-500 focus:bg-white focus:outline-hidden dark:text-slate-100 dark:focus:bg-[#142232]"
         />
