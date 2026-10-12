@@ -627,6 +627,12 @@
       "decision": "Clean navy and white operational registers. Compact bordered summaries, search first with collapsible Orders filters, readable document tables, and native expandable personnel qualification files with always-visible record actions. Preserve existing PAIS tokens, permissions, data and document workflows.",
       "source": "User request and confirmed navy-and-white direction, 2026-10-12",
       "inspiration": "21st Records Table search; existing PageHeader, SearchableSelect, Badge and ModulePages styles reused."
+    },
+    {
+      "scope": "promotion-reports-worksheets-documents-accounts",
+      "decision": "Extend the confirmed clean navy and white operational style. Compact summaries, search-first filters, readable report tables, wrapping report tabs, structured document library rows, restrained spreadsheet ribbon and accessible worksheet controls, and searchable administrator profiles. Preserve existing routes, permissions, data logic and export workflows.",
+      "source": "User screenshot and request to apply the same redesign to these modules, 2026-10-12",
+      "inspiration": "Existing PAIS PageHeader, RecordsModules and ModulePages conventions; 21st grounded table, spreadsheet and admin library searches."
     }
   ],
   "evidence": [

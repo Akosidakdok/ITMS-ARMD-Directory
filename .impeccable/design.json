@@ -1,11 +1,19 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-12T00:00:00+08:00",
-  "title": "Design System: PAIS Orders and Education & Training",
+  "generatedAt": "2026-10-12T14:36:21.2556629+08:00",
+  "title": "Design System: PAIS Scoped Operational Modules",
   "extensions": {
-    "scope": ["Orders", "Education & Training"],
+    "scope": [
+      "Orders",
+      "Education & Training",
+      "Promotion",
+      "Reports",
+      "Excel Worksheets",
+      "Document Editor",
+      "Administrator Accounts"
+    ],
     "authority": {
-      "implementation": "src/pages/RecordsModules.css",
+      "implementation": "src/pages/RecordsModules.css; ModulePages.css; PromotionPage.css; ReportsPage.css; DocumentsPage.css; ExcelIntegrationPage.css; AdminAccountsPage.css",
       "aliases": "tokens.css",
       "theme": "src/index.css",
       "otherPages": "Incumbent components, global CSS, and .21st/design.json decisions remain authoritative. This sidecar grants no wider redesign authority.",
@@ -21,28 +29,114 @@
       "--radius-records-panel": "var(--pais-radius-panel)"
     },
     "colorMeta": {
-      "primary-light": { "role": "primary", "displayName": "PAIS navy", "theme": "light", "sourceToken": "--primary" },
-      "primary-dark": { "role": "primary", "displayName": "PAIS dark-mode blue", "theme": "dark", "sourceToken": "--primary" }
+      "primary-light": {
+        "role": "primary",
+        "displayName": "PAIS navy",
+        "theme": "light",
+        "sourceToken": "--primary"
+      },
+      "primary-dark": {
+        "role": "primary",
+        "displayName": "PAIS dark-mode blue",
+        "theme": "dark",
+        "sourceToken": "--primary"
+      }
     },
-    "shadows": [{ "name": "record-section", "value": "none", "purpose": "Scoped sections use borders and tonal grouping." }],
-    "motion": [{ "name": "--pais-motion-fast", "value": "140ms", "purpose": "Disclosure chevron transform transitions." }],
-    "breakpoints": [
-      { "name": "orders-summary-and-header", "value": "1199px", "query": "max-width" },
-      { "name": "records-mobile", "value": "639px", "query": "max-width" }
+    "shadows": [
+      {
+        "name": "record-section",
+        "value": "none",
+        "purpose": "Scoped sections use borders and tonal grouping."
+      }
     ],
-    "focus": { "outline": "2px solid var(--pais-focus)", "outlineOffset": "2px", "source": "src/index.css" },
+    "motion": [
+      {
+        "name": "--pais-motion-fast",
+        "value": "140ms",
+        "purpose": "Disclosure chevron transform transitions."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "orders-summary-and-header",
+        "value": "1199px",
+        "query": "max-width"
+      },
+      {
+        "name": "records-mobile",
+        "value": "639px",
+        "query": "max-width"
+      },
+      {
+        "name": "document-row-metadata",
+        "value": "1000px",
+        "query": "max-width"
+      }
+    ],
+    "focus": {
+      "outline": "2px solid var(--pais-focus)",
+      "outlineOffset": "2px",
+      "source": "src/index.css",
+      "moduleOverride": "2px solid var(--ring); outline-offset: 3px"
+    },
     "review": {
       "disposition": "Ship at bounded scope",
-      "reportedVerification": ["Typecheck passed", "Build passed", "9 targeted tests passed", "Overflow detector returned []", "21st: zero errors; existing advisory warnings"],
-      "limitations": ["Screenshot cropping", "No populated academic/training entries available for review", "Mutation flows not checked"]
+      "reportedVerification": [
+        "Typecheck passed",
+        "Build passed",
+        "9 targeted tests passed",
+        "Overflow detector returned []",
+        "21st: zero errors; existing advisory warnings"
+      ],
+      "limitations": [
+        "Screenshot cropping",
+        "No populated academic/training entries available for review",
+        "Mutation flows not checked"
+      ]
+    },
+    "extensionReview": {
+      "disposition": "Finish review active",
+      "reportedVerification": [
+        "Typecheck passed",
+        "Build passed",
+        "10 targeted tests passed"
+      ],
+      "captures": ".impeccable/review: promotion, reports, worksheets, documents, accounts desktop and mobile PNGs",
+      "limitation": "Original Orders/Education Ship at bounded scope disposition does not certify these later extensions."
+    },
+    "typographyEvidence": {
+      "table": "src/pages/ModulePages.css: headers 0.6875rem/600, cells 0.75rem/400",
+      "ribbon": "src/pages/ExcelIntegrationPage.css: ribbon/formula inputs 0.75rem",
+      "worksheetCells": "src/components/spreadsheet/ExcelWorksheetModule.tsx: default 11px, formatted rendering clamped 10px to 14px",
+      "documentList": "src/pages/DocumentsPage.css: titles 0.875rem/600, descriptions 0.75rem, metadata 0.6875rem"
     }
   },
   "components": [],
   "narrative": {
-    "overview": "Confirmed clean, professional navy-and-white direction for Orders and Education & Training only. Compact summaries, clear search, restrained borders, and readable operational records inherit the existing PAIS light and dark themes.",
-    "keyCharacteristics": ["Orders: seven summary cells, search first, collapsed general and advanced filters, scrolling table", "Education & Training: five summary cells, native personnel details, academic and training columns stacking on mobile", "Selection separate from disclosure; entry actions remain visible"],
-    "rules": [{ "name": "Bounded module scope", "body": "Preserve the incumbent design authority for all other pages and the existing PAIS theme, permissions, data, and document workflows.", "section": "layout" }],
-    "dos": ["Do use live PAIS aliases for light and dark themes", "Do keep search prominent and record copy readable"],
-    "donts": ["Don't widen the redesign to other modules", "Don't claim populated-entry or mutation-flow verification from this review"]
+    "overview": "Confirmed clean, professional navy-and-white direction for Orders and Education & Training, subsequently extended by user authorization to Promotion, Reports, Excel Worksheets, Document Editor, and Administrator Accounts. All seven modules inherit the existing PAIS light and dark theme; other pages retain incumbent design authority.",
+    "keyCharacteristics": [
+      "Orders: seven summary cells, search first, collapsed general and advanced filters, scrolling table",
+      "Education & Training: five summary cells, native personnel details, academic and training columns stacking on mobile",
+      "Selection separate from disclosure; entry actions remain visible",
+      "Promotion and Reports: compact scrolling tables, wrapping tabs, search/filter context",
+      "Document Editor: searchable document list, visible actions, responsive template catalogue",
+      "Excel Worksheets: dense ribbon/formula tools and local scrolling within the workbench",
+      "Administrator Accounts: three-cell summary, search, readable scrolling register"
+    ],
+    "rules": [
+      {
+        "name": "Bounded module scope",
+        "body": "Preserve the incumbent design authority for all other pages and the existing PAIS theme, permissions, data, and document workflows.",
+        "section": "layout"
+      }
+    ],
+    "dos": [
+      "Do use live PAIS aliases for light and dark themes",
+      "Do keep search prominent and record copy readable"
+    ],
+    "donts": [
+      "Don't widen the redesign to other modules",
+      "Don't claim populated-entry or mutation-flow verification from this review"
+    ]
   }
 }

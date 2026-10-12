@@ -418,7 +418,7 @@ export const PromotionPage: React.FC = () => {
                   : 'Search non-uniformed personnel by name, plantilla, position, or sub-unit...'}
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-medium focus:outline-none focus:border-blue-500"
+              className="w-full pl-9 pr-4 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-medium  focus:border-blue-500"
             />
           </div>
 
@@ -440,7 +440,7 @@ export const PromotionPage: React.FC = () => {
                   value={selectedDivision}
                 onChange={e => setSelectedDivision(e.target.value)}
                 aria-label="Filter by Sub-Unit / Division"
-                className="px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
+                className="px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold  focus:border-blue-500"
               >
                 <option value="all">All Divisions / Sub-Units</option>
                 {divisions.map(div => (
@@ -456,7 +456,7 @@ export const PromotionPage: React.FC = () => {
                     value={selectedCategory}
                     onChange={e => setSelectedCategory(e.target.value)}
                     aria-label="Filter by Uniformed Rank Group"
-                    className="px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
+                    className="px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold  focus:border-blue-500"
                   >
                     <option value="all">All Uniformed Rank Groups</option>
                     <option value="PCO">Commissioned Officers (PCO)</option>
@@ -469,7 +469,7 @@ export const PromotionPage: React.FC = () => {
                     value={selectedEligibility}
                     onChange={e => setSelectedEligibility(e.target.value)}
                     aria-label="Filter by Board Eligibility"
-                    className="px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
+                    className="px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold  focus:border-blue-500"
                   >
                     <option value="all">All Eligibility Statuses</option>
                     <option value="eligible">Eligible for Board Review</option>
@@ -485,7 +485,7 @@ export const PromotionPage: React.FC = () => {
                   value={sortOrder}
                 onChange={e => setSortOrder(e.target.value as SortOrder)}
                 aria-label={activeTab === 'uniformed' ? 'Sort uniformed personnel' : 'Sort non-uniformed personnel'}
-                className="px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
+                className="px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold  focus:border-blue-500"
               >
                 <option value="tig-desc">Longest {activeTab === 'uniformed' ? 'TIG' : 'TIP'} First</option>
                 <option value="tig-asc">Shortest {activeTab === 'uniformed' ? 'TIG' : 'TIP'} First</option>
@@ -808,7 +808,7 @@ export const PromotionPage: React.FC = () => {
               value={selectedPersonnelId}
               onChange={e => handlePersonnelChange(e.target.value)}
               disabled={Boolean(editingPromotion)}
-              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500 disabled:opacity-60"
+              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold  focus:border-blue-500 disabled:opacity-60"
               required
             >
               <option value="">Select uniformed personnel...</option>
@@ -827,7 +827,7 @@ export const PromotionPage: React.FC = () => {
               <select
                 value={rankFrom}
                 onChange={e => setRankFrom(e.target.value as RankAbbr)}
-                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold  focus:border-blue-500"
                 required
               >
                 {PNP_RANKS.filter(r => r.category !== 'NUP').map(r => (
@@ -843,7 +843,7 @@ export const PromotionPage: React.FC = () => {
               <select
                 value={rankTo}
                 onChange={e => setRankTo(e.target.value as RankAbbr)}
-                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold  focus:border-blue-500"
                 required
               >
                 {PNP_RANKS.filter(r => r.category !== 'NUP').map(r => (
@@ -862,7 +862,7 @@ export const PromotionPage: React.FC = () => {
                 type="date"
                 value={promotionDate}
                 onChange={e => setPromotionDate(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold  focus:border-blue-500"
                 required
               />
             </div>
@@ -874,7 +874,7 @@ export const PromotionPage: React.FC = () => {
                 value={orderNumber}
                 onChange={e => setOrderNumber(e.target.value)}
                 placeholder="e.g. SO-DPRM-2026-088"
-                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold  focus:border-blue-500"
                 required
               />
             </div>
@@ -886,7 +886,7 @@ export const PromotionPage: React.FC = () => {
               value={remarks}
               onChange={e => setRemarks(e.target.value)}
               placeholder="e.g. Promoted per Napolcom Resolution No. 2026-382 and Regular Promotion Cycle"
-              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-normal h-20 focus:outline-none focus:border-blue-500"
+              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-normal h-20  focus:border-blue-500"
             />
           </div>
 

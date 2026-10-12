@@ -1595,9 +1595,9 @@ export const ExcelWorksheetModule: React.FC = () => {
                     <span>{sheet.name}</span>
                   )}
 
-                  {/* Tab menu options on hover */}
+                  {/* Worksheet actions remain visible on touch and keyboard navigation. */}
                   {canEdit && (
-                    <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 ml-1">
+                    <div className="flex items-center gap-1 ml-1">
                       <button
                         onClick={e => {
                           e.stopPropagation();

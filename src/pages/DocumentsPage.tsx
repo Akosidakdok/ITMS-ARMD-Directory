@@ -240,10 +240,10 @@ export const DocumentsPage: React.FC = () => {
           <div className="module-search-toolbar">
             <div className="module-search-input">
               <Search size={16} aria-hidden="true" />
-              <input type="search" aria-label="Search documents by title, type, or author" placeholder="Search by title, type, or author…" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+              <input type="search" aria-label="Search documents by title, type, or author" placeholder="Search by title, type, or authorâ€¦" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
             </div>
             {searchQuery && <button type="button" onClick={() => setSearchQuery('')} className="module-reset">Clear search</button>}
-            <span className="module-result-count" role="status">{loading ? 'Loading…' : `${filteredDocuments.length} ${filteredDocuments.length === 1 ? 'document' : 'documents'}`}</span>
+            <span className="module-result-count" role="status">{loading ? 'Loadingâ€¦' : `${filteredDocuments.length} ${filteredDocuments.length === 1 ? 'document' : 'documents'}`}</span>
           </div>
         ) : (
           <div className="record-section-header documents-catalogue-heading">
@@ -262,7 +262,7 @@ export const DocumentsPage: React.FC = () => {
         {loading ? (
           <div className="documents-empty" role="status">
             <RefreshCw size={24} className="animate-spin" aria-hidden="true" />
-            <p>Loading documents…</p>
+            <p>Loading documentsâ€¦</p>
           </div>
         ) : activeTab === 'templates' ? (
           <div className="documents-templates">
@@ -274,7 +274,7 @@ export const DocumentsPage: React.FC = () => {
                   <p>{tmpl.description}</p>
                 </div>
                 <div className="documents-template-footer">
-                  <span>{tmpl.pageSize} · {tmpl.orientation}</span>
+                  <span>{tmpl.pageSize} Â· {tmpl.orientation}</span>
                   <button type="button" className="documents-button documents-button-primary" onClick={() => {
                     setEditingDocument({
                       title: `${tmpl.name} - ${new Date().toISOString().slice(0, 10)}`,
