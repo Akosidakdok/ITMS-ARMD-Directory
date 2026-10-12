@@ -759,7 +759,7 @@ export const ExcelWorksheetModule: React.FC = () => {
   const handleColumnResizeStart = (colNum: number, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    const currentW = customColWidths[colNum] || (sheetData?.columnConfig[colNum]?.width ? Math.round(sheetData.columnConfig[colNum].width * 8.5) : 80);
+    const currentW = customColWidths[colNum] || (sheetData?.columnConfig?.[colNum]?.width ? Math.round(sheetData.columnConfig[colNum].width * 8.5) : 80);
     resizingColRef.current = { col: colNum, startX: e.clientX, startW: currentW };
 
     const onMouseMove = (moveEvent: MouseEvent) => {
@@ -782,7 +782,7 @@ export const ExcelWorksheetModule: React.FC = () => {
   const handleRowResizeStart = (rNum: number, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    const currentH = customRowHeights[rNum] || (sheetData?.rowConfig[rNum]?.height ? Math.max(22, Math.round(sheetData.rowConfig[rNum].height * 1.33)) : 24);
+    const currentH = customRowHeights[rNum] || (sheetData?.rowConfig?.[rNum]?.height ? Math.max(22, Math.round(sheetData.rowConfig[rNum].height * 1.33)) : 24);
     resizingRowRef.current = { row: rNum, startY: e.clientY, startH: currentH };
 
     const onMouseMove = (moveEvent: MouseEvent) => {
@@ -1352,7 +1352,7 @@ export const ExcelWorksheetModule: React.FC = () => {
                   </th>
 
                   {Array.from({ length: sheetData.colCount }, (_, i) => i + 1).map(colNum => {
-                    const colConf = sheetData.columnConfig[colNum];
+                    const colConf = sheetData.columnConfig?.[colNum];
                     if (colConf?.hidden) return null;
                     const letter = colNumToLetter(colNum);
                     const widthPx = customColWidths[colNum] || (colConf?.width ? Math.round(colConf.width * 8.5) : 80);
@@ -1389,7 +1389,7 @@ export const ExcelWorksheetModule: React.FC = () => {
 
             <tbody>
               {Array.from({ length: sheetData.rowCount }, (_, i) => i + 1).map(rNum => {
-                const rowConf = sheetData.rowConfig[rNum];
+                const rowConf = sheetData.rowConfig?.[rNum];
                 if (rowConf?.hidden) return null;
                 const rowPxHeight = customRowHeights[rNum] || (rowConf?.height ? Math.max(22, Math.round(rowConf.height * 1.33)) : 24);
                 const isRowSelected = selectionRange &&

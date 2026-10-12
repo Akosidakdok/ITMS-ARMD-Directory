@@ -13,9 +13,10 @@ import {
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 
-// List all 5 worksheets
+// List worksheets
 router.get('/', async (req, res) => {
   try {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
     const list = getWorksheetSummaries();
     return res.json({ success: true, data: list });
   } catch (error) {

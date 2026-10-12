@@ -21,19 +21,7 @@ let cellOverrides = new Map(); // key: "sheetId:address" -> { value, formula, up
 let auditLogs = [];
 
 export const ALLOWED_WORKSHEET_NAMES = [
-  'DISPO Att (2)',
-  'DISPO Att',
-  'detail Crame based',
-  'itmsHQ',
-  'Disposition',
-  'Alpha List',
-  '15 YRS LENGTH OF SERVICE',
-  'Crame-based PCOs',
-  'New Rank Profile',
-  'New Ranked Profile (DPL)',
-  'Rank Profile with OSSP',
-  'Updates for ADMO',
-  'ITMS HQ'
+  'Sheet1'
 ];
 
 /**
@@ -49,9 +37,22 @@ export function getLoadedWorksheets() {
       cachedWorksheets = ALLOWED_WORKSHEET_NAMES.map((name, index) => {
         const found = allSheets.find(s => s.name.trim().toLowerCase() === name.trim().toLowerCase());
         if (!found) {
-          throw new Error(`Required worksheet not found in cache: ${name}`);
+          return {
+            id: `sheet-${index + 1}`,
+            name: name.trim(),
+            order: index + 1,
+            rowCount: 50,
+            colCount: 26,
+            cells: {},
+            merges: [],
+            views: [],
+            columnConfig: {},
+            rowConfig: {}
+          };
         }
         return {
+          columnConfig: {},
+          rowConfig: {},
           ...found,
           name: name.trim(),
           order: index + 1,
@@ -65,7 +66,21 @@ export function getLoadedWorksheets() {
     }
   }
 
-  throw new Error('Worksheet cache not initialized and reference Excel not loaded.');
+  cachedWorksheets = [
+    {
+      id: 'sheet-1',
+      name: 'Sheet1',
+      order: 1,
+      rowCount: 50,
+      colCount: 26,
+      cells: {},
+      merges: [],
+      views: [],
+      columnConfig: {},
+      rowConfig: {}
+    }
+  ];
+  return cachedWorksheets;
 }
 
 /**
@@ -160,7 +175,7 @@ export function parseAddress(address) {
  */
 function getSheetFieldMapping(sheet, rowNum, colLetter) {
   const name = typeof sheet === 'object' ? sheet.name : '';
-  const order = typeof sheet === 'object' ? sheet.order : sheet;
+  const order = typeof sheet === 'object' ? (sheet.legacyOrder ?? sheet.order) : sheet;
 
   // Worksheets 1, 2, 3: legacy DISPO Att (2), DISPO Att, detail Crame based
   if (typeof order === 'number' && order >= 1 && order <= 3 && name !== 'Disposition' && name !== 'Alpha List') {
@@ -832,6 +847,22 @@ export async function generateExcelExport(sheetId = null) {
       });
     }
   });
+
+  if (wb.worksheets.length === 0) {
+    cachedSheets.forEach(sheet => {
+      const outSheet = wb.addWorksheet(sheet.name || 'Sheet1');
+      if (sheet.cells) {
+        for (const [addr, cell] of Object.entries(sheet.cells)) {
+          if (cell && cell.v !== null && cell.v !== undefined) {
+            outSheet.getCell(addr).value = cell.v;
+          }
+        }
+      }
+    });
+    if (wb.worksheets.length === 0) {
+      wb.addWorksheet('Sheet1');
+    }
+  }
 
   return await wb.xlsx.writeBuffer();
 }
