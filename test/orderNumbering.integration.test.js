@@ -1,17 +1,23 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
 import { extractOrderSequence } from '../backend/utils/orderNumber.js';
 
-const enabled = process.env.PAIS_RUN_ORDER_DB_INTEGRATION === 'true';
-const explicitlySelected = process.env.npm_lifecycle_event === 'test:order-db';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.join(__dirname, '../backend/.env') });
 
-test('Supabase issues concurrent order numbers atomically', { skip: !enabled && !explicitlySelected }, async () => {
-  assert.equal(enabled, true, 'Set PAIS_RUN_ORDER_DB_INTEGRATION=true to run against a dedicated test project.');
-  const url = process.env.PAIS_TEST_SUPABASE_URL;
-  const serviceRoleKey = process.env.PAIS_TEST_SUPABASE_SERVICE_ROLE_KEY;
-  assert.ok(url && serviceRoleKey, 'Set dedicated PAIS_TEST_SUPABASE_URL and PAIS_TEST_SUPABASE_SERVICE_ROLE_KEY values.');
+const explicitlySelected = process.env.npm_lifecycle_event === 'test:order-db';
+const enabled = process.env.PAIS_RUN_ORDER_DB_INTEGRATION === 'true' || explicitlySelected;
+const url = process.env.PAIS_TEST_SUPABASE_URL || process.env.SUPABASE_URL;
+const serviceRoleKey = process.env.PAIS_TEST_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+test('Supabase issues concurrent order numbers atomically', { skip: !enabled }, async () => {
+  assert.ok(url && serviceRoleKey, 'Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in backend/.env.');
 
   const supabase = createClient(url, serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false }
