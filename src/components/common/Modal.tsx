@@ -86,7 +86,7 @@ export const Modal: React.FC<ModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/60 p-2 sm:p-4"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/65 backdrop-blur-sm p-2 sm:p-4"
       role="presentation"
       onMouseDown={(event) => {
         if (closeOnBackdrop && event.target === event.currentTarget) onClose();

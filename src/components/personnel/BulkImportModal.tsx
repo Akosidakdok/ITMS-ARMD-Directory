@@ -235,7 +235,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
   const displayedErrors = importResult?.errors || parsed.errors;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-900/60 backdrop-blur-xs p-2 sm:p-4 overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-950/65 backdrop-blur-sm p-2 sm:p-4 overflow-y-auto">
       <div className="my-2 sm:my-4 bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-5xl max-h-[calc(100vh-1rem)] sm:max-h-[90vh] flex flex-col overflow-hidden animate-scale-in">
         {/* Header */}
         <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between border-b border-slate-800">

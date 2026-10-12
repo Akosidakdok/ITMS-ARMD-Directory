@@ -242,7 +242,10 @@
     --header-bg: #0e1824;
   }
 
-  html { background: var(--bg-main); }
+  html {
+    scrollbar-gutter: stable;
+    background: var(--bg-main);
+  }
 
   body {
     min-width: 320px;

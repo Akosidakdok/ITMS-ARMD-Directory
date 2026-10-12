@@ -181,7 +181,7 @@ const ModalShell = ({
   }, []);
 
   return (
-  <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto overscroll-contain bg-slate-950/60 p-2 sm:p-4" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onCloseRef.current(); }}>
+  <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto overscroll-contain bg-slate-950/65 backdrop-blur-sm p-2 sm:p-4" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onCloseRef.current(); }}>
     <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} className={`my-2 flex max-h-[calc(100vh-1rem)] w-full ${maxWidth} flex-col overflow-hidden rounded-md border border-slate-300 bg-white shadow-2xl sm:my-4 sm:max-h-[92vh]`}>
       <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200 bg-white px-4 py-4 sm:px-6">
         <div>

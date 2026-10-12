@@ -1817,7 +1817,7 @@ export const PersonnelPage: React.FC = () => {
       {/* PERSONNEL RECORD MODAL — Personnel Profile | Summary Profile */}
       {inspectModalOpen && selectedPerson && (
         <div
-          className="fixed inset-0 z-50 flex items-start justify-center bg-slate-900/60  p-2 sm:p-4 overflow-y-auto"
+          className="fixed inset-0 z-50 flex items-start justify-center bg-slate-950/65 backdrop-blur-sm p-2 sm:p-4 overflow-y-auto"
           onClick={() => setInspectModalOpen(false)}
           role="presentation"
         >
@@ -1915,8 +1915,18 @@ export const PersonnelPage: React.FC = () => {
 
       {/* ADD NEW PERSONNEL MODAL */}
       {addModalOpen && canManage && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-900/60  p-2 sm:p-4 overflow-y-auto" role="presentation">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-4xl overflow-hidden animate-scale-in my-2 sm:my-6 flex flex-col max-h-[92vh]" role="dialog" aria-modal="true" aria-labelledby="add-personnel-title">
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center bg-slate-950/65 backdrop-blur-sm p-2 sm:p-4 overflow-y-auto"
+          role="presentation"
+          onClick={() => setAddModalOpen(false)}
+        >
+          <div
+            className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-4xl overflow-hidden animate-scale-in my-2 sm:my-6 flex flex-col max-h-[92vh]"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="add-personnel-title"
+            onClick={e => e.stopPropagation()}
+          >
             {/* Header */}
             <div className="bg-white text-slate-900 px-6 py-4 flex items-center justify-between border-b border-slate-200 shrink-0">
               <div className="flex items-center gap-2.5 font-bold text-sm">
