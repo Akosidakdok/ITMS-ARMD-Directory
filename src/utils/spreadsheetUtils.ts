@@ -13,9 +13,10 @@ export function colNumToLetter(num: number): string {
 
 // Helper to convert column letter to number (1-based)
 export function colLetterToNum(letter: string): number {
+  const upper = letter.toUpperCase();
   let num = 0;
-  for (let i = 0; i < letter.length; i++) {
-    num = num * 26 + (letter.charCodeAt(i) - 64);
+  for (let i = 0; i < upper.length; i++) {
+    num = num * 26 + (upper.charCodeAt(i) - 64);
   }
   return num;
 }
@@ -34,6 +35,9 @@ export function parseAddress(address: string): { row: number; col: number; lette
 // Format a cell value according to its number format type
 export function formatCellValue(value: any, numFmt?: string): string {
   if (value === null || value === undefined) return '';
+  if (value instanceof Date) {
+    return isNaN(value.getTime()) ? '' : value.toLocaleDateString('en-US');
+  }
   if (typeof value === 'object') {
     if (value.result !== undefined && value.result !== null) return String(value.result);
     return '';

@@ -4,6 +4,11 @@ let activeLocks = 0;
 let previousBodyOverflow: string | null = null;
 let previousBodyPaddingRight: string | null = null;
 
+export const calculateScrollbarWidth = (windowInnerWidth: number, docClientWidth: number): number =>
+  Math.max(0, windowInnerWidth - docClientWidth);
+
+export const getActiveLockCount = (): number => activeLocks;
+
 /**
  * Keeps the page scroll locked while one or more modal surfaces are open.
  *
@@ -16,7 +21,7 @@ export const useBodyScrollLock = (enabled: boolean) => {
 
     if (activeLocks === 0) {
       // Calculate scrollbar width before locking overflow to prevent background layout shift
-      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+      const scrollbarWidth = calculateScrollbarWidth(window.innerWidth, document.documentElement.clientWidth);
 
       // Older builds could leave this exact stale value behind after a
       // nested dialog closed. It is not a valid baseline for the page.
