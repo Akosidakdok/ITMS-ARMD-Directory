@@ -206,7 +206,10 @@ export const ExcelWorksheetModule: React.FC = () => {
   }, [activeCell.address, sheetData, isEditing]);
 
   // Load worksheet list
+  const summariesInFlightRef = useRef(false);
   const loadSummaries = useCallback(async () => {
+    if (summariesInFlightRef.current) return;
+    summariesInFlightRef.current = true;
     try {
       setError('');
       setWakingUp(false);
@@ -222,6 +225,8 @@ export const ExcelWorksheetModule: React.FC = () => {
     } catch (err: any) {
       setWakingUp(false);
       setError(err.message || 'Failed to load worksheets');
+    } finally {
+      summariesInFlightRef.current = false;
     }
   }, []);
 
