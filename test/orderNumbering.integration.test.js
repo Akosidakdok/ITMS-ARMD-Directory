@@ -11,10 +11,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.join(__dirname, '../backend/.env') });
 
-const explicitlySelected = process.env.npm_lifecycle_event === 'test:order-db';
-const enabled = process.env.PAIS_RUN_ORDER_DB_INTEGRATION === 'true' || explicitlySelected;
 const url = process.env.PAIS_TEST_SUPABASE_URL || process.env.SUPABASE_URL;
 const serviceRoleKey = process.env.PAIS_TEST_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+const hasCredentials = Boolean(url && serviceRoleKey);
+const enabled = hasCredentials && process.env.PAIS_SKIP_DB_INTEGRATION !== 'true';
 
 test('Supabase issues concurrent order numbers atomically', { skip: !enabled }, async () => {
   assert.ok(url && serviceRoleKey, 'Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in backend/.env.');
