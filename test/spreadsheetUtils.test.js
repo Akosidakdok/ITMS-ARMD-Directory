@@ -6,7 +6,10 @@ import {
   parseAddress,
   formatCellValue,
   formatExcelDateSerial,
-  insertCellReferenceIntoFormula
+  insertCellReferenceIntoFormula,
+  parseMergeRange,
+  isCellInMergeRange,
+  isMergeOverlappingRange
 } from '../src/utils/spreadsheetUtils.ts';
 
 test('colNumToLetter converts 1-based column numbers to Excel column letters', () => {
@@ -134,6 +137,57 @@ test('getFormulaSearchContext returns all formulas when writing equal sign', asy
   assert.equal(getFormulaSearchContext('Normal text').isFormula, false);
   assert.equal(getFormulaSearchContext('12345').isFormula, false);
   assert.equal(getFormulaSearchContext('').isFormula, false);
+});
+
+test('parseMergeRange normalizes forward and reverse coordinate ranges', () => {
+  const forward = parseMergeRange('A1:C3');
+  assert.ok(forward);
+  assert.equal(forward.minRow, 1);
+  assert.equal(forward.maxRow, 3);
+  assert.equal(forward.minCol, 1);
+  assert.equal(forward.maxCol, 3);
+  assert.equal(forward.startAddress, 'A1');
+  assert.equal(forward.endAddress, 'C3');
+  assert.equal(forward.rangeStr, 'A1:C3');
+
+  // Inverted range (dragged backwards/upwards)
+  const inverted = parseMergeRange('C3:A1');
+  assert.ok(inverted);
+  assert.equal(inverted.minRow, 1);
+  assert.equal(inverted.maxRow, 3);
+  assert.equal(inverted.minCol, 1);
+  assert.equal(inverted.maxCol, 3);
+  assert.equal(inverted.startAddress, 'A1');
+  assert.equal(inverted.endAddress, 'C3');
+  assert.equal(inverted.rangeStr, 'A1:C3');
+
+  // Invalid ranges
+  assert.equal(parseMergeRange(''), null);
+  assert.equal(parseMergeRange('A1'), null);
+  assert.equal(parseMergeRange(null), null);
+});
+
+test('isCellInMergeRange correctly checks containment', () => {
+  assert.equal(isCellInMergeRange(1, 1, 'A1:D5'), true);
+  assert.equal(isCellInMergeRange(3, 2, 'A1:D5'), true);
+  assert.equal(isCellInMergeRange(5, 4, 'A1:D5'), true);
+  assert.equal(isCellInMergeRange(6, 1, 'A1:D5'), false);
+  assert.equal(isCellInMergeRange(1, 5, 'A1:D5'), false);
+
+  // Works with inverted merge range string
+  assert.equal(isCellInMergeRange(2, 2, 'D5:A1'), true);
+});
+
+test('isMergeOverlappingRange detects 2D rectangular collisions', () => {
+  // Overlapping
+  assert.equal(isMergeOverlappingRange('B2:E5', 1, 3, 1, 3), true);
+  assert.equal(isMergeOverlappingRange('B2:E5', 5, 8, 5, 8), true);
+  assert.equal(isMergeOverlappingRange('B2:E5', 3, 4, 3, 4), true);
+
+  // Non-overlapping
+  assert.equal(isMergeOverlappingRange('B2:E5', 6, 10, 6, 10), false);
+  assert.equal(isMergeOverlappingRange('B2:E5', 1, 1, 1, 1), false);
+  assert.equal(isMergeOverlappingRange('B2:E5', 1, 1, 2, 5), false);
 });
 
 

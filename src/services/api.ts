@@ -771,6 +771,20 @@ export const batchUpdateWorksheetCellsApi = async (
   return json.data;
 };
 
+export const updateWorksheetMergesApi = async (
+  sheetId: string,
+  merges: string[]
+): Promise<any> => {
+  const res = await apiFetch(`${API_BASE_URL}/worksheets/${sheetId}/merges`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ merges })
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json?.message || 'Failed to update worksheet merges');
+  return json.data;
+};
+
 export const fetchWorksheetAuditLogsApi = async (): Promise<WorksheetAuditLog[]> => {
   const res = await apiFetch(`${API_BASE_URL}/worksheets/audit/logs`);
   if (!res.ok) throw new Error('Failed to fetch audit logs');
@@ -818,4 +832,40 @@ export const smartPreviewExcelImportApi = async (file: File): Promise<SmartImpor
   if (!res.ok) throw new Error(json?.message || 'Import inspection failed');
   return json.data;
 };
+export const createCustomWorksheetApi = async (data: {
+  id: string;
+  name: string;
+  order: number;
+  rowCount?: number;
+  colCount?: number;
+}): Promise<WorksheetDetail> => {
+  const res = await apiFetch(API_BASE_URL + '/worksheets/custom', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json?.message || 'Failed to create worksheet');
+  return json.data;
+};
 
+export const renameWorksheetApi = async (sheetId: string, name: string): Promise<any> => {
+  const res = await apiFetch(API_BASE_URL + '/worksheets/' + sheetId + '/rename', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name })
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json?.message || 'Failed to rename worksheet');
+  return json.data;
+};
+
+export const deleteWorksheetApi = async (sheetId: string): Promise<void> => {
+  const res = await apiFetch(API_BASE_URL + '/worksheets/' + sheetId, {
+    method: 'DELETE'
+  });
+  if (!res.ok) {
+    const json = await res.json().catch(() => null);
+    throw new Error(json?.message || 'Failed to delete worksheet');
+  }
+};

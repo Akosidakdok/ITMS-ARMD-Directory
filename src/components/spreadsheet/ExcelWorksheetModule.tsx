@@ -19,13 +19,26 @@ import {
   fetchWorksheetSummariesApi,
   fetchWorksheetDetailApi,
   batchUpdateWorksheetCellsApi,
+  updateWorksheetMergesApi,
   downloadWorksheetExcelApi,
+  createCustomWorksheetApi,
+  renameWorksheetApi,
+  deleteWorksheetApi,
   type WorksheetSummary,
   type WorksheetDetail,
   type WorksheetCell
 } from '../../services/api';
 import { useAuthRole } from '../../context/AuthRoleContext';
-import { colNumToLetter, colLetterToNum, parseAddress, formatExcelDateSerial, insertCellReferenceIntoFormula } from '../../utils/spreadsheetUtils';
+import {
+  colNumToLetter,
+  colLetterToNum,
+  parseAddress,
+  formatExcelDateSerial,
+  insertCellReferenceIntoFormula,
+  parseMergeRange,
+  isCellInMergeRange,
+  isMergeOverlappingRange
+} from '../../utils/spreadsheetUtils';
 import {
   applyCellEdits,
   recalculateWorkbook,
@@ -244,14 +257,19 @@ export const ExcelWorksheetModule: React.FC = () => {
     if (!sheetData?.merges) return { mergeMap: mMap, hiddenMergeCells: hiddenSet };
 
     sheetData.merges.forEach(rangeStr => {
-      const parts = rangeStr.split(':');
-      if (parts.length !== 2) return;
-      const start = parseAddress(parts[0]);
-      const end = parseAddress(parts[1]);
-      mMap.set(parts[0], { rowSpan: end.row - start.row + 1, colSpan: end.col - start.col + 1 });
-      for (let r = start.row; r <= end.row; r++) {
-        for (let c = start.col; c <= end.col; c++) {
-          if (r === start.row && c === start.col) continue;
+      const parsed = parseMergeRange(rangeStr);
+      if (!parsed) return;
+      const { minRow, maxRow, minCol, maxCol, startAddress } = parsed;
+      if (minRow === maxRow && minCol === maxCol) return;
+
+      mMap.set(startAddress, {
+        rowSpan: maxRow - minRow + 1,
+        colSpan: maxCol - minCol + 1
+      });
+
+      for (let r = minRow; r <= maxRow; r++) {
+        for (let c = minCol; c <= maxCol; c++) {
+          if (r === minRow && c === minCol) continue;
           hiddenSet.add(`${colNumToLetter(c)}${r}`);
         }
       }
@@ -303,8 +321,27 @@ export const ExcelWorksheetModule: React.FC = () => {
     loadSummaries();
   }, [loadSummaries]);
 
+  // In-memory sheet cache for instant tab switching and loading
+  const sheetCacheRef = useRef<Map<string, WorksheetDetail>>(new Map());
+  const sheetDataRef = useRef<WorksheetDetail | null>(null);
+  useEffect(() => {
+    sheetDataRef.current = sheetData;
+    if (sheetData) {
+      sheetCacheRef.current.set(sheetData.id, sheetData);
+    }
+  }, [sheetData]);
+
   // Load single worksheet details
   const loadActiveSheet = useCallback(async (id: string) => {
+    // If cached in memory, display immediately with 0ms delay
+    const cached = sheetCacheRef.current.get(id);
+    if (cached) {
+      setSheetData(cached);
+      setLoading(false);
+      setError('');
+      return;
+    }
+
     setLoading(true);
     setError('');
     try {
@@ -312,27 +349,45 @@ export const ExcelWorksheetModule: React.FC = () => {
         setWakingUp(true);
         console.log(`[WorksheetModule] Loading sheet ${id} retry ${attempt}, waiting ${delayMs}ms...`);
       });
-      const sheetSummaries = sheets.length ? sheets : [{ id: data.id, name: data.name } as WorksheetSummary];
-      const otherDetails = await Promise.all(sheetSummaries
-        .filter(summary => summary.id !== id)
-        .map(summary => fetchWorksheetDetailApi(summary.id).catch(() => null)));
-      const workbookCells: CellValueMap = {
-        [data.name]: { name: data.name, cells: data.cells }
-      };
-      otherDetails.forEach(detail => {
-        if (detail) workbookCells[detail.name] = { name: detail.name, cells: detail.cells };
-      });
-      const recalculated = recalculateWorkbook(workbookCells);
-      setFormulaSheets(recalculated);
       setWakingUp(false);
-      setSheetData({ ...data, cells: recalculated[data.name]?.cells || data.cells });
+      sheetCacheRef.current.set(id, data);
+      setSheetData(data);
+      setLoading(false);
       setActiveCell({ row: 1, col: 1, address: 'A1' });
       setSelectionRange(null);
       setIsEditing(false);
+
+      // Resolve cross-sheet formulas in background (non-blocking)
+      const currentSummaries = sheets.length ? sheets : [{ id: data.id, name: data.name } as WorksheetSummary];
+      Promise.all(currentSummaries
+        .filter(summary => summary.id !== id)
+        .map(summary => {
+          const c = sheetCacheRef.current.get(summary.id);
+          return c ? Promise.resolve(c) : fetchWorksheetDetailApi(summary.id).catch(() => null);
+        })
+      ).then(otherDetails => {
+        const workbookCells: CellValueMap = {
+          [data.name]: { name: data.name, cells: data.cells }
+        };
+        otherDetails.forEach(detail => {
+          if (detail) {
+            sheetCacheRef.current.set(detail.id, detail);
+            workbookCells[detail.name] = { name: detail.name, cells: detail.cells };
+          }
+        });
+        const recalculated = recalculateWorkbook(workbookCells);
+        setFormulaSheets(recalculated);
+        if (recalculated[data.name]?.cells) {
+          setSheetData(prev => (prev && prev.id === data.id ? { ...prev, cells: recalculated[data.name].cells } : prev));
+        }
+      }).catch(() => {});
     } catch (err: any) {
       setWakingUp(false);
+      if (sheetDataRef.current && sheetDataRef.current.id === id) {
+        setLoading(false);
+        return;
+      }
       setError(err.message || 'Failed to load worksheet');
-    } finally {
       setLoading(false);
     }
   }, [sheets]);
@@ -466,6 +521,173 @@ export const ExcelWorksheetModule: React.FC = () => {
     setSheetData({ ...sheetData, cells: newCells });
     setUnsavedChanges(staged);
   }, [sheetData, canEdit, selectionRange, activeCell.address, unsavedChanges]);
+
+  // Helper to extract normalized selection bounds
+  const getNormalizedSelection = useCallback(() => {
+    if (!selectionRange) return null;
+    const minRow = Math.min(selectionRange.startRow, selectionRange.endRow);
+    const maxRow = Math.max(selectionRange.startRow, selectionRange.endRow);
+    const minCol = Math.min(selectionRange.startCol, selectionRange.endCol);
+    const maxCol = Math.max(selectionRange.startCol, selectionRange.endCol);
+    return { minRow, maxRow, minCol, maxCol };
+  }, [selectionRange]);
+
+  // 4. Unmerge Cells (defined before handleMergeAndCenter so it can be called if needed)
+  const handleUnmergeCells = useCallback(() => {
+    if (!sheetData || !canEdit) return;
+    const range = getNormalizedSelection();
+
+    setSheetData(prev => {
+      if (!prev) return prev;
+      let remaining: string[];
+      if (range) {
+        remaining = prev.merges.filter(m => !isMergeOverlappingRange(m, range.minRow, range.maxRow, range.minCol, range.maxCol));
+      } else {
+        remaining = prev.merges.filter(m => !isCellInMergeRange(activeCell.row, activeCell.col, m));
+      }
+      return {
+        ...prev,
+        merges: remaining
+      };
+    });
+
+    setMessage('Unmerged cells');
+    setTimeout(() => setMessage(''), 1500);
+  }, [sheetData, canEdit, getNormalizedSelection, activeCell]);
+
+  // 1. Merge & Center
+  const handleMergeAndCenter = useCallback(() => {
+    if (!sheetData || !canEdit) return;
+    const range = getNormalizedSelection();
+    if (!range || (range.minRow === range.maxRow && range.minCol === range.maxCol)) {
+      const existing = sheetData.merges.find(m => isCellInMergeRange(activeCell.row, activeCell.col, m));
+      if (existing) {
+        handleUnmergeCells();
+        return;
+      }
+      return;
+    }
+
+    const { minRow, maxRow, minCol, maxCol } = range;
+    const rangeStr = `${colNumToLetter(minCol)}${minRow}:${colNumToLetter(maxCol)}${maxRow}`;
+    const topLeftAddr = `${colNumToLetter(minCol)}${minRow}`;
+
+    setSheetData(prev => {
+      if (!prev) return prev;
+      const remainingMerges = prev.merges.filter(m => !isMergeOverlappingRange(m, minRow, maxRow, minCol, maxCol));
+      const newCells = { ...prev.cells };
+      const currentCell = newCells[topLeftAddr] || {};
+      const newStyle = { ...(currentCell.s || {}), ah: 'center' as const };
+      newCells[topLeftAddr] = { ...currentCell, s: newStyle };
+      return {
+        ...prev,
+        merges: [...remainingMerges, rangeStr],
+        cells: newCells
+      };
+    });
+
+    setUnsavedChanges(prev => {
+      const staged = new Map(prev);
+      const currentCell = sheetData.cells[topLeftAddr] || {};
+      staged.set(topLeftAddr, {
+        oldValue: currentCell.v,
+        newValue: currentCell.v,
+        style: { ...(currentCell.s || {}), ah: 'center' }
+      });
+      return staged;
+    });
+
+    setActiveCell({ row: minRow, col: minCol, address: topLeftAddr });
+    setSelectionRange({ startRow: minRow, startCol: minCol, endRow: maxRow, endCol: maxCol });
+    setMessage(`Merged & Centered ${rangeStr}`);
+    setTimeout(() => setMessage(''), 1500);
+  }, [sheetData, canEdit, getNormalizedSelection, activeCell, handleUnmergeCells]);
+
+  // 2. Merge Across (merge horizontally per row)
+  const handleMergeAcross = useCallback(() => {
+    if (!sheetData || !canEdit) return;
+    const range = getNormalizedSelection();
+    if (!range || range.minCol === range.maxCol) return;
+    const { minRow, maxRow, minCol, maxCol } = range;
+
+    const newRowMerges: string[] = [];
+    for (let r = minRow; r <= maxRow; r++) {
+      newRowMerges.push(`${colNumToLetter(minCol)}${r}:${colNumToLetter(maxCol)}${r}`);
+    }
+
+    setSheetData(prev => {
+      if (!prev) return prev;
+      const remainingMerges = prev.merges.filter(m => !isMergeOverlappingRange(m, minRow, maxRow, minCol, maxCol));
+      return {
+        ...prev,
+        merges: [...remainingMerges, ...newRowMerges]
+      };
+    });
+
+    setMessage(`Merged across rows ${minRow} to ${maxRow}`);
+    setTimeout(() => setMessage(''), 1500);
+  }, [sheetData, canEdit, getNormalizedSelection]);
+
+  // 3. Merge Cells (merge without centering)
+  const handleMergeCells = useCallback(() => {
+    if (!sheetData || !canEdit) return;
+    const range = getNormalizedSelection();
+    if (!range || (range.minRow === range.maxRow && range.minCol === range.maxCol)) return;
+    const { minRow, maxRow, minCol, maxCol } = range;
+    const rangeStr = `${colNumToLetter(minCol)}${minRow}:${colNumToLetter(maxCol)}${maxRow}`;
+    const topLeftAddr = `${colNumToLetter(minCol)}${minRow}`;
+
+    setSheetData(prev => {
+      if (!prev) return prev;
+      const remainingMerges = prev.merges.filter(m => !isMergeOverlappingRange(m, minRow, maxRow, minCol, maxCol));
+      return {
+        ...prev,
+        merges: [...remainingMerges, rangeStr]
+      };
+    });
+
+    setActiveCell({ row: minRow, col: minCol, address: topLeftAddr });
+    setSelectionRange({ startRow: minRow, startCol: minCol, endRow: maxRow, endCol: maxCol });
+    setMessage(`Merged cells ${rangeStr}`);
+    setTimeout(() => setMessage(''), 1500);
+  }, [sheetData, canEdit, getNormalizedSelection]);
+
+  // 5. Center Across Selection
+  const handleCenterAcross = useCallback(() => {
+    if (!sheetData || !canEdit) return;
+    const range = getNormalizedSelection();
+    if (!range) return;
+    const { minRow, minCol } = range;
+    const topLeftAddr = `${colNumToLetter(minCol)}${minRow}`;
+
+    setSheetData(prev => {
+      if (!prev) return prev;
+      const newCells = { ...prev.cells };
+      const currentCell = newCells[topLeftAddr] || {};
+      newCells[topLeftAddr] = {
+        ...currentCell,
+        s: { ...(currentCell.s || {}), ah: 'center' }
+      };
+      return {
+        ...prev,
+        cells: newCells
+      };
+    });
+
+    setUnsavedChanges(prev => {
+      const staged = new Map(prev);
+      const currentCell = sheetData.cells[topLeftAddr] || {};
+      staged.set(topLeftAddr, {
+        oldValue: currentCell.v,
+        newValue: currentCell.v,
+        style: { ...(currentCell.s || {}), ah: 'center' }
+      });
+      return staged;
+    });
+
+    setMessage('Centered across selection');
+    setTimeout(() => setMessage(''), 1500);
+  }, [sheetData, canEdit, getNormalizedSelection]);
 
   // Start in-cell edit
   const startInCellEdit = (initialChar?: string) => {
@@ -694,7 +916,12 @@ export const ExcelWorksheetModule: React.FC = () => {
         style: ch.style
       }));
 
-      await batchUpdateWorksheetCellsApi(activeSheetId, updates);
+      if (updates.length > 0) {
+        await batchUpdateWorksheetCellsApi(activeSheetId, updates);
+      }
+      if (sheetData.merges) {
+        await updateWorksheetMergesApi(activeSheetId, sheetData.merges);
+      }
       setUnsavedChanges(new Map());
       setMessage(`Successfully saved ${updates.length} modification(s) to PAIS database.`);
       setTimeout(() => setMessage(''), 3000);
@@ -1283,7 +1510,7 @@ export const ExcelWorksheetModule: React.FC = () => {
   }, [sheetData, selectionRange]);
 
   // Tab management actions
-  const handleAddTab = () => {
+  const handleAddTab = async () => {
     const newOrder = sheets.length + 1;
     const newName = `Sheet${newOrder}`;
     const newId = `sheet-custom-${Date.now()}`;
@@ -1295,9 +1522,7 @@ export const ExcelWorksheetModule: React.FC = () => {
       colCount: 20,
       mergesCount: 0
     };
-    setSheets(prev => [...prev, newSummary]);
-    setActiveSheetId(newId);
-    setSheetData({
+    const newSheet: WorksheetDetail = {
       id: newId,
       name: newName,
       order: newOrder,
@@ -1307,21 +1532,44 @@ export const ExcelWorksheetModule: React.FC = () => {
       columnConfig: {},
       rowConfig: {},
       cells: {}
-    });
+    };
+    sheetCacheRef.current.set(newId, newSheet);
+    setSheets(prev => [...prev, newSummary]);
+    setSheetData(newSheet);
+    setActiveSheetId(newId);
+    setLoading(false);
+    setError('');
     setMessage(`Created new worksheet tab "${newName}"`);
     setTimeout(() => setMessage(''), 2000);
+    try {
+      await createCustomWorksheetApi({
+        id: newId,
+        name: newName,
+        order: newOrder,
+        rowCount: 50,
+        colCount: 20
+      });
+    } catch {
+      // Backend auto-registers on fetch as well
+    }
   };
 
-  const handleRenameTabSubmit = (id: string) => {
+  const handleRenameTabSubmit = async (id: string) => {
     if (!editingTabName.trim()) {
       setEditingTabId(null);
       return;
     }
-    setSheets(prev => prev.map(s => s.id === id ? { ...s, name: editingTabName.trim() } : s));
+    const cleanName = editingTabName.trim();
+    setSheets(prev => prev.map(s => s.id === id ? { ...s, name: cleanName } : s));
     if (sheetData && sheetData.id === id) {
-      setSheetData({ ...sheetData, name: editingTabName.trim() });
+      setSheetData({ ...sheetData, name: cleanName });
     }
     setEditingTabId(null);
+    try {
+      await renameWorksheetApi(id, cleanName);
+    } catch {
+      // Ignore background rename failure
+    }
   };
 
   const handleDuplicateTab = (id: string) => {
@@ -1340,7 +1588,7 @@ export const ExcelWorksheetModule: React.FC = () => {
     setTimeout(() => setMessage(''), 2000);
   };
 
-  const handleDeleteTab = (id: string) => {
+  const handleDeleteTab = async (id: string) => {
     if (sheets.length <= 1) {
       setMessage('Cannot delete the only worksheet in workbook');
       setTimeout(() => setMessage(''), 2000);
@@ -1353,6 +1601,11 @@ export const ExcelWorksheetModule: React.FC = () => {
     }
     setMessage('Deleted worksheet tab');
     setTimeout(() => setMessage(''), 2000);
+    try {
+      await deleteWorksheetApi(id);
+    } catch {
+      // Ignore background delete failure
+    }
   };
 
   const handlePrint = (options: {
@@ -1428,15 +1681,11 @@ export const ExcelWorksheetModule: React.FC = () => {
           onChangeAlignV: av => applyStyleToSelection(s => ({ ...s, av })),
           isWrapText: !!currentCellObj?.s?.wrap,
           onToggleWrapText: () => applyStyleToSelection(s => ({ ...s, wrap: s.wrap ? undefined : 1 })),
-          onMergeAndCenter: () => {
-            if (!selectionRange) return;
-            const rangeStr = `${colNumToLetter(selectionRange.startCol)}${selectionRange.startRow}:${colNumToLetter(selectionRange.endCol)}${selectionRange.endRow}`;
-            setSheetData(prev => prev ? { ...prev, merges: [...prev.merges, rangeStr] } : prev);
-            applyStyleToSelection(s => ({ ...s, ah: 'center' }));
-          },
-          onUnmerge: () => {
-            setSheetData(prev => prev ? { ...prev, merges: prev.merges.filter(m => !m.includes(activeCell.address)) } : prev);
-          },
+          onMergeAndCenter: handleMergeAndCenter,
+          onMergeAcross: handleMergeAcross,
+          onMergeCells: handleMergeCells,
+          onUnmerge: handleUnmergeCells,
+          onCenterAcross: handleCenterAcross,
           numFmt: currentCellObj?.s?.nf || 'General',
           onChangeNumFmt: fmt => applyStyleToSelection(s => ({ ...s }), fmt),
           onInsertRow: () => {

@@ -286,6 +286,77 @@ export function getWorksheetSummaries() {
 }
 
 /**
+ * Register or instantiate a custom/duplicate worksheet in memory
+ */
+export function registerCustomWorksheet({ id, name, order, rowCount = 50, colCount = 26 } = {}) {
+  const sheets = getLoadedWorksheets();
+  const existing = sheets.find(s => s.id === id);
+  if (existing) {
+    if (name) existing.name = name;
+    return existing;
+  }
+  const customId = id || ('sheet-custom-' + Date.now());
+  const customName = name || ('Sheet' + (sheets.length + 1));
+  const newSheet = {
+    id: customId,
+    name: customName,
+    order: order || sheets.length + 1,
+    rowCount: rowCount || 50,
+    colCount: colCount || 26,
+    cells: {},
+    merges: [],
+    views: [],
+    columnConfig: {},
+    rowConfig: {}
+  };
+  sheets.push(newSheet);
+  return newSheet;
+}
+
+/**
+ * Rename an existing worksheet
+ */
+export function renameWorksheet(sheetId, newName) {
+  const sheets = getLoadedWorksheets();
+  const sheet = sheets.find(s => s.id === sheetId || s.name.toLowerCase() === String(sheetId).toLowerCase());
+  if (!sheet && typeof sheetId === 'string' && (sheetId.startsWith('sheet-custom-') || sheetId.startsWith('sheet-dup-') || sheetId.startsWith('custom-'))) {
+    sheet = registerCustomWorksheet({ id: sheetId });
+  }
+  if (!sheet) throw new Error('Worksheet not found: ' + sheetId);
+  sheet.name = newName.trim();
+  return sheet;
+}
+
+/**
+ * Update merges array for a worksheet
+ */
+export function updateWorksheetMerges(sheetId, merges) {
+  const sheets = getLoadedWorksheets();
+  let sheet = sheets.find(s => s.id === sheetId || s.name.toLowerCase() === String(sheetId).toLowerCase());
+  if (!sheet && typeof sheetId === 'string' && /^sheet-\d+$/i.test(sheetId)) {
+    const idx = parseInt(sheetId.replace(/sheet-/i, ''), 10) - 1;
+    if (idx >= 0 && idx < sheets.length) sheet = sheets[idx];
+  }
+  if (!sheet && typeof sheetId === 'string' && (sheetId.startsWith('sheet-custom-') || sheetId.startsWith('sheet-dup-') || sheetId.startsWith('custom-'))) {
+    sheet = registerCustomWorksheet({ id: sheetId });
+  }
+  if (!sheet) throw new Error('Worksheet not found: ' + sheetId);
+  sheet.merges = Array.isArray(merges) ? merges : [];
+  return sheet.merges;
+}
+
+/**
+ * Delete a worksheet
+ */
+export function deleteWorksheet(sheetId) {
+  const sheets = getLoadedWorksheets();
+  const idx = sheets.findIndex(s => s.id === sheetId || s.name.toLowerCase() === String(sheetId).toLowerCase());
+  if (idx !== -1) {
+    sheets.splice(idx, 1);
+  }
+}
+
+/**
  * Timezone-safe date parser
  */
 export function parseDateSafe(d) {
@@ -451,6 +522,9 @@ export function getWorksheetDetail(sheetId, personnelList = []) {
     if (idx >= 0 && idx < sheets.length) {
       sheet = sheets[idx];
     }
+  }
+  if (!sheet && typeof sheetId === 'string' && (sheetId.startsWith('sheet-custom-') || sheetId.startsWith('sheet-dup-') || sheetId.startsWith('custom-'))) {
+    sheet = registerCustomWorksheet({ id: sheetId });
   }
   if (!sheet) throw new Error(`Worksheet not found: ${sheetId}`);
 
@@ -1032,16 +1106,16 @@ export async function generateExcelExport(sheetId = null) {
     });
 
     // Copy merges (ignore any degenerate single-cell merges)
-    if (refSheet.model?.merges) {
-      refSheet.model.merges.forEach(mergeRange => {
-        try {
-          const [start, end] = String(mergeRange).split(':');
-          if (start && end && start !== end) {
-            outSheet.mergeCells(mergeRange);
-          }
-        } catch (e) {}
-      });
-    }
+    const exportMerges = [...(refSheet?.model?.merges || []), ...(sheetDetail?.merges || [])];
+    const uniqueMerges = Array.from(new Set(exportMerges.map(String)));
+    uniqueMerges.forEach(mergeRange => {
+      try {
+        const [start, end] = String(mergeRange).split(':');
+        if (start && end && start !== end) {
+          outSheet.mergeCells(mergeRange);
+        }
+      } catch (e) {}
+    });
 
     // Include edited cells outside the reference worksheet's used range.
     for (const [overrideKey, override] of cellOverrides.entries()) {
@@ -1065,7 +1139,11 @@ export async function generateExcelExport(sheetId = null) {
   });
 
   if (wb.worksheets.length === 0) {
-    cachedSheets.forEach(sheet => {
+    const targetSheets = sheetId
+      ? cachedSheets.filter(s => s.id === sheetId || s.name.trim().toLowerCase() === String(sheetId).trim().toLowerCase())
+      : cachedSheets;
+
+    targetSheets.forEach(sheet => {
       const outSheet = wb.addWorksheet(sheet.name || 'Sheet1');
       if (sheet.cells) {
         for (const [addr, cell] of Object.entries(sheet.cells)) {
@@ -1077,6 +1155,16 @@ export async function generateExcelExport(sheetId = null) {
             outCell.value = cell.v;
           }
         }
+      }
+      if (sheet.merges) {
+        sheet.merges.forEach(mergeRange => {
+          try {
+            const [start, end] = String(mergeRange).split(':');
+            if (start && end && start !== end) {
+              outSheet.mergeCells(mergeRange);
+            }
+          } catch (e) {}
+        });
       }
       for (const [overrideKey, override] of cellOverrides.entries()) {
         if (!overrideKey.startsWith(`${sheet.id}:`)) continue;

@@ -9,7 +9,8 @@ import {
   generateExcelExport,
   calculateDatedif,
   decodeLegacyWorksheetValue,
-  encodeLegacyWorksheetValue
+  encodeLegacyWorksheetValue,
+  updateWorksheetMerges
 } from '../backend/services/worksheetDataService.js';
 
 test('legacy worksheet storage keeps typed values, formula results, and styles in its text value column', () => {
@@ -99,4 +100,43 @@ test('generateExcelExport creates valid Excel workbook with Sheet1', async () =>
   assert.equal(wb.worksheets[0].getCell('C2').font.bold, true);
   assert.equal(wb.worksheets[0].getCell('C2').fill.fgColor.argb, 'FF00AAFF');
   assert.equal(wb.worksheets[0].getCell('C2').alignment.horizontal, 'center');
+});
+test('getWorksheetDetail dynamically registers and returns custom worksheet instead of throwing 404', () => {
+  const customId = 'sheet-custom-' + Date.now();
+  const customSheet = getWorksheetDetail(customId, []);
+  assert.ok(customSheet);
+  assert.equal(customSheet.id, customId);
+  assert.equal(customSheet.rowCount, 50);
+  assert.equal(customSheet.colCount, 26);
+  assert.deepEqual(customSheet.cells, {});
+});
+
+test('custom worksheets support cell editing and persist in memory', async () => {
+  const customId = 'sheet-custom-' + Date.now();
+  await updateWorksheetCell(customId, {
+    address: 'A1',
+    value: 'Hello Custom',
+    oldValue: ''
+  }, { displayName: 'Custom Tester' }, null);
+
+  const reloaded = getWorksheetDetail(customId);
+  assert.equal(reloaded.cells.A1.v, 'Hello Custom');
+});
+
+test('updateWorksheetMerges updates merges and includes them in Excel export', async () => {
+  const customId = 'sheet-custom-' + Date.now();
+  getWorksheetDetail(customId);
+
+  updateWorksheetMerges(customId, ['B2:D4']);
+  const sheet = getWorksheetDetail(customId);
+  assert.deepEqual(sheet.merges, ['B2:D4']);
+
+  const buffer = await generateExcelExport(customId);
+  assert.ok(buffer.length > 0);
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(buffer);
+  const ws = wb.worksheets[0];
+  assert.ok(ws);
+  const b2 = ws.getCell('B2');
+  assert.ok(b2.isMerged);
 });

@@ -8,7 +8,11 @@ import {
   updateWorksheetCell,
   getWorksheetAuditLogs,
   generateExcelExport,
-  loadWorksheetPersistence
+  loadWorksheetPersistence,
+  registerCustomWorksheet,
+  renameWorksheet,
+  deleteWorksheet,
+  updateWorksheetMerges
 } from '../services/worksheetDataService.js';
 
 const router = express.Router();
@@ -66,6 +70,38 @@ router.get('/export/download', async (req, res) => {
   }
 });
 
+// Register / create a custom worksheet
+router.post('/custom', async (req, res) => {
+  try {
+    const { id, name, order, rowCount, colCount } = req.body;
+    const sheet = registerCustomWorksheet({ id, name, order, rowCount, colCount });
+    return res.json({ success: true, data: sheet });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Rename worksheet
+router.put('/:sheetId/rename', async (req, res) => {
+  try {
+    const { name } = req.body;
+    const sheet = renameWorksheet(req.params.sheetId, name);
+    return res.json({ success: true, data: sheet });
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+// Delete worksheet
+router.delete('/:sheetId', async (req, res) => {
+  try {
+    deleteWorksheet(req.params.sheetId);
+    return res.json({ success: true });
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message });
+  }
+});
+
 // Get single worksheet details with live database sync
 router.get('/:sheetId', async (req, res) => {
   try {
@@ -109,6 +145,17 @@ router.post('/:sheetId/batch', async (req, res) => {
     }
 
     return res.json({ success: true, count: results.length, data: results });
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+// Update worksheet merges
+router.put('/:sheetId/merges', async (req, res) => {
+  try {
+    const { merges } = req.body;
+    const result = updateWorksheetMerges(req.params.sheetId, merges);
+    return res.json({ success: true, data: result });
   } catch (error) {
     return res.status(400).json({ success: false, message: error.message });
   }

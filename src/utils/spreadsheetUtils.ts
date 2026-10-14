@@ -129,3 +129,55 @@ export function insertCellReferenceIntoFormula(
   return text + newRef;
 }
 
+export interface NormalizedMergeRange {
+  minRow: number;
+  maxRow: number;
+  minCol: number;
+  maxCol: number;
+  rangeStr: string;
+  startAddress: string;
+  endAddress: string;
+}
+
+export function parseMergeRange(rangeStr: string): NormalizedMergeRange | null {
+  if (!rangeStr || typeof rangeStr !== 'string' || !rangeStr.includes(':')) return null;
+  const parts = rangeStr.split(':');
+  if (parts.length !== 2) return null;
+  const p1 = parseAddress(parts[0]);
+  const p2 = parseAddress(parts[1]);
+  const minRow = Math.min(p1.row, p2.row);
+  const maxRow = Math.max(p1.row, p2.row);
+  const minCol = Math.min(p1.col, p2.col);
+  const maxCol = Math.max(p1.col, p2.col);
+  const startAddress = `${colNumToLetter(minCol)}${minRow}`;
+  const endAddress = `${colNumToLetter(maxCol)}${maxRow}`;
+  return {
+    minRow,
+    maxRow,
+    minCol,
+    maxCol,
+    rangeStr: `${startAddress}:${endAddress}`,
+    startAddress,
+    endAddress
+  };
+}
+
+export function isCellInMergeRange(row: number, col: number, rangeStr: string): boolean {
+  const parsed = parseMergeRange(rangeStr);
+  if (!parsed) return false;
+  return row >= parsed.minRow && row <= parsed.maxRow && col >= parsed.minCol && col <= parsed.maxCol;
+}
+
+export function isMergeOverlappingRange(
+  rangeStr: string,
+  minRow: number,
+  maxRow: number,
+  minCol: number,
+  maxCol: number
+): boolean {
+  const parsed = parseMergeRange(rangeStr);
+  if (!parsed) return false;
+  const noOverlap = parsed.maxRow < minRow || parsed.minRow > maxRow || parsed.maxCol < minCol || parsed.minCol > maxCol;
+  return !noOverlap;
+}
+

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Scissors,
   Copy,
@@ -27,7 +27,8 @@ import {
   Sparkles,
   Percent,
   Coins,
-  DollarSign
+  DollarSign,
+  ChevronDown
 } from 'lucide-react';
 
 interface RibbonHomeTabProps {
@@ -63,7 +64,10 @@ interface RibbonHomeTabProps {
   isWrapText: boolean;
   onToggleWrapText: () => void;
   onMergeAndCenter: () => void;
+  onMergeAcross?: () => void;
+  onMergeCells?: () => void;
   onUnmerge: () => void;
+  onCenterAcross?: () => void;
 
   numFmt: string;
   onChangeNumFmt: (fmt: string) => void;
@@ -116,7 +120,10 @@ export const RibbonHomeTab: React.FC<RibbonHomeTabProps> = ({
   isWrapText,
   onToggleWrapText,
   onMergeAndCenter,
+  onMergeAcross,
+  onMergeCells,
   onUnmerge,
+  onCenterAcross,
   numFmt,
   onChangeNumFmt,
   onInsertRow,
@@ -131,6 +138,26 @@ export const RibbonHomeTab: React.FC<RibbonHomeTabProps> = ({
   canUndo,
   canRedo
 }) => {
+  const [isMergeMenuOpen, setIsMergeMenuOpen] = useState(false);
+  const mergeMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isMergeMenuOpen) return;
+    const handleOutside = (e: MouseEvent) => {
+      if (mergeMenuRef.current && !mergeMenuRef.current.contains(e.target as Node)) {
+        setIsMergeMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsMergeMenuOpen(false);
+    };
+    window.addEventListener('mousedown', handleOutside);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('mousedown', handleOutside);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isMergeMenuOpen]);
   return (
     <div className="flex items-center gap-2 overflow-x-auto py-1 px-3 text-xs select-none">
       {/* 1. Clipboard */}
@@ -337,23 +364,126 @@ export const RibbonHomeTab: React.FC<RibbonHomeTabProps> = ({
             <AlignRight className="h-3.5 w-3.5" />
           </button>
 
-          <button
-            onClick={onMergeAndCenter}
-            disabled={!canEdit}
-            title="Merge & Center"
-            className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] hover:bg-slate-100 text-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-          >
-            <Combine className="h-3 w-3 text-blue-600" />
-            <span>Merge</span>
-          </button>
-          <button
-            onClick={onUnmerge}
-            disabled={!canEdit}
-            title="Unmerge Cells"
-            className="p-1 rounded hover:bg-slate-100 text-slate-500 dark:hover:bg-slate-800"
-          >
-            <Split className="h-3.5 w-3.5" />
-          </button>
+          {/* Merge & Center Split Dropdown Button */}
+          <div className="relative inline-flex items-center rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 shadow-xs">
+            <button
+              type="button"
+              onClick={onMergeAndCenter}
+              disabled={!canEdit}
+              title="Merge & Center"
+              className="flex items-center gap-1.5 px-2 py-0.5 rounded-l text-[10px] font-medium text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-700/80 disabled:opacity-40 transition-colors"
+            >
+              <div className="w-3.5 h-3.5 flex items-center justify-center shrink-0">
+                <svg className="w-3.5 h-3.5 text-blue-600 dark:text-sky-400" viewBox="0 0 16 16" fill="none">
+                  <rect x="1.5" y="1.5" width="13" height="13" rx="1" stroke="currentColor" strokeWidth="1.2" />
+                  <line x1="8" y1="1.5" x2="8" y2="4.5" stroke="currentColor" strokeWidth="1.2" />
+                  <line x1="8" y1="11.5" x2="8" y2="14.5" stroke="currentColor" strokeWidth="1.2" />
+                  <path d="M4 8h8M6 5.5l-2.5 2.5 2.5 2.5M10 5.5l2.5 2.5-2.5 2.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+              <span className="whitespace-nowrap">Merge & Center</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsMergeMenuOpen(prev => !prev)}
+              disabled={!canEdit}
+              title="Merge options"
+              className={`px-1 py-1 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-r border-l border-slate-200 dark:border-slate-700 disabled:opacity-40 ${
+                isMergeMenuOpen ? 'bg-slate-200 dark:bg-slate-700' : ''
+              }`}
+            >
+              <ChevronDown className="h-3 w-3" />
+            </button>
+
+            {/* Dropdown Menu */}
+            {isMergeMenuOpen && (
+              <div
+                ref={mergeMenuRef}
+                className="absolute top-full left-0 mt-1 min-w-[215px] bg-white dark:bg-[#1a2636] border border-slate-300 dark:border-slate-700 shadow-2xl rounded py-1 z-50 text-[11px]"
+              >
+                <button
+                  type="button"
+                  onClick={() => { onMergeAndCenter(); setIsMergeMenuOpen(false); }}
+                  className="flex items-center gap-2.5 px-3 py-1.5 w-full text-left hover:bg-blue-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 transition-colors"
+                >
+                  <div className="w-5 h-5 flex items-center justify-center border border-slate-300 dark:border-slate-600 rounded-sm bg-slate-50 dark:bg-slate-800/80 shrink-0">
+                    <svg className="w-3.5 h-3.5 text-blue-600 dark:text-sky-400" viewBox="0 0 16 16" fill="none">
+                      <rect x="1.5" y="1.5" width="13" height="13" rx="1" stroke="currentColor" strokeWidth="1.2" />
+                      <line x1="8" y1="1.5" x2="8" y2="4.5" stroke="currentColor" strokeWidth="1.2" />
+                      <line x1="8" y1="11.5" x2="8" y2="14.5" stroke="currentColor" strokeWidth="1.2" />
+                      <path d="M4 8h8M6 5.5l-2.5 2.5 2.5 2.5M10 5.5l2.5 2.5-2.5 2.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </div>
+                  <span>Merge & <span className="underline font-semibold">C</span>enter</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { (onMergeAcross || onMergeAndCenter)(); setIsMergeMenuOpen(false); }}
+                  className="flex items-center gap-2.5 px-3 py-1.5 w-full text-left hover:bg-blue-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 transition-colors"
+                >
+                  <div className="w-5 h-5 flex items-center justify-center border border-slate-300 dark:border-slate-600 rounded-sm bg-slate-50 dark:bg-slate-800/80 shrink-0">
+                    <svg className="w-3.5 h-3.5 text-blue-600 dark:text-sky-400" viewBox="0 0 16 16" fill="none">
+                      <rect x="1.5" y="1.5" width="13" height="13" rx="1" stroke="currentColor" strokeWidth="1.2" />
+                      <line x1="1.5" y1="8" x2="14.5" y2="8" stroke="currentColor" strokeWidth="1.2" />
+                      <path d="M4 4.5h6.5M8.5 3l2 1.5-2 1.5M4 11.5h6.5M8.5 10l2 1.5-2 1.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </div>
+                  <span>Merge <span className="underline font-semibold">A</span>cross</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { (onMergeCells || onMergeAndCenter)(); setIsMergeMenuOpen(false); }}
+                  className="flex items-center gap-2.5 px-3 py-1.5 w-full text-left hover:bg-blue-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 transition-colors"
+                >
+                  <div className="w-5 h-5 flex items-center justify-center border border-slate-300 dark:border-slate-600 rounded-sm bg-slate-50 dark:bg-slate-800/80 shrink-0">
+                    <svg className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" viewBox="0 0 16 16" fill="none">
+                      <rect x="1.5" y="1.5" width="13" height="13" rx="1" stroke="currentColor" strokeWidth="1.2" />
+                      <line x1="8" y1="1.5" x2="8" y2="4" stroke="currentColor" strokeWidth="1" strokeDasharray="1 1" opacity="0.4" />
+                      <line x1="8" y1="12" x2="8" y2="14.5" stroke="currentColor" strokeWidth="1" strokeDasharray="1 1" opacity="0.4" />
+                      <line x1="1.5" y1="8" x2="4" y2="8" stroke="currentColor" strokeWidth="1" strokeDasharray="1 1" opacity="0.4" />
+                      <line x1="12" y1="8" x2="14.5" y2="8" stroke="currentColor" strokeWidth="1" strokeDasharray="1 1" opacity="0.4" />
+                    </svg>
+                  </div>
+                  <span><span className="underline font-semibold">M</span>erge Cells</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { onUnmerge(); setIsMergeMenuOpen(false); }}
+                  className="flex items-center gap-2.5 px-3 py-1.5 w-full text-left hover:bg-blue-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 transition-colors"
+                >
+                  <div className="w-5 h-5 flex items-center justify-center border border-slate-300 dark:border-slate-600 rounded-sm bg-slate-50 dark:bg-slate-800/80 shrink-0">
+                    <svg className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" viewBox="0 0 16 16" fill="none">
+                      <rect x="1.5" y="1.5" width="13" height="13" rx="1" stroke="currentColor" strokeWidth="1.2" />
+                      <line x1="1.5" y1="8" x2="14.5" y2="8" stroke="currentColor" strokeWidth="1.2" />
+                      <line x1="8" y1="1.5" x2="8" y2="14.5" stroke="currentColor" strokeWidth="1.2" />
+                      <line x1="5.5" y1="1.5" x2="5.5" y2="14.5" stroke="currentColor" strokeWidth="0.8" strokeDasharray="1 1" opacity="0.6" />
+                      <line x1="10.5" y1="1.5" x2="10.5" y2="14.5" stroke="currentColor" strokeWidth="0.8" strokeDasharray="1 1" opacity="0.6" />
+                    </svg>
+                  </div>
+                  <span><span className="underline font-semibold">U</span>nmerge Cells</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { (onCenterAcross || onMergeAndCenter)(); setIsMergeMenuOpen(false); }}
+                  className="flex items-center gap-2.5 px-3 py-1.5 w-full text-left hover:bg-blue-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 transition-colors"
+                >
+                  <div className="w-5 h-5 flex items-center justify-center border border-slate-300 dark:border-slate-600 rounded-sm bg-slate-50 dark:bg-slate-800/80 shrink-0">
+                    <svg className="w-3.5 h-3.5 text-blue-600 dark:text-sky-400" viewBox="0 0 16 16" fill="none">
+                      <rect x="1.5" y="1.5" width="13" height="13" rx="1" stroke="currentColor" strokeWidth="1.2" />
+                      <line x1="5.5" y1="1.5" x2="5.5" y2="14.5" stroke="currentColor" strokeWidth="0.8" strokeDasharray="1 1" opacity="0.5" />
+                      <line x1="10.5" y1="1.5" x2="10.5" y2="14.5" stroke="currentColor" strokeWidth="0.8" strokeDasharray="1 1" opacity="0.5" />
+                      <line x1="3" y1="8" x2="13" y2="8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                    </svg>
+                  </div>
+                  <span>Center Across <span className="underline font-semibold">S</span>election</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
