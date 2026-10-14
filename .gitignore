@@ -14,3 +14,6 @@ dist/
 *.env
 !*.env.example
 october.xlsx
+
+# User testing survey artifacts
+/docs/testing/*.md

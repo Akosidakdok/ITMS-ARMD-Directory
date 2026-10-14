@@ -211,7 +211,7 @@ export const buildCanonicalOrderDocumentHtml = (
           <p class="pais-compact-p" style="margin: 0; font-size: 10pt; line-height: 1.15; color: #000000;">Camp BGen Rafael T. Crame, Quezon City</p>
         </td>
         <td class="pais-borderless-cell pais-logo-cell" style="width: 17%; text-align: center; vertical-align: middle; border: none; padding: 0;">
-          <img class="pais-logo-img" src="${ITMS_LOGO_BASE64}" alt="ITMS Logo" width="98" height="96" style="width: 98px; height: 96px; object-fit: contain; display: inline-block;" />
+          <img class="pais-logo-img" src="${ITMS_LOGO_BASE64}" alt="ITMS Logo" width="128" height="120" style="width: 128px; height: 120px; object-fit: contain; display: inline-block;" />
         </td>
       </tr>
     </tbody>

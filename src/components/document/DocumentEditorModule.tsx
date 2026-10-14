@@ -33,7 +33,7 @@ import { exportToDocx } from './utils/docxExporter';
 import { exportToPdf } from './utils/pdfExporter';
 import { DEFAULT_TEMPLATES, TemplatePreset } from './utils/defaultTemplates';
 import { resolvePaisFieldValue, resolveAllPaisFieldsInHtml, PaisFieldDefinition } from './utils/paisFieldResolver';
-import { CANONICAL_DOCUMENT_CONFIG } from './utils/sharedOrderDocument';
+import { CANONICAL_DOCUMENT_CONFIG, buildCanonicalOrderDocumentHtml } from './utils/sharedOrderDocument';
 import type { DocumentRecord, DocumentVersion } from '../../services/documentsApi';
 import type { Personnel } from '../../types/pais';
 import './documentEditor.css';
@@ -337,7 +337,15 @@ export const DocumentEditorModule: React.FC<DocumentEditorModuleProps> = ({
   const handleExportDocx = async () => {
     if (!editor) return;
     await performSave({ isAutosave: true });
-    await exportToDocx(editor.getHTML(), {
+    let htmlContent = editor.getHTML();
+    // Use canonical HTML format when an order is associated, ensuring consistent DOCX formatting
+    if (associatedOrder && associatedOrder.orderNumber) {
+      const personnelMap = new Map(
+        (associatedOrder.personnelSnapshot || []).map((p: any) => [p.personnelId || p.id, p])
+      );
+      htmlContent = buildCanonicalOrderDocumentHtml(associatedOrder, { personnelMap });
+    }
+    await exportToDocx(htmlContent, {
       title,
       pageSize: layout.pageSize,
       orientation: layout.orientation,
