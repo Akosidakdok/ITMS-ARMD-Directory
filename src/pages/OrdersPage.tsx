@@ -260,7 +260,10 @@ export const OrdersPage = () => {
     setLoadingOrderEditor(true);
     try {
       const data = await fetchOrderDocumentForEditApi(order.id);
-      if (data?.document && typeof data.document.content_html === 'string' && data.document.content_html.includes('pais-order-document-root')) {
+      // Use the fetched document if it exists, regardless of HTML format.
+      // This ensures user edits saved via the editor are preserved when reopening.
+      // Only fall back to generating fresh content if no document is stored at all.
+      if (data?.document) {
         setOrderEditingInDocumentEditor({ order, document: data.document });
         setLoadingOrderEditor(false);
         return;
@@ -309,6 +312,8 @@ export const OrdersPage = () => {
         order: orderEditingInDocumentEditor.order,
         document: result.document
       });
+      // Update document preview to reflect saved changes
+      setDocumentPreview({ order: orderEditingInDocumentEditor.order, html: result.document.content_html });
       setToast({ type: 'success', message: 'Order document saved locally. Order remains unsigned.' });
       return result.document;
     } catch (error) {
@@ -322,6 +327,8 @@ export const OrdersPage = () => {
         order: orderEditingInDocumentEditor.order,
         document: fallbackDoc
       });
+      // Also update preview on fallback save
+      setDocumentPreview({ order: orderEditingInDocumentEditor.order, html: fallbackDoc.content_html });
       setToast({ type: 'success', message: 'Order document saved locally. Order remains unsigned.' });
       return fallbackDoc;
     }
@@ -885,7 +892,9 @@ export const OrdersPage = () => {
         const raw = localStorage.getItem('pais.local_order_documents.v1');
         if (raw) {
           const map = JSON.parse(raw);
-          if (map[order.id]?.content_html && typeof map[order.id].content_html === 'string' && map[order.id].content_html.includes('pais-order-document-root')) {
+          // Always use the stored document if it exists, regardless of HTML format.
+          // This ensures user edits are preserved in the preview.
+          if (map[order.id]?.content_html) {
             setDocumentPreview({ order, html: DOMPurify.sanitize(map[order.id].content_html) });
             setLoadingDocumentPreview(false);
             return;
