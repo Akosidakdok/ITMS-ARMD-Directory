@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import ExcelJS from 'exceljs';
+import { supabase } from '../config/supabase.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,8 +18,182 @@ export const getReferencePath = () => {
 const REFERENCE_PATH = getReferencePath();
 
 let cachedWorksheets = null;
-let cellOverrides = new Map(); // key: "sheetId:address" -> { value, formula, updatedBy, updatedAt }
+let cellOverrides = new Map(); // key: "sheetId:address" -> { value, formula, formulaResult, style, updatedBy, updatedAt }
 let auditLogs = [];
+let worksheetStateLoaded = false;
+let worksheetStateLoadPromise = null;
+let worksheetLegacySchema = false;
+const LEGACY_WORKSHEET_VALUE_PREFIX = '__PAIS_CELL_V1__';
+
+export function encodeLegacyWorksheetValue(override) {
+  return `${LEGACY_WORKSHEET_VALUE_PREFIX}${JSON.stringify({
+    value: override.value ?? null,
+    formulaResult: override.formulaResult ?? null,
+    style: override.style ?? null
+  })}`;
+}
+
+export function decodeLegacyWorksheetValue(rawValue) {
+  if (typeof rawValue !== 'string' || !rawValue.startsWith(LEGACY_WORKSHEET_VALUE_PREFIX)) {
+    return { value: rawValue };
+  }
+  try {
+    return JSON.parse(rawValue.slice(LEGACY_WORKSHEET_VALUE_PREFIX.length));
+  } catch {
+    return { value: rawValue };
+  }
+}
+
+function isMissingWorksheetColumnsError(error) {
+  return error?.code === '42703'
+    || error?.code === 'PGRST204'
+    || /column .* does not exist|could not find .* column/i.test(error?.message || '');
+}
+
+const worksheetStorageError = error => new Error(
+  `Worksheet storage unavailable. Apply backend/scripts/migrate_worksheet_module.sql in Supabase, then retry. Details: ${error?.message || 'Unknown database error'}`
+);
+
+export async function loadWorksheetPersistence({ required = true } = {}) {
+  if (!required) return;
+  if (!supabase || worksheetStateLoaded) return;
+  if (worksheetStateLoadPromise) return worksheetStateLoadPromise;
+  worksheetStateLoadPromise = (async () => {
+    let { data: overrides, error: overridesError } = await supabase
+      .from('worksheet_cell_overrides')
+      .select('worksheet_id,cell_address,value,value_json,formula,formula_result_json,style_json,updated_by,updated_at');
+    if (overridesError && isMissingWorksheetColumnsError(overridesError)) {
+      // Older deployments still have the original TEXT value and formula
+      // columns. Keep them usable while the optional JSON columns are absent.
+      const legacyResult = await supabase
+        .from('worksheet_cell_overrides')
+        .select('worksheet_id,cell_address,value,formula,updated_by,updated_at');
+      overrides = legacyResult.data;
+      overridesError = legacyResult.error;
+      worksheetLegacySchema = !overridesError;
+    }
+    if (overridesError) throw worksheetStorageError(overridesError);
+
+    const { data: logs, error: logsError } = await supabase
+      .from('worksheet_audit_logs')
+      .select('id,worksheet_id,worksheet_name,cell_address,personnel_id,field_name,old_value,new_value,action,modified_by,timestamp')
+      .order('timestamp', { ascending: false })
+      .limit(500);
+    if (logsError) throw worksheetStorageError(logsError);
+
+    cellOverrides = new Map((overrides || []).map(row => {
+      const legacy = decodeLegacyWorksheetValue(row.value);
+      const hasLegacyPayload = worksheetLegacySchema
+        || (typeof row.value === 'string' && row.value.startsWith(LEGACY_WORKSHEET_VALUE_PREFIX));
+      return [`${row.worksheet_id}:${row.cell_address}`, {
+        // Older override rows predate value_json, and newer rows can still have
+        // NULL there when they were written by the legacy client.
+        value: worksheetLegacySchema
+          ? legacy.value
+          : row.value_json !== null && row.value_json !== undefined ? row.value_json : legacy.value,
+        formula: row.formula,
+        formulaResult: worksheetLegacySchema || (row.formula_result_json == null && hasLegacyPayload)
+          ? legacy.formulaResult : row.formula_result_json,
+        style: worksheetLegacySchema || (row.style_json == null && hasLegacyPayload)
+          ? legacy.style : row.style_json,
+        updatedBy: row.updated_by,
+        updatedAt: row.updated_at
+      }];
+    }));
+    auditLogs = (logs || []).map(row => ({
+      id: row.id,
+      worksheetId: row.worksheet_id,
+      worksheetName: row.worksheet_name,
+      cellAddress: row.cell_address,
+      personnelId: row.personnel_id,
+      fieldName: row.field_name,
+      oldValue: row.old_value,
+      newValue: row.new_value,
+      action: row.action,
+      modifiedBy: row.modified_by,
+      timestamp: row.timestamp
+    }));
+    worksheetStateLoaded = true;
+  })();
+  try {
+    await worksheetStateLoadPromise;
+  } finally {
+    worksheetStateLoadPromise = null;
+  }
+}
+
+async function persistWorksheetOverride(sheet, address, override, enabled = true) {
+  if (!supabase || !enabled) return;
+  const record = worksheetLegacySchema ? {
+    id: `${sheet.id}:${address}`,
+    worksheet_id: sheet.id,
+    cell_address: address,
+    value: encodeLegacyWorksheetValue(override),
+    formula: override.formula ?? null,
+    updated_by: override.updatedBy,
+    updated_at: override.updatedAt
+  } : {
+    id: `${sheet.id}:${address}`,
+    worksheet_id: sheet.id,
+    cell_address: address,
+    value: override.value === null || override.value === undefined ? null : String(override.value),
+    value_json: override.value ?? null,
+    formula: override.formula ?? null,
+    formula_result_json: override.formulaResult ?? null,
+    style_json: override.style ?? null,
+    updated_by: override.updatedBy,
+    updated_at: override.updatedAt
+  };
+  const { error } = await supabase.from('worksheet_cell_overrides').upsert(record, { onConflict: 'id' });
+  if (error) throw worksheetStorageError(error);
+}
+
+async function persistWorksheetAudit(logEntry, enabled = true) {
+  if (!supabase || !enabled) return;
+  const { error } = await supabase.from('worksheet_audit_logs').insert({
+    id: logEntry.id,
+    worksheet_id: logEntry.worksheetId,
+    worksheet_name: logEntry.worksheetName,
+    cell_address: logEntry.cellAddress,
+    personnel_id: logEntry.personnelId,
+    field_name: logEntry.fieldName,
+    old_value: logEntry.oldValue,
+    new_value: logEntry.newValue,
+    action: logEntry.action,
+    modified_by: logEntry.modifiedBy,
+    timestamp: logEntry.timestamp
+  });
+  if (error) throw worksheetStorageError(error);
+}
+
+function applyWorksheetOverrideStyle(cell, style = {}) {
+  if (style.nf) cell.numFmt = style.nf;
+  const color = value => {
+    if (typeof value !== 'string') return undefined;
+    const hex = value.replace(/^#/, '');
+    return /^[0-9a-f]{6}$/i.test(hex) ? { argb: `FF${hex.toUpperCase()}` } : undefined;
+  };
+  const font = {
+    ...(cell.font || {}),
+    ...(style.b !== undefined ? { bold: Boolean(style.b) } : {}),
+    ...(style.i !== undefined ? { italic: Boolean(style.i) } : {}),
+    ...(style.u !== undefined ? { underline: Boolean(style.u) } : {}),
+    ...(style.fn ? { name: style.fn } : {}),
+    ...(style.sz ? { size: Number(style.sz) } : {}),
+    ...(style.c ? { color: color(style.c) } : {})
+  };
+  if (Object.keys(font).length) cell.font = font;
+  const fillColor = color(style.bg);
+  if (fillColor) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: fillColor };
+  if (style.ah || style.av || style.wrap !== undefined) {
+    cell.alignment = {
+      ...(cell.alignment || {}),
+      ...(style.ah ? { horizontal: style.ah } : {}),
+      ...(style.av ? { vertical: style.av } : {}),
+      ...(style.wrap !== undefined ? { wrapText: Boolean(style.wrap) } : {})
+    };
+  }
+}
 
 export const ALLOWED_WORKSHEET_NAMES = [
   'Sheet1'
@@ -279,10 +454,11 @@ export function getWorksheetDetail(sheetId, personnelList = []) {
       const addr = key.split(':')[1];
       if (outputCells[addr]) {
         if (override.value !== undefined) outputCells[addr].v = override.value;
-        if (override.formula) outputCells[addr].f = override.formula;
+        if (override.formula !== undefined) outputCells[addr].f = override.formula;
+        if (override.formulaResult !== undefined) outputCells[addr].res = override.formulaResult;
         if (override.style) outputCells[addr].s = { ...(outputCells[addr].s || {}), ...override.style };
       } else {
-        outputCells[addr] = { v: override.value, f: override.formula, s: override.style };
+        outputCells[addr] = { v: override.value, f: override.formula, res: override.formulaResult, s: override.style };
       }
     }
   }
@@ -604,6 +780,7 @@ export function getWorksheetDetail(sheetId, personnelList = []) {
  * Handle direct cell update
  */
 export async function updateWorksheetCell(sheetId, cellUpdate, user, db) {
+  await loadWorksheetPersistence({ required: Boolean(db) });
   const { address, value, oldValue } = cellUpdate;
   const sheet = getWorksheetDetail(sheetId);
   if (!sheet) throw new Error(`Worksheet not found: ${sheetId}`);
@@ -642,13 +819,16 @@ export async function updateWorksheetCell(sheetId, cellUpdate, user, db) {
   // Record cell override in memory
   const overrideKey = `${sheet.id}:${address}`;
   const existingOverride = cellOverrides.get(overrideKey) || {};
-  cellOverrides.set(overrideKey, {
+  const override = {
     value: value !== undefined ? value : existingOverride.value,
     formula: cellUpdate.formula !== undefined ? cellUpdate.formula : existingOverride.formula,
+    formulaResult: cellUpdate.formulaResult !== undefined ? cellUpdate.formulaResult : existingOverride.formulaResult,
     style: cellUpdate.style ? { ...(existingOverride.style || {}), ...cellUpdate.style } : existingOverride.style,
     updatedBy: user?.displayName || user?.email || 'Admin',
     updatedAt: new Date().toISOString()
-  });
+  };
+  await persistWorksheetOverride(sheet, address, override, Boolean(db));
+  cellOverrides.set(overrideKey, override);
 
   // Log to audit trail
   const logEntry = {
@@ -664,6 +844,7 @@ export async function updateWorksheetCell(sheetId, cellUpdate, user, db) {
     modifiedBy: user?.displayName || user?.email || 'Admin',
     timestamp: new Date().toISOString()
   };
+  await persistWorksheetAudit(logEntry, Boolean(db));
   auditLogs.unshift(logEntry);
 
   return {
@@ -763,6 +944,7 @@ export async function generateExcelExport(sheetId = null) {
           }
         }
 
+        const detailCell = sheetDetail?.cells?.[addr];
         // Check for override
         const overrideKey = `${sId}:${addr}`;
         if (cellOverrides.has(overrideKey)) {
@@ -772,7 +954,8 @@ export async function generateExcelExport(sheetId = null) {
             if (formula.startsWith('=')) formula = formula.slice(1).trim();
             formula = formula.replace(/\[1\]Disposition/g, "'Disposition'");
             formula = formula.replace(/DATE\(2026,4,30\)/g, 'TODAY()');
-            const result = (ov.value !== null && ov.value !== undefined && !Number.isNaN(ov.value)) ? ov.value : '';
+            const cachedResult = ov.formulaResult !== undefined ? ov.formulaResult : detailCell?.res;
+            const result = cachedResult !== null && cachedResult !== undefined && !Number.isNaN(cachedResult) ? cachedResult : '';
             outCell.value = { formula, result };
           } else {
             let v = ov.value;
@@ -781,15 +964,11 @@ export async function generateExcelExport(sheetId = null) {
             }
             outCell.value = (v !== undefined && !Number.isNaN(v)) ? v : null;
           }
-          if (ov.style) {
-            if (ov.style.ah) outCell.alignment = { ...(outCell.alignment || {}), horizontal: ov.style.ah };
-            if (ov.style.av) outCell.alignment = { ...(outCell.alignment || {}), vertical: ov.style.av };
-          }
+          if (ov.style) applyWorksheetOverrideStyle(outCell, ov.style);
           return;
         }
 
         // Use resolved sheetDetail cell if available
-        const detailCell = sheetDetail?.cells?.[addr];
         if (detailCell) {
           if (detailCell.f) {
             let formula = String(detailCell.f).trim();
@@ -846,6 +1025,26 @@ export async function generateExcelExport(sheetId = null) {
         } catch (e) {}
       });
     }
+
+    // Include edited cells outside the reference worksheet's used range.
+    for (const [overrideKey, override] of cellOverrides.entries()) {
+      if (!overrideKey.startsWith(`${sId}:`)) continue;
+      const address = overrideKey.slice(sId.length + 1);
+      const outCell = outSheet.getCell(address);
+      const result = override.formulaResult ?? sheetDetail?.cells?.[address]?.res ?? '';
+      if (override.formula) {
+        outCell.value = { formula: String(override.formula).replace(/^=/, ''), result };
+      } else {
+        let value = override.value;
+        if (typeof value === 'string' && /\(as of\s+[^)]+\)/i.test(value)) {
+          value = value.replace(/\(as of\s+[^)]+\)/gi, `(As of ${todayFormatted})`);
+        }
+        outCell.value = value ?? null;
+      }
+      if (override.style) {
+        applyWorksheetOverrideStyle(outCell, override.style);
+      }
+    }
   });
 
   if (wb.worksheets.length === 0) {
@@ -853,10 +1052,25 @@ export async function generateExcelExport(sheetId = null) {
       const outSheet = wb.addWorksheet(sheet.name || 'Sheet1');
       if (sheet.cells) {
         for (const [addr, cell] of Object.entries(sheet.cells)) {
-          if (cell && cell.v !== null && cell.v !== undefined) {
-            outSheet.getCell(addr).value = cell.v;
+          if (!cell) continue;
+          const outCell = outSheet.getCell(addr);
+          if (cell.f) {
+            outCell.value = { formula: String(cell.f).replace(/^=/, ''), result: cell.res ?? cell.v ?? '' };
+          } else if (cell.v !== null && cell.v !== undefined) {
+            outCell.value = cell.v;
           }
         }
+      }
+      for (const [overrideKey, override] of cellOverrides.entries()) {
+        if (!overrideKey.startsWith(`${sheet.id}:`)) continue;
+        const address = overrideKey.slice(sheet.id.length + 1);
+        const outCell = outSheet.getCell(address);
+        if (override.formula) {
+          outCell.value = { formula: String(override.formula).replace(/^=/, ''), result: override.formulaResult ?? '' };
+        } else {
+          outCell.value = override.value ?? null;
+        }
+        if (override.style) applyWorksheetOverrideStyle(outCell, override.style);
       }
     });
     if (wb.worksheets.length === 0) {

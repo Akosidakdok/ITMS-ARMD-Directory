@@ -7,7 +7,8 @@ import {
   getWorksheetDetail,
   updateWorksheetCell,
   getWorksheetAuditLogs,
-  generateExcelExport
+  generateExcelExport,
+  loadWorksheetPersistence
 } from '../services/worksheetDataService.js';
 
 const router = express.Router();
@@ -27,6 +28,7 @@ router.get('/', async (req, res) => {
 // Get worksheet audit logs
 router.get('/audit/logs', async (req, res) => {
   try {
+    await loadWorksheetPersistence();
     const logs = getWorksheetAuditLogs(150);
     return res.json({ success: true, data: logs });
   } catch (error) {
@@ -37,6 +39,7 @@ router.get('/audit/logs', async (req, res) => {
 // Export workbook or sheet as .xlsx
 router.get('/export/download', async (req, res) => {
   try {
+    await loadWorksheetPersistence();
     const sheetId = req.query.sheetId || null;
     const buffer = await generateExcelExport(sheetId);
     
@@ -66,6 +69,7 @@ router.get('/export/download', async (req, res) => {
 // Get single worksheet details with live database sync
 router.get('/:sheetId', async (req, res) => {
   try {
+    await loadWorksheetPersistence();
     const personnel = await db.getPersonnel();
     const sheetData = getWorksheetDetail(req.params.sheetId, personnel);
     return res.json({ success: true, data: sheetData });
@@ -77,12 +81,12 @@ router.get('/:sheetId', async (req, res) => {
 // Update a single cell
 router.put('/:sheetId/cell', async (req, res) => {
   try {
-    const { address, value, oldValue, formula, style } = req.body;
+    const { address, value, oldValue, formula, formulaResult, style } = req.body;
     if (!address) return res.status(400).json({ success: false, message: 'Cell address is required' });
 
     const result = await updateWorksheetCell(
       req.params.sheetId,
-      { address, value, oldValue, formula, style },
+      { address, value, oldValue, formula, formulaResult, style },
       req.user,
       db
     );

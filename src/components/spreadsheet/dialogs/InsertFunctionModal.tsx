@@ -23,13 +23,24 @@ const FUNCTIONS: FunctionDef[] = [
   { name: 'COUNT', category: 'Math', syntax: 'COUNT(value1, [value2], ...)', template: '=COUNT(', description: 'Counts the number of cells that contain numbers.' },
   { name: 'COUNTA', category: 'Math', syntax: 'COUNTA(value1, [value2], ...)', template: '=COUNTA(', description: 'Counts the number of cells that are not empty.' },
   { name: 'ROUND', category: 'Math', syntax: 'ROUND(number, num_digits)', template: '=ROUND(', description: 'Rounds a number to a specified number of digits.' },
+  { name: 'ROUNDUP', category: 'Math', syntax: 'ROUNDUP(number, num_digits)', template: '=ROUNDUP(', description: 'Rounds a number away from zero.' },
+  { name: 'ROUNDDOWN', category: 'Math', syntax: 'ROUNDDOWN(number, num_digits)', template: '=ROUNDDOWN(', description: 'Rounds a number toward zero.' },
+  { name: 'ABS', category: 'Math', syntax: 'ABS(number)', template: '=ABS(', description: 'Returns the absolute value of a number.' },
+  { name: 'MOD', category: 'Math', syntax: 'MOD(number, divisor)', template: '=MOD(', description: 'Returns the remainder after division.' },
   { name: 'SUMIF', category: 'Math', syntax: 'SUMIF(range, criteria, [sum_range])', template: '=SUMIF(', description: 'Adds the cells specified by a given condition or criteria.' },
+  { name: 'SUMIFS', category: 'Math', syntax: 'SUMIFS(sum_range, criteria_range1, criteria1, ...)', template: '=SUMIFS(', description: 'Adds cells that meet multiple criteria.' },
   { name: 'COUNTIF', category: 'Math', syntax: 'COUNTIF(range, criteria)', template: '=COUNTIF(', description: 'Counts the number of cells that meet a criterion.' },
+  { name: 'COUNTIFS', category: 'Math', syntax: 'COUNTIFS(criteria_range1, criteria1, ...)', template: '=COUNTIFS(', description: 'Counts cells that meet multiple criteria.' },
+  { name: 'AVERAGEIF', category: 'Math', syntax: 'AVERAGEIF(range, criteria, [average_range])', template: '=AVERAGEIF(', description: 'Averages cells that meet a criterion.' },
+  { name: 'AVERAGEIFS', category: 'Math', syntax: 'AVERAGEIFS(average_range, criteria_range1, criteria1, ...)', template: '=AVERAGEIFS(', description: 'Averages cells that meet multiple criteria.' },
 
   { name: 'TODAY', category: 'Date', syntax: 'TODAY()', template: '=TODAY()', description: 'Returns the current calendar date.' },
   { name: 'NOW', category: 'Date', syntax: 'NOW()', template: '=NOW()', description: 'Returns the current date and time.' },
   { name: 'DATE', category: 'Date', syntax: 'DATE(year, month, day)', template: '=DATE(', description: 'Returns the serial number that represents a particular date.' },
   { name: 'DATEDIF', category: 'Date', syntax: 'DATEDIF(start_date, end_date, unit)', template: '=DATEDIF(', description: 'Calculates the number of days, months, or years between two dates.' },
+  { name: 'DAY', category: 'Date', syntax: 'DAY(serial_number)', template: '=DAY(', description: 'Returns the day of the month from a date.' },
+  { name: 'MONTH', category: 'Date', syntax: 'MONTH(serial_number)', template: '=MONTH(', description: 'Returns the month from a date.' },
+  { name: 'YEAR', category: 'Date', syntax: 'YEAR(serial_number)', template: '=YEAR(', description: 'Returns the year from a date.' },
 
   { name: 'IF', category: 'Logical', syntax: 'IF(logical_test, [value_if_true], [value_if_false])', template: '=IF(', description: 'Checks whether a condition is met, and returns one value if TRUE, and another value if FALSE.' },
   { name: 'AND', category: 'Logical', syntax: 'AND(logical1, [logical2], ...)', template: '=AND(', description: 'Returns TRUE if all its arguments evaluate to TRUE.' },
@@ -45,8 +56,13 @@ const FUNCTIONS: FunctionDef[] = [
   { name: 'TRIM', category: 'Text', syntax: 'TRIM(text)', template: '=TRIM(', description: 'Removes all spaces from text except for single spaces between words.' },
   { name: 'UPPER', category: 'Text', syntax: 'UPPER(text)', template: '=UPPER(', description: 'Converts text to uppercase.' },
   { name: 'LOWER', category: 'Text', syntax: 'LOWER(text)', template: '=LOWER(', description: 'Converts text to lowercase.' },
+  { name: 'PROPER', category: 'Text', syntax: 'PROPER(text)', template: '=PROPER(', description: 'Capitalizes the first letter of each word.' },
+  { name: 'SUBSTITUTE', category: 'Text', syntax: 'SUBSTITUTE(text, old_text, new_text, [instance_num])', template: '=SUBSTITUTE(', description: 'Replaces matching text in a string.' },
+  { name: 'TEXT', category: 'Text', syntax: 'TEXT(value, format_text)', template: '=TEXT(', description: 'Formats a value and converts it to text.' },
+  { name: 'VALUE', category: 'Text', syntax: 'VALUE(text)', template: '=VALUE(', description: 'Converts a number stored as text into a number.' },
 
   { name: 'VLOOKUP', category: 'Lookup', syntax: 'VLOOKUP(lookup_value, table_array, col_index_num, [range_lookup])', template: '=VLOOKUP(', description: 'Looks for a value in the leftmost column of a table, and then returns a value in the same row from a column you specify.' },
+  { name: 'HLOOKUP', category: 'Lookup', syntax: 'HLOOKUP(lookup_value, table_array, row_index_num, [range_lookup])', template: '=HLOOKUP(', description: 'Looks for a value in the top row of a table and returns a value from the same column.' },
   { name: 'INDEX', category: 'Lookup', syntax: 'INDEX(array, row_num, [column_num])', template: '=INDEX(', description: 'Returns a value or the reference to a value from within a table or range.' },
   { name: 'MATCH', category: 'Lookup', syntax: 'MATCH(lookup_value, lookup_array, [match_type])', template: '=MATCH(', description: 'Returns the relative position of an item in an array that matches a specified value.' }
 ];

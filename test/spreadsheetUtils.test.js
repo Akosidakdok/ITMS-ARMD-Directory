@@ -4,7 +4,8 @@ import {
   colNumToLetter,
   colLetterToNum,
   parseAddress,
-  formatCellValue
+  formatCellValue,
+  formatExcelDateSerial
 } from '../src/utils/spreadsheetUtils.ts';
 
 test('colNumToLetter converts 1-based column numbers to Excel column letters', () => {
@@ -62,6 +63,12 @@ test('formatCellValue formats Philippine Peso currency and accounting formats', 
   assert.equal(formatCellValue(-1200, 'accounting'), '(₱1,200.00)');
   assert.equal(formatCellValue(1234.56, 'number'), '1,234.56');
   assert.equal(formatCellValue(0.125, 'percentage'), '12.5%');
+});
+
+test('formats Excel date serials using the cell date format', () => {
+  assert.match(formatExcelDateSerial(46023, 'mm/dd/yyyy'), /2026/);
+  assert.equal(formatExcelDateSerial(46023, '#,##0.00'), null);
+  assert.match(formatCellValue(46023, 'mm/dd/yyyy'), /2026/);
 });
 
 test('formatCellValue formats Date objects in date format without returning empty string', () => {

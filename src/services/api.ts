@@ -745,7 +745,7 @@ export const fetchWorksheetDetailApi = async (
 
 export const updateWorksheetCellApi = async (
   sheetId: string,
-  update: { address: string; value: any; oldValue?: any }
+  update: { address: string; value: any; oldValue?: any; formula?: string | null; formulaResult?: any; style?: any }
 ): Promise<any> => {
   const res = await apiFetch(`${API_BASE_URL}/worksheets/${sheetId}/cell`, {
     method: 'PUT',
@@ -759,7 +759,7 @@ export const updateWorksheetCellApi = async (
 
 export const batchUpdateWorksheetCellsApi = async (
   sheetId: string,
-  updates: Array<{ address: string; value: any; oldValue?: any; formula?: string; style?: any }>
+  updates: Array<{ address: string; value: any; oldValue?: any; formula?: string | null; formulaResult?: any; style?: any }>
 ): Promise<any> => {
   const res = await apiFetch(`${API_BASE_URL}/worksheets/${sheetId}/batch`, {
     method: 'POST',

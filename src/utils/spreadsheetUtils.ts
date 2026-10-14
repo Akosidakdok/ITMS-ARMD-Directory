@@ -32,6 +32,17 @@ export function parseAddress(address: string): { row: number; col: number; lette
   };
 }
 
+export function formatExcelDateSerial(value: number, numFmt?: string): string | null {
+  if (!Number.isFinite(value) || !numFmt || ['general', '@', 'currency', 'accounting', 'number', 'percentage'].includes(numFmt.toLowerCase())) return null;
+  const dateFormat = numFmt.replace(/"[^"]*"/g, '').replace(/\\./g, '');
+  if (!/(y{1,4}|d{1,2})/i.test(dateFormat) && !/(^|[^a-z])m{1,4}([^a-z]|$)/i.test(dateFormat)) return null;
+  const epoch = Date.UTC(1899, 11, 30);
+  const date = new Date(epoch + value * 86400000);
+  if (Number.isNaN(date.getTime())) return null;
+  const hasTime = /[hs]/i.test(dateFormat);
+  return hasTime ? date.toLocaleString('en-US') : date.toLocaleDateString('en-US');
+}
+
 // Format a cell value according to its number format type
 export function formatCellValue(value: any, numFmt?: string): string {
   if (value === null || value === undefined) return '';
@@ -48,6 +59,9 @@ export function formatCellValue(value: any, numFmt?: string): string {
 
   const num = Number(value);
   if (isNaN(num)) return str;
+
+  const dateValue = formatExcelDateSerial(num, numFmt);
+  if (dateValue !== null) return dateValue;
 
   switch (numFmt) {
     case 'currency':
