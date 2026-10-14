@@ -144,6 +144,7 @@ export async function buildPersonnelRosterXlsx(records: Personnel[]) {
   });
   headerRow.height = 34;
 
+  const startRow = OCTOBER_PERSONNEL_HEADER_ROW + 1;
   for (const person of records) {
     const row = worksheet.addRow(
       OCTOBER_PERSONNEL_ROSTER_COLUMNS.map(column => getOctoberRosterValue(person, column.field))
@@ -161,6 +162,101 @@ export async function buildPersonnelRosterXlsx(records: Personnel[]) {
     });
   }
 
+  // Summary footer rows with dynamic Excel formulas
+  if (records.length > 0) {
+    const endRow = startRow + records.length - 1;
+    worksheet.addRow([]); // Blank separator row
+
+    const applySummaryStyle = (cell: any) => {
+      cell.font = { name: 'Arial', size: 9, bold: true, color: { argb: 'FF1E293B' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+        bottom: { style: 'double', color: { argb: 'FF0F172A' } },
+        left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+        right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
+      };
+    };
+
+    // Summary Row 1: Headcount & Male Count
+    const sumRow1 = worksheet.addRow([]);
+    sumRow1.height = 22;
+    const r1Label = sumRow1.getCell(6); // Rank column
+    r1Label.value = 'Total: Personnel Count';
+    applySummaryStyle(r1Label);
+    const r1Val = sumRow1.getCell(7); // Last Name column
+    r1Val.value = {
+      formula: `COUNTA(G${startRow}:G${endRow})`,
+      result: records.length
+    };
+    applySummaryStyle(r1Val);
+
+    const r1MaleLbl = sumRow1.getCell(31); // Sub Station
+    r1MaleLbl.value = 'Total: Male Personnel';
+    applySummaryStyle(r1MaleLbl);
+    const r1MaleVal = sumRow1.getCell(32); // Gender column (AF)
+    const maleCount = records.filter(p => (p.gender || '').toLowerCase() === 'male').length;
+    r1MaleVal.value = {
+      formula: `COUNTIF(AF${startRow}:AF${endRow},"Male")+COUNTIF(AF${startRow}:AF${endRow},"MALE")`,
+      result: maleCount
+    };
+    applySummaryStyle(r1MaleVal);
+
+    // Summary Row 2: PCO Officers & Female Count
+    const sumRow2 = worksheet.addRow([]);
+    sumRow2.height = 22;
+    const r2Label = sumRow2.getCell(6);
+    r2Label.value = 'Total: PCO Officers';
+    applySummaryStyle(r2Label);
+    const r2Val = sumRow2.getCell(7);
+    const pcoCount = records.filter(p => p.rankCategory === 'PCO').length;
+    r2Val.value = {
+      formula: `COUNTIF(F${startRow}:F${endRow},"PGEN")+COUNTIF(F${startRow}:F${endRow},"PLTGEN")+COUNTIF(F${startRow}:F${endRow},"PMGEN")+COUNTIF(F${startRow}:F${endRow},"PBGEN")+COUNTIF(F${startRow}:F${endRow},"PCOL")+COUNTIF(F${startRow}:F${endRow},"PLTCOL")+COUNTIF(F${startRow}:F${endRow},"PMAJ")+COUNTIF(F${startRow}:F${endRow},"PCPT")+COUNTIF(F${startRow}:F${endRow},"PLT")`,
+      result: pcoCount
+    };
+    applySummaryStyle(r2Val);
+
+    const r2FemLbl = sumRow2.getCell(31);
+    r2FemLbl.value = 'Total: Female Personnel';
+    applySummaryStyle(r2FemLbl);
+    const r2FemVal = sumRow2.getCell(32);
+    const femaleCount = records.filter(p => (p.gender || '').toLowerCase() === 'female').length;
+    r2FemVal.value = {
+      formula: `COUNTIF(AF${startRow}:AF${endRow},"Female")+COUNTIF(AF${startRow}:AF${endRow},"FEMALE")`,
+      result: femaleCount
+    };
+    applySummaryStyle(r2FemVal);
+
+    // Summary Row 3: PNCO Personnel
+    const sumRow3 = worksheet.addRow([]);
+    sumRow3.height = 22;
+    const r3Label = sumRow3.getCell(6);
+    r3Label.value = 'Total: PNCO Personnel';
+    applySummaryStyle(r3Label);
+    const r3Val = sumRow3.getCell(7);
+    const pncoCount = records.filter(p => p.rankCategory === 'PNCO').length;
+    r3Val.value = {
+      formula: `COUNTIF(F${startRow}:F${endRow},"PEMS")+COUNTIF(F${startRow}:F${endRow},"PCMS")+COUNTIF(F${startRow}:F${endRow},"PSMS")+COUNTIF(F${startRow}:F${endRow},"PMSg")+COUNTIF(F${startRow}:F${endRow},"PSSg")+COUNTIF(F${startRow}:F${endRow},"PCpl")+COUNTIF(F${startRow}:F${endRow},"Pat")`,
+      result: pncoCount
+    };
+    applySummaryStyle(r3Val);
+
+    // Summary Row 4: NUP Personnel
+    const sumRow4 = worksheet.addRow([]);
+    sumRow4.height = 22;
+    const r4Label = sumRow4.getCell(6);
+    r4Label.value = 'Total: NUP Personnel';
+    applySummaryStyle(r4Label);
+    const r4Val = sumRow4.getCell(7);
+    const nupCount = records.filter(p => p.rankCategory === 'NUP').length;
+    r4Val.value = {
+      formula: `COUNTIF(F${startRow}:F${endRow},"NUP")`,
+      result: nupCount
+    };
+    applySummaryStyle(r4Val);
+  }
+
+  workbook.calcProperties.fullCalcOnLoad = true;
   return workbook.xlsx.writeBuffer();
 }
 

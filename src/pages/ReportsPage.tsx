@@ -511,6 +511,7 @@ export const ReportsPage: React.FC = () => {
         reportTitle={currentExportConfig.title}
         data={currentExportConfig.data}
         columns={currentExportConfig.columns}
+        reportType={activeReportTab}
       />
     </div>
   );

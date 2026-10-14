@@ -25,7 +25,7 @@ import {
   type WorksheetCell
 } from '../../services/api';
 import { useAuthRole } from '../../context/AuthRoleContext';
-import { colNumToLetter, colLetterToNum, parseAddress, formatExcelDateSerial } from '../../utils/spreadsheetUtils';
+import { colNumToLetter, colLetterToNum, parseAddress, formatExcelDateSerial, insertCellReferenceIntoFormula } from '../../utils/spreadsheetUtils';
 import {
   applyCellEdits,
   recalculateWorkbook,
@@ -42,6 +42,12 @@ import { PageSetupModal } from './dialogs/PageSetupModal';
 import { InsertFunctionModal } from './dialogs/InsertFunctionModal';
 import { ExcelImportModal } from './ExcelImportModal';
 import { WorksheetAuditDrawer } from './WorksheetAuditDrawer';
+import {
+  SPREADSHEET_FUNCTIONS,
+  SpreadsheetFunctionDef,
+  getFormulaSearchContext
+} from '../../constants/spreadsheetFunctions';
+import { FormulaAutocompleteList } from './formulaBar/FormulaAutocompleteList';
 
 export function getFormulaBarDisplay(cell: WorksheetCell | undefined | null): string {
   if (!cell) return '';
@@ -126,6 +132,17 @@ export const ExcelWorksheetModule: React.FC = () => {
   const [formulaInputValue, setFormulaInputValue] = useState('');
   const [formatPainterStyle, setFormatPainterStyle] = useState<any | null>(null);
 
+  // Formula interactive reference selection
+  const [formulaLastInsertedRef, setFormulaLastInsertedRef] = useState<string | null>(null);
+  const [formulaReferenceRange, setFormulaReferenceRange] = useState<{
+    startRow: number;
+    startCol: number;
+    endRow: number;
+    endCol: number;
+  } | null>(null);
+  const [isDraggingFormulaRange, setIsDraggingFormulaRange] = useState(false);
+  const isInteractingWithCellRef = useRef(false);
+
   // Column / Row Interactive Resizing & Custom Heights
   const [customColWidths, setCustomColWidths] = useState<Record<number, number>>({});
   const [customRowHeights, setCustomRowHeights] = useState<Record<number, number>>({});
@@ -172,6 +189,49 @@ export const ExcelWorksheetModule: React.FC = () => {
   const inCellInputRef = useRef<HTMLInputElement>(null);
   const tabScrollRef = useRef<HTMLDivElement>(null);
   const copiedRangeRef = useRef<{ text: string; row: number; col: number; values: string[][] } | null>(null);
+
+  // In-cell formula autocomplete state
+  const [inCellAutocompleteIndex, setInCellAutocompleteIndex] = useState(0);
+  const [inCellAutocompleteDismissed, setInCellAutocompleteDismissed] = useState(false);
+
+  const { isFormula: inCellIsFormula, searchTerm: inCellSearchTerm, prefixText: inCellPrefixText } = useMemo(
+    () => getFormulaSearchContext(editValue),
+    [editValue]
+  );
+
+  useEffect(() => {
+    setInCellAutocompleteDismissed(false);
+    setInCellAutocompleteIndex(0);
+  }, [editValue]);
+
+  const inCellCleanTerm = inCellSearchTerm.toUpperCase().trim();
+  const inCellMatchingFunctions = useMemo(() => {
+    if (!inCellIsFormula || inCellAutocompleteDismissed || !isEditing) return [];
+    return SPREADSHEET_FUNCTIONS.filter(f => {
+      if (!inCellCleanTerm) return true;
+      return f.name.includes(inCellCleanTerm);
+    }).sort((a, b) => {
+      if (!inCellCleanTerm) return a.name.localeCompare(b.name);
+      const aStarts = a.name.startsWith(inCellCleanTerm);
+      const bStarts = b.name.startsWith(inCellCleanTerm);
+      if (aStarts && !bStarts) return -1;
+      if (!aStarts && bStarts) return 1;
+      return a.name.localeCompare(b.name);
+    });
+  }, [inCellIsFormula, inCellAutocompleteDismissed, isEditing, inCellCleanTerm]);
+
+  const handleInCellSelectFormula = (fn: SpreadsheetFunctionDef) => {
+    const newValue = `${inCellPrefixText}${fn.template}`;
+    setEditValue(newValue);
+    setFormulaInputValue(newValue);
+    setInCellAutocompleteDismissed(true);
+    setTimeout(() => {
+      if (inCellInputRef.current) {
+        inCellInputRef.current.focus();
+        inCellInputRef.current.setSelectionRange(newValue.length, newValue.length);
+      }
+    }, 10);
+  };
 
   // Virtualization windowing
   const [scrollTop, setScrollTop] = useState(0);
@@ -293,6 +353,16 @@ export const ExcelWorksheetModule: React.FC = () => {
     return r >= minR && r <= maxR && c >= minC && c <= maxC;
   }, [selectionRange]);
 
+  // Check if cell is in formula reference range
+  const isFormulaReferenced = useCallback((r: number, c: number): boolean => {
+    if (!formulaReferenceRange) return false;
+    const minR = Math.min(formulaReferenceRange.startRow, formulaReferenceRange.endRow);
+    const maxR = Math.max(formulaReferenceRange.startRow, formulaReferenceRange.endRow);
+    const minC = Math.min(formulaReferenceRange.startCol, formulaReferenceRange.endCol);
+    const maxC = Math.max(formulaReferenceRange.startCol, formulaReferenceRange.endCol);
+    return r >= minR && r <= maxR && c >= minC && c <= maxC;
+  }, [formulaReferenceRange]);
+
   // Apply cell change locally and stage for batch save
   const applyCellChanges = useCallback((edits: Array<{ address: string; rawValue: string }>) => {
     if (!sheetData) return;
@@ -409,26 +479,77 @@ export const ExcelWorksheetModule: React.FC = () => {
   };
 
   // Commit in-cell edit
-  const commitInCellEdit = (moveDown = false, moveRight = false) => {
+  const commitInCellEdit = (
+    moveDown = false,
+    moveRight = false,
+    autoEdit = false,
+    moveLeft = false
+  ) => {
     if (!isEditing) return;
-    applyCellChange(activeCell.address, editValue);
-    setIsEditing(false);
+    let finalValue = editValue;
+    if (typeof finalValue === 'string' && finalValue.trim().startsWith('=')) {
+      const openCount = (finalValue.match(/\(/g) || []).length;
+      const closeCount = (finalValue.match(/\)/g) || []).length;
+      if (openCount > closeCount) {
+        finalValue = finalValue + ')'.repeat(openCount - closeCount);
+      }
+    }
+    applyCellChange(activeCell.address, finalValue);
+    setFormulaLastInsertedRef(null);
+    setFormulaReferenceRange(null);
+    setIsDraggingFormulaRange(false);
+
+    let nextRow = activeCell.row;
+    let nextCol = activeCell.col;
 
     if (moveDown) {
-      const nextRow = Math.min((sheetData?.rowCount || 100), activeCell.row + 1);
-      setActiveCell({ row: nextRow, col: activeCell.col, address: `${colNumToLetter(activeCell.col)}${nextRow}` });
+      nextRow = Math.min((sheetData?.rowCount || 100), activeCell.row + 1);
     } else if (moveRight) {
-      const nextCol = Math.min((sheetData?.colCount || 26), activeCell.col + 1);
-      setActiveCell({ row: activeCell.row, col: nextCol, address: `${colNumToLetter(nextCol)}${activeCell.row}` });
+      nextCol = Math.min((sheetData?.colCount || 26), activeCell.col + 1);
+    } else if (moveLeft) {
+      nextCol = Math.max(1, activeCell.col - 1);
+    }
+
+    const nextAddress = `${colNumToLetter(nextCol)}${nextRow}`;
+    const cellChanged = nextRow !== activeCell.row || nextCol !== activeCell.col;
+
+    if (cellChanged) {
+      setActiveCell({ row: nextRow, col: nextCol, address: nextAddress });
+    }
+
+    if (autoEdit && cellChanged) {
+      const nextCell = sheetData?.cells[nextAddress];
+      const initialVal = getFormulaBarDisplay(nextCell);
+      setEditValue(initialVal);
+      setFormulaInputValue(initialVal);
+      setIsEditing(true);
+      setInCellAutocompleteDismissed(false);
+      setTimeout(() => {
+        if (inCellInputRef.current) {
+          inCellInputRef.current.focus();
+          inCellInputRef.current.select();
+        }
+      }, 30);
+    } else {
+      setIsEditing(false);
+      setTimeout(() => {
+        gridContainerRef.current?.focus();
+      }, 20);
     }
   };
 
   const cancelInCellEdit = () => {
     setIsEditing(false);
+    setFormulaLastInsertedRef(null);
+    setFormulaReferenceRange(null);
+    setIsDraggingFormulaRange(false);
     const cell = sheetData?.cells[activeCell.address];
     const original = getFormulaBarDisplay(cell);
     setEditValue(original);
     setFormulaInputValue(original);
+    setTimeout(() => {
+      gridContainerRef.current?.focus();
+    }, 20);
   };
 
   // Cell click handlers
@@ -447,6 +568,9 @@ export const ExcelWorksheetModule: React.FC = () => {
     }
 
     setActiveCell({ row: r, col: c, address: addr });
+    setTimeout(() => {
+      gridContainerRef.current?.focus();
+    }, 10);
   };
 
   const handleCellDoubleClick = (r: number, c: number, addr: string) => {
@@ -457,6 +581,31 @@ export const ExcelWorksheetModule: React.FC = () => {
   // Drag selection
   const handleCellMouseDown = (r: number, c: number, addr: string, e: React.MouseEvent) => {
     if (e.button !== 0) return;
+    isInteractingWithCellRef.current = true;
+
+    // Check if user is typing a formula and clicking another cell to reference it
+    const isFormulaMode = isEditing && typeof editValue === 'string' && editValue.trim().startsWith('=');
+
+    if (isFormulaMode && addr !== activeCell.address) {
+      e.preventDefault();
+
+      const newRef = addr;
+      const updatedFormula = insertCellReferenceIntoFormula(editValue, newRef, formulaLastInsertedRef || undefined);
+
+      setEditValue(updatedFormula);
+      setFormulaInputValue(updatedFormula);
+      setFormulaLastInsertedRef(newRef);
+      setFormulaReferenceRange({ startRow: r, startCol: c, endRow: r, endCol: c });
+      setIsDraggingFormulaRange(true);
+
+      setTimeout(() => inCellInputRef.current?.focus(), 10);
+      return;
+    }
+
+    setFormulaLastInsertedRef(null);
+    setFormulaReferenceRange(null);
+    setIsDraggingFormulaRange(false);
+
     if (e.shiftKey && activeCell) {
       setSelectionRange({
         startRow: activeCell.row,
@@ -466,18 +615,47 @@ export const ExcelWorksheetModule: React.FC = () => {
       });
       return;
     }
+
     handleCellClick(r, c, addr);
     setIsDraggingRange(true);
     setSelectionRange({ startRow: r, startCol: c, endRow: r, endCol: c });
   };
 
   const handleCellMouseEnter = (r: number, c: number) => {
+    if (isDraggingFormulaRange && formulaReferenceRange) {
+      const startR = formulaReferenceRange.startRow;
+      const startC = formulaReferenceRange.startCol;
+      const minR = Math.min(startR, r);
+      const maxR = Math.max(startR, r);
+      const minC = Math.min(startC, c);
+      const maxC = Math.max(startC, c);
+
+      const newRef = (minR === maxR && minC === maxC)
+        ? `${colNumToLetter(minC)}${minR}`
+        : `${colNumToLetter(minC)}${minR}:${colNumToLetter(maxC)}${maxR}`;
+
+      const updatedFormula = insertCellReferenceIntoFormula(editValue, newRef, formulaLastInsertedRef || undefined);
+
+      setEditValue(updatedFormula);
+      setFormulaInputValue(updatedFormula);
+      setFormulaLastInsertedRef(newRef);
+      setFormulaReferenceRange({ startRow: startR, startCol: startC, endRow: r, endCol: c });
+      return;
+    }
+
     if (!isDraggingRange) return;
+    if (!selectionRange) return;
     setSelectionRange(prev => prev ? { ...prev, endRow: r, endCol: c } : null);
   };
 
   useEffect(() => {
-    const handleMouseUp = () => setIsDraggingRange(false);
+    const handleMouseUp = () => {
+      setIsDraggingRange(false);
+      setIsDraggingFormulaRange(false);
+      setTimeout(() => {
+        isInteractingWithCellRef.current = false;
+      }, 50);
+    };
     window.addEventListener('mouseup', handleMouseUp);
     return () => window.removeEventListener('mouseup', handleMouseUp);
   }, []);
@@ -729,6 +907,30 @@ export const ExcelWorksheetModule: React.FC = () => {
         return;
       }
 
+      if (e.key === 'Tab' && !e.ctrlKey && !e.altKey && !e.metaKey && !isEditing) {
+        e.preventDefault();
+        const maxCol = sheetData?.colCount || 26;
+        const nextCol = e.shiftKey ? Math.max(1, activeCell.col - 1) : Math.min(maxCol, activeCell.col + 1);
+        setSelectionRange(null);
+        if (nextCol !== activeCell.col) {
+          const address = `${colNumToLetter(nextCol)}${activeCell.row}`;
+          setActiveCell({ row: activeCell.row, col: nextCol, address });
+          const targetCell = sheetData?.cells[address];
+          const initialVal = getFormulaBarDisplay(targetCell);
+          setEditValue(initialVal);
+          setFormulaInputValue(initialVal);
+          setIsEditing(true);
+          setInCellAutocompleteDismissed(false);
+          setTimeout(() => {
+            if (inCellInputRef.current) {
+              inCellInputRef.current.focus();
+              inCellInputRef.current.select();
+            }
+          }, 30);
+        }
+        return;
+      }
+
       if (e.ctrlKey || e.metaKey) {
         const k = e.key.toLowerCase();
         if (k === 's') {
@@ -776,7 +978,7 @@ export const ExcelWorksheetModule: React.FC = () => {
 
     window.addEventListener('keydown', handleGlobalShortcuts);
     return () => window.removeEventListener('keydown', handleGlobalShortcuts);
-  }, [handleSaveChanges, handleUndo, handleRedo, handleCopy, handleCut, handlePaste, isEditing, applyStyleToSelection]);
+  }, [handleSaveChanges, handleUndo, handleRedo, handleCopy, handleCut, handlePaste, isEditing, applyStyleToSelection, sheetData, activeCell]);
 
   // Context menu right-click handler
   const handleCellContextMenu = (r: number, c: number, addr: string, e: React.MouseEvent) => {
@@ -859,7 +1061,11 @@ export const ExcelWorksheetModule: React.FC = () => {
         commitInCellEdit(true);
       } else if (e.key === 'Tab') {
         e.preventDefault();
-        commitInCellEdit(false, true);
+        if (e.shiftKey) {
+          commitInCellEdit(false, false, true, true);
+        } else {
+          commitInCellEdit(false, true, true, false);
+        }
       } else if (e.key === 'Escape') {
         e.preventDefault();
         cancelInCellEdit();
@@ -927,7 +1133,25 @@ export const ExcelWorksheetModule: React.FC = () => {
     else if (e.key === 'ArrowRight') { e.preventDefault(); col = Math.min(maxCol, col + 1); }
     else if (e.key === 'Tab') {
       e.preventDefault();
-      col = e.shiftKey ? Math.max(1, col - 1) : Math.min(maxCol, col + 1);
+      const nextCol = e.shiftKey ? Math.max(1, activeCell.col - 1) : Math.min(maxCol, activeCell.col + 1);
+      setSelectionRange(null);
+      if (nextCol !== activeCell.col) {
+        const address = `${colNumToLetter(nextCol)}${activeCell.row}`;
+        setActiveCell({ row: activeCell.row, col: nextCol, address });
+        const targetCell = sheetData?.cells[address];
+        const initialVal = getFormulaBarDisplay(targetCell);
+        setEditValue(initialVal);
+        setFormulaInputValue(initialVal);
+        setIsEditing(true);
+        setInCellAutocompleteDismissed(false);
+        setTimeout(() => {
+          if (inCellInputRef.current) {
+            inCellInputRef.current.focus();
+            inCellInputRef.current.select();
+          }
+        }, 30);
+      }
+      return;
     } else {
       return;
     }
@@ -1353,15 +1577,24 @@ export const ExcelWorksheetModule: React.FC = () => {
           <FormulaBar
             selectedAddress={activeCell.address}
             value={formulaInputValue}
-            onChange={setFormulaInputValue}
-            onCommit={() => {
-              applyCellChange(activeCell.address, formulaInputValue);
-              setIsEditing(false);
+            onFocus={() => {
+              if (!isEditing) {
+                setIsEditing(true);
+                setEditValue(formulaInputValue);
+              }
             }}
-            onCancel={() => {
-              const orig = getFormulaBarDisplay(sheetData?.cells[activeCell.address]);
-              setFormulaInputValue(orig);
-              setIsEditing(false);
+            onChange={val => {
+              setFormulaInputValue(val);
+              setEditValue(val);
+              if (!isEditing) setIsEditing(true);
+              setFormulaLastInsertedRef(null);
+              setFormulaReferenceRange(null);
+            }}
+            onCommit={() => commitInCellEdit()}
+            onCancel={() => cancelInCellEdit()}
+            onTab={(shiftKey) => {
+              if (shiftKey) commitInCellEdit(false, false, true, true);
+              else commitInCellEdit(false, true, true, false);
             }}
             onJumpToAddress={handleJumpToAddress}
             onOpenFunctionWizard={() => setIsFunctionWizardOpen(true)}
@@ -1496,6 +1729,7 @@ export const ExcelWorksheetModule: React.FC = () => {
                       const isSelected = activeCell.row === rNum && activeCell.col === colNum;
                       const inRange = isCellInRange(rNum, colNum);
                       const isUnsaved = unsavedChanges.has(addr);
+                      const isRefRange = isFormulaReferenced(rNum, colNum);
 
                       const s = cell?.s || {};
                       const defaultAlign = rNum <= 8 ? 'center' : 'left';
@@ -1530,12 +1764,16 @@ export const ExcelWorksheetModule: React.FC = () => {
                           onContextMenu={e => handleCellContextMenu(rNum, colNum, addr, e)}
                           className={`${
                             showGridlines ? 'border-r border-b border-slate-200 dark:border-slate-800' : ''
-                          } px-1.5 py-0.5 overflow-hidden text-ellipsis cursor-cell relative ${
-                            isSelected
-                              ? 'outline-2 outline-blue-600 outline-offset-[-2px] z-10 bg-blue-50/20 dark:outline-sky-400'
-                              : inRange
-                                ? 'bg-blue-500/15 dark:bg-sky-400/20 z-10'
-                                : 'hover:bg-slate-50/50 dark:hover:bg-slate-800/50'
+                          } px-1.5 py-0.5 cursor-cell relative ${
+                            isSelected && isEditing
+                              ? 'overflow-visible z-40 outline-2 outline-blue-600 outline-offset-[-2px] bg-white dark:bg-[#101b2b]'
+                              : isSelected
+                                ? 'overflow-hidden text-ellipsis outline-2 outline-blue-600 outline-offset-[-2px] z-10 bg-blue-50/20 dark:outline-sky-400'
+                                : isRefRange
+                                  ? 'overflow-hidden text-ellipsis outline-2 outline-dashed outline-indigo-600 outline-offset-[-2px] z-20 bg-indigo-50/40 dark:outline-indigo-400 dark:bg-indigo-950/40'
+                                  : inRange
+                                    ? 'overflow-hidden text-ellipsis bg-blue-500/15 dark:bg-sky-400/20 z-10'
+                                    : 'overflow-hidden text-ellipsis hover:bg-slate-50/50 dark:hover:bg-slate-800/50'
                           } ${
                             isUnsaved
                               ? 'bg-amber-100/90 text-amber-950 dark:bg-amber-950/60 dark:text-amber-200 ring-1 ring-inset ring-amber-400/80'
@@ -1543,29 +1781,82 @@ export const ExcelWorksheetModule: React.FC = () => {
                           }`}
                         >
                           {isSelected && isEditing ? (
-                            <input
-                              ref={inCellInputRef}
-                              type="text"
-                              value={editValue}
-                              onChange={e => {
-                                setEditValue(e.target.value);
-                                setFormulaInputValue(e.target.value);
-                              }}
-                              onBlur={() => commitInCellEdit()}
-                              onKeyDown={e => {
-                                if (e.key === 'Enter') {
-                                  e.preventDefault();
-                                  commitInCellEdit(true);
-                                } else if (e.key === 'Tab') {
-                                  e.preventDefault();
-                                  commitInCellEdit(false, true);
-                                } else if (e.key === 'Escape') {
-                                  e.preventDefault();
-                                  cancelInCellEdit();
-                                }
-                              }}
-                              className="w-full bg-white font-sans text-xs text-slate-900 border border-blue-500 p-0 focus:outline-hidden dark:bg-[#101b2b] dark:text-white"
-                            />
+                            <div className="relative w-full">
+                              <input
+                                ref={inCellInputRef}
+                                type="text"
+                                value={editValue}
+                                onChange={e => {
+                                  setEditValue(e.target.value);
+                                  setFormulaInputValue(e.target.value);
+                                  setFormulaLastInsertedRef(null);
+                                  setFormulaReferenceRange(null);
+                                }}
+                                onBlur={() => {
+                                  if (isInteractingWithCellRef.current) return;
+                                  setTimeout(() => {
+                                    if (!isInteractingWithCellRef.current) {
+                                      commitInCellEdit();
+                                    }
+                                  }, 150);
+                                }}
+                                onKeyDown={e => {
+                                  if (inCellMatchingFunctions.length > 0) {
+                                    if (e.key === 'ArrowDown') {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      setInCellAutocompleteIndex(prev => (prev + 1) % inCellMatchingFunctions.length);
+                                      return;
+                                    }
+                                    if (e.key === 'ArrowUp') {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      setInCellAutocompleteIndex(prev => (prev - 1 + inCellMatchingFunctions.length) % inCellMatchingFunctions.length);
+                                      return;
+                                    }
+                                    if (e.key === 'Tab' || e.key === 'Enter') {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleInCellSelectFormula(inCellMatchingFunctions[inCellAutocompleteIndex]);
+                                      return;
+                                    }
+                                    if (e.key === 'Escape') {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      setInCellAutocompleteDismissed(true);
+                                      return;
+                                    }
+                                  }
+
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    commitInCellEdit(true);
+                                  } else if (e.key === 'Tab') {
+                                    e.preventDefault();
+                                    if (e.shiftKey) {
+                                      commitInCellEdit(false, false, true, true);
+                                    } else {
+                                      commitInCellEdit(false, true, true, false);
+                                    }
+                                  } else if (e.key === 'Escape') {
+                                    e.preventDefault();
+                                    cancelInCellEdit();
+                                  }
+                                }}
+                                className="w-full bg-white font-sans text-xs text-slate-900 border border-blue-500 p-0 focus:outline-hidden dark:bg-[#101b2b] dark:text-white"
+                              />
+
+                              {/* In-Cell Formula Autocomplete Dropdown */}
+                              {inCellMatchingFunctions.length > 0 && (
+                                <FormulaAutocompleteList
+                                  searchTerm={inCellSearchTerm}
+                                  selectedIndex={inCellAutocompleteIndex}
+                                  onSelectFunction={handleInCellSelectFormula}
+                                  onHoverIndex={setInCellAutocompleteIndex}
+                                  className="top-full left-0 mt-1 shadow-2xl z-50"
+                                />
+                              )}
+                            </div>
                           ) : (
                             formatDisplayVal(cell)
                           )}
@@ -1723,14 +2014,16 @@ export const ExcelWorksheetModule: React.FC = () => {
         initialMode={findReplaceMode}
       />
 
-      <FormatCellsModal
-        isOpen={isFormatCellsOpen}
-        onClose={() => setIsFormatCellsOpen(false)}
-        onApply={(style, numFmt) => applyStyleToSelection(() => style, numFmt)}
-        currentStyle={currentCellObj?.s}
-        currentNumFmt={currentCellObj?.s?.nf}
-        selectedAddress={activeCell.address}
-      />
+      {isFormatCellsOpen && (
+        <FormatCellsModal
+          isOpen={isFormatCellsOpen}
+          onClose={() => setIsFormatCellsOpen(false)}
+          onApply={(style, numFmt) => applyStyleToSelection(() => style, numFmt)}
+          currentStyle={currentCellObj?.s || {}}
+          currentNumFmt={currentCellObj?.s?.nf || 'General'}
+          selectedAddress={activeCell.address}
+        />
+      )}
 
       <PageSetupModal
         isOpen={isPageSetupOpen}

@@ -5,7 +5,8 @@ import {
   colLetterToNum,
   parseAddress,
   formatCellValue,
-  formatExcelDateSerial
+  formatExcelDateSerial,
+  insertCellReferenceIntoFormula
 } from '../src/utils/spreadsheetUtils.ts';
 
 test('colNumToLetter converts 1-based column numbers to Excel column letters', () => {
@@ -77,3 +78,62 @@ test('formatCellValue formats Date objects in date format without returning empt
   assert.notEqual(formatted, '');
   assert.match(formatted, /2026|5\/15\/2026|15\/5\/2026/);
 });
+
+test('insertCellReferenceIntoFormula appends and auto-opens parenthesis for function names', () => {
+  assert.equal(insertCellReferenceIntoFormula('=sum', 'A1'), '=sum(A1');
+  assert.equal(insertCellReferenceIntoFormula('=SUM', 'C5'), '=SUM(C5');
+  assert.equal(insertCellReferenceIntoFormula('=', 'B2'), '=B2');
+  assert.equal(insertCellReferenceIntoFormula('=SUM(', 'A1:A10'), '=SUM(A1:A10');
+  assert.equal(insertCellReferenceIntoFormula('=A1+', 'B2'), '=A1+B2');
+  assert.equal(insertCellReferenceIntoFormula('=A1*B1,', 'C1'), '=A1*B1,C1');
+});
+
+test('insertCellReferenceIntoFormula replaces trailing reference when dragged or re-clicked', () => {
+  assert.equal(insertCellReferenceIntoFormula('=sum(A1', 'A1:A5', 'A1'), '=sum(A1:A5');
+  assert.equal(insertCellReferenceIntoFormula('=A1+B1', 'C1', 'B1'), '=A1+C1');
+  assert.equal(insertCellReferenceIntoFormula('=B2', 'C3'), '=C3');
+});
+
+test('getFormulaSearchContext returns all formulas when writing equal sign', async () => {
+  const { getFormulaSearchContext, SPREADSHEET_FUNCTIONS } = await import('../src/constants/spreadsheetFunctions.ts');
+
+  // Exact '=' must trigger formula list with empty search term (matches all)
+  const ctxEqual = getFormulaSearchContext('=');
+  assert.equal(ctxEqual.isFormula, true);
+  assert.equal(ctxEqual.searchTerm, '');
+  assert.equal(ctxEqual.prefixText, '=');
+
+  // Should contain all cataloged formulas
+  assert.ok(SPREADSHEET_FUNCTIONS.length >= 40);
+  assert.ok(SPREADSHEET_FUNCTIONS.some(f => f.name === 'SUM'));
+  assert.ok(SPREADSHEET_FUNCTIONS.some(f => f.name === 'AVERAGE'));
+  assert.ok(SPREADSHEET_FUNCTIONS.some(f => f.name === 'DATEDIF'));
+  assert.ok(SPREADSHEET_FUNCTIONS.some(f => f.name === 'IF'));
+
+  // Typing '=s' or '=sum' filters prefix
+  const ctxS = getFormulaSearchContext('=s');
+  assert.equal(ctxS.isFormula, true);
+  assert.equal(ctxS.searchTerm, 'S');
+
+  const ctxSum = getFormulaSearchContext('=sum');
+  assert.equal(ctxSum.isFormula, true);
+  assert.equal(ctxSum.searchTerm, 'SUM');
+
+  // Operator-preceded formula context: e.g. '=A1+s' or '=SUM(A1, a'
+  const ctxAdd = getFormulaSearchContext('=A1+s');
+  assert.equal(ctxAdd.isFormula, true);
+  assert.equal(ctxAdd.searchTerm, 'S');
+  assert.equal(ctxAdd.prefixText, '=A1+');
+
+  const ctxComma = getFormulaSearchContext('=SUM(A1, a');
+  assert.equal(ctxComma.isFormula, true);
+  assert.equal(ctxComma.searchTerm, 'A');
+  assert.equal(ctxComma.prefixText, '=SUM(A1, ');
+
+  // Non-formula inputs
+  assert.equal(getFormulaSearchContext('Normal text').isFormula, false);
+  assert.equal(getFormulaSearchContext('12345').isFormula, false);
+  assert.equal(getFormulaSearchContext('').isFormula, false);
+});
+
+

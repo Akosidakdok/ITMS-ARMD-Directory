@@ -45,9 +45,10 @@ export function decodeLegacyWorksheetValue(rawValue) {
 }
 
 function isMissingWorksheetColumnsError(error) {
+  const combined = `${error?.message || ''} ${error?.details || ''} ${error?.hint || ''}`;
   return error?.code === '42703'
     || error?.code === 'PGRST204'
-    || /column .* does not exist|could not find .* column/i.test(error?.message || '');
+    || /column .* does not exist|could not find .* column/i.test(combined);
 }
 
 const worksheetStorageError = error => new Error(
@@ -124,7 +125,7 @@ export async function loadWorksheetPersistence({ required = true } = {}) {
 
 async function persistWorksheetOverride(sheet, address, override, enabled = true) {
   if (!supabase || !enabled) return;
-  const record = worksheetLegacySchema ? {
+  const buildLegacyRecord = () => ({
     id: `${sheet.id}:${address}`,
     worksheet_id: sheet.id,
     cell_address: address,
@@ -132,7 +133,8 @@ async function persistWorksheetOverride(sheet, address, override, enabled = true
     formula: override.formula ?? null,
     updated_by: override.updatedBy,
     updated_at: override.updatedAt
-  } : {
+  });
+  const buildModernRecord = () => ({
     id: `${sheet.id}:${address}`,
     worksheet_id: sheet.id,
     cell_address: address,
@@ -143,8 +145,18 @@ async function persistWorksheetOverride(sheet, address, override, enabled = true
     style_json: override.style ?? null,
     updated_by: override.updatedBy,
     updated_at: override.updatedAt
-  };
-  const { error } = await supabase.from('worksheet_cell_overrides').upsert(record, { onConflict: 'id' });
+  });
+
+  let record = worksheetLegacySchema ? buildLegacyRecord() : buildModernRecord();
+  let { error } = await supabase.from('worksheet_cell_overrides').upsert(record, { onConflict: 'id' });
+
+  if (error && !worksheetLegacySchema && isMissingWorksheetColumnsError(error)) {
+    worksheetLegacySchema = true;
+    record = buildLegacyRecord();
+    const retryResult = await supabase.from('worksheet_cell_overrides').upsert(record, { onConflict: 'id' });
+    error = retryResult.error;
+  }
+
   if (error) throw worksheetStorageError(error);
 }
 
@@ -893,8 +905,10 @@ export async function generateExcelExport(sheetId = null) {
   }
 
   refWb.worksheets.forEach((refSheet, idx) => {
-    // Include all 13 reference worksheets
-    const isAllowed = ALLOWED_WORKSHEET_NAMES.some(n => n.trim().toLowerCase() === refSheet.name.trim().toLowerCase());
+    // Include reference worksheets matching allowed list or target sheet requested
+    const isAllowed = ALLOWED_WORKSHEET_NAMES.some(n => n.trim().toLowerCase() === refSheet.name.trim().toLowerCase())
+      || (targetSheetName && targetSheetName.trim().toLowerCase() === refSheet.name.trim().toLowerCase())
+      || (sheetId && String(sheetId).trim().toLowerCase() === refSheet.name.trim().toLowerCase());
     if (!isAllowed) return;
 
     const cachedSheet = cachedSheets.find(s => s.name.trim().toLowerCase() === refSheet.name.trim().toLowerCase());
@@ -994,12 +1008,15 @@ export async function generateExcelExport(sheetId = null) {
 
         // Fallback to reference cell if not in detail
         const val = cell.value;
-        if (val && typeof val === 'object' && val.formula) {
-          let formula = String(val.formula).trim();
+        const refFormula = (val && typeof val === 'object' && val.formula) ? val.formula : cell.formula;
+        if (refFormula) {
+          let formula = String(refFormula).trim();
           if (formula.startsWith('=')) formula = formula.slice(1).trim();
           formula = formula.replace(/\[1\]Disposition/g, "'Disposition'");
           formula = formula.replace(/DATE\(2026,4,30\)/g, 'TODAY()');
-          const result = (val.result !== undefined && val.result !== null && !Number.isNaN(val.result)) ? val.result : '';
+          const result = (val && typeof val === 'object' && val.result !== undefined && val.result !== null && !Number.isNaN(val.result))
+            ? val.result
+            : (cell.result !== undefined && cell.result !== null && !Number.isNaN(cell.result) ? cell.result : '');
           outCell.value = { formula, result };
         } else if (val && typeof val === 'object' && val.sharedFormula) {
           const result = (val.result !== undefined && val.result !== null && !Number.isNaN(val.result)) ? val.result : '';

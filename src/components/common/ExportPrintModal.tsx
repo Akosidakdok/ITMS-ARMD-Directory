@@ -8,6 +8,7 @@ interface ExportPrintModalProps {
   reportTitle: string;
   data: any[];
   columns: { key: string; label: string }[];
+  reportType?: string;
 }
 
 export const ExportPrintModal: React.FC<ExportPrintModalProps> = ({
@@ -15,10 +16,13 @@ export const ExportPrintModal: React.FC<ExportPrintModalProps> = ({
   onClose,
   reportTitle,
   data,
-  columns
+  columns,
+  reportType
 }) => {
   const [downloadSuccess, setDownloadSuccess] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
+  const [exportingXlsx, setExportingXlsx] = useState(false);
+  const [xlsxSuccess, setXlsxSuccess] = useState(false);
 
   const handleExportCSV = () => {
     // Generate CSV string
@@ -41,6 +45,20 @@ export const ExportPrintModal: React.FC<ExportPrintModalProps> = ({
 
     setDownloadSuccess(true);
     setTimeout(() => setDownloadSuccess(false), 3000);
+  };
+
+  const handleExportXlsx = async () => {
+    setExportingXlsx(true);
+    try {
+      const { exportReportXlsx } = await import('../../utils/reportsExport');
+      await exportReportXlsx(reportTitle, data, columns, reportType);
+      setXlsxSuccess(true);
+      setTimeout(() => setXlsxSuccess(false), 3000);
+    } catch (err) {
+      console.error('Failed to export Excel report:', err);
+    } finally {
+      setExportingXlsx(false);
+    }
   };
 
   const handlePrint = () => {
@@ -93,12 +111,28 @@ export const ExportPrintModal: React.FC<ExportPrintModalProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={handleExportXlsx}
+              disabled={exportingXlsx}
+              className="flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white transition-colors shadow-xs disabled:opacity-60"
+            >
+              {xlsxSuccess ? (
+                <>
+                  <CheckCircle className="w-4 h-4" /> Exported Excel!
+                </>
+              ) : (
+                <>
+                  <FileSpreadsheet className="w-4 h-4" /> {exportingXlsx ? 'Creating Excel…' : 'Export Excel (.xlsx)'}
+                </>
+              )}
+            </button>
+
             <button onClick={handleExportPdf} disabled={exportingPdf} className="flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl bg-slate-800 hover:bg-slate-900 text-white transition-colors disabled:opacity-60">
               <FileDown className="w-4 h-4" /> {exportingPdf ? 'Creating PDF…' : 'Export PDF'}
             </button>
             <button
               onClick={handleExportCSV}
-              className="flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition-colors shadow-xs"
+              className="flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl bg-slate-700 hover:bg-slate-800 text-white transition-colors shadow-xs"
             >
               {downloadSuccess ? (
                 <>
@@ -106,7 +140,7 @@ export const ExportPrintModal: React.FC<ExportPrintModalProps> = ({
                 </>
               ) : (
                 <>
-                  <FileSpreadsheet className="w-4 h-4" /> Export CSV Data
+                  <FileSpreadsheet className="w-4 h-4" /> Export CSV
                 </>
               )}
             </button>
@@ -165,5 +199,3 @@ export const ExportPrintModal: React.FC<ExportPrintModalProps> = ({
     </Modal>
   );
 };
-
-

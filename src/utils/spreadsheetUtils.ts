@@ -88,3 +88,44 @@ export function formatCellValue(value: any, numFmt?: string): string {
       return str;
   }
 }
+
+/**
+ * Inserts or replaces a cell reference / range into an active formula string.
+ * Supports '=SUM' -> '=SUM(A1', dragging '=SUM(A1:A5', operators '=A1+B1', etc.
+ */
+export function insertCellReferenceIntoFormula(
+  formula: string,
+  newRef: string,
+  lastInsertedRef?: string
+): string {
+  let text = String(formula || '').trim();
+  if (!text.startsWith('=')) {
+    text = '=' + text;
+  }
+
+  // If text is like '=SUM' or '=AVERAGE' or '=IF' (function name without open paren)
+  if (/^=[A-Za-z]+$/i.test(text)) {
+    text = text + '(';
+  } else if (/([+\-*/,(<>=&])([A-Za-z]+)$/i.test(text)) {
+    text = text + '(';
+  }
+
+  // If user previously inserted a reference during this editing step and text ends with it, replace it
+  if (lastInsertedRef && text.endsWith(lastInsertedRef)) {
+    return text.slice(0, -lastInsertedRef.length) + newRef;
+  }
+
+  // If formula ends with an open paren, comma, colon, or operator: simply append
+  if (/[\(=,+\-*/&><:]$/.test(text)) {
+    return text + newRef;
+  }
+
+  // If formula ends with an existing cell reference or range, replace it
+  const trailingRefMatch = text.match(/([A-Za-z]+\d+(?::[A-Za-z]+\d+)?)$/);
+  if (trailingRefMatch) {
+    return text.slice(0, -trailingRefMatch[1].length) + newRef;
+  }
+
+  return text + newRef;
+}
+
