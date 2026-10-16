@@ -612,11 +612,18 @@ export const ExcelWorksheetModule: React.FC = () => {
       }
       return;
     }
-    pushUndoSnapshot();
 
     const { minRow, maxRow, minCol, maxCol } = range;
     const rangeStr = `${colNumToLetter(minCol)}${minRow}:${colNumToLetter(maxCol)}${maxRow}`;
     const topLeftAddr = `${colNumToLetter(minCol)}${minRow}`;
+
+    // If this range is already merged, toggle off by unmerging
+    if ((sheetData.merges || []).includes(rangeStr)) {
+      handleUnmergeCells();
+      return;
+    }
+
+    pushUndoSnapshot();
 
     setSheetData(prev => {
       if (!prev) return prev;
@@ -748,15 +755,40 @@ export const ExcelWorksheetModule: React.FC = () => {
   const handleApplyBorder = useCallback((type: BorderOptionType) => {
     if (!sheetData || !canEdit) return;
 
-    const minR = selectionRange ? Math.min(selectionRange.startRow, selectionRange.endRow) : activeCell.row;
-    const maxR = selectionRange ? Math.max(selectionRange.startRow, selectionRange.endRow) : activeCell.row;
-    const minC = selectionRange ? Math.min(selectionRange.startCol, selectionRange.endCol) : activeCell.col;
-    const maxC = selectionRange ? Math.max(selectionRange.startCol, selectionRange.endCol) : activeCell.col;
+    let minR = selectionRange ? Math.min(selectionRange.startRow, selectionRange.endRow) : activeCell.row;
+    let maxR = selectionRange ? Math.max(selectionRange.startRow, selectionRange.endRow) : activeCell.row;
+    let minC = selectionRange ? Math.min(selectionRange.startCol, selectionRange.endCol) : activeCell.col;
+    let maxC = selectionRange ? Math.max(selectionRange.startCol, selectionRange.endCol) : activeCell.col;
+
+    // Expand bounds to cover any overlapping or active-cell merges
+    const overlappingMerges = (sheetData.merges || []).filter(m =>
+      isMergeOverlappingRange(m, minR, maxR, minC, maxC) ||
+      isCellInMergeRange(activeCell.row, activeCell.col, m)
+    );
+
+    overlappingMerges.forEach(m => {
+      const p = parseMergeRange(m);
+      if (p) {
+        minR = Math.min(minR, p.minRow);
+        maxR = Math.max(maxR, p.maxRow);
+        minC = Math.min(minC, p.minCol);
+        maxC = Math.max(maxC, p.maxCol);
+      }
+    });
 
     const newCells = { ...sheetData.cells };
     const staged = new Map(unsavedChanges);
 
     pushUndoSnapshot();
+
+    // If applying 'all', unmerge overlapping merges so all individual cells can display borders
+    let nextMerges = sheetData.merges || [];
+    if (type === 'all' && overlappingMerges.length > 0) {
+      nextMerges = nextMerges.filter(m =>
+        !isMergeOverlappingRange(m, minR, maxR, minC, maxC) &&
+        !isCellInMergeRange(activeCell.row, activeCell.col, m)
+      );
+    }
 
     for (let r = minR; r <= maxR; r++) {
       for (let c = minC; c <= maxC; c++) {
@@ -835,9 +867,12 @@ export const ExcelWorksheetModule: React.FC = () => {
       }
     }
 
-    setSheetData({ ...sheetData, cells: newCells });
+    setSheetData({ ...sheetData, cells: newCells, merges: nextMerges });
     setUnsavedChanges(staged);
-  }, [sheetData, canEdit, selectionRange, activeCell, unsavedChanges]);
+    setSelectionRange({ startRow: minR, startCol: minC, endRow: maxR, endCol: maxC });
+    setMessage(type === 'all' && overlappingMerges.length > 0 ? 'Unmerged & applied all borders' : `Applied ${type} border`);
+    setTimeout(() => setMessage(''), 2000);
+  }, [sheetData, canEdit, selectionRange, activeCell, unsavedChanges, pushUndoSnapshot]);
 
   // Insert formatted table
   const handleInsertTable = useCallback(() => {
@@ -1059,7 +1094,10 @@ export const ExcelWorksheetModule: React.FC = () => {
 
     handleCellClick(r, c, addr);
     setIsDraggingRange(true);
-    setSelectionRange({ startRow: r, startCol: c, endRow: r, endCol: c });
+    const mergeInfo = mergeMap.get(addr);
+    const endR = mergeInfo ? r + mergeInfo.rowSpan - 1 : r;
+    const endC = mergeInfo ? c + mergeInfo.colSpan - 1 : c;
+    setSelectionRange({ startRow: r, startCol: c, endRow: endR, endCol: endC });
   };
 
   const handleCellMouseEnter = (r: number, c: number) => {
@@ -1086,7 +1124,10 @@ export const ExcelWorksheetModule: React.FC = () => {
 
     if (!isDraggingRange) return;
     if (!selectionRange) return;
-    setSelectionRange(prev => prev ? { ...prev, endRow: r, endCol: c } : null);
+    const mergeInfo = mergeMap.get(`${colNumToLetter(c)}${r}`);
+    const endR = mergeInfo ? r + mergeInfo.rowSpan - 1 : r;
+    const endC = mergeInfo ? c + mergeInfo.colSpan - 1 : c;
+    setSelectionRange(prev => prev ? { ...prev, endRow: endR, endCol: endC } : null);
   };
 
   useEffect(() => {
@@ -1971,6 +2012,7 @@ export const ExcelWorksheetModule: React.FC = () => {
           onMergeCells: handleMergeCells,
           onUnmerge: handleUnmergeCells,
           onCenterAcross: handleCenterAcross,
+          isMerged: (sheetData?.merges || []).some(m => isCellInMergeRange(activeCell.row, activeCell.col, m)),
           numFmt: currentCellObj?.s?.nf || 'General',
           onChangeNumFmt: fmt => applyStyleToSelection(s => ({ ...s }), fmt),
           onInsertRow: () => {

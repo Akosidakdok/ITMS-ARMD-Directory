@@ -87,6 +87,7 @@ interface RibbonHomeTabProps {
   onMergeCells?: () => void;
   onUnmerge: () => void;
   onCenterAcross?: () => void;
+  isMerged?: boolean;
 
   numFmt: string;
   onChangeNumFmt: (fmt: string) => void;
@@ -263,6 +264,7 @@ export const RibbonHomeTab: React.FC<RibbonHomeTabProps> = ({
   onMergeCells,
   onUnmerge,
   onCenterAcross,
+  isMerged = false,
   numFmt,
   onChangeNumFmt,
   onInsertRow,
@@ -630,18 +632,22 @@ export const RibbonHomeTab: React.FC<RibbonHomeTabProps> = ({
               type="button"
               onClick={onMergeAndCenter}
               disabled={!canEdit}
-              title="Merge & Center"
-              className="flex items-center gap-1.5 px-2 py-0.5 rounded-l text-[10px] font-medium text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-700/80 disabled:opacity-40 transition-colors"
+              title={isMerged ? 'Unmerge Cells' : 'Merge & Center'}
+              className={`flex items-center gap-1.5 px-2 py-0.5 rounded-l text-[10px] font-medium transition-colors disabled:opacity-40 ${
+                isMerged
+                  ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-sky-300 font-semibold'
+                  : 'text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-700/80'
+              }`}
             >
               <div className="w-3.5 h-3.5 flex items-center justify-center shrink-0">
-                <svg className="w-3.5 h-3.5 text-blue-600 dark:text-sky-400" viewBox="0 0 16 16" fill="none">
+                <svg className={`w-3.5 h-3.5 ${isMerged ? 'text-blue-700 dark:text-sky-300' : 'text-blue-600 dark:text-sky-400'}`} viewBox="0 0 16 16" fill="none">
                   <rect x="1.5" y="1.5" width="13" height="13" rx="1" stroke="currentColor" strokeWidth="1.2" />
                   <line x1="8" y1="1.5" x2="8" y2="4.5" stroke="currentColor" strokeWidth="1.2" />
                   <line x1="8" y1="11.5" x2="8" y2="14.5" stroke="currentColor" strokeWidth="1.2" />
                   <path d="M4 8h8M6 5.5l-2.5 2.5 2.5 2.5M10 5.5l2.5 2.5-2.5 2.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </div>
-              <span className="whitespace-nowrap">Merge & Center</span>
+              <span className="whitespace-nowrap">{isMerged ? 'Merged' : 'Merge & Center'}</span>
             </button>
             <button
               type="button"
