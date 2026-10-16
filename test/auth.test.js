@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-process.env.AUTH_ADMIN_EMAILS = 'cjbaldonado11@gmail.com';
+process.env.AUTH_SUPERADMIN_EMAILS = 'cjbaldonado11@gmail.com';
 
 const { requireAdminForMutation, resolveAppRole, toAuthenticatedUser } = await import('../backend/middleware/auth.js');
 
