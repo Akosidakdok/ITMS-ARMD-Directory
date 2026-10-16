@@ -824,7 +824,14 @@ export const ExcelWorksheetModule: React.FC = () => {
             br: newBr
           }
         };
-        staged.set(addr, newCells[addr]);
+        const existingStaged = staged.get(addr);
+        staged.set(addr, {
+          oldValue: existingStaged ? existingStaged.oldValue : cell.v,
+          newValue: existingStaged ? existingStaged.newValue : cell.v,
+          oldFormula: existingStaged ? existingStaged.oldFormula : (cell.f ?? null),
+          formula: existingStaged ? existingStaged.formula : (cell.f ?? null),
+          style: newCells[addr].s
+        });
       }
     }
 
@@ -884,7 +891,14 @@ export const ExcelWorksheetModule: React.FC = () => {
           v: cellValue,
           s: newStyle
         };
-        staged.set(addr, newCells[addr]);
+        const existingStaged = staged.get(addr);
+        staged.set(addr, {
+          oldValue: existingStaged ? existingStaged.oldValue : existing.v,
+          newValue: existingStaged ? existingStaged.newValue : cellValue,
+          oldFormula: existingStaged ? existingStaged.oldFormula : (existing.f ?? null),
+          formula: existingStaged ? existingStaged.formula : (existing.f ?? null),
+          style: newStyle
+        });
       }
     }
 

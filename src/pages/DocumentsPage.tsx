@@ -120,12 +120,19 @@ export const DocumentsPage: React.FC = () => {
   // Save handler from Editor
   const handleSaveDocument = async (payload: {
     id?: string;
+    order_id?: string | null;
     title: string;
     content_json: any;
     content_html: string;
+    page_size?: string;
+    orientation?: 'portrait' | 'landscape';
+    margin_top?: number;
+    margin_bottom?: number;
+    margin_left?: number;
+    margin_right?: number;
     change_summary?: string;
   }) => {
-    if (editingOrder?.id) {
+    if (editingOrder?.id && payload.order_id !== null) {
       const res = await saveOrderDocumentFromEditorApi(editingOrder.id, payload);
       setEditingDocument(res.document);
       loadDocuments();
@@ -135,6 +142,12 @@ export const DocumentsPage: React.FC = () => {
         title: payload.title,
         content_json: payload.content_json,
         content_html: payload.content_html,
+        page_size: payload.page_size,
+        orientation: payload.orientation,
+        margin_top: payload.margin_top,
+        margin_bottom: payload.margin_bottom,
+        margin_left: payload.margin_left,
+        margin_right: payload.margin_right,
         incrementVersion: true,
         change_summary: payload.change_summary
       });
@@ -147,6 +160,12 @@ export const DocumentsPage: React.FC = () => {
         content_json: payload.content_json,
         content_html: payload.content_html,
         document_type: 'Custom Document',
+        page_size: payload.page_size,
+        orientation: payload.orientation,
+        margin_top: payload.margin_top,
+        margin_bottom: payload.margin_bottom,
+        margin_left: payload.margin_left,
+        margin_right: payload.margin_right,
         created_by: authUser?.displayName || authUser?.email || 'System'
       });
       setEditingDocument(created);

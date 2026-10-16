@@ -12,6 +12,10 @@ import {
 import { useAuthRole } from '../../context/AuthRoleContext';
 import { hasManagementAccess } from '../../utils/accessControl';
 import { isUniformedRank, getRankCategory } from '../../constants/ranks';
+import {
+  formatAssignmentTenure, formatTenure, getAssignmentEffectiveDate,
+  getCurrentMainAssignment, getLatestPromotionDate, getTodayInPhilippines
+} from '../../utils/personnelTenure';
 
 interface PersonnelSummaryCardProps {
   personnel: Personnel;
@@ -19,7 +23,7 @@ interface PersonnelSummaryCardProps {
 }
 
 export const PersonnelSummaryCard: React.FC<PersonnelSummaryCardProps> = ({ personnel, onEdit }) => {
-  const { role, assignmentsList, ordersList, leaveList } = useAuthRole();
+  const { role, assignmentsList, promotionsList, ordersList, leaveList } = useAuthRole();
   const canManage = hasManagementAccess(role);
   const isUniformed = isUniformedRank(personnel.rank);
   const personnelAssignments = assignmentsList.filter(record => record.personnelId === personnel.id);
@@ -33,6 +37,15 @@ export const PersonnelSummaryCard: React.FC<PersonnelSummaryCardProps> = ({ pers
     record.personnelIds?.includes(personnel.id) ||
     record.personnelSnapshot?.some(person => person.personnelId === personnel.id)
   ));
+  const today = getTodayInPhilippines();
+  const promotionDate = getLatestPromotionDate(personnel, promotionsList);
+  const currentAssignment = getCurrentMainAssignment(assignmentsList, personnel.id);
+  const currentPositionDate = currentAssignment
+    ? getAssignmentEffectiveDate(currentAssignment)
+    : personnelAssignments.length === 0 ? personnel.effectiveDate || '' : '';
+  const currentPositionTenure = currentAssignment
+    ? formatAssignmentTenure(currentAssignment, today)
+    : personnelAssignments.length === 0 ? formatTenure(currentPositionDate, today) : 'No current posting';
 
   const formatSalaryGrade = (sg?: string | number) => {
     if (!sg) return '—';
@@ -57,7 +70,9 @@ export const PersonnelSummaryCard: React.FC<PersonnelSummaryCardProps> = ({ pers
     ['Duty status', personnel.status],
     ...(!isUniformed ? [['Salary grade', formatSalaryGrade(personnel.salaryGrade)] as [string, string]] : []),
     ['Designation date', personnel.designationDate || personnel.enterInOfficerPositionDate || 'Not recorded'],
-    ['Effective date', personnel.effectiveDate || 'Not recorded']
+    ['Effective date', currentPositionDate || 'Not recorded'],
+    ...(isUniformed ? [['Time in grade', formatTenure(promotionDate, today)] as [string, string]] : []),
+    ['Time in current position', currentPositionTenure]
   ];
 
   return (

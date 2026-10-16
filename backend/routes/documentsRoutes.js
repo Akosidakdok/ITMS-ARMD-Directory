@@ -1,7 +1,7 @@
 import express from 'express';
 import { db } from '../store/repository.js';
 import { formatDocumentOrderNumber } from '../services/orderDocxGenerator.js';
-import { getOrderPurposeLabel } from '../utils/orderCatalog.js';
+import { getOrderPurposeDefinition, getOrderPurposeLabel } from '../utils/orderCatalog.js';
 
 const router = express.Router();
 
@@ -9,11 +9,21 @@ const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, c => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
 }[c] || c));
 
+const getRoleLabel = (purposeCode, roleCode) => getOrderPurposeDefinition(purposeCode)
+  ?.personnelRoles.find(role => role.code === roleCode)?.label || roleCode;
+
 const formatDate = value => {
   if (!value) return '';
   const date = new Date(`${String(value).slice(0, 10)}T00:00:00`);
   if (Number.isNaN(date.getTime())) return String(value);
   return date.toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' });
+};
+
+const formatDateWithWeekday = value => {
+  if (!value) return '';
+  const date = new Date(`${String(value).slice(0, 10)}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return formatDate(value);
+  return date.toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric', weekday: 'long' });
 };
 
 // Generate default HTML for an administrative order
@@ -23,8 +33,10 @@ const generateAdministrativeOrderHtml = order => {
   const formattedOrderNum = formatDocumentOrderNumber(orderNum);
   const issuedDate = formatDate(order.issuedDate || order.date || new Date().toISOString().slice(0, 10));
   const seriesHeading = order.seriesHeading || (order.series === 'GO' ? 'GENERAL ORDERS' : order.series === 'LO' ? 'LETTER ORDERS' : 'ADMINISTRATIVE ORDERS');
-  const subject = escapeHtml(order.subject || getOrderPurposeLabel(order.purposeCode) || 'ADMINISTRATIVE ORDER');
-  const description = escapeHtml(order.description || order.details || 'The following-named personnel of this Service are hereby covered by this administrative order:');
+  const rawSubject = order.subject || getOrderPurposeLabel(order.purposeCode) || 'ADMINISTRATIVE ORDER';
+  const subject = escapeHtml(rawSubject);
+  const rawDescription = String(order.description || order.details || '').trim();
+  const description = escapeHtml(rawDescription);
   const signatory = escapeHtml(order.signatory || 'PBGEN BENJAMIN H ACORDA');
   const signatoryTitle = escapeHtml(order.signatoryTitle || 'Director, ITMS');
   const authorityText = escapeHtml(order.authorityText || 'BY COMMAND OF POLICE BRIGADIER GENERAL PALGUE:');
@@ -37,7 +49,7 @@ const generateAdministrativeOrderHtml = order => {
     ? order.personnelSnapshot
     : (order.personnelIds || []).map((id, index) => ({
         fullName: `Personnel #${index + 1}`,
-        rank: 'PCO/PNCO',
+        rank: '',
         badgeNo: '',
         designation: '',
         unit: ''
@@ -45,15 +57,43 @@ const generateAdministrativeOrderHtml = order => {
 
   const nonDrivers = personnelList.filter(p => p.role !== 'driver');
   const drivers = personnelList.filter(p => p.role === 'driver');
+  const singlePerson = personnelList.length === 1 ? personnelList[0] : undefined;
+  const singlePersonName = singlePerson
+    ? [singlePerson.rank, singlePerson.fullName].filter(Boolean).join(' ').trim()
+    : '';
+  const singlePersonContext = singlePerson
+    ? [singlePerson.role && singlePerson.role !== 'affected' && singlePerson.role !== 'driver' ? getRoleLabel(order.purposeCode, singlePerson.role) : '', singlePerson.unit]
+      .filter(Boolean).map(escapeHtml).join('; ')
+    : '';
+  const singlePersonLead = singlePersonName
+    ? `<strong>${escapeHtml(singlePersonName)}</strong>${singlePersonContext ? ` (${singlePersonContext})` : ''}`
+    : '';
+  let narrative = description || 'The following-named personnel of this Service are hereby covered by this administrative order:';
+  if (singlePersonLead && order.purposeCode === 'TR') {
+    const data = order.purposeData || {};
+    const destinations = Array.isArray(data.destinations)
+      ? data.destinations.filter(Boolean).join(' and ')
+      : data.destinations || data.destination || 'the stated destination';
+    const start = formatDateWithWeekday(data.travelStartDate || order.effectiveDate || order.issuedDate);
+    const end = formatDateWithWeekday(data.travelEndDate || data.travelStartDate || order.effectiveDate || order.issuedDate);
+    const activity = data.activity || data.travelPurpose || 'official business';
+    narrative = singlePerson.role === 'driver'
+      ? `${singlePersonLead} will serve as driver for travel to ${escapeHtml(destinations)} from ${escapeHtml(start)} to ${escapeHtml(end)} for the conduct of ${escapeHtml(activity)}.`
+      : `${singlePersonLead} is authorized to travel to ${escapeHtml(destinations)} from ${escapeHtml(start)} to ${escapeHtml(end)} for the conduct of ${escapeHtml(activity)}.`;
+  } else if (singlePersonLead) {
+    narrative = singlePerson.role === 'driver'
+      ? `${singlePersonLead} is designated as driver under this ${subject.toLowerCase()} order.`
+      : `${singlePersonLead} is hereby covered by this ${subject.toLowerCase()} order.`;
+  }
 
-  const personnelItems = nonDrivers.map((p, idx) => {
+  const personnelItems = (singlePersonLead ? [] : nonDrivers).map((p, idx) => {
     const seq = nonDrivers.length > 1 ? `${idx + 1}. ` : '';
     const unitStr = p.unit ? ` - ${escapeHtml(p.unit)}` : '';
     const rankName = `${p.rank ? `${escapeHtml(p.rank)} ` : ''}${escapeHtml(p.fullName || '')}`.trim();
     return `<p style="margin: 0; padding-left: 85px; font-size: 12pt; line-height: 1.2;">${seq}${rankName}${unitStr}</p>`;
   }).join('\n');
 
-  const driverItems = drivers.map(p => {
+  const driverItems = (singlePersonLead ? [] : drivers).map(p => {
     const rankName = `${p.rank ? `${escapeHtml(p.rank)} ` : ''}${escapeHtml(p.fullName || '')}`.trim();
     return `<p style="margin: 0; padding-left: 85px; font-size: 12pt; line-height: 1.2;">Driver: ${rankName}</p>`;
   }).join('\n');
@@ -91,8 +131,9 @@ const generateAdministrativeOrderHtml = order => {
       </div>
 
       <p style="margin: 0 0 12px 0; text-align: justify; text-indent: 36pt; font-size: 12pt; line-height: 1.2;">
-        ${description}
+        ${narrative}
       </p>
+      ${singlePersonLead && description ? `<p style="margin: 0 0 12px 0; text-align: justify; white-space: pre-wrap; font-size: 12pt; line-height: 1.2;">${description}</p>` : ''}
 
       <div style="margin-bottom: 16px;">
         ${personnelItems}

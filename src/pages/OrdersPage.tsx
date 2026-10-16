@@ -30,7 +30,12 @@ import {
   CANONICAL_DOCUMENT_CONFIG
 } from '../components/document/utils/sharedOrderDocument';
 import { exportToDocx } from '../components/document/utils/docxExporter';
-import { fetchOrderDocumentForEditApi, saveOrderDocumentFromEditorApi } from '../services/documentsApi';
+import {
+  createDocumentApi,
+  fetchOrderDocumentForEditApi,
+  saveOrderDocumentFromEditorApi,
+  updateDocumentApi
+} from '../services/documentsApi';
 import type { DocumentRecord } from '../services/documentsApi';
 import { LeaveCalendar } from '../components/orders/LeaveCalendar';
 import { LeaveCalendarForm } from '../components/orders/LeaveCalendarForm';
@@ -68,6 +73,72 @@ type DashboardRecord =
 
 const ORDER_STATUSES = [...ORDER_DOCUMENT_STATUS_OPTIONS.map(option => option.value), ...LEGACY_ORDER_STATUS_OPTIONS];
 const LOCKED_ORDER_STATUSES = new Set<OrderDocumentStatus | string>(['Signed', 'Released', 'Archived', 'Revoked']);
+const DEFAULT_CERTIFYING_OFFICIAL = 'VICTORIO M DELA PEÑA, JR';
+const DEFAULT_CERTIFYING_OFFICIAL_RANK = 'Police Colonel';
+const DEFAULT_CERTIFYING_OFFICIAL_POSITION = 'Chief, Administrative and Resource Management Division';
+const ORDER_PURPOSE_HELP: Record<OrderPurposeCode, string> = {
+  DES: 'Assign personnel to a designation and unit.',
+  TDS: 'End a designation currently held by selected personnel.',
+  DO: 'Temporarily detail personnel to another location or unit.',
+  DOX: 'Extend an existing detail order.',
+  TR: 'Authorize official travel for selected personnel.',
+  RA: 'Move personnel between sub-units.',
+  UA: 'Move personnel from one unit to another.',
+  CSC: 'Record a combination of service.',
+  LV: 'Authorize leave for a selected person and date range.',
+  AW: 'Recognize selected personnel with an award.',
+  CCS: 'Record a change in civil status.',
+  AO: 'Assign personnel to a unit and position.',
+  PR: 'Record a promotion from one rank to another.',
+  PA: 'Appoint selected personnel to a position.',
+  RG: 'Record a resignation and its effective date.',
+  LP: 'Record eligibility for longevity pay.',
+  RCA: 'Record eligibility for replacement clothing allowance.',
+  SP: 'Record specialty and eligibility for specialist pay.',
+  AWOL: 'Record an absence without leave.',
+  CN: 'Record a change of name.',
+  CHAPS: 'Record a change in appointed status.'
+};
+
+const ORDER_FIELD_HELP: Record<string, string> = {
+  designation: 'Enter the official designation or duty title.',
+  assignedUnit: 'Enter the unit where the person will serve.',
+  reason: 'Explain the reason that should appear in the order.',
+  detailLocation: 'Enter the unit or location where the detail will take place.',
+  detailStartDate: 'The first day the detail applies.',
+  detailEndDate: 'The last day of the detail, if one has been set.',
+  originalDetailOrder: 'Enter the order number or reference for the existing detail.',
+  extensionEndDate: 'The last day covered by the extension.',
+  destinations: 'List each destination, in travel sequence if there is more than one.',
+  travelStartDate: 'The first day of official travel.',
+  travelEndDate: 'The last day of official travel.',
+  activity: 'Describe the official activity or reason for travel.',
+  fromSubUnit: 'Select or enter the person’s current sub-unit.',
+  toSubUnit: 'Select or enter the sub-unit they will move to.',
+  fromUnit: 'Select or enter the person’s current unit.',
+  toUnit: 'Select or enter the unit they will move to.',
+  combinationDetails: 'Describe the services being combined.',
+  leaveType: 'Choose the applicable leave category.',
+  leaveStartDate: 'The first day of leave.',
+  leaveEndDate: 'The last day of leave.',
+  awardTitle: 'Enter the formal name of the award.',
+  citation: 'Describe the achievement or service being recognized.',
+  previousCivilStatus: 'Enter the civil status currently on record.',
+  newCivilStatus: 'Enter the updated civil status.',
+  position: 'Enter the person’s position or assignment.',
+  rankFrom: 'Enter the rank before promotion.',
+  rankTo: 'Enter the new rank.',
+  appointmentPosition: 'Enter the position the person is appointed to.',
+  resignationDate: 'The date the resignation takes effect.',
+  eligibilityBasis: 'Summarize the basis for eligibility.',
+  specialty: 'Enter the specialty related to this pay action.',
+  absenceStartDate: 'The first day the person was absent without leave.',
+  lastKnownDuty: 'Enter the last known duty assignment or location.',
+  previousName: 'Enter the name currently on record.',
+  newName: 'Enter the updated name as it should appear on record.',
+  previousAppointedStatus: 'Enter the appointed status currently on record.',
+  newAppointedStatus: 'Enter the updated appointed status.'
+};
 
 const normalizedOrderStatus = (order: OrderRecord): OrderDocumentStatus => {
   const value = order.documentStatus || order.status;
@@ -300,20 +371,63 @@ export const OrdersPage = () => {
 
   const handleSaveOrderFromDocumentEditor = async (payload: {
     id?: string;
+    order_id?: string | null;
     title: string;
     content_json: any;
     content_html: string;
+    page_size?: string;
+    orientation?: 'portrait' | 'landscape';
+    margin_top?: number;
+    margin_bottom?: number;
+    margin_left?: number;
+    margin_right?: number;
     change_summary?: string;
   }) => {
     if (!orderEditingInDocumentEditor) return;
     try {
+      if (payload.order_id === null) {
+        const detachedDocument = payload.id
+          ? await updateDocumentApi(payload.id, {
+              title: payload.title,
+              content_json: payload.content_json,
+              content_html: payload.content_html,
+              page_size: payload.page_size,
+              orientation: payload.orientation,
+              margin_top: payload.margin_top,
+              margin_bottom: payload.margin_bottom,
+              margin_left: payload.margin_left,
+              margin_right: payload.margin_right,
+              incrementVersion: true,
+              change_summary: payload.change_summary
+            })
+          : await createDocumentApi({
+              title: payload.title,
+              content_json: payload.content_json,
+              content_html: payload.content_html,
+              document_type: 'Administrative Order',
+              page_size: payload.page_size,
+              orientation: payload.orientation,
+              margin_top: payload.margin_top,
+              margin_bottom: payload.margin_bottom,
+              margin_left: payload.margin_left,
+              margin_right: payload.margin_right,
+              created_by: 'Current User'
+            });
+        setOrderEditingInDocumentEditor({
+          order: orderEditingInDocumentEditor.order,
+          document: detachedDocument
+        });
+        setToast({ type: 'success', message: 'Duplicate saved as a separate document.' });
+        return detachedDocument;
+      }
+
       const result = await saveOrderDocumentFromEditorApi(orderEditingInDocumentEditor.order.id, payload);
       setOrderEditingInDocumentEditor({
         order: orderEditingInDocumentEditor.order,
         document: result.document
       });
       // Update document preview to reflect saved changes
-      setDocumentPreview({ order: orderEditingInDocumentEditor.order, html: result.document.content_html });
+      setDocumentPreview({ order: orderEditingInDocumentEditor.order, html: result.document.content_html || payload.content_html });
       setToast({ type: 'success', message: 'Order document saved locally. Order remains unsigned.' });
       return result.document;
     } catch (error) {
@@ -364,10 +478,15 @@ export const OrdersPage = () => {
   const [status, setStatus] = useState<OrderDocumentStatus>('Draft');
   const [signatory, setSignatory] = useState('PBGEN BENJAMIN H ACORDA');
   const [signatoryTitle, setSignatoryTitle] = useState('Director, ITMS');
+  const [certifyingOfficial, setCertifyingOfficial] = useState(DEFAULT_CERTIFYING_OFFICIAL);
+  const [certifyingOfficialRank, setCertifyingOfficialRank] = useState(DEFAULT_CERTIFYING_OFFICIAL_RANK);
+  const [certifyingOfficialPosition, setCertifyingOfficialPosition] = useState(DEFAULT_CERTIFYING_OFFICIAL_POSITION);
   const [affectedPersonnelCount, setAffectedPersonnelCount] = useState(1);
   const [selectedPersonnelIds, setSelectedPersonnelIds] = useState<string[]>([]);
   const [personnelRoleAssignments, setPersonnelRoleAssignments] = useState<Record<string, OrderPersonnelRoleCode>>({});
   const [personnelSearch, setPersonnelSearch] = useState('');
+  const [personnelUnitFilter, setPersonnelUnitFilter] = useState('');
+  const [showSelectedPersonnelOnly, setShowSelectedPersonnelOnly] = useState(false);
   const [description, setDescription] = useState('');
   const [purposeData, setPurposeData] = useState<Record<string, string>>({});
   const [orderError, setOrderError] = useState('');
@@ -390,10 +509,12 @@ export const OrdersPage = () => {
   const renderPurposeField = (field: NonNullable<typeof purposeDefinition>['fields'][number]) => {
     const value = purposeData[field.key] || '';
     const fieldClass = 'w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:border-teal-600 focus:ring-2 focus:ring-teal-100';
-    if (field.type === 'textarea') return <label key={field.key} className="md:col-span-2"><span className="mb-1.5 block text-sm font-medium text-slate-700">{field.label}{field.required && ' *'}</span><textarea required={field.required} value={value} onChange={event => updatePurposeField(field.key, event.target.value)} rows={4} className={fieldClass} /></label>;
-    if (field.type === 'select') return <label key={field.key}><span className="mb-1.5 block text-sm font-medium text-slate-700">{field.label}{field.required && ' *'}</span><select required={field.required} value={value} onChange={event => updatePurposeField(field.key, event.target.value)} className={fieldClass}><option value="">Select {field.label.toLowerCase()}</option>{(field.key === 'leaveType' ? LEAVE_TYPES : []).map(option => <option key={option} value={option}>{option}</option>)}</select></label>;
-    if (field.type === 'unit') return <label key={field.key}><span className="mb-1.5 block text-sm font-medium text-slate-700">{field.label}{field.required && ' *'}</span><input required={field.required} list={`order-units-${field.key}`} value={value} onChange={event => updatePurposeField(field.key, event.target.value)} placeholder="Select or enter a unit" className={fieldClass} /><datalist id={`order-units-${field.key}`}>{unitOptions.map(option => <option key={option.value} value={option.value} />)}</datalist></label>;
-    return <label key={field.key}><span className="mb-1.5 block text-sm font-medium text-slate-700">{field.label}{field.required && ' *'}</span><input required={field.required} type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'} value={value} onChange={event => updatePurposeField(field.key, event.target.value)} className={fieldClass} /></label>;
+    const help = ORDER_FIELD_HELP[field.key];
+    const helpText = help && <span className="mt-1 block text-xs text-slate-500">{help}</span>;
+    if (field.type === 'textarea') return <label key={field.key} className="md:col-span-2"><span className="mb-1.5 block text-sm font-medium text-slate-700">{field.label}{field.required && ' *'}</span><textarea required={field.required} value={value} onChange={event => updatePurposeField(field.key, event.target.value)} rows={4} className={fieldClass} />{helpText}</label>;
+    if (field.type === 'select') return <label key={field.key}><span className="mb-1.5 block text-sm font-medium text-slate-700">{field.label}{field.required && ' *'}</span><select required={field.required} value={value} onChange={event => updatePurposeField(field.key, event.target.value)} className={fieldClass}><option value="">Choose {field.label.toLowerCase()}</option>{(field.key === 'leaveType' ? LEAVE_TYPES : []).map(option => <option key={option} value={option}>{option}</option>)}</select>{helpText}</label>;
+    if (field.type === 'unit') return <label key={field.key}><span className="mb-1.5 block text-sm font-medium text-slate-700">{field.label}{field.required && ' *'}</span><input required={field.required} list={`order-units-${field.key}`} value={value} onChange={event => updatePurposeField(field.key, event.target.value)} placeholder="Search or enter a unit" className={fieldClass} /><datalist id={`order-units-${field.key}`}>{unitOptions.map(option => <option key={option.value} value={option.value} />)}</datalist>{helpText}</label>;
+    return <label key={field.key}><span className="mb-1.5 block text-sm font-medium text-slate-700">{field.label}{field.required && ' *'}</span><input required={field.required} type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'} value={value} onChange={event => updatePurposeField(field.key, event.target.value)} className={fieldClass} />{helpText}</label>;
   };
   const editingOrderLocked = !!editingOrder && LOCKED_ORDER_STATUSES.has(status);
   const requiresFullMetadata = true;
@@ -424,18 +545,22 @@ export const OrdersPage = () => {
 
   const filteredPersonnel = useMemo(() => {
     const query = personnelSearch.trim().toLowerCase();
-    if (!query) return personnelList;
-    return personnelList.filter(person => [
-      person.fullName,
-      person.firstName,
-      person.lastName,
-      person.rank,
-      person.badgeNo,
-      person.sub_unit,
-      person.division,
-      person.unitCategory
-    ].filter(Boolean).join(' ').toLowerCase().includes(query));
-  }, [personnelList, personnelSearch]);
+    return personnelList.filter(person => {
+      const matchesQuery = !query || [
+        person.fullName,
+        person.firstName,
+        person.lastName,
+        person.rank,
+        person.badgeNo,
+        person.sub_unit,
+        person.division,
+        person.unitCategory
+      ].filter(Boolean).join(' ').toLowerCase().includes(query);
+      const matchesUnit = !personnelUnitFilter || [person.sub_unit, person.division, person.unitCategory].includes(personnelUnitFilter);
+      const matchesSelected = !showSelectedPersonnelOnly || selectedPersonnelIds.includes(person.id);
+      return matchesQuery && matchesUnit && matchesSelected;
+    });
+  }, [personnelList, personnelSearch, personnelUnitFilter, showSelectedPersonnelOnly, selectedPersonnelIds]);
 
   const selectedPersonnel = useMemo(
     () => selectedPersonnelIds.map(id => personnelList.find(person => person.id === id)).filter(Boolean),
@@ -459,10 +584,15 @@ export const OrdersPage = () => {
     setStatus('Draft');
     setSignatory('PBGEN BENJAMIN H ACORDA');
     setSignatoryTitle('Director, ITMS');
+    setCertifyingOfficial(DEFAULT_CERTIFYING_OFFICIAL);
+    setCertifyingOfficialRank(DEFAULT_CERTIFYING_OFFICIAL_RANK);
+    setCertifyingOfficialPosition(DEFAULT_CERTIFYING_OFFICIAL_POSITION);
     setAffectedPersonnelCount(1);
     setSelectedPersonnelIds([]);
     setPersonnelRoleAssignments({});
     setPersonnelSearch('');
+    setPersonnelUnitFilter('');
+    setShowSelectedPersonnelOnly(false);
     setDescription('');
     setPurposeData({});
     setOrderError('');
@@ -481,12 +611,18 @@ export const OrdersPage = () => {
     setStatus(normalizedOrderStatus(order));
     setSignatory(order.signatory || 'PBGEN BENJAMIN H ACORDA');
     setSignatoryTitle(order.signatoryTitle || 'Director, ITMS');
+    setCertifyingOfficial(order.certifyingOfficial || DEFAULT_CERTIFYING_OFFICIAL);
+    setCertifyingOfficialRank(order.certifyingOfficialRank || DEFAULT_CERTIFYING_OFFICIAL_RANK);
+    setCertifyingOfficialPosition(order.certifyingOfficialPosition || DEFAULT_CERTIFYING_OFFICIAL_POSITION);
     setAffectedPersonnelCount(order.affectedPersonnelCount || order.personnelIds?.length || 1);
     setSelectedPersonnelIds(order.personnelIds || []);
     setPersonnelRoleAssignments(Object.fromEntries(
       (order.personnelInvolvement || order.personnelIds?.map((personnelId, index) => ({ personnelId, role: 'affected' as const, sequence: index + 1 })) || [])
         .map(involvement => [involvement.personnelId, involvement.role])
     ));
+    setPersonnelSearch('');
+    setPersonnelUnitFilter('');
+    setShowSelectedPersonnelOnly(false);
     setDescription(order.description || '');
     setPurposeData(Object.fromEntries(Object.entries(order.purposeData || {}).map(([key, value]) => [key, Array.isArray(value) ? value.join(', ') : String(value ?? '')])));
     setOrderWizardStep(1);
@@ -555,7 +691,7 @@ export const OrdersPage = () => {
       return false;
     }
     if (orderWizardStep === 2 && (!subject.trim() || !issuedDate || !effectiveDate)) {
-      setOrderError('Subject, issued date, and effective date are required.');
+      setOrderError('Enter the order subject, date issued, and effective date to continue.');
       return false;
     }
     if (orderWizardStep === 3) {
@@ -565,8 +701,8 @@ export const OrdersPage = () => {
         return false;
       }
     }
-    if (orderWizardStep === 4 && (!signatory.trim() || !signatoryTitle.trim() || (!editingOrder && selectedPersonnelIds.length === 0))) {
-      setOrderError('Select at least one personnel record and complete the signatory details.');
+    if (orderWizardStep === 4 && (!signatory.trim() || !signatoryTitle.trim() || !certifyingOfficial.trim() || !certifyingOfficialRank.trim() || !certifyingOfficialPosition.trim() || (!editingOrder && selectedPersonnelIds.length === 0))) {
+      setOrderError('Select at least one person and complete both official signature blocks.');
       return false;
     }
     return true;
@@ -726,7 +862,7 @@ export const OrdersPage = () => {
     const savedEffectiveDate = effectiveDate || savedIssuedDate;
     const savedSubject = subject.trim() || `${getOrderPurposeLabel(purposeCode)} order`;
     const missingPersonnelIds = selectedPersonnelIds.filter(id => !personnelNames.has(id));
-    if (requiresFullMetadata && (!subject.trim() || !issuedDate || !effectiveDate || !signatory.trim() || !signatoryTitle.trim())) {
+    if (requiresFullMetadata && (!subject.trim() || !issuedDate || !effectiveDate || !signatory.trim() || !signatoryTitle.trim() || !certifyingOfficial.trim() || !certifyingOfficialRank.trim() || !certifyingOfficialPosition.trim())) {
       setOrderError('Complete all required administrative order fields.');
       return;
     }
@@ -771,6 +907,9 @@ export const OrdersPage = () => {
         effectiveDate: savedEffectiveDate,
         signatory: signatory.trim(),
         signatoryTitle: signatoryTitle.trim(),
+        certifyingOfficial: certifyingOfficial.trim(),
+        certifyingOfficialRank: certifyingOfficialRank.trim(),
+        certifyingOfficialPosition: certifyingOfficialPosition.trim(),
         affectedPersonnelCount: selectedPersonnelIds.length || affectedPersonnelCount,
         description: description.trim(),
         purposeData,
@@ -1400,80 +1539,103 @@ export const OrdersPage = () => {
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Step {orderWizardStep} of 4</p>
-                  <p className="mt-1 text-sm font-bold text-slate-900">{orderWizardStep === 1 ? 'Choose series and purpose' : orderWizardStep === 2 ? 'Complete common order details' : orderWizardStep === 3 ? 'Enter purpose-specific details' : 'Add personnel and review'}</p>
+                  <p className="mt-1 text-sm font-bold text-slate-900">{orderWizardStep === 1 ? 'Choose the order type' : orderWizardStep === 2 ? 'Add order details and dates' : orderWizardStep === 3 ? 'Complete the required details' : 'Select personnel and review'}</p>
+                  <p className="mt-1 text-xs text-slate-600">{orderWizardStep === 1 ? 'Choose a series and purpose to set the order format.' : orderWizardStep === 2 ? 'Enter the subject, issue date, effective date, and any additional instructions.' : orderWizardStep === 3 ? 'Fields on this step depend on the purpose you selected.' : 'Choose the personnel involved, assign roles, and check the summary before generating.'}</p>
                 </div>
                 {!editingOrder && <span className="w-fit rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 ring-1 ring-slate-200">{backendConnected ? 'Official number on save' : 'Offline draft'}</span>}
               </div>
-              <div className="mt-4 grid grid-cols-4 gap-2">
-                {['Classification', 'Order details', 'Purpose details', 'People & review'].map((label, index) => <div key={label} className={`h-1.5 rounded-full ${index + 1 <= orderWizardStep ? 'bg-teal-600' : 'bg-slate-200'}`} title={label} />)}
+              <div className="mt-4 grid grid-cols-4 gap-2" role="group" aria-label="Order form progress">
+                {['Order type', 'Details', 'Purpose', 'Personnel'].map((label, index) => <div key={label} className="min-w-0"><div aria-hidden="true" className={`h-1.5 rounded-full ${index + 1 <= orderWizardStep ? 'bg-teal-600' : 'bg-slate-200'}`} /><p aria-current={index + 1 === orderWizardStep ? 'step' : undefined} className={`mt-1.5 truncate text-xs ${index + 1 === orderWizardStep ? 'font-bold text-teal-800' : 'text-slate-500'}`}>{index + 1}. {label}</p></div>)}
               </div>
             </div>
             <fieldset disabled={editingOrderLocked} className="grid gap-4 md:grid-cols-2 disabled:opacity-75">
               {orderWizardStep === 1 && <>
               <div className="md:col-span-2 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
-                <p className="font-semibold">Create an unsigned order document from the selected series, purpose, personnel, and order details.</p>
-                <p className="mt-1 text-xs text-blue-700">{backendConnected ? 'This shows the official number format. The database assigns the next number when the order is saved, then generates the DOCX.' : 'This draft stays on this device with no official number. Reconnect and save it to issue the order and generate its DOCX.'}</p>
+                <p className="font-semibold">Start by choosing what kind of order you are creating.</p>
+                <p className="mt-1 text-xs text-blue-800">The purpose sets the required details and how personnel are described. {backendConnected ? 'The official number is assigned when you save and generate the order.' : 'This will be saved as an offline draft until the system reconnects.'}</p>
               </div>
               <label>
-                <span className="mb-1.5 block text-sm font-medium text-slate-700">Order number</span>
-                <div className="rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5 font-mono text-sm font-bold text-slate-800">
+                <span className="mb-1.5 block text-sm font-medium text-slate-700">Order number preview</span>
+                <div className="rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5 font-mono text-sm font-bold text-slate-800" aria-live="polite">
                   {editingOrder
                     ? orderNumber || (editingOrder.issuancePending ? 'Number pending — save after reconnecting to issue' : 'Legacy number unavailable')
                     : backendConnected ? generatedOrderNumberPreview : 'Number pending — reconnect to issue'}
                 </div>
-                <span className="mt-1 block text-xs text-slate-500">The counter is shared by order purposes within the same series and year. This preview does not reserve a number.</span>
+                <span className="mt-1 block text-xs text-slate-500">The next number is assigned on save. This preview does not reserve it.</span>
               </label>
-              <SearchableSelect label="Order series *" value={orderSeries} disabled={!!editingOrder} onChange={(value: string) => setOrderSeries(value as OrderSeries)} options={ORDER_SERIES_OPTIONS.map(option => ({ value: option.value, label: option.label }))} />
-              <SearchableSelect label="Order purpose *" value={purposeCode} disabled={!!editingOrder} onChange={updateOrderPurpose} options={ORDER_PURPOSE_OPTIONS.map(option => ({ value: option.value, label: option.label }))} />
+              <div>
+                <SearchableSelect label="Order series" required value={orderSeries} disabled={!!editingOrder} onChange={(value: string) => setOrderSeries(value as OrderSeries)} options={ORDER_SERIES_OPTIONS.map(option => ({ value: option.value, label: option.label, description: option.heading }))} />
+                <p className="mt-1 text-xs text-slate-500">Choose General, Special, or Letter Order. This code appears in the order number.</p>
+              </div>
+              <div className="md:col-span-2">
+                <SearchableSelect label="Order purpose" required value={purposeCode} disabled={!!editingOrder} onChange={updateOrderPurpose} options={ORDER_PURPOSE_OPTIONS.map(option => ({ ...option, description: ORDER_PURPOSE_HELP[option.value] }))} />
+                {purposeDefinition && <p className="mt-1 text-xs text-slate-500">{ORDER_PURPOSE_HELP[purposeDefinition.value]}</p>}
+              </div>
               </>}
               {orderWizardStep === 2 && <>
               {requiresFullMetadata ? <>
-              <label className="md:col-span-2"><span className="mb-1.5 block text-sm font-medium text-slate-700">Subject {requiresFullMetadata && '*'}</span><textarea required={requiresFullMetadata} value={subject} onChange={(e) => setSubject(e.target.value)} rows={3} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
+              <label className="md:col-span-2"><span className="mb-1.5 block text-sm font-medium text-slate-700">Order subject *</span><textarea required value={subject} onChange={(e) => setSubject(e.target.value)} rows={3} placeholder="Briefly describe the action in this order" className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /><span className="mt-1 block text-xs text-slate-500">This is the subject line shown in the order document.</span></label>
               <label>
-                <span className="mb-1 block text-sm font-medium text-slate-700">Designation Date / Date Order Issued {requiresFullMetadata && '*'}</span>
-                <span className="mb-1.5 block text-xs text-slate-500">Displayed in upper-right header of Order</span>
-                <input required={requiresFullMetadata} disabled={!!editingOrder} type="date" value={issuedDate} onChange={(e) => setIssuedDate(e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-teal-600 focus:ring-2 focus:ring-teal-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500" />
+                <span className="mb-1 block text-sm font-medium text-slate-700">Date issued *</span>
+                <span className="mb-1.5 block text-xs text-slate-500">The date printed in the order header.</span>
+                <input required disabled={!!editingOrder} type="date" value={issuedDate} onChange={(e) => setIssuedDate(e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-teal-600 focus:ring-2 focus:ring-teal-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500" />
               </label>
               <label>
-                <span className="mb-1 block text-sm font-medium text-slate-700">Effective Date of Designation {requiresFullMetadata && '*'}</span>
-                <span className="mb-1.5 block text-xs text-slate-500">Displayed in body of Order (effectivity start)</span>
-                <input required={requiresFullMetadata} type="date" value={effectiveDate} onChange={(e) => setEffectiveDate(e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-teal-600 focus:ring-2 focus:ring-teal-100" />
+                <span className="mb-1 block text-sm font-medium text-slate-700">Effective date *</span>
+                <span className="mb-1.5 block text-xs text-slate-500">When the action in this order takes effect.</span>
+                <input required type="date" value={effectiveDate} onChange={(e) => setEffectiveDate(e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-teal-600 focus:ring-2 focus:ring-teal-100" />
               </label>
               </> : <div className="md:col-span-2 rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-900"><p className="font-semibold">Minimal upload registration</p><p className="mt-1 text-xs text-emerald-700">Subject and dates will be derived automatically from the DOCX filename and the current date. Add optional context in the Description field below.</p></div>}
-              <label>
-                <span className="mb-1.5 block text-sm font-medium text-slate-700">Workflow status</span>
-                <div className="rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm font-bold text-slate-800">{status}</div>
-                <span className="mt-1 block text-xs text-slate-500">Controlled from the order details workflow.</span>
-              </label>
-              <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Selected personnel count</span><div className="rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm font-bold text-slate-800">{selectedPersonnelIds.length || affectedPersonnelCount}</div><span className="mt-1 block text-xs text-slate-500">Automatically derived from selected personnel.</span></label>
               <label className="md:col-span-2">
-                <span className="mb-1.5 block text-sm font-medium text-slate-700">Description</span>
-                <span className="mb-1.5 block text-xs text-slate-500">Additional context or directives included in the generated order.</span>
-                <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-teal-600 focus:ring-2 focus:ring-teal-100" />
+                <span className="mb-1.5 block text-sm font-medium text-slate-700">Additional instructions or context <span className="font-normal text-slate-500">(optional)</span></span>
+                <span className="mb-1.5 block text-xs text-slate-500">Include any extra directive that should appear in the generated order.</span>
+                <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} placeholder="Add instructions or context" className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-teal-600 focus:ring-2 focus:ring-teal-100" />
               </label>
               </>}
               {orderWizardStep === 3 && <>
               <div className="md:col-span-2 rounded-xl border border-teal-100 bg-teal-50 p-4">
                 <p className="text-sm font-semibold text-teal-950">{purposeDefinition?.label || 'Purpose details'}</p>
-                <p className="mt-1 text-xs text-teal-800">These fields become part of the generated order and are validated for the selected purpose.</p>
+                <p className="mt-1 text-xs text-teal-800">{purposeDefinition ? ORDER_PURPOSE_HELP[purposeDefinition.value] : 'Enter the details needed for this order.'} Required fields are marked with an asterisk.</p>
               </div>
               {(purposeDefinition?.fields || []).map(renderPurposeField)}
               </>}
               {orderWizardStep === 4 && <>
+              <div className="md:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-sm font-semibold text-slate-900">Order summary</p>
+                <div className="mt-3 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+                  <p><span className="text-slate-500">Type:</span> <span className="font-medium text-slate-800">{orderSeries} · {purposeDefinition?.label || purposeCode}</span></p>
+                  <p><span className="text-slate-500">Status:</span> <span className="font-medium text-slate-800">{status}</span></p>
+                  <p className="break-words"><span className="text-slate-500">Subject:</span> <span className="font-medium text-slate-800">{subject || 'Not entered'}</span></p>
+                  <p><span className="text-slate-500">Dates:</span> <span className="font-medium text-slate-800">Issued {formatDate(issuedDate)} · Effective {formatDate(effectiveDate)}</span></p>
+                  <p className="break-words"><span className="text-slate-500">Certifying official:</span> <span className="font-medium text-slate-800">{certifyingOfficial}, {certifyingOfficialRank} — {certifyingOfficialPosition}</span></p>
+                  {(purposeDefinition?.fields || []).filter(field => String(purposeData[field.key] || '').trim()).map(field => <p key={field.key} className="break-words"><span className="text-slate-500">{field.label}:</span> <span className="font-medium text-slate-800">{purposeData[field.key]}</span></p>)}
+                </div>
+              </div>
               <div className="md:col-span-2">
                 <div className="mb-2 flex items-center justify-between gap-2">
-                  <span className="text-sm font-medium text-slate-700">Selected personnel</span>
-                  <span className="text-xs font-semibold text-slate-500">{selectedPersonnelIds.length} selected</span>
+                  <div>
+                    <span className="text-sm font-medium text-slate-700">Personnel included in this order</span>
+                    <p className="mt-0.5 text-xs text-slate-500">Select the personnel records involved, then assign each person’s role in the order.</p>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-teal-50 px-2.5 py-1 text-xs font-bold text-teal-800">{selectedPersonnelIds.length} selected</span>
                 </div>
                 <div className="mb-2 flex flex-col gap-2 sm:flex-row">
                   <div className="relative min-w-0 flex-1">
                     <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input value={personnelSearch} onChange={event => setPersonnelSearch(event.target.value)} placeholder="Search name, rank, badge, or unit..." className="w-full rounded-xl border border-slate-300 py-2.5 pl-9 pr-3 text-sm focus:border-teal-600 focus:ring-2 focus:ring-teal-100" />
+                    <input aria-label="Search personnel" value={personnelSearch} onChange={event => setPersonnelSearch(event.target.value)} placeholder="Search name, rank, badge number, or unit" className="w-full rounded-xl border border-slate-300 py-2.5 pl-9 pr-3 text-sm focus:border-teal-600 focus:ring-2 focus:ring-teal-100" />
                   </div>
-                  <button type="button" onClick={toggleAllFilteredPersonnel} className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
-                    {filteredPersonnel.length > 0 && filteredPersonnel.every(person => selectedPersonnelIds.includes(person.id)) ? 'Clear visible' : 'Select visible'}
+                  <select aria-label="Filter personnel by unit" value={personnelUnitFilter} onChange={event => setPersonnelUnitFilter(event.target.value)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 focus:border-teal-600 focus:ring-2 focus:ring-teal-100 sm:w-56">
+                    <option value="">All units, divisions, and sub-units</option>
+                    {unitOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                  </select>
+                  <button type="button" disabled={!filteredPersonnel.length} onClick={toggleAllFilteredPersonnel} className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">
+                    {filteredPersonnel.length > 0 && filteredPersonnel.every(person => selectedPersonnelIds.includes(person.id)) ? 'Clear shown' : 'Select shown'}
                   </button>
-                  <button type="button" onClick={() => { setSelectedPersonnelIds([]); setPersonnelRoleAssignments({}); }} className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Clear all</button>
+                  <button type="button" onClick={() => { setSelectedPersonnelIds([]); setPersonnelRoleAssignments({}); }} disabled={!selectedPersonnelIds.length} className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">Clear selection</button>
+                </div>
+                <div className="mb-2 flex items-center justify-between gap-3 text-xs text-slate-500">
+                  <label className={`inline-flex items-center gap-2 ${selectedPersonnelIds.length ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}><input type="checkbox" disabled={!selectedPersonnelIds.length} checked={showSelectedPersonnelOnly} onChange={event => setShowSelectedPersonnelOnly(event.target.checked)} className="h-4 w-4 rounded border-slate-300 text-teal-700 focus:ring-teal-600" />Show selected only</label>
+                  <span>Showing {filteredPersonnel.length} of {personnelList.length} personnel</span>
                 </div>
                 {selectedPersonnel.length > 0 && (
                   <div className="mb-2 flex flex-wrap gap-1.5 rounded-xl border border-blue-100 bg-blue-50 p-2">
@@ -1483,8 +1645,8 @@ export const OrdersPage = () => {
                 {selectedPersonnel.length > 0 && (
                   <div className="mb-2 space-y-2 rounded-xl border border-slate-200 bg-white p-3">
                     <div>
-                      <p className="text-xs font-bold uppercase tracking-wide text-slate-600">Personnel roles</p>
-                      <p className="mt-1 text-xs text-slate-500">Assign each selected person a role for this {purposeDefinition?.label || 'order'}.</p>
+                      <p className="text-xs font-bold uppercase tracking-wide text-slate-600">Role in this order</p>
+                      <p className="mt-1 text-xs text-slate-500">Choose how each selected person is involved. Roles marked with * are required.</p>
                     </div>
                     {selectedPersonnel.map(person => {
                       if (!person) return null;
@@ -1500,24 +1662,35 @@ export const OrdersPage = () => {
                     })}
                   </div>
                 )}
-                <div className="max-h-52 overflow-y-auto rounded-xl border border-slate-300 bg-slate-50 p-2">
+                <div className="max-h-64 overflow-y-auto rounded-xl border border-slate-300 bg-slate-50 p-2">
                   {filteredPersonnel.map((person) => (
-                    <label key={person.id} className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm hover:bg-white">
+                    <label key={person.id} className="flex cursor-pointer items-start gap-3 rounded-lg px-3 py-2 text-sm hover:bg-white">
                       <input
                         type="checkbox"
                         checked={selectedPersonnelIds.includes(person.id)}
                         onChange={() => toggleOrderPersonnel(person.id)}
-                        className="h-4 w-4 rounded border-slate-300 text-teal-700 focus:ring-teal-600"
+                        className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-teal-700 focus:ring-teal-600"
                       />
-                      <span className="font-semibold text-slate-900">{person.rank} {person.fullName}</span>
-                      <span className="text-xs text-slate-500">{person.badgeNo} - {person.sub_unit || person.division || person.unitCategory || 'Unit not recorded'}</span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-semibold text-slate-900">{person.rank} {person.fullName}</span>
+                        <span className="block truncate text-xs text-slate-500">{person.badgeNo || 'No badge'} · {person.sub_unit || person.division || person.unitCategory || 'Unit not recorded'}</span>
+                      </span>
                     </label>
                   ))}
-                  {!filteredPersonnel.length && <p className="px-3 py-6 text-center text-sm text-slate-500">No personnel records match this search.</p>}
+                  {!filteredPersonnel.length && <p className="px-3 py-6 text-center text-sm text-slate-500">No personnel match these filters.</p>}
                 </div>
               </div>
-              <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Signatory {requiresFullMetadata && '*'}</span><input required={requiresFullMetadata} value={signatory} onChange={(e) => setSignatory(e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
-              <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Signatory title {requiresFullMetadata && '*'}</span><input required={requiresFullMetadata} value={signatoryTitle} onChange={(e) => setSignatoryTitle(e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
+              <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Signatory name and rank {requiresFullMetadata && '*'}</span><input required={requiresFullMetadata} value={signatory} onChange={(e) => setSignatory(e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /><span className="mt-1 block text-xs text-slate-500">The official who signs this order.</span></label>
+              <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Signatory title or position {requiresFullMetadata && '*'}</span><input required={requiresFullMetadata} value={signatoryTitle} onChange={(e) => setSignatoryTitle(e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
+              <div className="md:col-span-2 border-t border-slate-200 pt-4">
+                <p className="text-sm font-semibold text-slate-800">Certifying official</p>
+                <p className="mt-1 text-xs text-slate-500">This block appears below the signatory in the generated order. Update it when the person holding this position changes.</p>
+                <div className="mt-3 grid gap-4 md:grid-cols-3">
+                  <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Name *</span><input required value={certifyingOfficial} onChange={event => setCertifyingOfficial(event.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
+                  <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Rank *</span><input required value={certifyingOfficialRank} onChange={event => setCertifyingOfficialRank(event.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
+                  <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Position or office *</span><input required value={certifyingOfficialPosition} onChange={event => setCertifyingOfficialPosition(event.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
+                </div>
+              </div>
               {editingOrder?.fileName && <div className="md:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-600">
                 This record contains a legacy DOCX attachment. It remains available from the order details view; new changes use the generated order document workflow.
               </div>}
@@ -1529,7 +1702,7 @@ export const OrdersPage = () => {
               </div>
               <div className="flex flex-col-reverse gap-2 sm:flex-row">
               <button type="button" onClick={() => { setOrderFormOpen(false); resetOrderForm(); }} disabled={savingOrder} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700">Cancel</button>
-              {!editingOrderLocked && <button type="submit" disabled={savingOrder} className="inline-flex items-center justify-center gap-2 rounded-xl bg-teal-700 px-5 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">{savingOrder ? (backendConnected ? 'Saving and generating...' : 'Saving draft...') : orderWizardStep < 4 ? 'Continue' : backendConnected ? editingOrder?.issuancePending ? 'Issue and generate' : editingOrder ? 'Update and regenerate' : 'Save and generate' : 'Save draft locally'}</button>}
+              {!editingOrderLocked && <button type="submit" disabled={savingOrder} className="inline-flex items-center justify-center gap-2 rounded-xl bg-teal-700 px-5 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">{savingOrder ? (backendConnected ? 'Saving and generating...' : 'Saving draft...') : orderWizardStep < 4 ? orderWizardStep === 1 ? 'Continue to details' : orderWizardStep === 2 ? 'Continue to purpose details' : 'Continue to personnel' : backendConnected ? editingOrder?.issuancePending ? 'Issue and generate' : editingOrder ? 'Update and regenerate' : 'Save and generate' : 'Save draft locally'}</button>}
               </div>
             </div>
           </form>
@@ -1547,6 +1720,7 @@ export const OrdersPage = () => {
             <div className="sm:col-span-2"><Detail label="Subject" value={selectedOrder.subject} /></div>
             <Detail label="Selected personnel" value={selectedOrder.personnelIds?.length ? selectedOrder.personnelIds.map(id => personnelNames.get(id) || 'Unknown personnel').join('\n') : String(selectedOrder.affectedPersonnelCount || 1)} />
             <Detail label="Signatory" value={[selectedOrder.signatory, selectedOrder.signatoryTitle].filter(Boolean).join(' - ')} />
+            <Detail label="Certifying official" value={[selectedOrder.certifyingOfficial, selectedOrder.certifyingOfficialRank, selectedOrder.certifyingOfficialPosition].filter(Boolean).join('\n')} />
             {selectedOrder.issuancePending && <div className="sm:col-span-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">This draft is saved on this device. Its official order number will be assigned when you reconnect and save it to the central register.</div>}
             {selectedOrder.description && <div className="sm:col-span-2"><Detail label="Description" value={selectedOrder.description} /></div>}
             {getOrderPurposeDefinition(selectedOrder.purposeCode)?.fields.map(field => {

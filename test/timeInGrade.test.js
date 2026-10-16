@@ -60,6 +60,14 @@ test('handles month-end boundary transitions accurately', () => {
   assert.equal(marToApr.totalDays, 30);
   assert.equal(marToApr.months, 0);
   assert.equal(marToApr.days, 30);
+
+  // Borrow across February without producing a negative day component.
+  const janToMar = calculateTimeInGrade('2025-01-31', '2025-03-01');
+  assert.equal(janToMar.totalDays, 29);
+  assert.deepEqual(
+    { years: janToMar.years, months: janToMar.months, days: janToMar.days },
+    { years: 0, months: 0, days: 29 }
+  );
 });
 
 test('returns N/A and safe defaults for missing, null, impossible, or future promotion dates', () => {

@@ -23,7 +23,7 @@ import { ORDER_CATALOG } from '../utils/orderCatalog.js';
 import { formatOfficialOrderNumber } from '../../shared/orderNumber.js';
 
 export const ORDER_TEMPLATE_KEY = 'pnp-itms-letter-orders';
-export const ORDER_TEMPLATE_VERSION = '1.1.0';
+export const ORDER_TEMPLATE_VERSION = '1.2.0';
 
 const FONT = 'Arial';
 const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -65,6 +65,13 @@ const roleLabel = role => ORDER_CATALOG.purposes
 
 const getPersonnel = order => (order.personnelSnapshot || []).slice().sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
 
+const getPersonnelName = person => [person.rank, person.fullName].filter(Boolean).join(' ').trim();
+
+const getSinglePersonDetails = person => [
+  person.role && person.role !== 'affected' && person.role !== 'driver' ? roleLabel(person.role) : '',
+  person.unit
+].filter(Boolean).join('; ');
+
 const getCommonNarrative = order => {
   const personnel = getPersonnel(order);
   const purpose = getOrderPurposeDefinition(order.purposeCode);
@@ -85,6 +92,39 @@ const getTravelNarrative = order => {
 };
 
 const getNarrative = order => order.purposeCode === 'TR' ? getTravelNarrative(order) : getCommonNarrative(order);
+
+const getSinglePersonNarrativeRuns = order => {
+  const personnel = getPersonnel(order);
+  if (personnel.length !== 1) return null;
+
+  const person = personnel[0];
+  const name = getPersonnelName(person);
+  if (!name) return null;
+
+  const details = getSinglePersonDetails(person);
+  const lead = [run(name, { bold: true })];
+  if (details) lead.push(run(` (${details})`));
+
+  if (order.purposeCode === 'TR') {
+    const data = order.purposeData || {};
+    const destinations = Array.isArray(data.destinations)
+      ? data.destinations.filter(Boolean).join(' and ')
+      : safeText(data.destinations || data.destination || 'the stated destination');
+    const start = formatDateWithWeekday(data.travelStartDate || order.effectiveDate || order.issuedDate);
+    const end = formatDateWithWeekday(data.travelEndDate || data.travelStartDate || order.effectiveDate || order.issuedDate);
+    const activity = safeText(data.activity || data.travelPurpose || 'official business');
+    lead.push(run(person.role === 'driver'
+      ? ` will serve as driver for travel to ${destinations} from ${start} to ${end} for the conduct of ${activity}.`
+      : ` is authorized to travel to ${destinations} from ${start} to ${end} for the conduct of ${activity}.`));
+    return lead;
+  }
+
+  const subject = safeText(order.subject || getOrderPurposeDefinition(order.purposeCode)?.label || 'administrative action');
+  lead.push(run(person.role === 'driver'
+    ? ` is designated as driver under this ${subject.toLowerCase()} order.`
+    : ` is hereby covered by this ${subject.toLowerCase()} order.`));
+  return lead;
+};
 
 const getPurposeDetails = order => {
   const definition = getOrderPurposeDefinition(order.purposeCode);
@@ -175,6 +215,9 @@ export const computeOrderSourceHash = order => {
     purposeCode: order.purposeCode || '',
     subject: safeText(order.subject),
     signatory: safeText(order.signatory),
+    certifyingOfficial: safeText(order.certifyingOfficial),
+    certifyingOfficialRank: safeText(order.certifyingOfficialRank),
+    certifyingOfficialPosition: safeText(order.certifyingOfficialPosition),
     issuedDate: order.issuedDate || '',
     effectiveDate: order.effectiveDate || '',
     personnelSnapshot: getPersonnel(order).map(p => ({
@@ -213,6 +256,7 @@ export const generateOrderDocx = async order => {
   const subject = safeText(order.subject || purpose?.label || 'Administrative Order');
   const description = safeText(order.description);
   const personnel = getPersonnel(order);
+  const singlePersonNarrative = getSinglePersonNarrativeRuns(order);
   const bodyChildren = [
     buildLetterhead(pnpLogo, itmsLogo),
     blankParagraph(),
@@ -231,17 +275,17 @@ export const generateOrderDocx = async order => {
     blankParagraph(),
     textParagraph(`SUBJECT    :  ${subject}`, { runOptions: { bold: true } }),
     blankParagraph(),
-    textParagraph(getNarrative(order), { alignment: AlignmentType.JUSTIFIED, indent: { firstLine: 720 } }),
+    paragraph(singlePersonNarrative || [run(getNarrative(order))], { alignment: AlignmentType.JUSTIFIED, indent: { firstLine: 720 } }),
     ...getPurposeDetails(order).flatMap(detail => [textParagraph(detail, { indent: { left: 720 } })]),
     ...(description ? description.split(/\r?\n/).map(line => line ? textParagraph(line, { alignment: AlignmentType.JUSTIFIED }) : blankParagraph()) : []),
     blankParagraph(),
-    ...personnel.filter(p => p.role !== 'driver').map((person, idx) => {
+    ...(singlePersonNarrative ? [] : personnel.filter(p => p.role !== 'driver').map((person, idx) => {
       const seq = personnel.length > 1 ? `${idx + 1}. ` : '';
       const roleStr = person.role && person.role !== 'affected' ? ` (${roleLabel(person.role)})` : '';
       const unitStr = person.unit ? ` - ${person.unit}` : '';
       return textParagraph(`${seq}${person.rank || ''} ${person.fullName || ''}${unitStr}${roleStr}`.trim(), { indent: { left: 1701 } });
-    }),
-    ...personnel.filter(person => person.role === 'driver').map(person => textParagraph(`Driver: ${person.rank || ''} ${person.fullName || ''}`.trim(), { indent: { left: 1701 } })),
+    })),
+    ...(singlePersonNarrative ? [] : personnel.filter(person => person.role === 'driver').map(person => textParagraph(`Driver: ${person.rank || ''} ${person.fullName || ''}`.trim(), { indent: { left: 1701 } }))),
     blankParagraph(),
     ...buildSignatureTable(order)
   ];

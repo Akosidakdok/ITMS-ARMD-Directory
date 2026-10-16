@@ -113,15 +113,18 @@ export function calculateTimeInGrade(
   let months = targetDate.getUTCMonth() - fromDate.getUTCMonth();
   let days = targetDate.getUTCDate() - fromDate.getUTCDate();
 
-  if (days < 0) {
+  // A short month may need more than one borrow (for example, Jan 31 to Mar 1).
+  let borrowedMonths = 0;
+  while (days < 0) {
     months -= 1;
+    borrowedMonths += 1;
     const prevMonthLastDay = new Date(
-      Date.UTC(targetDate.getUTCFullYear(), targetDate.getUTCMonth(), 0)
+      Date.UTC(targetDate.getUTCFullYear(), targetDate.getUTCMonth() - borrowedMonths + 1, 0)
     ).getUTCDate();
     days += prevMonthLastDay;
   }
 
-  if (months < 0) {
+  while (months < 0) {
     years -= 1;
     months += 12;
   }

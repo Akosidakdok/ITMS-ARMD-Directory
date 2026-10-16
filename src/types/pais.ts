@@ -196,6 +196,9 @@ export interface OrderRecord {
   orderType?: string;
   signatory?: string;
   signatoryTitle?: string;
+  certifyingOfficial?: string;
+  certifyingOfficialRank?: string;
+  certifyingOfficialPosition?: string;
   affectedPersonnelCount?: number;
   personnelInvolvement?: OrderPersonnelInvolvement[];
   personnelSnapshot?: OrderPersonnelSnapshot[];

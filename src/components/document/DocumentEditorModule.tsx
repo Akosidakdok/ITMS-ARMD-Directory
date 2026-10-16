@@ -33,7 +33,7 @@ import { exportToDocx } from './utils/docxExporter';
 import { exportToPdf } from './utils/pdfExporter';
 import { DEFAULT_TEMPLATES, TemplatePreset } from './utils/defaultTemplates';
 import { resolvePaisFieldValue, resolveAllPaisFieldsInHtml, PaisFieldDefinition } from './utils/paisFieldResolver';
-import { CANONICAL_DOCUMENT_CONFIG, buildCanonicalOrderDocumentHtml } from './utils/sharedOrderDocument';
+import { CANONICAL_DOCUMENT_CONFIG } from './utils/sharedOrderDocument';
 import type { DocumentRecord, DocumentVersion } from '../../services/documentsApi';
 import type { Personnel } from '../../types/pais';
 import './documentEditor.css';
@@ -59,9 +59,16 @@ interface DocumentEditorModuleProps {
   personnelList?: Personnel[];
   onSave?: (savedDoc: {
     id?: string;
+    order_id?: string | null;
     title: string;
     content_json: any;
     content_html: string;
+    page_size?: string;
+    orientation?: 'portrait' | 'landscape';
+    margin_top?: number;
+    margin_bottom?: number;
+    margin_left?: number;
+    margin_right?: number;
     change_summary?: string;
   }) => Promise<any>;
   onClose?: () => void;
@@ -105,6 +112,7 @@ export const DocumentEditorModule: React.FC<DocumentEditorModuleProps> = ({
   const [lastSavedMessage, setLastSavedMessage] = useState('Saved');
   const autosaveTimerRef = useRef<number | null>(null);
   const isDirtyRef = useRef(false);
+  const isDetachedFromOrderRef = useRef(false);
 
   // Dialogs
   const [isTableModalOpen, setIsTableModalOpen] = useState(false);
@@ -214,11 +222,18 @@ export const DocumentEditorModule: React.FC<DocumentEditorModuleProps> = ({
     autosaveTimerRef.current = window.setTimeout(async () => {
       await performSave({ isAutosave: true });
     }, 1500);
-  }, [editor, title, onSave, readOnly]);
+  }, [editor, title, onSave, readOnly, layout]);
 
   // Perform Save action
-  const performSave = async (options: { isAutosave?: boolean; changeSummary?: string } = {}) => {
+  const performSave = async (options: {
+    isAutosave?: boolean;
+    changeSummary?: string;
+    documentId?: string | null;
+    title?: string;
+  } = {}) => {
     if (!editor) return;
+    const targetDocId = options.documentId === null ? undefined : options.documentId || docId;
+    const targetTitle = options.title ?? title;
     try {
       setSaveStatus('saving');
       const json = editor.getJSON();
@@ -226,18 +241,25 @@ export const DocumentEditorModule: React.FC<DocumentEditorModuleProps> = ({
 
       // Backup to localStorage
       try {
-        localStorage.setItem(`pais_doc_backup_${docId || 'new'}`, JSON.stringify({ title, content_html: html, timestamp: Date.now() }));
+        localStorage.setItem(`pais_doc_backup_${targetDocId || 'new'}`, JSON.stringify({ title: targetTitle, content_html: html, timestamp: Date.now() }));
       } catch {}
 
       if (onSave) {
         const result = await onSave({
-          id: docId,
-          title,
+          id: targetDocId,
+          ...(isDetachedFromOrderRef.current ? { order_id: null } : {}),
+          title: targetTitle,
           content_json: json,
           content_html: html,
+          page_size: layout.pageSize,
+          orientation: layout.orientation,
+          margin_top: layout.marginTop,
+          margin_bottom: layout.marginBottom,
+          margin_left: layout.marginLeft,
+          margin_right: layout.marginRight,
           change_summary: options.changeSummary || (options.isAutosave ? 'Autosaved changes' : 'Manual save')
         });
-        if (result?.id && !docId) setDocId(result.id);
+        if (result?.id && !targetDocId) setDocId(result.id);
         if (result?.version) setVersion(result.version);
       }
 
@@ -337,14 +359,7 @@ export const DocumentEditorModule: React.FC<DocumentEditorModuleProps> = ({
   const handleExportDocx = async () => {
     if (!editor) return;
     await performSave({ isAutosave: true });
-    let htmlContent = editor.getHTML();
-    // Use canonical HTML format when an order is associated, ensuring consistent DOCX formatting
-    if (associatedOrder && associatedOrder.orderNumber) {
-      const personnelMap = new Map(
-        (associatedOrder.personnelSnapshot || []).map((p: any) => [p.personnelId || p.id, p])
-      );
-      htmlContent = buildCanonicalOrderDocumentHtml(associatedOrder, { personnelMap });
-    }
+    const htmlContent = editor.getHTML();
     await exportToDocx(htmlContent, {
       title,
       pageSize: layout.pageSize,
@@ -374,16 +389,25 @@ export const DocumentEditorModule: React.FC<DocumentEditorModuleProps> = ({
 
   // Duplicate Document
   const handleDuplicate = () => {
-    setTitle(`${title} (Copy)`);
+    const duplicateTitle = `${title} (Copy)`;
+    if (autosaveTimerRef.current) window.clearTimeout(autosaveTimerRef.current);
+    isDetachedFromOrderRef.current = true;
+    setTitle(duplicateTitle);
     setDocId(undefined);
     setVersion(1);
     setSaveStatus('idle');
     setLastSavedMessage('Duplicated as new draft');
-    performSave({ changeSummary: 'Duplicated from existing document' });
+    void performSave({
+      documentId: null,
+      title: duplicateTitle,
+      changeSummary: 'Duplicated from existing document'
+    });
   };
 
   // New Document from Template
   const handleCreateNew = (payload: { title: string; template: TemplatePreset }) => {
+    if (autosaveTimerRef.current) window.clearTimeout(autosaveTimerRef.current);
+    isDetachedFromOrderRef.current = true;
     setTitle(payload.title);
     setDocId(undefined);
     setVersion(1);

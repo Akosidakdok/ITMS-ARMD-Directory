@@ -58,6 +58,14 @@ const getRoleLabel = (purposeDef: OrderPurposeDefinition | undefined, roleCode: 
   return role?.label || roleCode;
 };
 
+const getPersonnelName = (person: OrderPersonnelEntry) =>
+  [person.rank, person.fullName].filter(Boolean).join(' ').trim();
+
+const getSinglePersonDetails = (person: OrderPersonnelEntry, purposeDef?: OrderPurposeDefinition) => [
+  person.role && person.role !== 'affected' && person.role !== 'driver' ? getRoleLabel(purposeDef, person.role) : '',
+  person.unit
+].filter(Boolean).join('; ');
+
 export interface OrderPersonnelEntry {
   personnelId?: string;
   fullName?: string;
@@ -137,10 +145,31 @@ export const buildCanonicalOrderDocumentHtml = (
   const personnel = extractPersonnelList(order, options.personnelMap);
   const nonDrivers = personnel.filter(p => p.role !== 'driver');
   const drivers = personnel.filter(p => p.role === 'driver');
+  const singlePerson = personnel.length === 1 && getPersonnelName(personnel[0]) ? personnel[0] : undefined;
 
   // Build Narrative (Opening Paragraph)
   let narrative = '';
-  if (order.purposeCode === 'TR') {
+  if (singlePerson && getPersonnelName(singlePerson)) {
+    const name = `<strong>${escapeHtml(getPersonnelName(singlePerson))}</strong>`;
+    const details = getSinglePersonDetails(singlePerson, purposeDef);
+    const lead = `${name}${details ? ` (${escapeHtml(details)})` : ''}`;
+    if (order.purposeCode === 'TR') {
+      const data = order.purposeData || {};
+      const destinations = Array.isArray(data.destinations)
+        ? data.destinations.filter(Boolean).join(' and ')
+        : safeText(data.destinations || data.destination || 'the stated destination');
+      const start = formatOrderDateWithWeekday(data.travelStartDate || order.effectiveDate || order.issuedDate);
+      const end = formatOrderDateWithWeekday(data.travelEndDate || data.travelStartDate || order.effectiveDate || order.issuedDate);
+      const activity = safeText(data.activity || data.travelPurpose || 'official business');
+      narrative = singlePerson.role === 'driver'
+        ? `${lead} will serve as driver for travel to ${escapeHtml(destinations)} from ${escapeHtml(start)} to ${escapeHtml(end)} for the conduct of ${escapeHtml(activity)}.`
+        : `${lead} is authorized to travel to ${escapeHtml(destinations)} from ${escapeHtml(start)} to ${escapeHtml(end)} for the conduct of ${escapeHtml(activity)}.`;
+    } else {
+      narrative = singlePerson.role === 'driver'
+        ? `${lead} is designated as driver under this ${escapeHtml(subject.toLowerCase())} order.`
+        : `${lead} is hereby covered by this ${escapeHtml(subject.toLowerCase())} order.`;
+    }
+  } else if (order.purposeCode === 'TR') {
     const data = order.purposeData || {};
     const destinations = Array.isArray(data.destinations)
       ? data.destinations.filter(Boolean).join(' and ')
@@ -170,7 +199,7 @@ export const buildCanonicalOrderDocumentHtml = (
   }
 
   // Personnel List Items
-  const personnelItems = nonDrivers.map((p, idx) => {
+  const personnelItems = (singlePerson ? [] : nonDrivers).map((p, idx) => {
     const seq = nonDrivers.length > 1 ? `${idx + 1}. ` : '';
     const roleStr = p.role && p.role !== 'affected' ? ` (${getRoleLabel(purposeDef, p.role)})` : '';
     const unitStr = p.unit ? ` - ${p.unit}` : '';
@@ -178,7 +207,7 @@ export const buildCanonicalOrderDocumentHtml = (
     return `<p class="pais-personnel-item" style="margin: 0; padding-left: 85px; font-size: 12pt; line-height: 1.2;">${seq}${rankName}${unitStr}${roleStr}</p>`;
   }).join('\n');
 
-  const driverItems = drivers.map(p => {
+  const driverItems = (singlePerson ? [] : drivers).map(p => {
     const rankName = `${p.rank ? `${p.rank} ` : ''}${p.fullName || ''}`.trim();
     return `<p class="pais-personnel-item" style="margin: 0; padding-left: 85px; font-size: 12pt; line-height: 1.2;">Driver: ${rankName}</p>`;
   }).join('\n');
