@@ -37,6 +37,10 @@ import {
   isRankInCategory
 } from '../../constants/ranks';
 import { calculateYearsBetween } from '../../utils/personnelCsv';
+import {
+  formatAssignmentTenure, formatTenure, getAssignmentEffectiveDate,
+  getCurrentMainAssignment, getLatestPromotionDate, getTodayInPhilippines
+} from '../../utils/personnelTenure';
 
 interface PersonnelInfoTabProps {
   personnel: Personnel;
@@ -53,7 +57,7 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
   onToggleEdit,
   onSaved 
 }) => {
-  const { role, updatePersonnel } = useAuthRole();
+  const { role, updatePersonnel, assignmentsList, promotionsList } = useAuthRole();
   const canManage = hasManagementAccess(role);
 
   const [internalEditing, setInternalEditing] = useState(isEditing);
@@ -432,6 +436,18 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
   };
 
   const isUniformed = formData.rankCategory !== 'NUP';
+  const today = getTodayInPhilippines();
+  const promotionDate = getLatestPromotionDate(personnel, promotionsList);
+  const personnelAssignments = assignmentsList
+    .filter(assignment => assignment.personnelId === personnel.id)
+    .sort((a, b) => getAssignmentEffectiveDate(b).localeCompare(getAssignmentEffectiveDate(a)));
+  const currentAssignment = getCurrentMainAssignment(assignmentsList, personnel.id);
+  const currentPositionDate = currentAssignment
+    ? getAssignmentEffectiveDate(currentAssignment)
+    : personnelAssignments.length === 0 ? personnel.effectiveDate || '' : '';
+  const currentPositionTenure = currentAssignment
+    ? formatAssignmentTenure(currentAssignment, today)
+    : personnelAssignments.length === 0 ? formatTenure(currentPositionDate, today) : 'No current posting';
 
   return (
     <div className="space-y-5">
@@ -1319,11 +1335,23 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
               </div>
               <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 min-w-0 break-words">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Effective Date</span>
-                <span className="font-mono text-slate-800 text-xs">{personnel.effectiveDate || '—'}</span>
+                <span className="font-mono text-slate-800 text-xs">{currentPositionDate || '—'}</span>
               </div>
               <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 min-w-0 break-words">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Last Promotion Date</span>
-                <span className="font-mono text-slate-800 text-xs">{personnel.lastPromotionDate || '—'}</span>
+                <span className="font-mono text-slate-800 text-xs">{promotionDate || '—'}</span>
+              </div>
+              {isUniformed && (
+                <div className="p-3 rounded-lg bg-blue-50 border border-blue-200 min-w-0 break-words">
+                  <span className="text-[10px] uppercase font-bold text-blue-700 block">Time in Grade</span>
+                  <span className="font-mono font-bold text-blue-900 text-xs">{formatTenure(promotionDate, today)}</span>
+                  <span className="block text-[10px] text-slate-500 mt-1">From latest promotion effective date to today</span>
+                </div>
+              )}
+              <div className="p-3 rounded-lg bg-blue-50 border border-blue-200 min-w-0 break-words">
+                <span className="text-[10px] uppercase font-bold text-blue-700 block">Time in Current Position</span>
+                <span className="font-mono font-bold text-blue-900 text-xs">{currentPositionTenure}</span>
+                <span className="block text-[10px] text-slate-500 mt-1">{currentPositionDate ? `Effective ${currentPositionDate}` : currentAssignment ? 'No effective date recorded' : 'No current assignment recorded'}</span>
               </div>
               <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 min-w-0 break-words">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Source Of Commissionship</span>
@@ -1422,6 +1450,34 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
                   <span className="text-[10px] uppercase font-bold text-slate-500 block">Plantilla Item</span>
                   <span className="font-mono text-slate-800 text-xs">{personnel.plantilla || '—'}</span>
                 </div>
+              )}
+            </div>
+            <div className="border-t border-slate-200 pt-3">
+              <h5 className="text-[11px] font-bold text-slate-800">Time in Position by Unit</h5>
+              <p className="mt-0.5 text-[10px] text-slate-500">Each posting is counted from its effective date through its end date, or through today while current.</p>
+              {personnelAssignments.length ? (
+                <div className="mt-3 space-y-2">
+                  {personnelAssignments.map(assignment => {
+                    const startDate = getAssignmentEffectiveDate(assignment);
+                    const endLabel = assignment.status === 'Current' && startDate > today
+                      ? 'Pending'
+                      : assignment.status === 'Current' && (!assignment.endDate || assignment.endDate >= today)
+                        ? 'Present'
+                        : assignment.endDate || 'End not recorded';
+                    return (
+                      <div key={assignment.id} className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0">
+                          <p className="font-bold text-slate-900 break-words">{assignment.sub_unit || assignment.unit || 'Unit not recorded'}</p>
+                          <p className="mt-0.5 text-slate-600 break-words">{assignment.position || 'Position not recorded'} · {assignment.positionCategory || 'Main'} · {assignment.status}</p>
+                          <p className="mt-1 font-mono text-[10px] text-slate-500">{startDate || 'Start not recorded'} to {endLabel}</p>
+                        </div>
+                        <span className="font-mono font-bold text-blue-800 sm:text-right">{formatAssignmentTenure(assignment, today)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="mt-3 text-xs text-slate-500">No assignment history recorded.</p>
               )}
             </div>
           </div>

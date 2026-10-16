@@ -12,6 +12,9 @@ test('generates a reference-based DOCX with order and personnel content', async 
     purposeCode: 'TR',
     issuedDate: '2026-09-22',
     subject: 'Official Travel',
+    certifyingOfficial: 'COLONEL TEST CERTIFIER',
+    certifyingOfficialRank: 'Police Lieutenant Colonel',
+    certifyingOfficialPosition: 'Acting Chief, Resource Management Division',
     purposeData: {
       destinations: ['Manila', 'Cebu'],
       travelStartDate: '2026-10-01',
@@ -26,7 +29,7 @@ test('generates a reference-based DOCX with order and personnel content', async 
 
   assert.equal(isDocxZip(buffer), true);
   assert.equal(manifest.templateKey, 'pnp-itms-letter-orders');
-  assert.equal(manifest.templateVersion, '1.1.0');
+  assert.equal(manifest.templateVersion, '1.2.0');
   assert.equal(manifest.personnelSnapshot.length, 2);
 
   const converted = await mammoth.convertToHtml({ buffer });
@@ -35,6 +38,9 @@ test('generates a reference-based DOCX with order and personnel content', async 
   assert.match(converted.value, /OFFICIAL TRAVEL/i);
   assert.match(converted.value, /JUAN DELA CRUZ/);
   assert.match(converted.value, /MARIA SANTOS/);
+  assert.match(converted.value, /COLONEL TEST CERTIFIER/);
+  assert.match(converted.value, /Police Lieutenant Colonel/);
+  assert.match(converted.value, /Acting Chief, Resource Management Division/);
 });
 
 test('formats document order numbers using only year and sequence', () => {
