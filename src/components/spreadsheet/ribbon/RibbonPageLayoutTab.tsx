@@ -30,7 +30,7 @@ export const RibbonPageLayoutTab: React.FC<RibbonPageLayoutTabProps> = ({
   onExportExcel
 }) => {
   return (
-    <div className="flex items-center gap-4 overflow-x-auto py-1 px-3 text-xs select-none">
+    <div className="flex items-center gap-4 py-1 px-3 text-xs select-none">
       {/* 1. Page Setup */}
       <div className="flex items-center gap-1 pr-3 border-r border-slate-200 dark:border-slate-800">
         <button

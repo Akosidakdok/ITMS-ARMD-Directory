@@ -30,7 +30,7 @@ export const RibbonDataTab: React.FC<RibbonDataTabProps> = ({
   onRemoveDuplicates
 }) => {
   return (
-    <div className="flex items-center gap-3 overflow-x-auto py-1 px-3 text-xs select-none">
+    <div className="flex items-center gap-3 py-1 px-3 text-xs select-none">
       {/* 1. Sort */}
       <div className="flex items-center gap-1 pr-3 border-r border-slate-200 dark:border-slate-800">
         <button

@@ -67,7 +67,7 @@ export const ExcelRibbon: React.FC<ExcelRibbonProps> = ({
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   return (
-    <div className="worksheet-ribbon border-b border-slate-200 bg-[#f3f4f6] dark:border-slate-800 dark:bg-[#0c1624] text-xs">
+    <div className="worksheet-ribbon relative z-30 border-b border-slate-200 bg-[#f3f4f6] dark:border-slate-800 dark:bg-[#0c1624] text-xs">
       {/* Top Quick Access Toolbar & Tabs Bar */}
       <div className="worksheet-ribbon-toolbar flex items-center justify-between px-3 border-b border-slate-200 dark:border-slate-800">
         <div className="worksheet-ribbon-navigation flex items-center gap-2">
@@ -183,7 +183,7 @@ export const ExcelRibbon: React.FC<ExcelRibbonProps> = ({
 
       {/* Active Ribbon Panel */}
       {!isCollapsed && (
-        <div className="worksheet-ribbon-panel bg-white dark:bg-[#101b2b] py-1 shadow-inner min-h-[48px] flex items-center">
+        <div className="worksheet-ribbon-panel relative bg-white dark:bg-[#101b2b] py-1 shadow-inner min-h-[48px] flex items-center">
           {activeTab === 'home' && <RibbonHomeTab {...homeProps} />}
           {activeTab === 'insert' && <RibbonInsertTab {...insertProps} />}
           {activeTab === 'pageLayout' && <RibbonPageLayoutTab {...pageLayoutProps} />}

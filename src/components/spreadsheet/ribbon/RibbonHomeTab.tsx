@@ -28,8 +28,24 @@ import {
   Percent,
   Coins,
   DollarSign,
-  ChevronDown
+  ChevronDown,
+  Table
 } from 'lucide-react';
+
+export type BorderOptionType =
+  | 'bottom'
+  | 'top'
+  | 'left'
+  | 'right'
+  | 'none'
+  | 'all'
+  | 'outside'
+  | 'thick-outside'
+  | 'bottom-double'
+  | 'thick-bottom'
+  | 'top-bottom'
+  | 'top-thick-bottom'
+  | 'top-double-bottom';
 
 interface RibbonHomeTabProps {
   canEdit: boolean;
@@ -56,6 +72,9 @@ interface RibbonHomeTabProps {
   fillColor: string;
   onChangeFillColor: (color: string) => void;
   onClearFormatting: () => void;
+  onApplyBorder: (type: BorderOptionType) => void;
+  onOpenFormatCells: (tab?: 'number' | 'alignment' | 'font' | 'border' | 'fill') => void;
+  onInsertTable?: () => void;
 
   alignH: 'left' | 'center' | 'right';
   onChangeAlignH: (align: 'left' | 'center' | 'right') => void;
@@ -89,6 +108,123 @@ interface RibbonHomeTabProps {
 const FONT_OPTIONS = ['Arial', 'Arial Narrow', 'Calibri', 'Times New Roman', 'Segoe UI', 'Courier New'];
 const SIZE_OPTIONS = [8, 9, 10, 11, 12, 14, 16, 18, 20, 24];
 
+const renderBorderIcon = (type: BorderOptionType | 'more') => {
+  const boxDashed = (
+    <>
+      <rect x="2" y="2" width="12" height="12" stroke="currentColor" strokeWidth="1" strokeDasharray="1.5 1.5" opacity="0.35" />
+      <line x1="8" y1="2" x2="8" y2="14" stroke="currentColor" strokeWidth="1" strokeDasharray="1.5 1.5" opacity="0.35" />
+      <line x1="2" y1="8" x2="14" y2="8" stroke="currentColor" strokeWidth="1" strokeDasharray="1.5 1.5" opacity="0.35" />
+    </>
+  );
+
+  switch (type) {
+    case 'bottom':
+      return (
+        <svg className="w-4 h-4 text-blue-600 dark:text-sky-400 shrink-0" viewBox="0 0 16 16" fill="none">
+          {boxDashed}
+          <line x1="2" y1="14" x2="14" y2="14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        </svg>
+      );
+    case 'top':
+      return (
+        <svg className="w-4 h-4 text-blue-600 dark:text-sky-400 shrink-0" viewBox="0 0 16 16" fill="none">
+          {boxDashed}
+          <line x1="2" y1="2" x2="14" y2="2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        </svg>
+      );
+    case 'left':
+      return (
+        <svg className="w-4 h-4 text-blue-600 dark:text-sky-400 shrink-0" viewBox="0 0 16 16" fill="none">
+          {boxDashed}
+          <line x1="2" y1="2" x2="2" y2="14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        </svg>
+      );
+    case 'right':
+      return (
+        <svg className="w-4 h-4 text-blue-600 dark:text-sky-400 shrink-0" viewBox="0 0 16 16" fill="none">
+          {boxDashed}
+          <line x1="14" y1="2" x2="14" y2="14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        </svg>
+      );
+    case 'none':
+      return (
+        <svg className="w-4 h-4 text-slate-500 shrink-0" viewBox="0 0 16 16" fill="none">
+          {boxDashed}
+        </svg>
+      );
+    case 'all':
+      return (
+        <svg className="w-4 h-4 text-blue-600 dark:text-sky-400 shrink-0" viewBox="0 0 16 16" fill="none">
+          <rect x="2" y="2" width="12" height="12" stroke="currentColor" strokeWidth="1.3" />
+          <line x1="8" y1="2" x2="8" y2="14" stroke="currentColor" strokeWidth="1.3" />
+          <line x1="2" y1="8" x2="14" y2="8" stroke="currentColor" strokeWidth="1.3" />
+        </svg>
+      );
+    case 'outside':
+      return (
+        <svg className="w-4 h-4 text-blue-600 dark:text-sky-400 shrink-0" viewBox="0 0 16 16" fill="none">
+          {boxDashed}
+          <rect x="2" y="2" width="12" height="12" stroke="currentColor" strokeWidth="1.5" />
+        </svg>
+      );
+    case 'thick-outside':
+      return (
+        <svg className="w-4 h-4 text-blue-600 dark:text-sky-400 shrink-0" viewBox="0 0 16 16" fill="none">
+          {boxDashed}
+          <rect x="2" y="2" width="12" height="12" stroke="currentColor" strokeWidth="2.5" />
+        </svg>
+      );
+    case 'bottom-double':
+      return (
+        <svg className="w-4 h-4 text-blue-600 dark:text-sky-400 shrink-0" viewBox="0 0 16 16" fill="none">
+          {boxDashed}
+          <line x1="2" y1="12" x2="14" y2="12" stroke="currentColor" strokeWidth="1.2" />
+          <line x1="2" y1="14.5" x2="14" y2="14.5" stroke="currentColor" strokeWidth="1.2" />
+        </svg>
+      );
+    case 'thick-bottom':
+      return (
+        <svg className="w-4 h-4 text-blue-600 dark:text-sky-400 shrink-0" viewBox="0 0 16 16" fill="none">
+          {boxDashed}
+          <line x1="2" y1="14" x2="14" y2="14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+        </svg>
+      );
+    case 'top-bottom':
+      return (
+        <svg className="w-4 h-4 text-blue-600 dark:text-sky-400 shrink-0" viewBox="0 0 16 16" fill="none">
+          {boxDashed}
+          <line x1="2" y1="2" x2="14" y2="2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          <line x1="2" y1="14" x2="14" y2="14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
+      );
+    case 'top-thick-bottom':
+      return (
+        <svg className="w-4 h-4 text-blue-600 dark:text-sky-400 shrink-0" viewBox="0 0 16 16" fill="none">
+          {boxDashed}
+          <line x1="2" y1="2" x2="14" y2="2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          <line x1="2" y1="14" x2="14" y2="14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+        </svg>
+      );
+    case 'top-double-bottom':
+      return (
+        <svg className="w-4 h-4 text-blue-600 dark:text-sky-400 shrink-0" viewBox="0 0 16 16" fill="none">
+          {boxDashed}
+          <line x1="2" y1="2" x2="14" y2="2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          <line x1="2" y1="12" x2="14" y2="12" stroke="currentColor" strokeWidth="1.2" />
+          <line x1="2" y1="14.5" x2="14" y2="14.5" stroke="currentColor" strokeWidth="1.2" />
+        </svg>
+      );
+    case 'more':
+      return (
+        <svg className="w-4 h-4 text-slate-600 dark:text-slate-300 shrink-0" viewBox="0 0 16 16" fill="none">
+          <rect x="1.5" y="1.5" width="13" height="13" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
+          <line x1="8" y1="1.5" x2="8" y2="14.5" stroke="currentColor" strokeWidth="1" strokeDasharray="2 1.5" />
+          <line x1="1.5" y1="8" x2="14.5" y2="8" stroke="currentColor" strokeWidth="1" strokeDasharray="2 1.5" />
+        </svg>
+      );
+  }
+};
+
 export const RibbonHomeTab: React.FC<RibbonHomeTabProps> = ({
   canEdit,
   onCut,
@@ -113,6 +249,9 @@ export const RibbonHomeTab: React.FC<RibbonHomeTabProps> = ({
   fillColor,
   onChangeFillColor,
   onClearFormatting,
+  onApplyBorder,
+  onOpenFormatCells,
+  onInsertTable,
   alignH,
   onChangeAlignH,
   alignV,
@@ -139,17 +278,25 @@ export const RibbonHomeTab: React.FC<RibbonHomeTabProps> = ({
   canRedo
 }) => {
   const [isMergeMenuOpen, setIsMergeMenuOpen] = useState(false);
+  const [isBorderMenuOpen, setIsBorderMenuOpen] = useState(false);
   const mergeMenuRef = useRef<HTMLDivElement>(null);
+  const borderMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!isMergeMenuOpen) return;
+    if (!isMergeMenuOpen && !isBorderMenuOpen) return;
     const handleOutside = (e: MouseEvent) => {
-      if (mergeMenuRef.current && !mergeMenuRef.current.contains(e.target as Node)) {
+      if (isMergeMenuOpen && mergeMenuRef.current && !mergeMenuRef.current.contains(e.target as Node)) {
         setIsMergeMenuOpen(false);
+      }
+      if (isBorderMenuOpen && borderMenuRef.current && !borderMenuRef.current.contains(e.target as Node)) {
+        setIsBorderMenuOpen(false);
       }
     };
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setIsMergeMenuOpen(false);
+      if (e.key === 'Escape') {
+        setIsMergeMenuOpen(false);
+        setIsBorderMenuOpen(false);
+      }
     };
     window.addEventListener('mousedown', handleOutside);
     window.addEventListener('keydown', handleKeyDown);
@@ -157,9 +304,9 @@ export const RibbonHomeTab: React.FC<RibbonHomeTabProps> = ({
       window.removeEventListener('mousedown', handleOutside);
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isMergeMenuOpen]);
+  }, [isMergeMenuOpen, isBorderMenuOpen]);
   return (
-    <div className="flex items-center gap-2 overflow-x-auto py-1 px-3 text-xs select-none">
+    <div className="flex items-center gap-2 py-1 px-3 text-xs select-none">
       {/* 1. Clipboard */}
       <div className="flex items-center gap-1 pr-2 border-r border-slate-200 dark:border-slate-800">
         <button
@@ -267,6 +414,119 @@ export const RibbonHomeTab: React.FC<RibbonHomeTabProps> = ({
             <Underline className="h-3.5 w-3.5" />
           </button>
 
+          {/* Borders Dropdown */}
+          <div
+            ref={borderMenuRef}
+            className={`relative inline-flex items-center rounded border border-transparent hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 ${
+              isBorderMenuOpen ? 'border-slate-300 dark:border-slate-700 bg-slate-200 dark:bg-slate-700 z-50' : ''
+            }`}
+          >
+            <button
+              type="button"
+              onClick={() => onApplyBorder('bottom')}
+              disabled={!canEdit}
+              title="Bottom Border"
+              className="p-1 rounded-l text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white disabled:opacity-40"
+            >
+              {renderBorderIcon('bottom')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsBorderMenuOpen(prev => !prev)}
+              disabled={!canEdit}
+              title="Border options"
+              className="px-0.5 py-1 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 rounded-r disabled:opacity-40"
+            >
+              <ChevronDown className="h-2.5 w-2.5" />
+            </button>
+
+            {/* Dropdown Menu */}
+            {isBorderMenuOpen && (
+              <div
+                className="absolute top-full left-0 mt-1 min-w-[215px] max-h-[380px] overflow-y-auto bg-white dark:bg-[#1a2636] border border-slate-300 dark:border-slate-700 shadow-2xl rounded py-1 z-50 text-[11px]"
+              >
+                <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  Borders
+                </div>
+
+                {[
+                  { id: 'bottom', label: 'Bottom Border' },
+                  { id: 'top', label: 'Top Border' },
+                  { id: 'left', label: 'Left Border' },
+                  { id: 'right', label: 'Right Border' }
+                ].map(b => (
+                  <button
+                    key={b.id}
+                    type="button"
+                    onClick={() => { onApplyBorder(b.id as BorderOptionType); setIsBorderMenuOpen(false); }}
+                    className="flex items-center gap-2.5 px-3 py-1.5 w-full text-left hover:bg-blue-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 transition-colors"
+                  >
+                    <div className="w-5 h-5 flex items-center justify-center shrink-0">
+                      {renderBorderIcon(b.id as BorderOptionType)}
+                    </div>
+                    <span>{b.label}</span>
+                  </button>
+                ))}
+
+                <div className="h-px bg-slate-200 dark:bg-slate-700 my-1" />
+
+                {[
+                  { id: 'none', label: 'No Border' },
+                  { id: 'all', label: 'All Borders' },
+                  { id: 'outside', label: 'Outside Borders' },
+                  { id: 'thick-outside', label: 'Thick Outside Borders' }
+                ].map(b => (
+                  <button
+                    key={b.id}
+                    type="button"
+                    onClick={() => { onApplyBorder(b.id as BorderOptionType); setIsBorderMenuOpen(false); }}
+                    className="flex items-center gap-2.5 px-3 py-1.5 w-full text-left hover:bg-blue-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 transition-colors"
+                  >
+                    <div className="w-5 h-5 flex items-center justify-center shrink-0">
+                      {renderBorderIcon(b.id as BorderOptionType)}
+                    </div>
+                    <span>{b.label}</span>
+                  </button>
+                ))}
+
+                <div className="h-px bg-slate-200 dark:bg-slate-700 my-1" />
+
+                {[
+                  { id: 'bottom-double', label: 'Bottom Double Border' },
+                  { id: 'thick-bottom', label: 'Thick Bottom Border' },
+                  { id: 'top-bottom', label: 'Top and Bottom Border' },
+                  { id: 'top-thick-bottom', label: 'Top and Thick Bottom Border' },
+                  { id: 'top-double-bottom', label: 'Top and Double Bottom Border' }
+                ].map(b => (
+                  <button
+                    key={b.id}
+                    type="button"
+                    onClick={() => { onApplyBorder(b.id as BorderOptionType); setIsBorderMenuOpen(false); }}
+                    className="flex items-center gap-2.5 px-3 py-1.5 w-full text-left hover:bg-blue-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 transition-colors"
+                  >
+                    <div className="w-5 h-5 flex items-center justify-center shrink-0">
+                      {renderBorderIcon(b.id as BorderOptionType)}
+                    </div>
+                    <span>{b.label}</span>
+                  </button>
+                ))}
+
+                <div className="h-px bg-slate-200 dark:bg-slate-700 my-1" />
+
+                <button
+                  type="button"
+                  onClick={() => { onOpenFormatCells('border'); setIsBorderMenuOpen(false); }}
+                  className="flex items-center gap-2.5 px-3 py-1.5 w-full text-left hover:bg-blue-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 transition-colors font-medium"
+                >
+                  <div className="w-5 h-5 flex items-center justify-center shrink-0">
+                    {renderBorderIcon('more')}
+                  </div>
+                  <span>More Borders...</span>
+                </button>
+              </div>
+            )}
+          </div>
+
           {/* Fill Color */}
           <div className="relative flex items-center">
             <label title="Fill Color" className="p-1 rounded hover:bg-slate-100 cursor-pointer text-amber-600 dark:hover:bg-slate-800">
@@ -365,7 +625,7 @@ export const RibbonHomeTab: React.FC<RibbonHomeTabProps> = ({
           </button>
 
           {/* Merge & Center Split Dropdown Button */}
-          <div className="relative inline-flex items-center rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 shadow-xs">
+          <div ref={mergeMenuRef} className={`relative inline-flex items-center rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 shadow-xs ${isMergeMenuOpen ? 'z-50' : ''}`}>
             <button
               type="button"
               onClick={onMergeAndCenter}
@@ -398,7 +658,6 @@ export const RibbonHomeTab: React.FC<RibbonHomeTabProps> = ({
             {/* Dropdown Menu */}
             {isMergeMenuOpen && (
               <div
-                ref={mergeMenuRef}
                 className="absolute top-full left-0 mt-1 min-w-[215px] bg-white dark:bg-[#1a2636] border border-slate-300 dark:border-slate-700 shadow-2xl rounded py-1 z-50 text-[11px]"
               >
                 <button
@@ -583,6 +842,18 @@ export const RibbonHomeTab: React.FC<RibbonHomeTabProps> = ({
           <span className="font-bold">Auto</span>
           <span>Fit</span>
         </button>
+
+        {onInsertTable && (
+          <button
+            onClick={onInsertTable}
+            disabled={!canEdit}
+            title="Create formatted table from selection (Ctrl+T)"
+            className="flex flex-col items-center px-2 py-1 rounded text-[10px] hover:bg-slate-100 disabled:opacity-40 text-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+          >
+            <Table className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span className="font-medium mt-0.5">Table</span>
+          </button>
+        )}
       </div>
 
       {/* 6. Editing & Search */}

@@ -13,6 +13,7 @@ import {
 
 interface RibbonInsertTabProps {
   canEdit: boolean;
+  onInsertTable: () => void;
   onInsertRow: () => void;
   onInsertColumn: () => void;
   onOpenChartModal: () => void;
@@ -24,6 +25,7 @@ interface RibbonInsertTabProps {
 
 export const RibbonInsertTab: React.FC<RibbonInsertTabProps> = ({
   canEdit,
+  onInsertTable,
   onInsertRow,
   onInsertColumn,
   onOpenChartModal,
@@ -33,7 +35,20 @@ export const RibbonInsertTab: React.FC<RibbonInsertTabProps> = ({
   onInsertHyperlink
 }) => {
   return (
-    <div className="flex items-center gap-3 overflow-x-auto py-1 px-3 text-xs select-none">
+    <div className="flex items-center gap-3 py-1 px-3 text-xs select-none">
+      {/* 0. Tables */}
+      <div className="flex items-center gap-1 pr-3 border-r border-slate-200 dark:border-slate-800">
+        <button
+          onClick={onInsertTable}
+          disabled={!canEdit}
+          title="Create Table from selection (Ctrl+T)"
+          className="flex flex-col items-center px-2.5 py-1 rounded hover:bg-slate-100 disabled:opacity-40 text-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+        >
+          <Table className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+          <span className="text-[10px] mt-0.5 font-medium">Table</span>
+        </button>
+      </div>
+
       {/* 1. Rows and Columns */}
       <div className="flex items-center gap-1 pr-3 border-r border-slate-200 dark:border-slate-800">
         <button

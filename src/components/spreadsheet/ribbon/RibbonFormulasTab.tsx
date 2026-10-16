@@ -21,7 +21,7 @@ export const RibbonFormulasTab: React.FC<RibbonFormulasTabProps> = ({
   onInsertFormula
 }) => {
   return (
-    <div className="flex items-center gap-2 overflow-x-auto py-1 px-3 text-xs select-none">
+    <div className="flex items-center gap-2 py-1 px-3 text-xs select-none">
       {/* 1. Insert Function */}
       <div className="flex items-center pr-2 border-r border-slate-200 dark:border-slate-800">
         <button

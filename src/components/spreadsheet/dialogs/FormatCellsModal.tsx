@@ -8,6 +8,7 @@ interface FormatCellsModalProps {
   currentStyle?: any;
   currentNumFmt?: string;
   selectedAddress: string;
+  initialTab?: 'number' | 'alignment' | 'font' | 'border' | 'fill';
 }
 
 const FONT_FAMILIES = ['Arial', 'Arial Narrow', 'Calibri', 'Times New Roman', 'Segoe UI', 'Courier New', 'Consolas'];
@@ -24,9 +25,10 @@ export const FormatCellsModal: React.FC<FormatCellsModalProps> = ({
   onApply,
   currentStyle,
   currentNumFmt = 'General',
-  selectedAddress
+  selectedAddress,
+  initialTab
 }) => {
-  const [activeTab, setActiveTab] = useState<'number' | 'alignment' | 'font' | 'border' | 'fill'>('number');
+  const [activeTab, setActiveTab] = useState<'number' | 'alignment' | 'font' | 'border' | 'fill'>(initialTab || 'number');
 
   const safeStyle = currentStyle || {};
 
@@ -69,7 +71,8 @@ export const FormatCellsModal: React.FC<FormatCellsModalProps> = ({
       s.br?.bottom === 'thick' ? 'thick-bottom' :
       s.br?.bottom === 'thin' ? 'all' : 'none'
     );
-  }, [isOpen, selectedAddress, currentStyle, currentNumFmt]);
+    if (initialTab) setActiveTab(initialTab);
+  }, [isOpen, selectedAddress, currentStyle, currentNumFmt, initialTab]);
 
   if (!isOpen) return null;
 
@@ -78,6 +81,10 @@ export const FormatCellsModal: React.FC<FormatCellsModalProps> = ({
     if (borderType === 'double-bottom') br = { bottom: 'double' };
     else if (borderType === 'thick-bottom') br = { bottom: 'thick' };
     else if (borderType === 'all') br = { top: 'thin', bottom: 'thin', left: 'thin', right: 'thin' };
+    else if (borderType === 'thick-outside') br = { top: 'thick', bottom: 'thick', left: 'thick', right: 'thick' };
+    else if (borderType === 'top-bottom') br = { top: 'thin', bottom: 'thin' };
+    else if (borderType === 'top-thick-bottom') br = { top: 'thin', bottom: 'thick' };
+    else if (borderType === 'top-double-bottom') br = { top: 'thin', bottom: 'double' };
 
     const newStyle = {
       ...safeStyle,
@@ -280,8 +287,11 @@ export const FormatCellsModal: React.FC<FormatCellsModalProps> = ({
                 {[
                   { id: 'none', label: 'No Border' },
                   { id: 'all', label: 'All Borders (Thin)' },
+                  { id: 'thick-outside', label: 'Thick Outside Borders' },
                   { id: 'thick-bottom', label: 'Thick Bottom Border' },
-                  { id: 'double-bottom', label: 'Double Bottom (Accounting Total)' }
+                  { id: 'double-bottom', label: 'Double Bottom (Accounting Total)' },
+                  { id: 'top-bottom', label: 'Top and Bottom Border' },
+                  { id: 'top-double-bottom', label: 'Top and Double Bottom' }
                 ].map(b => (
                   <button
                     key={b.id}
