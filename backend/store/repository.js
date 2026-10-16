@@ -348,7 +348,6 @@ export class PAISRepository {
           req = req.or(`fullName.ilike.%${query.search}%,badgeNo.ilike.%${query.search}%,agencyName.ilike.%${query.search}%,sub_unit.ilike.%${query.search}%,details.ilike.%${query.search}%,station.ilike.%${query.search}%,division.ilike.%${query.search}%,designation.ilike.%${query.search}%`);
         }
         const { data, error } = await req;
-        console.log('--- SUPABASE QUERY RESULT ---', { dataCount: data?.length, error: error?.message });
         if (!error && Array.isArray(data)) return data.map(p => this.normalizePersonnelRecord(p));
       } catch (e) {}
     }
@@ -1017,11 +1016,15 @@ export class PAISRepository {
   // ================= ASSIGNMENTS CRUD =================
   async readAssignmentsRaw(personnelId = null) {
     if (this.isSupabaseConnected()) {
-      let query = supabase.from('assignments').select('*');
-      if (personnelId) query = query.eq('personnelId', personnelId);
-      const { data, error } = await query;
-      if (error) throw new Error(`Assignment lookup failed: ${error.message}`);
-      return data || [];
+      try {
+        let query = supabase.from('assignments').select('*');
+        if (personnelId) query = query.eq('personnelId', personnelId);
+        const { data, error } = await query;
+        if (!error && Array.isArray(data)) return data;
+        if (error) console.warn('Supabase assignment lookup error:', error.message);
+      } catch (err) {
+        console.warn('Supabase assignment lookup failed:', err?.message || err);
+      }
     }
     return personnelId
       ? this.inMemoryAssignments.filter(assignment => assignment.personnelId === personnelId)

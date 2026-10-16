@@ -1,55 +1,20 @@
 import React, { useState, useMemo } from 'react';
 import { X, Calculator, Search, Check } from 'lucide-react';
 
+import { SPREADSHEET_FUNCTIONS, SpreadsheetFunctionDef } from '../../../constants/spreadsheetFunctions';
+
 interface InsertFunctionModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSelectFunction: (template: string) => void;
 }
 
-interface FunctionDef {
-  name: string;
-  category: 'Math' | 'Date' | 'Logical' | 'Text' | 'Lookup';
-  syntax: string;
-  template: string;
-  description: string;
-}
+type FunctionDef = SpreadsheetFunctionDef & { template: string };
 
-const FUNCTIONS: FunctionDef[] = [
-  { name: 'SUM', category: 'Math', syntax: 'SUM(number1, [number2], ...)', template: '=SUM(', description: 'Adds all the numbers in a range of cells.' },
-  { name: 'AVERAGE', category: 'Math', syntax: 'AVERAGE(number1, [number2], ...)', template: '=AVERAGE(', description: 'Returns the average (arithmetic mean) of the arguments.' },
-  { name: 'MIN', category: 'Math', syntax: 'MIN(number1, [number2], ...)', template: '=MIN(', description: 'Returns the smallest number in a set of values.' },
-  { name: 'MAX', category: 'Math', syntax: 'MAX(number1, [number2], ...)', template: '=MAX(', description: 'Returns the largest number in a set of values.' },
-  { name: 'COUNT', category: 'Math', syntax: 'COUNT(value1, [value2], ...)', template: '=COUNT(', description: 'Counts the number of cells that contain numbers.' },
-  { name: 'COUNTA', category: 'Math', syntax: 'COUNTA(value1, [value2], ...)', template: '=COUNTA(', description: 'Counts the number of cells that are not empty.' },
-  { name: 'ROUND', category: 'Math', syntax: 'ROUND(number, num_digits)', template: '=ROUND(', description: 'Rounds a number to a specified number of digits.' },
-  { name: 'SUMIF', category: 'Math', syntax: 'SUMIF(range, criteria, [sum_range])', template: '=SUMIF(', description: 'Adds the cells specified by a given condition or criteria.' },
-  { name: 'COUNTIF', category: 'Math', syntax: 'COUNTIF(range, criteria)', template: '=COUNTIF(', description: 'Counts the number of cells that meet a criterion.' },
-
-  { name: 'TODAY', category: 'Date', syntax: 'TODAY()', template: '=TODAY()', description: 'Returns the current calendar date.' },
-  { name: 'NOW', category: 'Date', syntax: 'NOW()', template: '=NOW()', description: 'Returns the current date and time.' },
-  { name: 'DATE', category: 'Date', syntax: 'DATE(year, month, day)', template: '=DATE(', description: 'Returns the serial number that represents a particular date.' },
-  { name: 'DATEDIF', category: 'Date', syntax: 'DATEDIF(start_date, end_date, unit)', template: '=DATEDIF(', description: 'Calculates the number of days, months, or years between two dates.' },
-
-  { name: 'IF', category: 'Logical', syntax: 'IF(logical_test, [value_if_true], [value_if_false])', template: '=IF(', description: 'Checks whether a condition is met, and returns one value if TRUE, and another value if FALSE.' },
-  { name: 'AND', category: 'Logical', syntax: 'AND(logical1, [logical2], ...)', template: '=AND(', description: 'Returns TRUE if all its arguments evaluate to TRUE.' },
-  { name: 'OR', category: 'Logical', syntax: 'OR(logical1, [logical2], ...)', template: '=OR(', description: 'Returns TRUE if any argument is TRUE.' },
-  { name: 'NOT', category: 'Logical', syntax: 'NOT(logical)', template: '=NOT(', description: 'Reverses the logic of its argument.' },
-  { name: 'IFERROR', category: 'Logical', syntax: 'IFERROR(value, value_if_error)', template: '=IFERROR(', description: 'Returns value_if_error if expression is an error and the value of the expression itself otherwise.' },
-
-  { name: 'CONCAT', category: 'Text', syntax: 'CONCAT(text1, [text2], ...)', template: '=CONCAT(', description: 'Combines the text from multiple ranges and/or strings.' },
-  { name: 'LEFT', category: 'Text', syntax: 'LEFT(text, [num_chars])', template: '=LEFT(', description: 'Returns the specified number of characters from the start of a text string.' },
-  { name: 'RIGHT', category: 'Text', syntax: 'RIGHT(text, [num_chars])', template: '=RIGHT(', description: 'Returns the specified number of characters from the end of a text string.' },
-  { name: 'MID', category: 'Text', syntax: 'MID(text, start_num, num_chars)', template: '=MID(', description: 'Returns a specific number of characters from a text string, starting at the position you specify.' },
-  { name: 'LEN', category: 'Text', syntax: 'LEN(text)', template: '=LEN(', description: 'Returns the number of characters in a text string.' },
-  { name: 'TRIM', category: 'Text', syntax: 'TRIM(text)', template: '=TRIM(', description: 'Removes all spaces from text except for single spaces between words.' },
-  { name: 'UPPER', category: 'Text', syntax: 'UPPER(text)', template: '=UPPER(', description: 'Converts text to uppercase.' },
-  { name: 'LOWER', category: 'Text', syntax: 'LOWER(text)', template: '=LOWER(', description: 'Converts text to lowercase.' },
-
-  { name: 'VLOOKUP', category: 'Lookup', syntax: 'VLOOKUP(lookup_value, table_array, col_index_num, [range_lookup])', template: '=VLOOKUP(', description: 'Looks for a value in the leftmost column of a table, and then returns a value in the same row from a column you specify.' },
-  { name: 'INDEX', category: 'Lookup', syntax: 'INDEX(array, row_num, [column_num])', template: '=INDEX(', description: 'Returns a value or the reference to a value from within a table or range.' },
-  { name: 'MATCH', category: 'Lookup', syntax: 'MATCH(lookup_value, lookup_array, [match_type])', template: '=MATCH(', description: 'Returns the relative position of an item in an array that matches a specified value.' }
-];
+const FUNCTIONS: FunctionDef[] = SPREADSHEET_FUNCTIONS.map(f => ({
+  ...f,
+  template: `=${f.template}`
+}));
 
 export const InsertFunctionModal: React.FC<InsertFunctionModalProps> = ({
   isOpen,

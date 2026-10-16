@@ -27,6 +27,10 @@ CREATE TABLE IF NOT EXISTS worksheet_cell_overrides (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+ALTER TABLE worksheet_cell_overrides ADD COLUMN IF NOT EXISTS value_json JSONB;
+ALTER TABLE worksheet_cell_overrides ADD COLUMN IF NOT EXISTS formula_result_json JSONB;
+ALTER TABLE worksheet_cell_overrides ADD COLUMN IF NOT EXISTS style_json JSONB;
+
 CREATE TABLE IF NOT EXISTS worksheet_audit_logs (
   id TEXT PRIMARY KEY,
   worksheet_id TEXT NOT NULL,

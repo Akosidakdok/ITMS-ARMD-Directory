@@ -216,7 +216,10 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       try {
         // Assignment reads reconcile effective dates on the server, so fetch
         // personnel after assignments to avoid briefly showing stale postings.
-        const aData = await fetchAssignments();
+        const aData = await fetchAssignments().catch(err => {
+          console.warn('Assignments fetch failed, using fallback:', err);
+          return [];
+        });
         const [pData, oData, eData, prData, tData, lData] = await Promise.all([
           fetchPersonnel(),
           fetchOrders(),

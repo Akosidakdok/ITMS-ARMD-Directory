@@ -7,7 +7,12 @@ import {
   getWorksheetDetail,
   updateWorksheetCell,
   getWorksheetAuditLogs,
-  generateExcelExport
+  generateExcelExport,
+  loadWorksheetPersistence,
+  registerCustomWorksheet,
+  renameWorksheet,
+  deleteWorksheet,
+  updateWorksheetMerges
 } from '../services/worksheetDataService.js';
 
 const router = express.Router();
@@ -27,6 +32,7 @@ router.get('/', async (req, res) => {
 // Get worksheet audit logs
 router.get('/audit/logs', async (req, res) => {
   try {
+    await loadWorksheetPersistence();
     const logs = getWorksheetAuditLogs(150);
     return res.json({ success: true, data: logs });
   } catch (error) {
@@ -37,6 +43,7 @@ router.get('/audit/logs', async (req, res) => {
 // Export workbook or sheet as .xlsx
 router.get('/export/download', async (req, res) => {
   try {
+    await loadWorksheetPersistence();
     const sheetId = req.query.sheetId || null;
     const buffer = await generateExcelExport(sheetId);
     
@@ -63,9 +70,42 @@ router.get('/export/download', async (req, res) => {
   }
 });
 
+// Register / create a custom worksheet
+router.post('/custom', async (req, res) => {
+  try {
+    const { id, name, order, rowCount, colCount } = req.body;
+    const sheet = registerCustomWorksheet({ id, name, order, rowCount, colCount });
+    return res.json({ success: true, data: sheet });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Rename worksheet
+router.put('/:sheetId/rename', async (req, res) => {
+  try {
+    const { name } = req.body;
+    const sheet = renameWorksheet(req.params.sheetId, name);
+    return res.json({ success: true, data: sheet });
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+// Delete worksheet
+router.delete('/:sheetId', async (req, res) => {
+  try {
+    deleteWorksheet(req.params.sheetId);
+    return res.json({ success: true });
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message });
+  }
+});
+
 // Get single worksheet details with live database sync
 router.get('/:sheetId', async (req, res) => {
   try {
+    await loadWorksheetPersistence();
     const personnel = await db.getPersonnel();
     const sheetData = getWorksheetDetail(req.params.sheetId, personnel);
     return res.json({ success: true, data: sheetData });
@@ -77,12 +117,12 @@ router.get('/:sheetId', async (req, res) => {
 // Update a single cell
 router.put('/:sheetId/cell', async (req, res) => {
   try {
-    const { address, value, oldValue, formula, style } = req.body;
+    const { address, value, oldValue, formula, formulaResult, style } = req.body;
     if (!address) return res.status(400).json({ success: false, message: 'Cell address is required' });
 
     const result = await updateWorksheetCell(
       req.params.sheetId,
-      { address, value, oldValue, formula, style },
+      { address, value, oldValue, formula, formulaResult, style },
       req.user,
       db
     );
@@ -105,6 +145,17 @@ router.post('/:sheetId/batch', async (req, res) => {
     }
 
     return res.json({ success: true, count: results.length, data: results });
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+// Update worksheet merges
+router.put('/:sheetId/merges', async (req, res) => {
+  try {
+    const { merges } = req.body;
+    const result = updateWorksheetMerges(req.params.sheetId, merges);
+    return res.json({ success: true, data: result });
   } catch (error) {
     return res.status(400).json({ success: false, message: error.message });
   }

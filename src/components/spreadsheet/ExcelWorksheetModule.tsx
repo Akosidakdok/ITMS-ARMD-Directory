@@ -19,15 +19,34 @@ import {
   fetchWorksheetSummariesApi,
   fetchWorksheetDetailApi,
   batchUpdateWorksheetCellsApi,
+  updateWorksheetMergesApi,
   downloadWorksheetExcelApi,
+  createCustomWorksheetApi,
+  renameWorksheetApi,
+  deleteWorksheetApi,
   type WorksheetSummary,
   type WorksheetDetail,
   type WorksheetCell
 } from '../../services/api';
 import { useAuthRole } from '../../context/AuthRoleContext';
-import { colNumToLetter, colLetterToNum, parseAddress } from '../../utils/spreadsheetUtils';
-import { evaluateFormula } from './formula/formulaEngine';
+import {
+  colNumToLetter,
+  colLetterToNum,
+  parseAddress,
+  formatExcelDateSerial,
+  insertCellReferenceIntoFormula,
+  parseMergeRange,
+  isCellInMergeRange,
+  isMergeOverlappingRange
+} from '../../utils/spreadsheetUtils';
+import {
+  applyCellEdits,
+  recalculateWorkbook,
+  translateFormulaReferences,
+  type CellValueMap
+} from './formula/formulaEngine';
 import { ExcelRibbon, type RibbonTabType } from './ribbon/ExcelRibbon';
+import { type BorderOptionType } from './ribbon/RibbonHomeTab';
 import { FormulaBar } from './formulaBar/FormulaBar';
 import { SpreadsheetContextMenu, type ContextMenuPosition } from './contextMenu/SpreadsheetContextMenu';
 import { ChartModal } from './dialogs/ChartModal';
@@ -37,6 +56,12 @@ import { PageSetupModal } from './dialogs/PageSetupModal';
 import { InsertFunctionModal } from './dialogs/InsertFunctionModal';
 import { ExcelImportModal } from './ExcelImportModal';
 import { WorksheetAuditDrawer } from './WorksheetAuditDrawer';
+import {
+  SPREADSHEET_FUNCTIONS,
+  SpreadsheetFunctionDef,
+  getFormulaSearchContext
+} from '../../constants/spreadsheetFunctions';
+import { FormulaAutocompleteList } from './formulaBar/FormulaAutocompleteList';
 
 export function getFormulaBarDisplay(cell: WorksheetCell | undefined | null): string {
   if (!cell) return '';
@@ -65,6 +90,8 @@ export function formatDisplayVal(cell: WorksheetCell | undefined | null): string
 
   const num = Number(val);
   if (isNaN(num)) return str;
+  const dateValue = formatExcelDateSerial(num, numFmt);
+  if (dateValue !== null) return dateValue;
 
   if (numFmt === '₱#,##0.00' || numFmt === 'currency') {
     return `₱${num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -83,6 +110,17 @@ export function formatDisplayVal(cell: WorksheetCell | undefined | null): string
   return str;
 }
 
+interface WorksheetHistorySnapshot {
+  sheetId: string;
+  cells: Record<string, WorksheetCell>;
+  merges: string[];
+  rowCount: number;
+  colCount: number;
+  unsavedChanges: Map<string, { oldValue: any; newValue: any; oldFormula?: string | null; formula?: string | null; style?: any }>;
+  activeCell: { row: number; col: number; address: string };
+  selectionRange: { startRow: number; startCol: number; endRow: number; endCol: number } | null;
+}
+
 export const ExcelWorksheetModule: React.FC = () => {
   const { role } = useAuthRole();
   const [isProtected, setIsProtected] = useState(false);
@@ -92,6 +130,7 @@ export const ExcelWorksheetModule: React.FC = () => {
   const [sheets, setSheets] = useState<WorksheetSummary[]>([]);
   const [activeSheetId, setActiveSheetId] = useState<string>('');
   const [sheetData, setSheetData] = useState<WorksheetDetail | null>(null);
+  const [formulaSheets, setFormulaSheets] = useState<CellValueMap>({});
   const [loading, setLoading] = useState(true);
   const [wakingUp, setWakingUp] = useState(false);
   const [error, setError] = useState<string>('');
@@ -118,6 +157,17 @@ export const ExcelWorksheetModule: React.FC = () => {
   const [formulaInputValue, setFormulaInputValue] = useState('');
   const [formatPainterStyle, setFormatPainterStyle] = useState<any | null>(null);
 
+  // Formula interactive reference selection
+  const [formulaLastInsertedRef, setFormulaLastInsertedRef] = useState<string | null>(null);
+  const [formulaReferenceRange, setFormulaReferenceRange] = useState<{
+    startRow: number;
+    startCol: number;
+    endRow: number;
+    endCol: number;
+  } | null>(null);
+  const [isDraggingFormulaRange, setIsDraggingFormulaRange] = useState(false);
+  const isInteractingWithCellRef = useRef(false);
+
   // Column / Row Interactive Resizing & Custom Heights
   const [customColWidths, setCustomColWidths] = useState<Record<number, number>>({});
   const [customRowHeights, setCustomRowHeights] = useState<Record<number, number>>({});
@@ -125,9 +175,27 @@ export const ExcelWorksheetModule: React.FC = () => {
   const resizingRowRef = useRef<{ row: number; startY: number; startH: number } | null>(null);
 
   // Unsaved changes & Undo/Redo stack
-  const [unsavedChanges, setUnsavedChanges] = useState<Map<string, { oldValue: any; newValue: any; style?: any }>>(new Map());
-  const [undoStack, setUndoStack] = useState<Array<{ sheetId: string; address: string; oldValue: any; newValue: any; oldStyle?: any; newStyle?: any }>>([]);
-  const [redoStack, setRedoStack] = useState<Array<{ sheetId: string; address: string; oldValue: any; newValue: any; oldStyle?: any; newStyle?: any }>>([]);
+  const [unsavedChanges, setUnsavedChanges] = useState<Map<string, { oldValue: any; newValue: any; oldFormula?: string | null; formula?: string | null; style?: any }>>(new Map());
+  const [undoStack, setUndoStack] = useState<WorksheetHistorySnapshot[]>([]);
+  const [redoStack, setRedoStack] = useState<WorksheetHistorySnapshot[]>([]);
+
+  const historyStateRef = useRef({
+    sheetData,
+    activeSheetId,
+    unsavedChanges,
+    activeCell,
+    selectionRange
+  });
+
+  useEffect(() => {
+    historyStateRef.current = {
+      sheetData,
+      activeSheetId,
+      unsavedChanges,
+      activeCell,
+      selectionRange
+    };
+  }, [sheetData, activeSheetId, unsavedChanges, activeCell, selectionRange]);
 
   // View settings
   const [activeRibbonTab, setActiveRibbonTab] = useState<RibbonTabType>('home');
@@ -147,6 +215,7 @@ export const ExcelWorksheetModule: React.FC = () => {
   const [isFindReplaceOpen, setIsFindReplaceOpen] = useState(false);
   const [findReplaceMode, setFindReplaceMode] = useState<'find' | 'replace'>('find');
   const [isFormatCellsOpen, setIsFormatCellsOpen] = useState(false);
+  const [formatCellsInitialTab, setFormatCellsInitialTab] = useState<'number' | 'alignment' | 'font' | 'border' | 'fill'>('number');
   const [isPageSetupOpen, setIsPageSetupOpen] = useState(false);
   const [isFunctionWizardOpen, setIsFunctionWizardOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -163,6 +232,50 @@ export const ExcelWorksheetModule: React.FC = () => {
   const gridContainerRef = useRef<HTMLDivElement>(null);
   const inCellInputRef = useRef<HTMLInputElement>(null);
   const tabScrollRef = useRef<HTMLDivElement>(null);
+  const copiedRangeRef = useRef<{ text: string; row: number; col: number; values: string[][] } | null>(null);
+
+  // In-cell formula autocomplete state
+  const [inCellAutocompleteIndex, setInCellAutocompleteIndex] = useState(0);
+  const [inCellAutocompleteDismissed, setInCellAutocompleteDismissed] = useState(false);
+
+  const { isFormula: inCellIsFormula, searchTerm: inCellSearchTerm, prefixText: inCellPrefixText } = useMemo(
+    () => getFormulaSearchContext(editValue),
+    [editValue]
+  );
+
+  useEffect(() => {
+    setInCellAutocompleteDismissed(false);
+    setInCellAutocompleteIndex(0);
+  }, [editValue]);
+
+  const inCellCleanTerm = inCellSearchTerm.toUpperCase().trim();
+  const inCellMatchingFunctions = useMemo(() => {
+    if (!inCellIsFormula || inCellAutocompleteDismissed || !isEditing) return [];
+    return SPREADSHEET_FUNCTIONS.filter(f => {
+      if (!inCellCleanTerm) return true;
+      return f.name.includes(inCellCleanTerm);
+    }).sort((a, b) => {
+      if (!inCellCleanTerm) return a.name.localeCompare(b.name);
+      const aStarts = a.name.startsWith(inCellCleanTerm);
+      const bStarts = b.name.startsWith(inCellCleanTerm);
+      if (aStarts && !bStarts) return -1;
+      if (!aStarts && bStarts) return 1;
+      return a.name.localeCompare(b.name);
+    });
+  }, [inCellIsFormula, inCellAutocompleteDismissed, isEditing, inCellCleanTerm]);
+
+  const handleInCellSelectFormula = (fn: SpreadsheetFunctionDef) => {
+    const newValue = `${inCellPrefixText}${fn.template}`;
+    setEditValue(newValue);
+    setFormulaInputValue(newValue);
+    setInCellAutocompleteDismissed(true);
+    setTimeout(() => {
+      if (inCellInputRef.current) {
+        inCellInputRef.current.focus();
+        inCellInputRef.current.setSelectionRange(newValue.length, newValue.length);
+      }
+    }, 10);
+  };
 
   // Virtualization windowing
   const [scrollTop, setScrollTop] = useState(0);
@@ -175,14 +288,19 @@ export const ExcelWorksheetModule: React.FC = () => {
     if (!sheetData?.merges) return { mergeMap: mMap, hiddenMergeCells: hiddenSet };
 
     sheetData.merges.forEach(rangeStr => {
-      const parts = rangeStr.split(':');
-      if (parts.length !== 2) return;
-      const start = parseAddress(parts[0]);
-      const end = parseAddress(parts[1]);
-      mMap.set(parts[0], { rowSpan: end.row - start.row + 1, colSpan: end.col - start.col + 1 });
-      for (let r = start.row; r <= end.row; r++) {
-        for (let c = start.col; c <= end.col; c++) {
-          if (r === start.row && c === start.col) continue;
+      const parsed = parseMergeRange(rangeStr);
+      if (!parsed) return;
+      const { minRow, maxRow, minCol, maxCol, startAddress } = parsed;
+      if (minRow === maxRow && minCol === maxCol) return;
+
+      mMap.set(startAddress, {
+        rowSpan: maxRow - minRow + 1,
+        colSpan: maxCol - minCol + 1
+      });
+
+      for (let r = minRow; r <= maxRow; r++) {
+        for (let c = minCol; c <= maxCol; c++) {
+          if (r === minRow && c === minCol) continue;
           hiddenSet.add(`${colNumToLetter(c)}${r}`);
         }
       }
@@ -206,7 +324,10 @@ export const ExcelWorksheetModule: React.FC = () => {
   }, [activeCell.address, sheetData, isEditing]);
 
   // Load worksheet list
+  const summariesInFlightRef = useRef(false);
   const loadSummaries = useCallback(async () => {
+    if (summariesInFlightRef.current) return;
+    summariesInFlightRef.current = true;
     try {
       setError('');
       setWakingUp(false);
@@ -222,6 +343,8 @@ export const ExcelWorksheetModule: React.FC = () => {
     } catch (err: any) {
       setWakingUp(false);
       setError(err.message || 'Failed to load worksheets');
+    } finally {
+      summariesInFlightRef.current = false;
     }
   }, []);
 
@@ -229,8 +352,29 @@ export const ExcelWorksheetModule: React.FC = () => {
     loadSummaries();
   }, [loadSummaries]);
 
+  // In-memory sheet cache for instant tab switching and loading
+  const sheetCacheRef = useRef<Map<string, WorksheetDetail>>(new Map());
+  const sheetDataRef = useRef<WorksheetDetail | null>(null);
+  useEffect(() => {
+    sheetDataRef.current = sheetData;
+    if (sheetData) {
+      sheetCacheRef.current.set(sheetData.id, sheetData);
+    }
+  }, [sheetData]);
+
   // Load single worksheet details
   const loadActiveSheet = useCallback(async (id: string) => {
+    // If cached in memory, display immediately with 0ms delay
+    const cached = sheetCacheRef.current.get(id);
+    if (cached) {
+      setSheetData(cached);
+      setLoading(false);
+      setError('');
+      setUndoStack([]);
+      setRedoStack([]);
+      return;
+    }
+
     setLoading(true);
     setError('');
     try {
@@ -239,17 +383,49 @@ export const ExcelWorksheetModule: React.FC = () => {
         console.log(`[WorksheetModule] Loading sheet ${id} retry ${attempt}, waiting ${delayMs}ms...`);
       });
       setWakingUp(false);
+      sheetCacheRef.current.set(id, data);
       setSheetData(data);
+      setLoading(false);
+      setUndoStack([]);
+      setRedoStack([]);
       setActiveCell({ row: 1, col: 1, address: 'A1' });
       setSelectionRange(null);
       setIsEditing(false);
+
+      // Resolve cross-sheet formulas in background (non-blocking)
+      const currentSummaries = sheets.length ? sheets : [{ id: data.id, name: data.name } as WorksheetSummary];
+      Promise.all(currentSummaries
+        .filter(summary => summary.id !== id)
+        .map(summary => {
+          const c = sheetCacheRef.current.get(summary.id);
+          return c ? Promise.resolve(c) : fetchWorksheetDetailApi(summary.id).catch(() => null);
+        })
+      ).then(otherDetails => {
+        const workbookCells: CellValueMap = {
+          [data.name]: { name: data.name, cells: data.cells }
+        };
+        otherDetails.forEach(detail => {
+          if (detail) {
+            sheetCacheRef.current.set(detail.id, detail);
+            workbookCells[detail.name] = { name: detail.name, cells: detail.cells };
+          }
+        });
+        const recalculated = recalculateWorkbook(workbookCells);
+        setFormulaSheets(recalculated);
+        if (recalculated[data.name]?.cells) {
+          setSheetData(prev => (prev && prev.id === data.id ? { ...prev, cells: recalculated[data.name].cells } : prev));
+        }
+      }).catch(() => {});
     } catch (err: any) {
       setWakingUp(false);
+      if (sheetDataRef.current && sheetDataRef.current.id === id) {
+        setLoading(false);
+        return;
+      }
       setError(err.message || 'Failed to load worksheet');
-    } finally {
       setLoading(false);
     }
-  }, []);
+  }, [sheets]);
 
   useEffect(() => {
     if (activeSheetId) {
@@ -267,75 +443,90 @@ export const ExcelWorksheetModule: React.FC = () => {
     return r >= minR && r <= maxR && c >= minC && c <= maxC;
   }, [selectionRange]);
 
-  // Apply cell change locally and stage for batch save
-  const applyCellChange = useCallback((address: string, rawValue: string) => {
-    if (!sheetData) return;
-    const existingCell = sheetData.cells[address] || {};
-    const currentVal = existingCell.v;
-    let newVal: any = rawValue;
-    let formula: string | undefined = undefined;
-    let computedResult: any = rawValue;
+  // Check if cell is in formula reference range
+  const isFormulaReferenced = useCallback((r: number, c: number): boolean => {
+    if (!formulaReferenceRange) return false;
+    const minR = Math.min(formulaReferenceRange.startRow, formulaReferenceRange.endRow);
+    const maxR = Math.max(formulaReferenceRange.startRow, formulaReferenceRange.endRow);
+    const minC = Math.min(formulaReferenceRange.startCol, formulaReferenceRange.endCol);
+    const maxC = Math.max(formulaReferenceRange.startCol, formulaReferenceRange.endCol);
+    return r >= minR && r <= maxR && c >= minC && c <= maxC;
+  }, [formulaReferenceRange]);
 
-    if (rawValue.startsWith('=')) {
-      formula = rawValue.slice(1).trim();
-      computedResult = evaluateFormula(rawValue, sheetData.cells);
-      newVal = rawValue;
-    } else if (rawValue !== '' && !isNaN(Number(rawValue))) {
-      newVal = Number(rawValue);
-      computedResult = newVal;
-    }
-
-    if (String(currentVal ?? '') === String(newVal ?? '')) return;
-
-    const rowNum = parseAddress(address).row;
-    const existingStyle = existingCell.s || {};
-    const newStyle = {
-      ...existingStyle,
-      ah: existingStyle.ah || (rowNum <= 8 ? 'center' : undefined)
+  // Snapshot current worksheet state for Undo
+  const pushUndoSnapshot = useCallback(() => {
+    const current = historyStateRef.current;
+    if (!current.sheetData) return;
+    const snapshot: WorksheetHistorySnapshot = {
+      sheetId: current.activeSheetId,
+      cells: { ...current.sheetData.cells },
+      merges: [...(current.sheetData.merges || [])],
+      rowCount: current.sheetData.rowCount,
+      colCount: current.sheetData.colCount,
+      unsavedChanges: new Map(current.unsavedChanges),
+      activeCell: { ...current.activeCell },
+      selectionRange: current.selectionRange ? { ...current.selectionRange } : null
     };
+    setUndoStack(prev => [...prev.slice(-49), snapshot]);
+    setRedoStack([]);
+  }, []);
 
+  // Apply cell change locally and stage for batch save
+  const applyCellChanges = useCallback((edits: Array<{ address: string; rawValue: string }>) => {
+    if (!sheetData) return;
+    const applied = applyCellEdits(
+      sheetData.cells,
+      edits.map(edit => ({ address: edit.address, input: edit.rawValue })),
+      sheetData.name,
+      formulaSheets
+    );
+    if (applied.changes.length === 0) return;
+    pushUndoSnapshot();
+
+    const nextCells = { ...applied.cells };
+    const styleByAddress: Record<string, any> = {};
+    applied.changes.forEach(change => {
+      const existingCell = sheetData.cells[change.address] || {};
+      const existingStyle = existingCell.s || {};
+      const rowNum = parseAddress(change.address).row;
+      const newStyle = {
+        ...existingStyle,
+        ah: existingStyle.ah || (rowNum <= 8 ? 'center' : undefined)
+      };
+      styleByAddress[change.address] = newStyle;
+      nextCells[change.address] = { ...nextCells[change.address], s: newStyle };
+    });
+
+    const nextWorkbook = {
+      ...formulaSheets,
+      [sheetData.name]: { name: sheetData.name, cells: nextCells }
+    };
+    setFormulaSheets(nextWorkbook);
+    setSheetData(prev => prev ? { ...prev, cells: nextCells } : prev);
     setUnsavedChanges(prev => {
       const next = new Map(prev);
-      const existing = next.get(address);
-      next.set(address, {
-        oldValue: existing ? existing.oldValue : currentVal,
-        newValue: newVal,
-        style: existing?.style || newStyle
+      applied.changes.forEach(change => {
+        const existing = next.get(change.address);
+        next.set(change.address, {
+          oldValue: existing ? existing.oldValue : change.oldValue,
+          oldFormula: existing ? existing.oldFormula : change.oldFormula,
+          newValue: change.newValue,
+          formula: change.formula,
+          style: styleByAddress[change.address]
+        });
       });
       return next;
     });
+  }, [sheetData, formulaSheets, pushUndoSnapshot]);
 
-    setSheetData(prev => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        cells: {
-          ...prev.cells,
-          [address]: {
-            ...existingCell,
-            v: newVal,
-            res: computedResult,
-            f: formula || existingCell.f,
-            s: newStyle
-          }
-        }
-      };
-    });
-
-    setUndoStack(prev => [...prev, {
-      sheetId: activeSheetId,
-      address,
-      oldValue: currentVal,
-      newValue: newVal,
-      oldStyle: existingStyle,
-      newStyle
-    }]);
-    setRedoStack([]);
-  }, [sheetData, activeSheetId]);
+  const applyCellChange = useCallback((address: string, rawValue: string) => {
+    applyCellChanges([{ address, rawValue }]);
+  }, [applyCellChanges]);
 
   // Apply style changes to active cell or entire selection range
   const applyStyleToSelection = useCallback((styleUpdater: (oldStyle: any) => any, numFmt?: string) => {
     if (!sheetData || !canEdit) return;
+    pushUndoSnapshot();
 
     const targetAddresses: string[] = [];
     if (selectionRange) {
@@ -375,6 +566,334 @@ export const ExcelWorksheetModule: React.FC = () => {
     setUnsavedChanges(staged);
   }, [sheetData, canEdit, selectionRange, activeCell.address, unsavedChanges]);
 
+  // Helper to extract normalized selection bounds
+  const getNormalizedSelection = useCallback(() => {
+    if (!selectionRange) return null;
+    const minRow = Math.min(selectionRange.startRow, selectionRange.endRow);
+    const maxRow = Math.max(selectionRange.startRow, selectionRange.endRow);
+    const minCol = Math.min(selectionRange.startCol, selectionRange.endCol);
+    const maxCol = Math.max(selectionRange.startCol, selectionRange.endCol);
+    return { minRow, maxRow, minCol, maxCol };
+  }, [selectionRange]);
+
+  // 4. Unmerge Cells (defined before handleMergeAndCenter so it can be called if needed)
+  const handleUnmergeCells = useCallback(() => {
+    if (!sheetData || !canEdit) return;
+    pushUndoSnapshot();
+    const range = getNormalizedSelection();
+
+    setSheetData(prev => {
+      if (!prev) return prev;
+      let remaining: string[];
+      if (range) {
+        remaining = prev.merges.filter(m => !isMergeOverlappingRange(m, range.minRow, range.maxRow, range.minCol, range.maxCol));
+      } else {
+        remaining = prev.merges.filter(m => !isCellInMergeRange(activeCell.row, activeCell.col, m));
+      }
+      return {
+        ...prev,
+        merges: remaining
+      };
+    });
+
+    setMessage('Unmerged cells');
+    setTimeout(() => setMessage(''), 1500);
+  }, [sheetData, canEdit, getNormalizedSelection, activeCell, pushUndoSnapshot]);
+
+  // 1. Merge & Center
+  const handleMergeAndCenter = useCallback(() => {
+    if (!sheetData || !canEdit) return;
+    const range = getNormalizedSelection();
+    if (!range || (range.minRow === range.maxRow && range.minCol === range.maxCol)) {
+      const existing = sheetData.merges.find(m => isCellInMergeRange(activeCell.row, activeCell.col, m));
+      if (existing) {
+        handleUnmergeCells();
+        return;
+      }
+      return;
+    }
+    pushUndoSnapshot();
+
+    const { minRow, maxRow, minCol, maxCol } = range;
+    const rangeStr = `${colNumToLetter(minCol)}${minRow}:${colNumToLetter(maxCol)}${maxRow}`;
+    const topLeftAddr = `${colNumToLetter(minCol)}${minRow}`;
+
+    setSheetData(prev => {
+      if (!prev) return prev;
+      const remainingMerges = prev.merges.filter(m => !isMergeOverlappingRange(m, minRow, maxRow, minCol, maxCol));
+      const newCells = { ...prev.cells };
+      const currentCell = newCells[topLeftAddr] || {};
+      const newStyle = { ...(currentCell.s || {}), ah: 'center' as const };
+      newCells[topLeftAddr] = { ...currentCell, s: newStyle };
+      return {
+        ...prev,
+        merges: [...remainingMerges, rangeStr],
+        cells: newCells
+      };
+    });
+
+    setUnsavedChanges(prev => {
+      const staged = new Map(prev);
+      const currentCell = sheetData.cells[topLeftAddr] || {};
+      staged.set(topLeftAddr, {
+        oldValue: currentCell.v,
+        newValue: currentCell.v,
+        style: { ...(currentCell.s || {}), ah: 'center' }
+      });
+      return staged;
+    });
+
+    setActiveCell({ row: minRow, col: minCol, address: topLeftAddr });
+    setSelectionRange({ startRow: minRow, startCol: minCol, endRow: maxRow, endCol: maxCol });
+    setMessage(`Merged & Centered ${rangeStr}`);
+    setTimeout(() => setMessage(''), 1500);
+  }, [sheetData, canEdit, getNormalizedSelection, activeCell, handleUnmergeCells, pushUndoSnapshot]);
+
+  // 2. Merge Across (merge horizontally per row)
+  const handleMergeAcross = useCallback(() => {
+    if (!sheetData || !canEdit) return;
+    const range = getNormalizedSelection();
+    if (!range || range.minCol === range.maxCol) return;
+    pushUndoSnapshot();
+    const { minRow, maxRow, minCol, maxCol } = range;
+
+    const newRowMerges: string[] = [];
+    for (let r = minRow; r <= maxRow; r++) {
+      newRowMerges.push(`${colNumToLetter(minCol)}${r}:${colNumToLetter(maxCol)}${r}`);
+    }
+
+    setSheetData(prev => {
+      if (!prev) return prev;
+      const remainingMerges = prev.merges.filter(m => !isMergeOverlappingRange(m, minRow, maxRow, minCol, maxCol));
+      return {
+        ...prev,
+        merges: [...remainingMerges, ...newRowMerges]
+      };
+    });
+
+    setMessage(`Merged across rows ${minRow} to ${maxRow}`);
+    setTimeout(() => setMessage(''), 1500);
+  }, [sheetData, canEdit, getNormalizedSelection, pushUndoSnapshot]);
+
+  // 3. Merge Cells (merge without centering)
+  const handleMergeCells = useCallback(() => {
+    if (!sheetData || !canEdit) return;
+    const range = getNormalizedSelection();
+    if (!range || (range.minRow === range.maxRow && range.minCol === range.maxCol)) return;
+    pushUndoSnapshot();
+    const { minRow, maxRow, minCol, maxCol } = range;
+    const rangeStr = `${colNumToLetter(minCol)}${minRow}:${colNumToLetter(maxCol)}${maxRow}`;
+    const topLeftAddr = `${colNumToLetter(minCol)}${minRow}`;
+
+    setSheetData(prev => {
+      if (!prev) return prev;
+      const remainingMerges = prev.merges.filter(m => !isMergeOverlappingRange(m, minRow, maxRow, minCol, maxCol));
+      return {
+        ...prev,
+        merges: [...remainingMerges, rangeStr]
+      };
+    });
+
+    setActiveCell({ row: minRow, col: minCol, address: topLeftAddr });
+    setSelectionRange({ startRow: minRow, startCol: minCol, endRow: maxRow, endCol: maxCol });
+    setMessage(`Merged cells ${rangeStr}`);
+    setTimeout(() => setMessage(''), 1500);
+  }, [sheetData, canEdit, getNormalizedSelection, pushUndoSnapshot]);
+
+  // 5. Center Across Selection
+  const handleCenterAcross = useCallback(() => {
+    if (!sheetData || !canEdit) return;
+    const range = getNormalizedSelection();
+    if (!range) return;
+    pushUndoSnapshot();
+    const { minRow, minCol } = range;
+    const topLeftAddr = `${colNumToLetter(minCol)}${minRow}`;
+
+    setSheetData(prev => {
+      if (!prev) return prev;
+      const newCells = { ...prev.cells };
+      const currentCell = newCells[topLeftAddr] || {};
+      newCells[topLeftAddr] = {
+        ...currentCell,
+        s: { ...(currentCell.s || {}), ah: 'center' }
+      };
+      return {
+        ...prev,
+        cells: newCells
+      };
+    });
+
+    setUnsavedChanges(prev => {
+      const staged = new Map(prev);
+      const currentCell = sheetData.cells[topLeftAddr] || {};
+      staged.set(topLeftAddr, {
+        oldValue: currentCell.v,
+        newValue: currentCell.v,
+        style: { ...(currentCell.s || {}), ah: 'center' }
+      });
+      return staged;
+    });
+
+    setMessage('Centered across selection');
+    setTimeout(() => setMessage(''), 1500);
+  }, [sheetData, canEdit, getNormalizedSelection, pushUndoSnapshot]);
+
+  // Open format cells modal with initial tab
+  const handleOpenFormatCells = useCallback((tab: 'number' | 'alignment' | 'font' | 'border' | 'fill' = 'number') => {
+    setFormatCellsInitialTab(tab);
+    setIsFormatCellsOpen(true);
+  }, []);
+
+  // Apply borders to selected cells
+  const handleApplyBorder = useCallback((type: BorderOptionType) => {
+    if (!sheetData || !canEdit) return;
+
+    const minR = selectionRange ? Math.min(selectionRange.startRow, selectionRange.endRow) : activeCell.row;
+    const maxR = selectionRange ? Math.max(selectionRange.startRow, selectionRange.endRow) : activeCell.row;
+    const minC = selectionRange ? Math.min(selectionRange.startCol, selectionRange.endCol) : activeCell.col;
+    const maxC = selectionRange ? Math.max(selectionRange.startCol, selectionRange.endCol) : activeCell.col;
+
+    const newCells = { ...sheetData.cells };
+    const staged = new Map(unsavedChanges);
+
+    pushUndoSnapshot();
+
+    for (let r = minR; r <= maxR; r++) {
+      for (let c = minC; c <= maxC; c++) {
+        const addr = `${colNumToLetter(c)}${r}`;
+        const cell = newCells[addr] || {};
+        const oldStyle = cell.s || {};
+        const oldBr = { ...(oldStyle.br || {}) };
+        let newBr: any = { ...oldBr };
+
+        switch (type) {
+          case 'none':
+            newBr = undefined;
+            break;
+          case 'all':
+            newBr = { top: 'thin', bottom: 'thin', left: 'thin', right: 'thin' };
+            break;
+          case 'bottom':
+            if (r === maxR) newBr.bottom = 'thin';
+            break;
+          case 'top':
+            if (r === minR) newBr.top = 'thin';
+            break;
+          case 'left':
+            if (c === minC) newBr.left = 'thin';
+            break;
+          case 'right':
+            if (c === maxC) newBr.right = 'thin';
+            break;
+          case 'outside':
+            if (r === minR) newBr.top = 'thin';
+            if (r === maxR) newBr.bottom = 'thin';
+            if (c === minC) newBr.left = 'thin';
+            if (c === maxC) newBr.right = 'thin';
+            break;
+          case 'thick-outside':
+            if (r === minR) newBr.top = 'thick';
+            if (r === maxR) newBr.bottom = 'thick';
+            if (c === minC) newBr.left = 'thick';
+            if (c === maxC) newBr.right = 'thick';
+            break;
+          case 'bottom-double':
+            if (r === maxR) newBr.bottom = 'double';
+            break;
+          case 'thick-bottom':
+            if (r === maxR) newBr.bottom = 'thick';
+            break;
+          case 'top-bottom':
+            if (r === minR) newBr.top = 'thin';
+            if (r === maxR) newBr.bottom = 'thin';
+            break;
+          case 'top-thick-bottom':
+            if (r === minR) newBr.top = 'thin';
+            if (r === maxR) newBr.bottom = 'thick';
+            break;
+          case 'top-double-bottom':
+            if (r === minR) newBr.top = 'thin';
+            if (r === maxR) newBr.bottom = 'double';
+            break;
+        }
+
+        newCells[addr] = {
+          ...cell,
+          s: {
+            ...oldStyle,
+            br: newBr
+          }
+        };
+        staged.set(addr, newCells[addr]);
+      }
+    }
+
+    setSheetData({ ...sheetData, cells: newCells });
+    setUnsavedChanges(staged);
+  }, [sheetData, canEdit, selectionRange, activeCell, unsavedChanges]);
+
+  // Insert formatted table
+  const handleInsertTable = useCallback(() => {
+    if (!sheetData || !canEdit) return;
+
+    let minR = selectionRange ? Math.min(selectionRange.startRow, selectionRange.endRow) : activeCell.row;
+    let maxR = selectionRange ? Math.max(selectionRange.startRow, selectionRange.endRow) : activeCell.row;
+    let minC = selectionRange ? Math.min(selectionRange.startCol, selectionRange.endCol) : activeCell.col;
+    let maxC = selectionRange ? Math.max(selectionRange.startCol, selectionRange.endCol) : activeCell.col;
+
+    if (minR === maxR && minC === maxC) {
+      maxR = Math.min(minR + 4, sheetData.rowCount);
+      maxC = Math.min(minC + 3, sheetData.colCount);
+    }
+
+    const newCells = { ...sheetData.cells };
+    const staged = new Map(unsavedChanges);
+
+    pushUndoSnapshot();
+
+    for (let r = minR; r <= maxR; r++) {
+      const isHeader = r === minR;
+      const isEvenRow = (r - minR) % 2 === 0;
+
+      for (let c = minC; c <= maxC; c++) {
+        const addr = `${colNumToLetter(c)}${r}`;
+        const existing = newCells[addr] || {};
+        const oldStyle = existing.s || {};
+
+        let cellValue = existing.v;
+        if (isHeader && (cellValue === undefined || cellValue === null || cellValue === '')) {
+          cellValue = `Column ${c - minC + 1}`;
+        }
+
+        const newStyle = {
+          ...oldStyle,
+          b: isHeader ? 1 : oldStyle.b,
+          ah: isHeader ? ('center' as const) : (oldStyle.ah || 'left'),
+          c: isHeader ? '#ffffff' : (oldStyle.c || '#0f172a'),
+          bg: isHeader ? '#1e40af' : (isEvenRow ? '#f8fafc' : '#ffffff'),
+          br: {
+            top: 'thin',
+            bottom: isHeader ? 'medium' : 'thin',
+            left: 'thin',
+            right: 'thin'
+          }
+        };
+
+        newCells[addr] = {
+          ...existing,
+          v: cellValue,
+          s: newStyle
+        };
+        staged.set(addr, newCells[addr]);
+      }
+    }
+
+    setSheetData({ ...sheetData, cells: newCells });
+    setUnsavedChanges(staged);
+    setMessage(`Formatted table at ${colNumToLetter(minC)}${minR}:${colNumToLetter(maxC)}${maxR}`);
+    setTimeout(() => setMessage(''), 3000);
+  }, [sheetData, canEdit, selectionRange, activeCell, unsavedChanges]);
+
   // Start in-cell edit
   const startInCellEdit = (initialChar?: string) => {
     if (!canEdit) return;
@@ -387,26 +906,77 @@ export const ExcelWorksheetModule: React.FC = () => {
   };
 
   // Commit in-cell edit
-  const commitInCellEdit = (moveDown = false, moveRight = false) => {
+  const commitInCellEdit = (
+    moveDown = false,
+    moveRight = false,
+    autoEdit = false,
+    moveLeft = false
+  ) => {
     if (!isEditing) return;
-    applyCellChange(activeCell.address, editValue);
-    setIsEditing(false);
+    let finalValue = editValue;
+    if (typeof finalValue === 'string' && finalValue.trim().startsWith('=')) {
+      const openCount = (finalValue.match(/\(/g) || []).length;
+      const closeCount = (finalValue.match(/\)/g) || []).length;
+      if (openCount > closeCount) {
+        finalValue = finalValue + ')'.repeat(openCount - closeCount);
+      }
+    }
+    applyCellChange(activeCell.address, finalValue);
+    setFormulaLastInsertedRef(null);
+    setFormulaReferenceRange(null);
+    setIsDraggingFormulaRange(false);
+
+    let nextRow = activeCell.row;
+    let nextCol = activeCell.col;
 
     if (moveDown) {
-      const nextRow = Math.min((sheetData?.rowCount || 100), activeCell.row + 1);
-      setActiveCell({ row: nextRow, col: activeCell.col, address: `${colNumToLetter(activeCell.col)}${nextRow}` });
+      nextRow = Math.min((sheetData?.rowCount || 100), activeCell.row + 1);
     } else if (moveRight) {
-      const nextCol = Math.min((sheetData?.colCount || 26), activeCell.col + 1);
-      setActiveCell({ row: activeCell.row, col: nextCol, address: `${colNumToLetter(nextCol)}${activeCell.row}` });
+      nextCol = Math.min((sheetData?.colCount || 26), activeCell.col + 1);
+    } else if (moveLeft) {
+      nextCol = Math.max(1, activeCell.col - 1);
+    }
+
+    const nextAddress = `${colNumToLetter(nextCol)}${nextRow}`;
+    const cellChanged = nextRow !== activeCell.row || nextCol !== activeCell.col;
+
+    if (cellChanged) {
+      setActiveCell({ row: nextRow, col: nextCol, address: nextAddress });
+    }
+
+    if (autoEdit && cellChanged) {
+      const nextCell = sheetData?.cells[nextAddress];
+      const initialVal = getFormulaBarDisplay(nextCell);
+      setEditValue(initialVal);
+      setFormulaInputValue(initialVal);
+      setIsEditing(true);
+      setInCellAutocompleteDismissed(false);
+      setTimeout(() => {
+        if (inCellInputRef.current) {
+          inCellInputRef.current.focus();
+          inCellInputRef.current.select();
+        }
+      }, 30);
+    } else {
+      setIsEditing(false);
+      setTimeout(() => {
+        gridContainerRef.current?.focus();
+      }, 20);
     }
   };
 
   const cancelInCellEdit = () => {
     setIsEditing(false);
+    setFormulaLastInsertedRef(null);
+    setFormulaReferenceRange(null);
+    setIsDraggingFormulaRange(false);
     const cell = sheetData?.cells[activeCell.address];
     const original = getFormulaBarDisplay(cell);
     setEditValue(original);
     setFormulaInputValue(original);
+    setTimeout(() => {
+      gridContainerRef.current?.focus();
+    }, 20);
   };
 
   // Cell click handlers
@@ -425,6 +995,9 @@ export const ExcelWorksheetModule: React.FC = () => {
     }
 
     setActiveCell({ row: r, col: c, address: addr });
+    setTimeout(() => {
+      gridContainerRef.current?.focus();
+    }, 10);
   };
 
   const handleCellDoubleClick = (r: number, c: number, addr: string) => {
@@ -435,6 +1008,31 @@ export const ExcelWorksheetModule: React.FC = () => {
   // Drag selection
   const handleCellMouseDown = (r: number, c: number, addr: string, e: React.MouseEvent) => {
     if (e.button !== 0) return;
+    isInteractingWithCellRef.current = true;
+
+    // Check if user is typing a formula and clicking another cell to reference it
+    const isFormulaMode = isEditing && typeof editValue === 'string' && editValue.trim().startsWith('=');
+
+    if (isFormulaMode && addr !== activeCell.address) {
+      e.preventDefault();
+
+      const newRef = addr;
+      const updatedFormula = insertCellReferenceIntoFormula(editValue, newRef, formulaLastInsertedRef || undefined);
+
+      setEditValue(updatedFormula);
+      setFormulaInputValue(updatedFormula);
+      setFormulaLastInsertedRef(newRef);
+      setFormulaReferenceRange({ startRow: r, startCol: c, endRow: r, endCol: c });
+      setIsDraggingFormulaRange(true);
+
+      setTimeout(() => inCellInputRef.current?.focus(), 10);
+      return;
+    }
+
+    setFormulaLastInsertedRef(null);
+    setFormulaReferenceRange(null);
+    setIsDraggingFormulaRange(false);
+
     if (e.shiftKey && activeCell) {
       setSelectionRange({
         startRow: activeCell.row,
@@ -444,18 +1042,47 @@ export const ExcelWorksheetModule: React.FC = () => {
       });
       return;
     }
+
     handleCellClick(r, c, addr);
     setIsDraggingRange(true);
     setSelectionRange({ startRow: r, startCol: c, endRow: r, endCol: c });
   };
 
   const handleCellMouseEnter = (r: number, c: number) => {
+    if (isDraggingFormulaRange && formulaReferenceRange) {
+      const startR = formulaReferenceRange.startRow;
+      const startC = formulaReferenceRange.startCol;
+      const minR = Math.min(startR, r);
+      const maxR = Math.max(startR, r);
+      const minC = Math.min(startC, c);
+      const maxC = Math.max(startC, c);
+
+      const newRef = (minR === maxR && minC === maxC)
+        ? `${colNumToLetter(minC)}${minR}`
+        : `${colNumToLetter(minC)}${minR}:${colNumToLetter(maxC)}${maxR}`;
+
+      const updatedFormula = insertCellReferenceIntoFormula(editValue, newRef, formulaLastInsertedRef || undefined);
+
+      setEditValue(updatedFormula);
+      setFormulaInputValue(updatedFormula);
+      setFormulaLastInsertedRef(newRef);
+      setFormulaReferenceRange({ startRow: startR, startCol: startC, endRow: r, endCol: c });
+      return;
+    }
+
     if (!isDraggingRange) return;
+    if (!selectionRange) return;
     setSelectionRange(prev => prev ? { ...prev, endRow: r, endCol: c } : null);
   };
 
   useEffect(() => {
-    const handleMouseUp = () => setIsDraggingRange(false);
+    const handleMouseUp = () => {
+      setIsDraggingRange(false);
+      setIsDraggingFormulaRange(false);
+      setTimeout(() => {
+        isInteractingWithCellRef.current = false;
+      }, 50);
+    };
     window.addEventListener('mouseup', handleMouseUp);
     return () => window.removeEventListener('mouseup', handleMouseUp);
   }, []);
@@ -489,10 +1116,17 @@ export const ExcelWorksheetModule: React.FC = () => {
         address,
         value: ch.newValue,
         oldValue: ch.oldValue,
+        formula: ch.formula,
+        formulaResult: sheetData.cells[address]?.res,
         style: ch.style
       }));
 
-      await batchUpdateWorksheetCellsApi(activeSheetId, updates);
+      if (updates.length > 0) {
+        await batchUpdateWorksheetCellsApi(activeSheetId, updates);
+      }
+      if (sheetData.merges) {
+        await updateWorksheetMergesApi(activeSheetId, sheetData.merges);
+      }
       setUnsavedChanges(new Map());
       setMessage(`Successfully saved ${updates.length} modification(s) to PAIS database.`);
       setTimeout(() => setMessage(''), 3000);
@@ -506,85 +1140,159 @@ export const ExcelWorksheetModule: React.FC = () => {
   // Undo / Redo
   const handleUndo = useCallback(() => {
     if (undoStack.length === 0) return;
-    const last = undoStack[undoStack.length - 1];
+    const current = historyStateRef.current;
+    if (!current.sheetData) return;
+
+    const previous = undoStack[undoStack.length - 1];
     setUndoStack(prev => prev.slice(0, prev.length - 1));
-    setRedoStack(prev => [...prev, last]);
 
-    if (sheetData) {
-      const existingCell = sheetData.cells[last.address] || {};
-      const revertedCell = {
-        ...existingCell,
-        v: last.oldValue,
-        res: last.oldValue,
-        s: last.oldStyle || existingCell.s
-      };
+    // Capture current snapshot for redo
+    const currentSnapshot: WorksheetHistorySnapshot = {
+      sheetId: current.activeSheetId,
+      cells: { ...current.sheetData.cells },
+      merges: [...(current.sheetData.merges || [])],
+      rowCount: current.sheetData.rowCount,
+      colCount: current.sheetData.colCount,
+      unsavedChanges: new Map(current.unsavedChanges),
+      activeCell: { ...current.activeCell },
+      selectionRange: current.selectionRange ? { ...current.selectionRange } : null
+    };
+    setRedoStack(prev => [...prev.slice(-49), currentSnapshot]);
 
-      setSheetData(prev => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          cells: {
-            ...prev.cells,
-            [last.address]: revertedCell
+    const workbook = recalculateWorkbook({
+      ...formulaSheets,
+      [current.sheetData.name]: { name: current.sheetData.name, cells: previous.cells }
+    });
+    const restoredCells = workbook[current.sheetData.name]?.cells || previous.cells;
+
+    setFormulaSheets(workbook);
+    setSheetData(prev => prev ? {
+      ...prev,
+      cells: restoredCells,
+      merges: previous.merges,
+      rowCount: previous.rowCount,
+      colCount: previous.colCount
+    } : prev);
+
+    setUnsavedChanges(prev => {
+      const nextUnsaved = new Map(prev);
+      const allKeys = new Set([...Object.keys(current.sheetData!.cells), ...Object.keys(restoredCells)]);
+      for (const key of allKeys) {
+        const cur = current.sheetData!.cells[key];
+        const tgt = restoredCells[key];
+        const curVal = cur ? cur.v : undefined;
+        const tgtVal = tgt ? tgt.v : undefined;
+        const curF = cur ? cur.f : undefined;
+        const tgtF = tgt ? tgt.f : undefined;
+        const curS = JSON.stringify(cur?.s || {});
+        const tgtS = JSON.stringify(tgt?.s || {});
+
+        if (curVal !== tgtVal || curF !== tgtF || curS !== tgtS) {
+          const existing = nextUnsaved.get(key);
+          if (existing && String(existing.oldValue ?? '') === String(tgtVal ?? '') && (existing.oldFormula || null) === (tgtF || null)) {
+            nextUnsaved.delete(key);
+          } else {
+            nextUnsaved.set(key, {
+              oldValue: existing ? existing.oldValue : curVal,
+              oldFormula: existing ? existing.oldFormula : curF,
+              newValue: tgtVal,
+              formula: tgtF ?? null,
+              style: tgt?.s
+            });
           }
-        };
-      });
+        }
+      }
+      return nextUnsaved;
+    });
 
-      setUnsavedChanges(prev => {
-        const next = new Map(prev);
-        next.delete(last.address);
-        return next;
-      });
+    setActiveCell(previous.activeCell);
+    setSelectionRange(previous.selectionRange);
 
-      const parsed = parseAddress(last.address);
-      setActiveCell({ ...parsed, address: last.address });
-      setFormulaInputValue(getFormulaBarDisplay(revertedCell));
-      setEditValue(String(last.oldValue ?? ''));
-    }
-  }, [undoStack, sheetData]);
+    const activeCellObj = restoredCells[previous.activeCell.address];
+    setFormulaInputValue(getFormulaBarDisplay(activeCellObj));
+    setEditValue(String(activeCellObj?.v ?? ''));
+    setIsEditing(false);
+    setMessage('Undo');
+    setTimeout(() => setMessage(''), 1000);
+  }, [undoStack, formulaSheets]);
 
   const handleRedo = useCallback(() => {
     if (redoStack.length === 0) return;
+    const current = historyStateRef.current;
+    if (!current.sheetData) return;
+
     const next = redoStack[redoStack.length - 1];
     setRedoStack(prev => prev.slice(0, prev.length - 1));
-    setUndoStack(prev => [...prev, next]);
 
-    if (sheetData) {
-      const existingCell = sheetData.cells[next.address] || {};
-      const redoneCell = {
-        ...existingCell,
-        v: next.newValue,
-        res: next.newValue,
-        s: next.newStyle || existingCell.s
-      };
+    // Capture current snapshot for undo
+    const currentSnapshot: WorksheetHistorySnapshot = {
+      sheetId: current.activeSheetId,
+      cells: { ...current.sheetData.cells },
+      merges: [...(current.sheetData.merges || [])],
+      rowCount: current.sheetData.rowCount,
+      colCount: current.sheetData.colCount,
+      unsavedChanges: new Map(current.unsavedChanges),
+      activeCell: { ...current.activeCell },
+      selectionRange: current.selectionRange ? { ...current.selectionRange } : null
+    };
+    setUndoStack(prev => [...prev.slice(-49), currentSnapshot]);
 
-      setSheetData(prev => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          cells: {
-            ...prev.cells,
-            [next.address]: redoneCell
+    const workbook = recalculateWorkbook({
+      ...formulaSheets,
+      [current.sheetData.name]: { name: current.sheetData.name, cells: next.cells }
+    });
+    const restoredCells = workbook[current.sheetData.name]?.cells || next.cells;
+
+    setFormulaSheets(workbook);
+    setSheetData(prev => prev ? {
+      ...prev,
+      cells: restoredCells,
+      merges: next.merges,
+      rowCount: next.rowCount,
+      colCount: next.colCount
+    } : prev);
+
+    setUnsavedChanges(prev => {
+      const nextUnsaved = new Map(prev);
+      const allKeys = new Set([...Object.keys(current.sheetData!.cells), ...Object.keys(restoredCells)]);
+      for (const key of allKeys) {
+        const cur = current.sheetData!.cells[key];
+        const tgt = restoredCells[key];
+        const curVal = cur ? cur.v : undefined;
+        const tgtVal = tgt ? tgt.v : undefined;
+        const curF = cur ? cur.f : undefined;
+        const tgtF = tgt ? tgt.f : undefined;
+        const curS = JSON.stringify(cur?.s || {});
+        const tgtS = JSON.stringify(tgt?.s || {});
+
+        if (curVal !== tgtVal || curF !== tgtF || curS !== tgtS) {
+          const existing = nextUnsaved.get(key);
+          if (existing && String(existing.oldValue ?? '') === String(tgtVal ?? '') && (existing.oldFormula || null) === (tgtF || null)) {
+            nextUnsaved.delete(key);
+          } else {
+            nextUnsaved.set(key, {
+              oldValue: existing ? existing.oldValue : curVal,
+              oldFormula: existing ? existing.oldFormula : curF,
+              newValue: tgtVal,
+              formula: tgtF ?? null,
+              style: tgt?.s
+            });
           }
-        };
-      });
+        }
+      }
+      return nextUnsaved;
+    });
 
-      setUnsavedChanges(prev => {
-        const nextMap = new Map(prev);
-        nextMap.set(next.address, {
-          oldValue: next.oldValue,
-          newValue: next.newValue,
-          style: next.newStyle
-        });
-        return nextMap;
-      });
+    setActiveCell(next.activeCell);
+    setSelectionRange(next.selectionRange);
 
-      const parsed = parseAddress(next.address);
-      setActiveCell({ ...parsed, address: next.address });
-      setFormulaInputValue(getFormulaBarDisplay(redoneCell));
-      setEditValue(String(next.newValue ?? ''));
-    }
-  }, [redoStack, sheetData]);
+    const activeCellObj = restoredCells[next.activeCell.address];
+    setFormulaInputValue(getFormulaBarDisplay(activeCellObj));
+    setEditValue(String(activeCellObj?.v ?? ''));
+    setIsEditing(false);
+    setMessage('Redo');
+    setTimeout(() => setMessage(''), 1000);
+  }, [redoStack, formulaSheets]);
 
   // Copy & Cut & Paste
   const handleCopy = useCallback(() => {
@@ -596,28 +1304,35 @@ export const ExcelWorksheetModule: React.FC = () => {
       const maxC = Math.max(selectionRange.startCol, selectionRange.endCol);
 
       const rows: string[] = [];
+      const copiedValues: string[][] = [];
       for (let r = minR; r <= maxR; r++) {
         const rowCells: string[] = [];
+        const rowValues: string[] = [];
         for (let c = minC; c <= maxC; c++) {
           const addr = `${colNumToLetter(c)}${r}`;
           const cell = sheetData.cells[addr];
-          const text = cell?.v !== undefined && cell?.v !== null ? String(cell.v) : '';
-          rowCells.push(text);
+          const value = cell?.f ? `=${cell.f}` : cell?.v !== undefined && cell?.v !== null ? String(cell.v) : '';
+          rowCells.push(value);
+          rowValues.push(value);
         }
         rows.push(rowCells.join('\t'));
+        copiedValues.push(rowValues);
       }
-      navigator.clipboard.writeText(rows.join('\n'));
+      const text = rows.join('\n');
+      copiedRangeRef.current = { text, row: minR, col: minC, values: copiedValues };
+      navigator.clipboard.writeText(text);
       setMessage(`Copied range (${colNumToLetter(minC)}${minR}:${colNumToLetter(maxC)}${maxR}) to clipboard`);
       setTimeout(() => setMessage(''), 1500);
       return;
     }
 
     const cell = sheetData.cells[activeCell.address];
-    const text = cell?.v !== undefined && cell?.v !== null ? String(cell.v) : '';
+    const text = cell?.f ? `=${cell.f}` : cell?.v !== undefined && cell?.v !== null ? String(cell.v) : '';
+    copiedRangeRef.current = { text, row: activeCell.row, col: activeCell.col, values: [[text]] };
     navigator.clipboard.writeText(text);
     setMessage(`Copied "${text}"`);
     setTimeout(() => setMessage(''), 1500);
-  }, [sheetData, selectionRange, activeCell.address]);
+  }, [sheetData, selectionRange, activeCell.address, activeCell.row, activeCell.col]);
 
   const handleCut = useCallback(() => {
     if (!sheetData || !canEdit) return;
@@ -628,12 +1343,11 @@ export const ExcelWorksheetModule: React.FC = () => {
       const maxR = Math.max(selectionRange.startRow, selectionRange.endRow);
       const minC = Math.min(selectionRange.startCol, selectionRange.endCol);
       const maxC = Math.max(selectionRange.startCol, selectionRange.endCol);
-
-      for (let r = minR; r <= maxR; r++) {
-        for (let c = minC; c <= maxC; c++) {
-          applyCellChange(`${colNumToLetter(c)}${r}`, '');
-        }
+      const edits = [];
+      for (let r = minR; r <= maxR; r++) for (let c = minC; c <= maxC; c++) {
+        edits.push({ address: `${colNumToLetter(c)}${r}`, rawValue: '' });
       }
+      applyCellChanges(edits);
       setMessage('Cut selection to clipboard');
       setTimeout(() => setMessage(''), 1500);
       return;
@@ -643,7 +1357,7 @@ export const ExcelWorksheetModule: React.FC = () => {
     setFormulaInputValue('');
     setMessage(`Cut ${activeCell.address}`);
     setTimeout(() => setMessage(''), 1500);
-  }, [sheetData, canEdit, handleCopy, selectionRange, activeCell.address, applyCellChange]);
+  }, [sheetData, canEdit, handleCopy, selectionRange, activeCell.address, applyCellChange, applyCellChanges]);
 
   const handlePaste = useCallback(async () => {
     if (!canEdit || !sheetData) return;
@@ -651,32 +1365,62 @@ export const ExcelWorksheetModule: React.FC = () => {
       const clipText = await navigator.clipboard.readText();
       if (!clipText) return;
 
-      const rows = clipText.split(/\r?\n/).map(r => r.split('\t'));
       const startRow = selectionRange ? Math.min(selectionRange.startRow, selectionRange.endRow) : activeCell.row;
       const startCol = selectionRange ? Math.min(selectionRange.startCol, selectionRange.endCol) : activeCell.col;
-
+      const copiedRange = copiedRangeRef.current?.text === clipText ? copiedRangeRef.current : null;
+      const rows = copiedRange?.values || clipText.split(/\r?\n/).map(r => r.split('\t'));
+      const edits: Array<{ address: string; rawValue: string }> = [];
       rows.forEach((rowVals, rIdx) => {
         if (rIdx === rows.length - 1 && rowVals.length === 1 && rowVals[0] === '') return;
         rowVals.forEach((val, cIdx) => {
           const targetRow = startRow + rIdx;
           const targetCol = startCol + cIdx;
+          if (targetRow > (sheetData.rowCount || 1048576) || targetCol > (sheetData.colCount || 16384)) return;
           const targetAddr = `${colNumToLetter(targetCol)}${targetRow}`;
-          applyCellChange(targetAddr, val);
+          const rawValue = copiedRange && val.startsWith('=')
+            ? translateFormulaReferences(val, targetRow - (copiedRange.row + rIdx), targetCol - (copiedRange.col + cIdx))
+            : val;
+          edits.push({ address: targetAddr, rawValue });
         });
       });
+      applyCellChanges(edits);
 
       setMessage(`Pasted cells matching layout`);
       setTimeout(() => setMessage(''), 1500);
     } catch (e: any) {
       setError('Paste failed: ' + e.message);
     }
-  }, [canEdit, sheetData, selectionRange, activeCell.row, activeCell.col, applyCellChange]);
+  }, [canEdit, sheetData, selectionRange, activeCell.row, activeCell.col, applyCellChanges]);
 
   // Global window keyboard shortcuts
   useEffect(() => {
     const handleGlobalShortcuts = (e: KeyboardEvent) => {
       if (document.activeElement?.tagName === 'INPUT' &&
           document.activeElement !== inCellInputRef.current) {
+        return;
+      }
+
+      if (e.key === 'Tab' && !e.ctrlKey && !e.altKey && !e.metaKey && !isEditing) {
+        e.preventDefault();
+        const maxCol = sheetData?.colCount || 26;
+        const nextCol = e.shiftKey ? Math.max(1, activeCell.col - 1) : Math.min(maxCol, activeCell.col + 1);
+        setSelectionRange(null);
+        if (nextCol !== activeCell.col) {
+          const address = `${colNumToLetter(nextCol)}${activeCell.row}`;
+          setActiveCell({ row: activeCell.row, col: nextCol, address });
+          const targetCell = sheetData?.cells[address];
+          const initialVal = getFormulaBarDisplay(targetCell);
+          setEditValue(initialVal);
+          setFormulaInputValue(initialVal);
+          setIsEditing(true);
+          setInCellAutocompleteDismissed(false);
+          setTimeout(() => {
+            if (inCellInputRef.current) {
+              inCellInputRef.current.focus();
+              inCellInputRef.current.select();
+            }
+          }, 30);
+        }
         return;
       }
 
@@ -727,7 +1471,7 @@ export const ExcelWorksheetModule: React.FC = () => {
 
     window.addEventListener('keydown', handleGlobalShortcuts);
     return () => window.removeEventListener('keydown', handleGlobalShortcuts);
-  }, [handleSaveChanges, handleUndo, handleRedo, handleCopy, handleCut, handlePaste, isEditing, applyStyleToSelection]);
+  }, [handleSaveChanges, handleUndo, handleRedo, handleCopy, handleCut, handlePaste, isEditing, applyStyleToSelection, sheetData, activeCell]);
 
   // Context menu right-click handler
   const handleCellContextMenu = (r: number, c: number, addr: string, e: React.MouseEvent) => {
@@ -810,7 +1554,11 @@ export const ExcelWorksheetModule: React.FC = () => {
         commitInCellEdit(true);
       } else if (e.key === 'Tab') {
         e.preventDefault();
-        commitInCellEdit(false, true);
+        if (e.shiftKey) {
+          commitInCellEdit(false, false, true, true);
+        } else {
+          commitInCellEdit(false, true, true, false);
+        }
       } else if (e.key === 'Escape') {
         e.preventDefault();
         cancelInCellEdit();
@@ -831,11 +1579,13 @@ export const ExcelWorksheetModule: React.FC = () => {
         const maxR = Math.max(selectionRange.startRow, selectionRange.endRow);
         const minC = Math.min(selectionRange.startCol, selectionRange.endCol);
         const maxC = Math.max(selectionRange.startCol, selectionRange.endCol);
+        const changes: Array<{ address: string; rawValue: string }> = [];
         for (let r = minR; r <= maxR; r++) {
           for (let c = minC; c <= maxC; c++) {
-            applyCellChange(`${colNumToLetter(c)}${r}`, '');
+            changes.push({ address: `${colNumToLetter(c)}${r}`, rawValue: '' });
           }
         }
+        applyCellChanges(changes);
       } else {
         applyCellChange(activeCell.address, '');
       }
@@ -878,7 +1628,25 @@ export const ExcelWorksheetModule: React.FC = () => {
     else if (e.key === 'ArrowRight') { e.preventDefault(); col = Math.min(maxCol, col + 1); }
     else if (e.key === 'Tab') {
       e.preventDefault();
-      col = e.shiftKey ? Math.max(1, col - 1) : Math.min(maxCol, col + 1);
+      const nextCol = e.shiftKey ? Math.max(1, activeCell.col - 1) : Math.min(maxCol, activeCell.col + 1);
+      setSelectionRange(null);
+      if (nextCol !== activeCell.col) {
+        const address = `${colNumToLetter(nextCol)}${activeCell.row}`;
+        setActiveCell({ row: activeCell.row, col: nextCol, address });
+        const targetCell = sheetData?.cells[address];
+        const initialVal = getFormulaBarDisplay(targetCell);
+        setEditValue(initialVal);
+        setFormulaInputValue(initialVal);
+        setIsEditing(true);
+        setInCellAutocompleteDismissed(false);
+        setTimeout(() => {
+          if (inCellInputRef.current) {
+            inCellInputRef.current.focus();
+            inCellInputRef.current.select();
+          }
+        }, 30);
+      }
+      return;
     } else {
       return;
     }
@@ -958,7 +1726,7 @@ export const ExcelWorksheetModule: React.FC = () => {
 
   const handleReplaceAll = (findTerm: string, replaceTerm: string) => {
     if (!canEdit || searchMatches.length === 0) return;
-    searchMatches.forEach(addr => applyCellChange(addr, replaceTerm));
+    applyCellChanges(searchMatches.map(addr => ({ address: addr, rawValue: replaceTerm })));
     setMessage(`Replaced ${searchMatches.length} occurrence(s)`);
     setTimeout(() => setMessage(''), 2500);
     setSearchMatches([]);
@@ -1010,7 +1778,7 @@ export const ExcelWorksheetModule: React.FC = () => {
   }, [sheetData, selectionRange]);
 
   // Tab management actions
-  const handleAddTab = () => {
+  const handleAddTab = async () => {
     const newOrder = sheets.length + 1;
     const newName = `Sheet${newOrder}`;
     const newId = `sheet-custom-${Date.now()}`;
@@ -1022,9 +1790,7 @@ export const ExcelWorksheetModule: React.FC = () => {
       colCount: 20,
       mergesCount: 0
     };
-    setSheets(prev => [...prev, newSummary]);
-    setActiveSheetId(newId);
-    setSheetData({
+    const newSheet: WorksheetDetail = {
       id: newId,
       name: newName,
       order: newOrder,
@@ -1034,21 +1800,44 @@ export const ExcelWorksheetModule: React.FC = () => {
       columnConfig: {},
       rowConfig: {},
       cells: {}
-    });
+    };
+    sheetCacheRef.current.set(newId, newSheet);
+    setSheets(prev => [...prev, newSummary]);
+    setSheetData(newSheet);
+    setActiveSheetId(newId);
+    setLoading(false);
+    setError('');
     setMessage(`Created new worksheet tab "${newName}"`);
     setTimeout(() => setMessage(''), 2000);
+    try {
+      await createCustomWorksheetApi({
+        id: newId,
+        name: newName,
+        order: newOrder,
+        rowCount: 50,
+        colCount: 20
+      });
+    } catch {
+      // Backend auto-registers on fetch as well
+    }
   };
 
-  const handleRenameTabSubmit = (id: string) => {
+  const handleRenameTabSubmit = async (id: string) => {
     if (!editingTabName.trim()) {
       setEditingTabId(null);
       return;
     }
-    setSheets(prev => prev.map(s => s.id === id ? { ...s, name: editingTabName.trim() } : s));
+    const cleanName = editingTabName.trim();
+    setSheets(prev => prev.map(s => s.id === id ? { ...s, name: cleanName } : s));
     if (sheetData && sheetData.id === id) {
-      setSheetData({ ...sheetData, name: editingTabName.trim() });
+      setSheetData({ ...sheetData, name: cleanName });
     }
     setEditingTabId(null);
+    try {
+      await renameWorksheetApi(id, cleanName);
+    } catch {
+      // Ignore background rename failure
+    }
   };
 
   const handleDuplicateTab = (id: string) => {
@@ -1067,7 +1856,7 @@ export const ExcelWorksheetModule: React.FC = () => {
     setTimeout(() => setMessage(''), 2000);
   };
 
-  const handleDeleteTab = (id: string) => {
+  const handleDeleteTab = async (id: string) => {
     if (sheets.length <= 1) {
       setMessage('Cannot delete the only worksheet in workbook');
       setTimeout(() => setMessage(''), 2000);
@@ -1080,6 +1869,11 @@ export const ExcelWorksheetModule: React.FC = () => {
     }
     setMessage('Deleted worksheet tab');
     setTimeout(() => setMessage(''), 2000);
+    try {
+      await deleteWorksheetApi(id);
+    } catch {
+      // Ignore background delete failure
+    }
   };
 
   const handlePrint = (options: {
@@ -1107,7 +1901,7 @@ export const ExcelWorksheetModule: React.FC = () => {
   return (
     <div className="excel-worksheet-card flex flex-col rounded-2xl border border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-[#101b2b] overflow-hidden">
       {/* 1. EXCEL FUNCTIONAL RIBBON */}
-      <div className="no-print">
+      <div className="no-print relative z-30">
         <ExcelRibbon
           activeTab={activeRibbonTab}
           onChangeTab={setActiveRibbonTab}
@@ -1149,31 +1943,32 @@ export const ExcelWorksheetModule: React.FC = () => {
           fillColor: currentCellObj?.s?.bg || '',
           onChangeFillColor: bg => applyStyleToSelection(s => ({ ...s, bg })),
           onClearFormatting: () => applyStyleToSelection(() => ({})),
+          onApplyBorder: handleApplyBorder,
+          onOpenFormatCells: handleOpenFormatCells,
+          onInsertTable: handleInsertTable,
           alignH: currentCellObj?.s?.ah || 'left',
           onChangeAlignH: ah => applyStyleToSelection(s => ({ ...s, ah })),
           alignV: currentCellObj?.s?.av || 'middle',
           onChangeAlignV: av => applyStyleToSelection(s => ({ ...s, av })),
           isWrapText: !!currentCellObj?.s?.wrap,
           onToggleWrapText: () => applyStyleToSelection(s => ({ ...s, wrap: s.wrap ? undefined : 1 })),
-          onMergeAndCenter: () => {
-            if (!selectionRange) return;
-            const rangeStr = `${colNumToLetter(selectionRange.startCol)}${selectionRange.startRow}:${colNumToLetter(selectionRange.endCol)}${selectionRange.endRow}`;
-            setSheetData(prev => prev ? { ...prev, merges: [...prev.merges, rangeStr] } : prev);
-            applyStyleToSelection(s => ({ ...s, ah: 'center' }));
-          },
-          onUnmerge: () => {
-            setSheetData(prev => prev ? { ...prev, merges: prev.merges.filter(m => !m.includes(activeCell.address)) } : prev);
-          },
+          onMergeAndCenter: handleMergeAndCenter,
+          onMergeAcross: handleMergeAcross,
+          onMergeCells: handleMergeCells,
+          onUnmerge: handleUnmergeCells,
+          onCenterAcross: handleCenterAcross,
           numFmt: currentCellObj?.s?.nf || 'General',
           onChangeNumFmt: fmt => applyStyleToSelection(s => ({ ...s }), fmt),
           onInsertRow: () => {
             if (!sheetData) return;
+            pushUndoSnapshot();
             setSheetData({ ...sheetData, rowCount: sheetData.rowCount + 1 });
             setMessage(`Inserted row at ${activeCell.row}`);
             setTimeout(() => setMessage(''), 2000);
           },
           onInsertColumn: () => {
             if (!sheetData) return;
+            pushUndoSnapshot();
             setSheetData({ ...sheetData, colCount: sheetData.colCount + 1 });
             setMessage(`Inserted column at ${colNumToLetter(activeCell.col)}`);
             setTimeout(() => setMessage(''), 2000);
@@ -1206,8 +2001,17 @@ export const ExcelWorksheetModule: React.FC = () => {
         }}
         insertProps={{
           canEdit,
-          onInsertRow: () => setSheetData(prev => prev ? { ...prev, rowCount: prev.rowCount + 1 } : prev),
-          onInsertColumn: () => setSheetData(prev => prev ? { ...prev, colCount: prev.colCount + 1 } : prev),
+          onInsertTable: handleInsertTable,
+          onInsertRow: () => {
+            if (!sheetData) return;
+            pushUndoSnapshot();
+            setSheetData(prev => prev ? { ...prev, rowCount: prev.rowCount + 1 } : prev);
+          },
+          onInsertColumn: () => {
+            if (!sheetData) return;
+            pushUndoSnapshot();
+            setSheetData(prev => prev ? { ...prev, colCount: prev.colCount + 1 } : prev);
+          },
           onOpenChartModal: () => setIsChartModalOpen(true),
           onInsertDate: () => applyCellChange(activeCell.address, '=TODAY()'),
           onInsertTime: () => applyCellChange(activeCell.address, '=NOW()'),
@@ -1234,8 +2038,27 @@ export const ExcelWorksheetModule: React.FC = () => {
           canEdit,
           onOpenFunctionWizard: () => setIsFunctionWizardOpen(true),
           onInsertFormula: template => {
-            setEditValue(template);
-            setFormulaInputValue(template);
+            let formula = template;
+            if (template === '=SUM(' && sheetData) {
+              const isNumericCell = (address: string) => {
+                const cell = sheetData.cells[address];
+                const value = cell?.res ?? cell?.v;
+                return value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));
+              };
+              let startRow = activeCell.row;
+              while (startRow > 1 && isNumericCell(`${colNumToLetter(activeCell.col)}${startRow - 1}`)) startRow--;
+              if (startRow < activeCell.row) {
+                formula = `=SUM(${colNumToLetter(activeCell.col)}${startRow}:${colNumToLetter(activeCell.col)}${activeCell.row - 1})`;
+              } else {
+                let startCol = activeCell.col;
+                while (startCol > 1 && isNumericCell(`${colNumToLetter(startCol - 1)}${activeCell.row}`)) startCol--;
+                if (startCol < activeCell.col) {
+                  formula = `=SUM(${colNumToLetter(startCol)}${activeCell.row}:${colNumToLetter(activeCell.col - 1)}${activeCell.row})`;
+                }
+              }
+            }
+            setEditValue(formula);
+            setFormulaInputValue(formula);
             setIsEditing(true);
             setTimeout(() => inCellInputRef.current?.focus(), 30);
           }
@@ -1281,19 +2104,28 @@ export const ExcelWorksheetModule: React.FC = () => {
 
       {/* 2. EXCEL FORMULA BAR & NAME BOX */}
       {showFormulaBar && (
-        <div className="no-print">
+        <div className="no-print relative z-10">
           <FormulaBar
             selectedAddress={activeCell.address}
             value={formulaInputValue}
-            onChange={setFormulaInputValue}
-            onCommit={() => {
-              applyCellChange(activeCell.address, formulaInputValue);
-              setIsEditing(false);
+            onFocus={() => {
+              if (!isEditing) {
+                setIsEditing(true);
+                setEditValue(formulaInputValue);
+              }
             }}
-            onCancel={() => {
-              const orig = getFormulaBarDisplay(sheetData?.cells[activeCell.address]);
-              setFormulaInputValue(orig);
-              setIsEditing(false);
+            onChange={val => {
+              setFormulaInputValue(val);
+              setEditValue(val);
+              if (!isEditing) setIsEditing(true);
+              setFormulaLastInsertedRef(null);
+              setFormulaReferenceRange(null);
+            }}
+            onCommit={() => commitInCellEdit()}
+            onCancel={() => cancelInCellEdit()}
+            onTab={(shiftKey) => {
+              if (shiftKey) commitInCellEdit(false, false, true, true);
+              else commitInCellEdit(false, true, true, false);
             }}
             onJumpToAddress={handleJumpToAddress}
             onOpenFunctionWizard={() => setIsFunctionWizardOpen(true)}
@@ -1326,7 +2158,7 @@ export const ExcelWorksheetModule: React.FC = () => {
           transformOrigin: 'top left',
           height: '620px'
         }}
-        className="spreadsheet-grid-container relative flex-1 overflow-auto bg-white dark:bg-[#0c1624] outline-hidden select-none"
+        className="spreadsheet-grid-container isolate relative z-0 flex-1 overflow-auto bg-white dark:bg-[#0c1624] outline-hidden select-none"
       >
         {loading ? (
           <div className="flex h-96 flex-col items-center justify-center gap-3">
@@ -1428,12 +2260,25 @@ export const ExcelWorksheetModule: React.FC = () => {
                       const isSelected = activeCell.row === rNum && activeCell.col === colNum;
                       const inRange = isCellInRange(rNum, colNum);
                       const isUnsaved = unsavedChanges.has(addr);
+                      const isRefRange = isFormulaReferenced(rNum, colNum);
 
                       const s = cell?.s || {};
                       const defaultAlign = rNum <= 8 ? 'center' : 'left';
                       const alignH = s.ah || defaultAlign;
-                      const isDoubleBottom = s.br?.bottom === 'double';
-                      const isThickBottom = s.br?.bottom === 'thick';
+
+                      const resolveBorder = (val?: string, col = '#334155') => {
+                        if (!val || val === 'none') return undefined;
+                        if (val === 'double') return `3px double ${col}`;
+                        if (val === 'thick') return `2px solid ${col}`;
+                        if (val === 'medium') return `1.5px solid ${col}`;
+                        return `1px solid ${col}`;
+                      };
+
+                      const brColor = s.br?.color || '#334155';
+                      const borderTop = resolveBorder(s.br?.top, brColor);
+                      const borderBottom = resolveBorder(s.br?.bottom, brColor);
+                      const borderLeft = resolveBorder(s.br?.left, brColor);
+                      const borderRight = resolveBorder(s.br?.right, brColor);
 
                       const style: React.CSSProperties = {
                         fontWeight: s.b ? 'bold' : 'normal',
@@ -1446,8 +2291,10 @@ export const ExcelWorksheetModule: React.FC = () => {
                         whiteSpace: s.wrap ? 'normal' : 'nowrap',
                         color: s.c || undefined,
                         backgroundColor: s.bg || undefined,
-                        borderBottomStyle: isDoubleBottom ? 'double' : undefined,
-                        borderBottomWidth: isDoubleBottom ? '3px' : isThickBottom ? '2px' : undefined
+                        borderTop,
+                        borderBottom,
+                        borderLeft,
+                        borderRight
                       };
 
                       return (
@@ -1462,12 +2309,16 @@ export const ExcelWorksheetModule: React.FC = () => {
                           onContextMenu={e => handleCellContextMenu(rNum, colNum, addr, e)}
                           className={`${
                             showGridlines ? 'border-r border-b border-slate-200 dark:border-slate-800' : ''
-                          } px-1.5 py-0.5 overflow-hidden text-ellipsis cursor-cell relative ${
-                            isSelected
-                              ? 'outline-2 outline-blue-600 outline-offset-[-2px] z-10 bg-blue-50/20 dark:outline-sky-400'
-                              : inRange
-                                ? 'bg-blue-500/15 dark:bg-sky-400/20 z-10'
-                                : 'hover:bg-slate-50/50 dark:hover:bg-slate-800/50'
+                          } px-1.5 py-0.5 cursor-cell relative ${
+                            isSelected && isEditing
+                              ? 'overflow-visible z-40 outline-2 outline-blue-600 outline-offset-[-2px] bg-white dark:bg-[#101b2b]'
+                              : isSelected
+                                ? 'overflow-hidden text-ellipsis outline-2 outline-blue-600 outline-offset-[-2px] z-10 bg-blue-50/20 dark:outline-sky-400'
+                                : isRefRange
+                                  ? 'overflow-hidden text-ellipsis outline-2 outline-dashed outline-indigo-600 outline-offset-[-2px] z-20 bg-indigo-50/40 dark:outline-indigo-400 dark:bg-indigo-950/40'
+                                  : inRange
+                                    ? 'overflow-hidden text-ellipsis bg-blue-500/15 dark:bg-sky-400/20 z-10'
+                                    : 'overflow-hidden text-ellipsis hover:bg-slate-50/50 dark:hover:bg-slate-800/50'
                           } ${
                             isUnsaved
                               ? 'bg-amber-100/90 text-amber-950 dark:bg-amber-950/60 dark:text-amber-200 ring-1 ring-inset ring-amber-400/80'
@@ -1475,29 +2326,82 @@ export const ExcelWorksheetModule: React.FC = () => {
                           }`}
                         >
                           {isSelected && isEditing ? (
-                            <input
-                              ref={inCellInputRef}
-                              type="text"
-                              value={editValue}
-                              onChange={e => {
-                                setEditValue(e.target.value);
-                                setFormulaInputValue(e.target.value);
-                              }}
-                              onBlur={() => commitInCellEdit()}
-                              onKeyDown={e => {
-                                if (e.key === 'Enter') {
-                                  e.preventDefault();
-                                  commitInCellEdit(true);
-                                } else if (e.key === 'Tab') {
-                                  e.preventDefault();
-                                  commitInCellEdit(false, true);
-                                } else if (e.key === 'Escape') {
-                                  e.preventDefault();
-                                  cancelInCellEdit();
-                                }
-                              }}
-                              className="w-full bg-white font-sans text-xs text-slate-900 border border-blue-500 p-0 focus:outline-hidden dark:bg-[#101b2b] dark:text-white"
-                            />
+                            <div className="relative w-full">
+                              <input
+                                ref={inCellInputRef}
+                                type="text"
+                                value={editValue}
+                                onChange={e => {
+                                  setEditValue(e.target.value);
+                                  setFormulaInputValue(e.target.value);
+                                  setFormulaLastInsertedRef(null);
+                                  setFormulaReferenceRange(null);
+                                }}
+                                onBlur={() => {
+                                  if (isInteractingWithCellRef.current) return;
+                                  setTimeout(() => {
+                                    if (!isInteractingWithCellRef.current) {
+                                      commitInCellEdit();
+                                    }
+                                  }, 150);
+                                }}
+                                onKeyDown={e => {
+                                  if (inCellMatchingFunctions.length > 0) {
+                                    if (e.key === 'ArrowDown') {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      setInCellAutocompleteIndex(prev => (prev + 1) % inCellMatchingFunctions.length);
+                                      return;
+                                    }
+                                    if (e.key === 'ArrowUp') {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      setInCellAutocompleteIndex(prev => (prev - 1 + inCellMatchingFunctions.length) % inCellMatchingFunctions.length);
+                                      return;
+                                    }
+                                    if (e.key === 'Tab' || e.key === 'Enter') {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleInCellSelectFormula(inCellMatchingFunctions[inCellAutocompleteIndex]);
+                                      return;
+                                    }
+                                    if (e.key === 'Escape') {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      setInCellAutocompleteDismissed(true);
+                                      return;
+                                    }
+                                  }
+
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    commitInCellEdit(true);
+                                  } else if (e.key === 'Tab') {
+                                    e.preventDefault();
+                                    if (e.shiftKey) {
+                                      commitInCellEdit(false, false, true, true);
+                                    } else {
+                                      commitInCellEdit(false, true, true, false);
+                                    }
+                                  } else if (e.key === 'Escape') {
+                                    e.preventDefault();
+                                    cancelInCellEdit();
+                                  }
+                                }}
+                                className="w-full bg-white font-sans text-xs text-slate-900 border border-blue-500 p-0 focus:outline-hidden dark:bg-[#101b2b] dark:text-white"
+                              />
+
+                              {/* In-Cell Formula Autocomplete Dropdown */}
+                              {inCellMatchingFunctions.length > 0 && (
+                                <FormulaAutocompleteList
+                                  searchTerm={inCellSearchTerm}
+                                  selectedIndex={inCellAutocompleteIndex}
+                                  onSelectFunction={handleInCellSelectFormula}
+                                  onHoverIndex={setInCellAutocompleteIndex}
+                                  className="top-full left-0 mt-1 shadow-2xl z-50"
+                                />
+                              )}
+                            </div>
                           ) : (
                             formatDisplayVal(cell)
                           )}
@@ -1655,14 +2559,17 @@ export const ExcelWorksheetModule: React.FC = () => {
         initialMode={findReplaceMode}
       />
 
-      <FormatCellsModal
-        isOpen={isFormatCellsOpen}
-        onClose={() => setIsFormatCellsOpen(false)}
-        onApply={(style, numFmt) => applyStyleToSelection(() => style, numFmt)}
-        currentStyle={currentCellObj?.s}
-        currentNumFmt={currentCellObj?.s?.nf}
-        selectedAddress={activeCell.address}
-      />
+      {isFormatCellsOpen && (
+        <FormatCellsModal
+          isOpen={isFormatCellsOpen}
+          onClose={() => setIsFormatCellsOpen(false)}
+          onApply={(style, numFmt) => applyStyleToSelection(() => style, numFmt)}
+          currentStyle={currentCellObj?.s || {}}
+          currentNumFmt={currentCellObj?.s?.nf || 'General'}
+          selectedAddress={activeCell.address}
+          initialTab={formatCellsInitialTab}
+        />
+      )}
 
       <PageSetupModal
         isOpen={isPageSetupOpen}
@@ -1700,9 +2607,17 @@ export const ExcelWorksheetModule: React.FC = () => {
         onCut={handleCut}
         onCopy={handleCopy}
         onPaste={handlePaste}
-        onInsertRow={() => setSheetData(prev => prev ? { ...prev, rowCount: prev.rowCount + 1 } : prev)}
+        onInsertRow={() => {
+          if (!sheetData) return;
+          pushUndoSnapshot();
+          setSheetData(prev => prev ? { ...prev, rowCount: prev.rowCount + 1 } : prev);
+        }}
         onDeleteRow={() => {}}
-        onInsertColumn={() => setSheetData(prev => prev ? { ...prev, colCount: prev.colCount + 1 } : prev)}
+        onInsertColumn={() => {
+          if (!sheetData) return;
+          pushUndoSnapshot();
+          setSheetData(prev => prev ? { ...prev, colCount: prev.colCount + 1 } : prev);
+        }}
         onDeleteColumn={() => {}}
         onClearContents={() => applyCellChange(activeCell.address, '')}
         onClearFormatting={() => applyStyleToSelection(() => ({}))}

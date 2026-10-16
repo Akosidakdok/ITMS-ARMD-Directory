@@ -43,7 +43,7 @@ export const RibbonViewTab: React.FC<RibbonViewTabProps> = ({
   onToggleFreezePanes
 }) => {
   return (
-    <div className="flex items-center gap-3 overflow-x-auto py-1 px-3 text-xs select-none">
+    <div className="flex items-center gap-3 py-1 px-3 text-xs select-none">
       {/* 1. Show / Hide */}
       <div className="flex flex-col gap-1 pr-3 border-r border-slate-200 dark:border-slate-800 text-[11px] text-slate-700 dark:text-slate-300">
         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Show</span>

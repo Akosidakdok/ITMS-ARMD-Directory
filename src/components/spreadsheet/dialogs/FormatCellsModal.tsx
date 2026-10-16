@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Check } from 'lucide-react';
 
 interface FormatCellsModalProps {
@@ -8,6 +8,7 @@ interface FormatCellsModalProps {
   currentStyle?: any;
   currentNumFmt?: string;
   selectedAddress: string;
+  initialTab?: 'number' | 'alignment' | 'font' | 'border' | 'fill';
 }
 
 const FONT_FAMILIES = ['Arial', 'Arial Narrow', 'Calibri', 'Times New Roman', 'Segoe UI', 'Courier New', 'Consolas'];
@@ -22,31 +23,56 @@ export const FormatCellsModal: React.FC<FormatCellsModalProps> = ({
   isOpen,
   onClose,
   onApply,
-  currentStyle = {},
+  currentStyle,
   currentNumFmt = 'General',
-  selectedAddress
+  selectedAddress,
+  initialTab
 }) => {
-  const [activeTab, setActiveTab] = useState<'number' | 'alignment' | 'font' | 'border' | 'fill'>('number');
+  const [activeTab, setActiveTab] = useState<'number' | 'alignment' | 'font' | 'border' | 'fill'>(initialTab || 'number');
+
+  const safeStyle = currentStyle || {};
 
   // Form states initialized with current values
-  const [numFmt, setNumFmt] = useState(currentNumFmt);
-  const [alignH, setAlignH] = useState<'left' | 'center' | 'right'>(currentStyle.ah || 'left');
-  const [alignV, setAlignV] = useState<'top' | 'middle' | 'bottom'>(currentStyle.av || 'middle');
-  const [wrapText, setWrapText] = useState(!!currentStyle.wrap);
+  const [numFmt, setNumFmt] = useState(currentNumFmt || 'General');
+  const [alignH, setAlignH] = useState<'left' | 'center' | 'right'>(safeStyle.ah || 'left');
+  const [alignV, setAlignV] = useState<'top' | 'middle' | 'bottom'>(safeStyle.av || 'middle');
+  const [wrapText, setWrapText] = useState(!!safeStyle.wrap);
 
-  const [fontFamily, setFontFamily] = useState(currentStyle.fn || 'Arial');
-  const [fontSize, setFontSize] = useState<number>(currentStyle.sz || 11);
-  const [bold, setBold] = useState(!!currentStyle.b);
-  const [italic, setItalic] = useState(!!currentStyle.i);
-  const [underline, setUnderline] = useState(!!currentStyle.u);
-  const [textColor, setTextColor] = useState(currentStyle.c || '#000000');
-  const [fillColor, setFillColor] = useState(currentStyle.bg || '');
+  const [fontFamily, setFontFamily] = useState(safeStyle.fn || 'Arial');
+  const [fontSize, setFontSize] = useState<number>(safeStyle.sz || 11);
+  const [bold, setBold] = useState(!!safeStyle.b);
+  const [italic, setItalic] = useState(!!safeStyle.i);
+  const [underline, setUnderline] = useState(!!safeStyle.u);
+  const [textColor, setTextColor] = useState(safeStyle.c || '#000000');
+  const [fillColor, setFillColor] = useState(safeStyle.bg || '');
 
   const [borderType, setBorderType] = useState<string>(
-    currentStyle.br?.bottom === 'double' ? 'double-bottom' :
-    currentStyle.br?.bottom === 'thick' ? 'thick-bottom' :
-    currentStyle.br?.bottom === 'thin' ? 'all' : 'none'
+    safeStyle.br?.bottom === 'double' ? 'double-bottom' :
+    safeStyle.br?.bottom === 'thick' ? 'thick-bottom' :
+    safeStyle.br?.bottom === 'thin' ? 'all' : 'none'
   );
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const s = currentStyle || {};
+    setNumFmt(currentNumFmt || 'General');
+    setAlignH(s.ah || 'left');
+    setAlignV(s.av || 'middle');
+    setWrapText(!!s.wrap);
+    setFontFamily(s.fn || 'Arial');
+    setFontSize(s.sz || 11);
+    setBold(!!s.b);
+    setItalic(!!s.i);
+    setUnderline(!!s.u);
+    setTextColor(s.c || '#000000');
+    setFillColor(s.bg || '');
+    setBorderType(
+      s.br?.bottom === 'double' ? 'double-bottom' :
+      s.br?.bottom === 'thick' ? 'thick-bottom' :
+      s.br?.bottom === 'thin' ? 'all' : 'none'
+    );
+    if (initialTab) setActiveTab(initialTab);
+  }, [isOpen, selectedAddress, currentStyle, currentNumFmt, initialTab]);
 
   if (!isOpen) return null;
 
@@ -55,9 +81,13 @@ export const FormatCellsModal: React.FC<FormatCellsModalProps> = ({
     if (borderType === 'double-bottom') br = { bottom: 'double' };
     else if (borderType === 'thick-bottom') br = { bottom: 'thick' };
     else if (borderType === 'all') br = { top: 'thin', bottom: 'thin', left: 'thin', right: 'thin' };
+    else if (borderType === 'thick-outside') br = { top: 'thick', bottom: 'thick', left: 'thick', right: 'thick' };
+    else if (borderType === 'top-bottom') br = { top: 'thin', bottom: 'thin' };
+    else if (borderType === 'top-thick-bottom') br = { top: 'thin', bottom: 'thick' };
+    else if (borderType === 'top-double-bottom') br = { top: 'thin', bottom: 'double' };
 
     const newStyle = {
-      ...currentStyle,
+      ...safeStyle,
       ah: alignH,
       av: alignV,
       wrap: wrapText ? 1 : undefined,
@@ -257,8 +287,11 @@ export const FormatCellsModal: React.FC<FormatCellsModalProps> = ({
                 {[
                   { id: 'none', label: 'No Border' },
                   { id: 'all', label: 'All Borders (Thin)' },
+                  { id: 'thick-outside', label: 'Thick Outside Borders' },
                   { id: 'thick-bottom', label: 'Thick Bottom Border' },
-                  { id: 'double-bottom', label: 'Double Bottom (Accounting Total)' }
+                  { id: 'double-bottom', label: 'Double Bottom (Accounting Total)' },
+                  { id: 'top-bottom', label: 'Top and Bottom Border' },
+                  { id: 'top-double-bottom', label: 'Top and Double Bottom' }
                 ].map(b => (
                   <button
                     key={b.id}

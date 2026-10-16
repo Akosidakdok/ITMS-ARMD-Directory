@@ -1,5 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Check, X } from 'lucide-react';
+import {
+  SPREADSHEET_FUNCTIONS,
+  SpreadsheetFunctionDef,
+  getFormulaSearchContext
+} from '../../../constants/spreadsheetFunctions';
+import { FormulaAutocompleteList } from './FormulaAutocompleteList';
 
 interface FormulaBarProps {
   selectedAddress: string;
@@ -9,6 +15,8 @@ interface FormulaBarProps {
   onCancel: () => void;
   onJumpToAddress: (address: string) => void;
   onOpenFunctionWizard: () => void;
+  onFocus?: () => void;
+  onTab?: (shiftKey: boolean) => void;
   isEditing: boolean;
 }
 
@@ -20,14 +28,59 @@ export const FormulaBar: React.FC<FormulaBarProps> = ({
   onCancel,
   onJumpToAddress,
   onOpenFunctionWizard,
+  onFocus,
+  onTab,
   isEditing
 }) => {
   const [nameBoxValue, setNameBoxValue] = useState(selectedAddress);
+  const [isInputFocused, setIsInputFocused] = useState(false);
+  const [autocompleteIndex, setAutocompleteIndex] = useState(0);
+  const [isAutocompleteDismissed, setIsAutocompleteDismissed] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setNameBoxValue(selectedAddress);
   }, [selectedAddress]);
+
+  // Formula autocomplete search context
+  const { isFormula, searchTerm, prefixText } = useMemo(
+    () => getFormulaSearchContext(value),
+    [value]
+  );
+
+  // Reset dismissed state and selected index when value changes
+  useEffect(() => {
+    setIsAutocompleteDismissed(false);
+    setAutocompleteIndex(0);
+  }, [value]);
+
+  const cleanTerm = searchTerm.toUpperCase().trim();
+  const matchingFunctions = useMemo(() => {
+    if (!isFormula || isAutocompleteDismissed || !isInputFocused) return [];
+    return SPREADSHEET_FUNCTIONS.filter(f => {
+      if (!cleanTerm) return true; // '=' shows ALL formulas!
+      return f.name.includes(cleanTerm);
+    }).sort((a, b) => {
+      if (!cleanTerm) return a.name.localeCompare(b.name);
+      const aStarts = a.name.startsWith(cleanTerm);
+      const bStarts = b.name.startsWith(cleanTerm);
+      if (aStarts && !bStarts) return -1;
+      if (!aStarts && bStarts) return 1;
+      return a.name.localeCompare(b.name);
+    });
+  }, [isFormula, isAutocompleteDismissed, isInputFocused, cleanTerm]);
+
+  const handleSelectFormula = (fn: SpreadsheetFunctionDef) => {
+    const newValue = `${prefixText}${fn.template}`;
+    onChange(newValue);
+    setIsAutocompleteDismissed(true);
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+        inputRef.current.setSelectionRange(newValue.length, newValue.length);
+      }
+    }, 10);
+  };
 
   const handleNameBoxKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
@@ -93,11 +146,49 @@ export const FormulaBar: React.FC<FormulaBarProps> = ({
           ref={inputRef}
           type="text"
           value={value}
+          onFocus={() => {
+            setIsInputFocused(true);
+            if (onFocus) onFocus();
+          }}
+          onBlur={() => {
+            // Slight delay so click on suggestion can register
+            setTimeout(() => setIsInputFocused(false), 200);
+          }}
           onChange={e => onChange(e.target.value)}
           onKeyDown={e => {
+            if (matchingFunctions.length > 0 && isInputFocused) {
+              if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                setAutocompleteIndex(prev => (prev + 1) % matchingFunctions.length);
+                return;
+              }
+              if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                setAutocompleteIndex(prev => (prev - 1 + matchingFunctions.length) % matchingFunctions.length);
+                return;
+              }
+              if (e.key === 'Tab' || e.key === 'Enter') {
+                e.preventDefault();
+                handleSelectFormula(matchingFunctions[autocompleteIndex]);
+                return;
+              }
+              if (e.key === 'Escape') {
+                e.preventDefault();
+                setIsAutocompleteDismissed(true);
+                return;
+              }
+            }
+
             if (e.key === 'Enter') {
               e.preventDefault();
               onCommit();
+            } else if (e.key === 'Tab') {
+              e.preventDefault();
+              if (onTab) {
+                onTab(e.shiftKey);
+              } else {
+                onCommit();
+              }
             } else if (e.key === 'Escape') {
               e.preventDefault();
               onCancel();
@@ -107,6 +198,17 @@ export const FormulaBar: React.FC<FormulaBarProps> = ({
           placeholder="Enter text, numbers, or formula starting with ="
           className="w-full rounded border border-transparent bg-transparent px-2.5 py-1 font-mono text-xs text-slate-900 focus:border-blue-500 focus:bg-white focus:outline-hidden dark:text-slate-100 dark:focus:bg-[#142232]"
         />
+
+        {/* Formula Autocomplete Dropdown */}
+        {matchingFunctions.length > 0 && isInputFocused && (
+          <FormulaAutocompleteList
+            searchTerm={searchTerm}
+            selectedIndex={autocompleteIndex}
+            onSelectFunction={handleSelectFormula}
+            onHoverIndex={setAutocompleteIndex}
+            className="top-full left-0 mt-1 shadow-2xl"
+          />
+        )}
       </div>
     </div>
   );

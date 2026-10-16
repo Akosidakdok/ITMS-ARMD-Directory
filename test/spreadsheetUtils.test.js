@@ -4,7 +4,12 @@ import {
   colNumToLetter,
   colLetterToNum,
   parseAddress,
-  formatCellValue
+  formatCellValue,
+  formatExcelDateSerial,
+  insertCellReferenceIntoFormula,
+  parseMergeRange,
+  isCellInMergeRange,
+  isMergeOverlappingRange
 } from '../src/utils/spreadsheetUtils.ts';
 
 test('colNumToLetter converts 1-based column numbers to Excel column letters', () => {
@@ -64,9 +69,125 @@ test('formatCellValue formats Philippine Peso currency and accounting formats', 
   assert.equal(formatCellValue(0.125, 'percentage'), '12.5%');
 });
 
+test('formats Excel date serials using the cell date format', () => {
+  assert.match(formatExcelDateSerial(46023, 'mm/dd/yyyy'), /2026/);
+  assert.equal(formatExcelDateSerial(46023, '#,##0.00'), null);
+  assert.match(formatCellValue(46023, 'mm/dd/yyyy'), /2026/);
+});
+
 test('formatCellValue formats Date objects in date format without returning empty string', () => {
   const d = new Date('2026-05-15T12:00:00Z');
   const formatted = formatCellValue(d, 'date');
   assert.notEqual(formatted, '');
   assert.match(formatted, /2026|5\/15\/2026|15\/5\/2026/);
 });
+
+test('insertCellReferenceIntoFormula appends and auto-opens parenthesis for function names', () => {
+  assert.equal(insertCellReferenceIntoFormula('=sum', 'A1'), '=sum(A1');
+  assert.equal(insertCellReferenceIntoFormula('=SUM', 'C5'), '=SUM(C5');
+  assert.equal(insertCellReferenceIntoFormula('=', 'B2'), '=B2');
+  assert.equal(insertCellReferenceIntoFormula('=SUM(', 'A1:A10'), '=SUM(A1:A10');
+  assert.equal(insertCellReferenceIntoFormula('=A1+', 'B2'), '=A1+B2');
+  assert.equal(insertCellReferenceIntoFormula('=A1*B1,', 'C1'), '=A1*B1,C1');
+});
+
+test('insertCellReferenceIntoFormula replaces trailing reference when dragged or re-clicked', () => {
+  assert.equal(insertCellReferenceIntoFormula('=sum(A1', 'A1:A5', 'A1'), '=sum(A1:A5');
+  assert.equal(insertCellReferenceIntoFormula('=A1+B1', 'C1', 'B1'), '=A1+C1');
+  assert.equal(insertCellReferenceIntoFormula('=B2', 'C3'), '=C3');
+});
+
+test('getFormulaSearchContext returns all formulas when writing equal sign', async () => {
+  const { getFormulaSearchContext, SPREADSHEET_FUNCTIONS } = await import('../src/constants/spreadsheetFunctions.ts');
+
+  // Exact '=' must trigger formula list with empty search term (matches all)
+  const ctxEqual = getFormulaSearchContext('=');
+  assert.equal(ctxEqual.isFormula, true);
+  assert.equal(ctxEqual.searchTerm, '');
+  assert.equal(ctxEqual.prefixText, '=');
+
+  // Should contain all cataloged formulas
+  assert.ok(SPREADSHEET_FUNCTIONS.length >= 40);
+  assert.ok(SPREADSHEET_FUNCTIONS.some(f => f.name === 'SUM'));
+  assert.ok(SPREADSHEET_FUNCTIONS.some(f => f.name === 'AVERAGE'));
+  assert.ok(SPREADSHEET_FUNCTIONS.some(f => f.name === 'DATEDIF'));
+  assert.ok(SPREADSHEET_FUNCTIONS.some(f => f.name === 'IF'));
+
+  // Typing '=s' or '=sum' filters prefix
+  const ctxS = getFormulaSearchContext('=s');
+  assert.equal(ctxS.isFormula, true);
+  assert.equal(ctxS.searchTerm, 'S');
+
+  const ctxSum = getFormulaSearchContext('=sum');
+  assert.equal(ctxSum.isFormula, true);
+  assert.equal(ctxSum.searchTerm, 'SUM');
+
+  // Operator-preceded formula context: e.g. '=A1+s' or '=SUM(A1, a'
+  const ctxAdd = getFormulaSearchContext('=A1+s');
+  assert.equal(ctxAdd.isFormula, true);
+  assert.equal(ctxAdd.searchTerm, 'S');
+  assert.equal(ctxAdd.prefixText, '=A1+');
+
+  const ctxComma = getFormulaSearchContext('=SUM(A1, a');
+  assert.equal(ctxComma.isFormula, true);
+  assert.equal(ctxComma.searchTerm, 'A');
+  assert.equal(ctxComma.prefixText, '=SUM(A1, ');
+
+  // Non-formula inputs
+  assert.equal(getFormulaSearchContext('Normal text').isFormula, false);
+  assert.equal(getFormulaSearchContext('12345').isFormula, false);
+  assert.equal(getFormulaSearchContext('').isFormula, false);
+});
+
+test('parseMergeRange normalizes forward and reverse coordinate ranges', () => {
+  const forward = parseMergeRange('A1:C3');
+  assert.ok(forward);
+  assert.equal(forward.minRow, 1);
+  assert.equal(forward.maxRow, 3);
+  assert.equal(forward.minCol, 1);
+  assert.equal(forward.maxCol, 3);
+  assert.equal(forward.startAddress, 'A1');
+  assert.equal(forward.endAddress, 'C3');
+  assert.equal(forward.rangeStr, 'A1:C3');
+
+  // Inverted range (dragged backwards/upwards)
+  const inverted = parseMergeRange('C3:A1');
+  assert.ok(inverted);
+  assert.equal(inverted.minRow, 1);
+  assert.equal(inverted.maxRow, 3);
+  assert.equal(inverted.minCol, 1);
+  assert.equal(inverted.maxCol, 3);
+  assert.equal(inverted.startAddress, 'A1');
+  assert.equal(inverted.endAddress, 'C3');
+  assert.equal(inverted.rangeStr, 'A1:C3');
+
+  // Invalid ranges
+  assert.equal(parseMergeRange(''), null);
+  assert.equal(parseMergeRange('A1'), null);
+  assert.equal(parseMergeRange(null), null);
+});
+
+test('isCellInMergeRange correctly checks containment', () => {
+  assert.equal(isCellInMergeRange(1, 1, 'A1:D5'), true);
+  assert.equal(isCellInMergeRange(3, 2, 'A1:D5'), true);
+  assert.equal(isCellInMergeRange(5, 4, 'A1:D5'), true);
+  assert.equal(isCellInMergeRange(6, 1, 'A1:D5'), false);
+  assert.equal(isCellInMergeRange(1, 5, 'A1:D5'), false);
+
+  // Works with inverted merge range string
+  assert.equal(isCellInMergeRange(2, 2, 'D5:A1'), true);
+});
+
+test('isMergeOverlappingRange detects 2D rectangular collisions', () => {
+  // Overlapping
+  assert.equal(isMergeOverlappingRange('B2:E5', 1, 3, 1, 3), true);
+  assert.equal(isMergeOverlappingRange('B2:E5', 5, 8, 5, 8), true);
+  assert.equal(isMergeOverlappingRange('B2:E5', 3, 4, 3, 4), true);
+
+  // Non-overlapping
+  assert.equal(isMergeOverlappingRange('B2:E5', 6, 10, 6, 10), false);
+  assert.equal(isMergeOverlappingRange('B2:E5', 1, 1, 1, 1), false);
+  assert.equal(isMergeOverlappingRange('B2:E5', 1, 1, 2, 5), false);
+});
+
+

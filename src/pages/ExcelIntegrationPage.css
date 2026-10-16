@@ -2,14 +2,14 @@
 .worksheets-page .excel-worksheet-card { min-width: 0; border-color: var(--color-records-rule); border-radius: var(--radius-records-panel); background: var(--color-records-surface); box-shadow: none; }
 .worksheets-page .worksheet-ribbon { background: var(--color-records-subtle); color: var(--color-records-ink); border-color: var(--color-records-rule); }
 .worksheet-ribbon-toolbar { flex-wrap: wrap; gap: 0.5rem; padding-block: 0.375rem; }
-.worksheet-ribbon-navigation { min-width: 0; flex: 1; overflow-x: auto; scrollbar-width: thin; }
+.worksheet-ribbon-navigation { min-width: 0; flex: 1; }
 .worksheet-quick-actions { flex-shrink: 0; }
 .worksheet-ribbon-tabs { flex-shrink: 0; }
 .worksheets-page .worksheet-quick-actions > div { background: var(--primary); box-shadow: none; }
 .worksheets-page .worksheet-ribbon-tabs button { min-height: 36px; padding-inline: 0.75rem; font-weight: 500; }
 .worksheets-page .worksheet-ribbon-tabs button[aria-pressed="true"] { border-color: var(--primary); color: var(--primary); background: var(--color-records-surface); }
 .worksheet-save-status { flex-shrink: 0; }
-.worksheets-page .worksheet-ribbon-panel { max-width: 100%; overflow-x: auto; background: var(--color-records-surface); box-shadow: none; scrollbar-width: thin; }
+.worksheets-page .worksheet-ribbon-panel { max-width: 100%; overflow: visible; background: var(--color-records-surface); box-shadow: none; }
 .worksheet-ribbon-panel > div { min-width: max-content; }
 .worksheets-page .worksheet-ribbon :is(input, select) { min-height: 28px; font-size: 0.75rem; }
 .worksheets-page .worksheet-ribbon button { min-width: 28px; }
