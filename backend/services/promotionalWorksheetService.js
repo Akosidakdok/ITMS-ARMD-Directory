@@ -27,6 +27,24 @@ export const PNP_RANK_NAMES = {
   NUP: 'Non-Uniformed Personnel'
 };
 
+const NEXT_PROMOTION_RANK = {
+  Pat: 'PCpl',
+  PCpl: 'PSSg',
+  PSSg: 'PMSg',
+  PMSg: 'PSMS',
+  PSMS: 'PCMS',
+  PCMS: 'PEMS',
+  PEMS: 'PLT',
+  PLT: 'PCPT',
+  PCPT: 'PMAJ',
+  PMAJ: 'PLTCOL',
+  PLTCOL: 'PCOL',
+  PCOL: 'PBGEN',
+  PBGEN: 'PMGEN',
+  PMGEN: 'PLTGEN',
+  PLTGEN: 'PGEN'
+};
+
 export function normalizeRankCode(rank) {
   if (!rank) return '';
   const clean = String(rank).trim();
@@ -101,16 +119,33 @@ export function calculateTimeInGrade(fromDateStr, targetDateStr) {
 }
 
 export function getDynamicPromotionalTitle(targetRankOrTitle) {
-  if (!targetRankOrTitle || !targetRankOrTitle.trim()) {
-    return 'PROMOTIONAL EXAMINATION';
-  }
+  if (!targetRankOrTitle || !targetRankOrTitle.trim()) return '';
   const clean = targetRankOrTitle.trim();
-  if (clean.toUpperCase().endsWith('PROMOTIONAL EXAMINATION')) {
-    return clean.toUpperCase();
+  if (clean.toUpperCase() === 'ALL' || clean.toUpperCase() === 'PROMOTIONAL EXAMINATION') return '';
+  const rankTitle = clean.replace(/\s+PROMOTIONAL EXAMINATION$/i, '').trim();
+  if (!rankTitle) return '';
+
+  const resolveRank = value => {
+    const rankValue = value.trim();
+    const upper = rankValue.toUpperCase();
+    const exact = Object.entries(PNP_RANK_NAMES).find(([code, name]) => code.toUpperCase() === upper || name.toUpperCase() === upper);
+    const code = exact?.[0] || normalizeRankCode(rankValue);
+    const name = PNP_RANK_NAMES[code] || rankValue;
+    return { code, name };
+  };
+
+  const explicitPath = rankTitle.match(/^(.+?)\s+TO\s+(.+)$/i);
+  if (explicitPath) {
+    const fromRank = resolveRank(explicitPath[1]);
+    const toRank = resolveRank(explicitPath[2]);
+    return `${fromRank.name.toUpperCase()} TO ${toRank.name.toUpperCase()}`;
   }
-  const rankNorm = normalizeRankCode(clean);
-  const fullRank = getRankFullName(rankNorm || clean);
-  return `${fullRank.toUpperCase()} PROMOTIONAL EXAMINATION`;
+
+  const currentRank = resolveRank(rankTitle);
+  const nextRankCode = NEXT_PROMOTION_RANK[currentRank.code];
+  const nextRankName = nextRankCode ? PNP_RANK_NAMES[nextRankCode] : '';
+  const path = nextRankName ? ` TO ${nextRankName.toUpperCase()}` : '';
+  return `${currentRank.name.toUpperCase()}${path}`;
 }
 
 export async function getPromotionalApplicantsData(selectedPersonnelIds = [], customTitle = '') {
@@ -161,39 +196,43 @@ export async function getPromotionalApplicantsData(selectedPersonnelIds = [], cu
 
     // 13. Highest Educational Attainment
     const personEdus = (allEducation || []).filter(e => e.personnelId === person.id);
-    let highestEducationalAttainment = '';
-    const highestFlagged = personEdus.find(e => e.highest);
-    if (highestFlagged && highestFlagged.degree) {
-      highestEducationalAttainment = highestFlagged.degree.trim();
-    } else if (personEdus.length) {
-      highestEducationalAttainment = personEdus[0].degree || personEdus[0].academicLevel || '';
-    } else if (person.qualification && !person.qualification.match(/^(JR|SR|II|III|IV|\.)/i)) {
-      highestEducationalAttainment = person.qualification.trim();
+    let highestEducationalAttainment = String(person.highestEducationalAttainment || person.highest_educational_attainment || '').trim();
+    if (!highestEducationalAttainment) {
+      const highestFlagged = personEdus.find(e => e.highest);
+      if (highestFlagged && highestFlagged.degree) {
+        highestEducationalAttainment = highestFlagged.degree.trim();
+      } else if (personEdus.length) {
+        highestEducationalAttainment = personEdus[0].degree || personEdus[0].academicLevel || '';
+      } else if (person.qualification && !person.qualification.match(/^(JR|SR|II|III|IV|\.)/i)) {
+        highestEducationalAttainment = person.qualification.trim();
+      }
     }
 
     // 14. Appropriate Eligibility
-    let appropriateEligibility = '';
+    let appropriateEligibility = String(person.civilServiceEligibility || person.civil_service_eligibility || '').trim();
     const certs = personEdus.flatMap(e => e.certifications || []).filter(Boolean);
-    if (certs.length) {
-      appropriateEligibility = certs.join(', ');
-    } else {
-      const personTrainings = (allTraining || []).filter(t => t.personnelId === person.id);
-      const eligTrn = personTrainings.find(t => /eligibility|napolcom|csc|civil service|bar|board|let|pese/i.test(`${t.courseName || ''} ${t.category || ''}`));
-      if (eligTrn) appropriateEligibility = eligTrn.courseName.trim();
-      else if (person.qualification && !person.qualification.match(/^(JR|SR|II|III|IV|\.)/i)) {
-        appropriateEligibility = person.qualification.trim();
+    if (!appropriateEligibility) {
+      if (certs.length) {
+        appropriateEligibility = certs.join(', ');
+      } else {
+        const personTrainings = (allTraining || []).filter(t => t.personnelId === person.id);
+        const eligTrn = personTrainings.find(t => /eligibility|napolcom|csc|civil service|bar|board|let|pese/i.test(`${t.courseName || ''} ${t.category || ''}`));
+        if (eligTrn) appropriateEligibility = eligTrn.courseName.trim();
+        else if (person.qualification && !person.qualification.match(/^(JR|SR|II|III|IV|\.)/i)) {
+          appropriateEligibility = person.qualification.trim();
+        }
       }
     }
 
     // 15. Highest Mandatory Course
-    let highestMandatoryCourse = '';
+    let highestMandatoryCourse = String(person.mandatoryCourse || person.mandatory_course || '').trim();
     const personTrns = (allTraining || []).filter(t => t.personnelId === person.id);
     const mandatoryTrns = personTrns.filter(t =>
       t.category === 'Mandatory Promotion QS' ||
       t.category === 'Career Course' ||
       /mandatory|psrbc|psbrc|psjlc|psslc|psobc|psooc|psoac|psosec/i.test(t.courseName || '')
     );
-    if (mandatoryTrns.length) {
+    if (!highestMandatoryCourse && mandatoryTrns.length) {
       highestMandatoryCourse = mandatoryTrns[0].courseName.trim();
     }
 
@@ -354,7 +393,7 @@ export async function generatePromotionalWorksheetBuffer({
   ws.mergeCells('A4:Q4');
   const h3 = ws.getCell('A4');
   h3.value = title;
-  h3.font = { name: 'Arial', size: 11, bold: true };
+  h3.font = { name: 'Arial', size: 11, bold: true, color: { argb: 'FF000000' } };
   h3.alignment = { horizontal: 'center', vertical: 'middle' };
   ws.getRow(4).height = 18;
 

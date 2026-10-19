@@ -84,6 +84,11 @@ test('updateWorksheetCell preserves formulas, cached results, and styles for rel
 
 test('generateExcelExport creates valid Excel workbook with Sheet1', async () => {
   await updateWorksheetCell('sheet-1', {
+    address: 'A4',
+    value: 'POLICE MASTER SERGEANT PROMOTIONAL EXAMINATION',
+    style: { c: '#1d4ed8' }
+  }, { displayName: 'Export Test' }, null);
+  await updateWorksheetCell('sheet-1', {
     address: 'C2', value: '=A1+A2', formula: 'A1+A2', formulaResult: 13,
     style: { nf: '$#,##0.00', b: 1, bg: '#00AAFF', ah: 'center' }
   }, { displayName: 'Export Test' }, null);
@@ -94,6 +99,8 @@ test('generateExcelExport creates valid Excel workbook with Sheet1', async () =>
   await wb.xlsx.load(buffer);
   assert.equal(wb.worksheets.length, 1);
   assert.equal(wb.worksheets[0].name.trim(), 'Sheet1');
+  assert.equal(wb.worksheets[0].getCell('A4').value, 'POLICE MASTER SERGEANT TO POLICE SENIOR MASTER SERGEANT');
+  assert.equal(wb.worksheets[0].getCell('A4').font.color.argb, 'FF000000');
   assert.equal(wb.worksheets[0].getCell('C2').value.formula, 'A1+A2');
   assert.equal(wb.worksheets[0].getCell('C2').value.result, 13);
   assert.equal(wb.worksheets[0].getCell('C2').numFmt, '$#,##0.00');

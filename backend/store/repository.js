@@ -124,6 +124,7 @@ export class PAISRepository {
     const subUnitCategory = p.subUnitCategory || (agencyType === 'OTHER_GOVERNMENT' ? '' : 'Division');
     const birthdate = p.birthdate || p.birthday || '';
     const qualification = p.qualification || p.qualifier || '';
+    const highestEducationalAttainment = p.highestEducationalAttainment || p.highest_educational_attainment || '';
     const desUp = p.desUp || p.dateOfEntry || p.dateEnteredService || p.date_entered_service || '';
     const badgeNo = p.badgeNo || p.badge_number || '';
     const status = p.status || p.pstatus || 'Active';
@@ -176,6 +177,8 @@ export class PAISRepository {
       birthday: birthdate,
       qualification,
       qualifier: qualification,
+      highestEducationalAttainment,
+      highest_educational_attainment: p.highest_educational_attainment || highestEducationalAttainment,
       desUp,
       dateOfEntry: desUp,
       dateEnteredService: desUp,
@@ -409,6 +412,7 @@ export class PAISRepository {
       'lastName', 'last_name',
       'fullName',
       'qualifier', 'qualification',
+      'highestEducationalAttainment', 'highest_educational_attainment',
       'address', 'gender',
       'contactNumber', 'phone_number',
       'email',

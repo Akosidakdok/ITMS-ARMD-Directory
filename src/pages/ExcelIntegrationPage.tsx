@@ -99,47 +99,49 @@ export const ExcelIntegrationPage: React.FC = () => {
     return getDynamicPromotionalTitle(targetRank === 'ALL' ? 'PROMOTIONAL EXAMINATION' : targetRank);
   }, [targetRank]);
 
-  // Automatically generate and update interactive table data whenever personnelList or rank selection changes
+  // Generate the promotional worksheet even when the personnel list is empty.
   useEffect(() => {
-    if (personnelList && personnelList.length > 0) {
-      const ids = selectedPersonnelIds.length > 0
-        ? selectedPersonnelIds
-        : candidatePersonnel.map(p => p.id);
+    const ids = selectedPersonnelIds.length > 0
+      ? selectedPersonnelIds
+      : candidatePersonnel.map(p => p.id);
 
-      const generatedSheet = buildPromotionalWorksheetDetail({
-        targetRank,
-        promotionalTitle: dynamicTitle,
-        selectedPersonnelIds: ids,
-        personnelList,
-        assignmentsList,
-        educationList,
-        trainingList,
-        promotionsList
-      });
+    const generatedSheet = buildPromotionalWorksheetDetail({
+      targetRank,
+      promotionalTitle: dynamicTitle,
+      selectedPersonnelIds: ids,
+      personnelList,
+      assignmentsList,
+      educationList,
+      trainingList,
+      promotionsList
+    });
 
-      setWorksheetData(generatedSheet);
-    }
+    setWorksheetData(generatedSheet);
   }, [personnelList, assignmentsList, educationList, trainingList, promotionsList, targetRank, selectedPersonnelIds, candidatePersonnel, dynamicTitle]);
+
+  const exportPromotionalWorksheet = async () => {
+    const ids = selectedPersonnelIds.length > 0
+      ? selectedPersonnelIds
+      : candidatePersonnel.map(p => p.id);
+
+    await downloadPromotionalWorksheetExcel({
+      targetRank,
+      promotionalTitle: dynamicTitle,
+      selectedPersonnelIds: ids,
+      personnelList,
+      assignmentsList,
+      educationList,
+      trainingList,
+      promotionsList,
+      allowIncomplete: true
+    });
+  };
 
   // Handle direct Excel file export
   const handleDownloadExcel = async () => {
     setIsExporting(true);
     try {
-      const ids = selectedPersonnelIds.length > 0
-        ? selectedPersonnelIds
-        : candidatePersonnel.map(p => p.id);
-
-      await downloadPromotionalWorksheetExcel({
-        targetRank,
-        promotionalTitle: dynamicTitle,
-        selectedPersonnelIds: ids,
-        personnelList,
-        assignmentsList,
-        educationList,
-        trainingList,
-        promotionsList,
-        allowIncomplete: true
-      });
+      await exportPromotionalWorksheet();
     } catch (err: any) {
       alert(`Export failed: ${err.message || 'Unknown error'}`);
     } finally {
@@ -211,7 +213,10 @@ export const ExcelIntegrationPage: React.FC = () => {
       {/* FULL EXCEL WORKSHEET MODULE (INTERACTIVE TABLE AUTOMATICALLY DISPLAYED) */}
       <div className="w-full">
         <WorksheetErrorBoundary>
-          <ExcelWorksheetModule sheetDataOverride={worksheetData} />
+          <ExcelWorksheetModule
+            sheetDataOverride={worksheetData}
+            onExportOverride={exportPromotionalWorksheet}
+          />
         </WorksheetErrorBoundary>
       </div>
 

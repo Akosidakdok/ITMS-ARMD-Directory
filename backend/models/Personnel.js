@@ -37,6 +37,8 @@ const PersonnelSchema = new mongoose.Schema({
   avatarUrl: { type: String },
   officeDivision: { type: String },
   qualification: { type: String },
+  highestEducationalAttainment: { type: String },
+  highest_educational_attainment: { type: String },
   ageToDate: { type: String },
   birthdate: { type: String },
   ageOfServiceToDate: { type: String },

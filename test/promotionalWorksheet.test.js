@@ -13,7 +13,8 @@ import {
 import {
   generatePromotionalWorksheetBuffer,
   validatePromotionalPersonnelRows,
-  getPromotionalApplicantsData
+  getPromotionalApplicantsData,
+  getDynamicPromotionalTitle as getBackendPromotionalTitle
 } from '../backend/services/promotionalWorksheetService.js';
 import {
   updateWorksheetCell,
@@ -126,14 +127,35 @@ const mockTraining = [
 ];
 
 test('Dynamic Promotional Title formatting', () => {
-  assert.equal(getDynamicPromotionalTitle('PMSg'), 'POLICE MASTER SERGEANT PROMOTIONAL EXAMINATION');
-  assert.equal(getDynamicPromotionalTitle('PSSg'), 'POLICE STAFF SERGEANT PROMOTIONAL EXAMINATION');
-  assert.equal(getDynamicPromotionalTitle('PCpl'), 'POLICE CORPORAL PROMOTIONAL EXAMINATION');
-  assert.equal(getDynamicPromotionalTitle('PSMS'), 'POLICE SENIOR MASTER SERGEANT PROMOTIONAL EXAMINATION');
+  const rankPaths = [
+    ['Pat', 'PATROLMAN TO POLICE CORPORAL'],
+    ['PCpl', 'POLICE CORPORAL TO POLICE STAFF SERGEANT'],
+    ['PSSg', 'POLICE STAFF SERGEANT TO POLICE MASTER SERGEANT'],
+    ['PMSg', 'POLICE MASTER SERGEANT TO POLICE SENIOR MASTER SERGEANT'],
+    ['PSMS', 'POLICE SENIOR MASTER SERGEANT TO POLICE CHIEF MASTER SERGEANT'],
+    ['PCMS', 'POLICE CHIEF MASTER SERGEANT TO POLICE EXECUTIVE MASTER SERGEANT'],
+    ['PEMS', 'POLICE EXECUTIVE MASTER SERGEANT TO POLICE LIEUTENANT'],
+    ['PLT', 'POLICE LIEUTENANT TO POLICE CAPTAIN'],
+    ['PCPT', 'POLICE CAPTAIN TO POLICE MAJOR'],
+    ['PMAJ', 'POLICE MAJOR TO POLICE LIEUTENANT COLONEL'],
+    ['PLTCOL', 'POLICE LIEUTENANT COLONEL TO POLICE COLONEL'],
+    ['PCOL', 'POLICE COLONEL TO POLICE BRIGADIER GENERAL'],
+    ['PBGEN', 'POLICE BRIGADIER GENERAL TO POLICE MAJOR GENERAL'],
+    ['PMGEN', 'POLICE MAJOR GENERAL TO POLICE LIEUTENANT GENERAL'],
+    ['PLTGEN', 'POLICE LIEUTENANT GENERAL TO POLICE GENERAL']
+  ];
+
+  for (const [rank, title] of rankPaths) {
+    assert.equal(getDynamicPromotionalTitle(rank), title);
+    assert.equal(getBackendPromotionalTitle(rank), title);
+  }
   assert.equal(
     getDynamicPromotionalTitle('Police Master Sergeant Promotional Examination'),
-    'POLICE MASTER SERGEANT PROMOTIONAL EXAMINATION'
+    'POLICE MASTER SERGEANT TO POLICE SENIOR MASTER SERGEANT'
   );
+  assert.equal(getDynamicPromotionalTitle('PROMOTIONAL EXAMINATION'), '');
+  assert.equal(getDynamicPromotionalTitle('ALL'), '');
+  assert.equal(getBackendPromotionalTitle('PROMOTIONAL EXAMINATION'), '');
 });
 
 test('Workbook contains exactly ONE worksheet and no hidden sheets', async () => {
@@ -173,8 +195,9 @@ test('Promotional worksheet headers match PNP specifications', async () => {
   assert.equal(sheet.getCell('A3').alignment.horizontal, 'center');
 
   // Header 3: Dynamic title
-  assert.equal(sheet.getCell('A4').value, 'POLICE MASTER SERGEANT PROMOTIONAL EXAMINATION');
+  assert.equal(sheet.getCell('A4').value, 'POLICE MASTER SERGEANT TO POLICE SENIOR MASTER SERGEANT');
   assert.equal(sheet.getCell('A4').font.bold, true);
+  assert.equal(sheet.getCell('A4').font.color.argb, 'FF000000');
   assert.equal(sheet.getCell('A4').alignment.horizontal, 'center');
 
   // Table Top Header: Row 6 & 7
@@ -347,7 +370,8 @@ test('Backend service generates valid single-sheet buffer with identical layout'
   const ws = loadedWb.worksheets[0];
   assert.equal(ws.name, 'Worksheet');
   assert.equal(ws.getCell('A2').value, 'INFORMATION TECHNOLOGY MANAGEMENT SERVICE');
-  assert.equal(ws.getCell('A4').value, 'POLICE MASTER SERGEANT PROMOTIONAL EXAMINATION');
+  assert.equal(ws.getCell('A4').value, 'POLICE MASTER SERGEANT TO POLICE SENIOR MASTER SERGEANT');
+  assert.equal(ws.getCell('A4').font.color.argb, 'FF000000');
   assert.equal(ws.getCell('A8').value, 1);
   assert.equal(ws.getCell('B8').value, 'PMSg');
   assert.equal(ws.getCell('C8').value, 'Dela Cruz');
@@ -404,7 +428,8 @@ test('buildPromotionalWorksheetDetail produces full interactive spreadsheet deta
   assert.equal(detail.name, 'Promotional Worksheet');
   assert.equal(detail.cells['A2'].v, 'INFORMATION TECHNOLOGY MANAGEMENT SERVICE');
   assert.equal(detail.cells['A3'].v, 'WORKSHEET');
-  assert.equal(detail.cells['A4'].v, 'POLICE MASTER SERGEANT PROMOTIONAL EXAMINATION');
+  assert.equal(detail.cells['A4'].v, 'POLICE MASTER SERGEANT TO POLICE SENIOR MASTER SERGEANT');
+  assert.equal(detail.cells['A4'].s.c, '#000000');
   // Headers
   assert.equal(detail.cells['A6'].v, 'NR');
   assert.equal(detail.cells['B6'].v, 'NAME OF APPLICANTS');
@@ -460,7 +485,7 @@ test('buildPromotionalWorksheetDetail tags each cell with personnelId and target
   assert.equal(detail.cells['L8'].personnelId, 'p-1');
   assert.equal(detail.cells['L8'].field, 'dateOfEntry');
   assert.equal(detail.cells['M8'].personnelId, 'p-1');
-  assert.equal(detail.cells['M8'].field, 'qualification');
+  assert.equal(detail.cells['M8'].field, 'highestEducationalAttainment');
   assert.equal(detail.cells['N8'].personnelId, 'p-1');
   assert.equal(detail.cells['N8'].field, 'civilServiceEligibility');
   assert.equal(detail.cells['O8'].personnelId, 'p-1');
@@ -469,6 +494,65 @@ test('buildPromotionalWorksheetDetail tags each cell with personnelId and target
   assert.equal(detail.cells['P8'].field, 'lastPromotionDate');
   assert.equal(detail.cells['Q8'].personnelId, 'p-1');
   assert.equal(detail.cells['Q8'].field, 'timeInGrade');
+});
+
+test('promotional worksheet uses imported eligibility, mandatory course, and service date fields', () => {
+  const person = {
+    ...mockPersonnel[0],
+    highestEducationalAttainment: 'BS Computer Science',
+    civilServiceEligibility: 'CSP, PD 907',
+    mandatoryCourse: 'PSOBC',
+    dateOfEntry: '2021-11-04'
+  };
+  const [row] = buildPromotionalApplicantRows({
+    selectedPersonnelIds: [person.id],
+    personnelList: [person],
+    educationList: [],
+    trainingList: [],
+    assignmentsList: []
+  });
+
+  assert.equal(row.appropriateEligibility, 'CSP, PD 907');
+  assert.equal(row.highestEducationalAttainment, 'BS Computer Science');
+  assert.equal(row.highestMandatoryCourse, 'PSOBC');
+  assert.equal(row.dateEnteredPNP?.toISOString().slice(0, 10), '2021-11-04');
+});
+
+test('backend promotional worksheet reads imported snake-case personnel fields', async () => {
+  const person = {
+    ...mockPersonnel[0],
+    id: 'p-imported-worksheet-fields',
+    dateOfEntry: '',
+    dateEnteredService: '',
+    desUp: '',
+    highest_educational_attainment: 'BS Computer Science',
+    civil_service_eligibility: 'CSP, PD 907',
+    mandatory_course: 'PSOBC',
+    date_entered_service: '2021-11-04'
+  };
+  const originalGetters = {
+    getPersonnel: db.getPersonnel,
+    getAssignments: db.getAssignments,
+    getEducation: db.getEducation,
+    getTraining: db.getTraining,
+    getPromotions: db.getPromotions
+  };
+
+  db.getPersonnel = async () => [person];
+  db.getAssignments = async () => [];
+  db.getEducation = async () => [];
+  db.getTraining = async () => [];
+  db.getPromotions = async () => [];
+
+  try {
+    const [row] = await getPromotionalApplicantsData([person.id]);
+    assert.equal(row.highestEducationalAttainment, 'BS Computer Science');
+    assert.equal(row.appropriateEligibility, 'CSP, PD 907');
+    assert.equal(row.highestMandatoryCourse, 'PSOBC');
+    assert.equal(row.dateEnteredPNP?.toISOString().slice(0, 10), '2021-11-04');
+  } finally {
+    Object.assign(db, originalGetters);
+  }
 });
 
 test('parseDateToIso correctly normalizes dates from dd/mm/yyyy, yyyy-mm-dd, and Date instances', () => {

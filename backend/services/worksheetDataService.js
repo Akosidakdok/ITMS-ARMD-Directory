@@ -3,6 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import ExcelJS from 'exceljs';
 import { supabase } from '../config/supabase.js';
+import { getDynamicPromotionalTitle } from './promotionalWorksheetService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -469,7 +470,7 @@ function getSheetFieldMapping(sheet, rowNum, colLetter) {
         J: 'designation',
         K: 'designationDate',
         L: 'dateOfEntry',
-        M: 'qualification',
+        M: 'highestEducationalAttainment',
         N: 'civilServiceEligibility',
         O: 'mandatoryCourse',
         P: 'lastPromotionDate',
@@ -580,7 +581,7 @@ export function getWorksheetDetail(sheetId, personnelList = []) {
 
   // Auto-populate Promotional Examination Worksheet if sheet-1 has 0 cells and personnelList exists
   if (sheet.id === 'sheet-1' && Object.keys(outputCells).length === 0 && Array.isArray(personnelList) && personnelList.length > 0) {
-    const promoTitle = 'POLICE MASTER SERGEANT PROMOTIONAL EXAMINATION';
+    const promoTitle = getDynamicPromotionalTitle('PMSg');
     sheet.name = 'Promotional Worksheet';
     sheet.merges = [
       'A2:Q2', 'A3:Q3', 'A4:Q4', 'A6:A7', 'B6:F6',
@@ -612,7 +613,7 @@ export function getWorksheetDetail(sheetId, personnelList = []) {
 
     outputCells['A2'] = { v: 'INFORMATION TECHNOLOGY MANAGEMENT SERVICE', s: { b: 1, sz: 12, ah: 'center', av: 'middle', fn: 'Arial' } };
     outputCells['A3'] = { v: 'WORKSHEET', s: { b: 1, sz: 11, ah: 'center', av: 'middle', fn: 'Arial' } };
-    outputCells['A4'] = { v: promoTitle, s: { b: 1, sz: 11, ah: 'center', av: 'middle', fn: 'Arial', c: '#1d4ed8' } };
+    outputCells['A4'] = { v: promoTitle, s: { b: 1, sz: 11, ah: 'center', av: 'middle', fn: 'Arial', c: '#000000' } };
 
     const hdrStyle = { b: 1, sz: 10, ah: 'center', av: 'middle', bg: '#f1f5f9', wrap: 1, fn: 'Arial' };
     outputCells['A6'] = { v: 'NR', s: hdrStyle };
@@ -654,7 +655,7 @@ export function getWorksheetDetail(sheetId, personnelList = []) {
       outputCells[`J${rNum}`] = { v: person.designation || '', s: { ah: 'left', av: 'middle', sz: 10 }, personnelId: pid, field: 'designation' };
       outputCells[`K${rNum}`] = { v: person.designationDate || person.designation_date || '', s: { ah: 'center', av: 'middle', sz: 10, nf: 'dd/mm/yyyy' }, personnelId: pid, field: 'designationDate' };
       outputCells[`L${rNum}`] = { v: person.dateOfEntry || person.date_entered_service || '', s: { ah: 'center', av: 'middle', sz: 10, nf: 'dd/mm/yyyy' }, personnelId: pid, field: 'dateOfEntry' };
-      outputCells[`M${rNum}`] = { v: person.qualification || '', s: { ah: 'left', av: 'middle', sz: 10 }, personnelId: pid, field: 'qualification' };
+      outputCells[`M${rNum}`] = { v: person.highestEducationalAttainment || person.highest_educational_attainment || '', s: { ah: 'left', av: 'middle', sz: 10 }, personnelId: pid, field: 'highestEducationalAttainment' };
       outputCells[`N${rNum}`] = { v: person.civilServiceEligibility || '', s: { ah: 'left', av: 'middle', sz: 10 }, personnelId: pid, field: 'civilServiceEligibility' };
       outputCells[`O${rNum}`] = { v: person.mandatoryCourse || '', s: { ah: 'left', av: 'middle', sz: 10 }, personnelId: pid, field: 'mandatoryCourse' };
       outputCells[`P${rNum}`] = { v: person.lastPromotionDate || person.last_promotion_date || '', s: { ah: 'center', av: 'middle', sz: 10, nf: 'dd/mm/yyyy' }, personnelId: pid, field: 'lastPromotionDate' };
@@ -675,6 +676,15 @@ export function getWorksheetDetail(sheetId, personnelList = []) {
       } else {
         outputCells[addr] = { v: override.value, f: override.formula, res: override.formulaResult, s: override.style };
       }
+    }
+  }
+
+  // Remove the legacy suffix and keep promotion path titles black.
+  if (typeof outputCells.A4?.v === 'string') {
+    const title = outputCells.A4.v.trim();
+    if (/\bPROMOTIONAL EXAMINATION$/i.test(title) || /\s+TO\s+/i.test(title)) {
+      outputCells.A4.v = getDynamicPromotionalTitle(title);
+      outputCells.A4.s = { ...(outputCells.A4.s || {}), c: '#000000' };
     }
   }
 
@@ -1142,6 +1152,17 @@ export async function generateExcelExport(sheetId = null) {
 
   const todayDate = new Date();
   const todayFormatted = todayDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  const normalizePromotionalTitle = worksheet => {
+    const titleCell = worksheet.getCell('A4');
+    if (typeof titleCell.value === 'string'
+      && (/\bPROMOTIONAL EXAMINATION$/i.test(titleCell.value) || /\s+TO\s+/i.test(titleCell.value))) {
+      titleCell.value = getDynamicPromotionalTitle(titleCell.value);
+      titleCell.font = {
+        ...(titleCell.font || {}),
+        color: { argb: 'FF000000' }
+      };
+    }
+  };
 
   const cachedSheets = getLoadedWorksheets();
 
@@ -1317,6 +1338,8 @@ export async function generateExcelExport(sheetId = null) {
         applyWorksheetOverrideStyle(outCell, override.style);
       }
     }
+
+    normalizePromotionalTitle(outSheet);
   });
 
   if (wb.worksheets.length === 0) {
@@ -1358,6 +1381,7 @@ export async function generateExcelExport(sheetId = null) {
         }
         if (override.style) applyWorksheetOverrideStyle(outCell, override.style);
       }
+      normalizePromotionalTitle(outSheet);
     });
     if (wb.worksheets.length === 0) {
       wb.addWorksheet('Sheet1');

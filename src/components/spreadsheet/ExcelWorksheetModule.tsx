@@ -66,7 +66,7 @@ import {
 } from '../../constants/spreadsheetFunctions';
 import { FormulaAutocompleteList } from './formulaBar/FormulaAutocompleteList';
 
-export function getFormulaBarDisplay(cell: WorksheetCell | undefined | null): string {
+function getFormulaBarDisplay(cell: WorksheetCell | undefined | null): string {
   if (!cell) return '';
   if (cell.f) return `=${cell.f}`;
   if (cell.v === null || cell.v === undefined) return '';
@@ -78,7 +78,7 @@ export function getFormulaBarDisplay(cell: WorksheetCell | undefined | null): st
   return String(cell.v);
 }
 
-export function formatDisplayVal(cell: WorksheetCell | undefined | null): string {
+function formatDisplayVal(cell: WorksheetCell | undefined | null): string {
   if (!cell) return '';
   const val = cell.res !== undefined && cell.res !== null ? cell.res : cell.v;
   if (val === null || val === undefined) return '';
@@ -126,11 +126,13 @@ interface WorksheetHistorySnapshot {
 
 export interface ExcelWorksheetModuleProps {
   sheetDataOverride?: WorksheetDetail | null;
+  onExportOverride?: () => Promise<void>;
   onSheetDataChange?: (data: WorksheetDetail) => void;
 }
 
 export const ExcelWorksheetModule: React.FC<ExcelWorksheetModuleProps> = ({
   sheetDataOverride,
+  onExportOverride,
   onSheetDataChange
 }) => {
   const { role, personnelList, assignmentsList, educationList, trainingList, promotionsList, updatePersonnel } = useAuthRole();
@@ -1925,7 +1927,11 @@ export const ExcelWorksheetModule: React.FC<ExcelWorksheetModuleProps> = ({
   const handleExport = async (singleSheet = false) => {
     try {
       setMessage('Exporting workbook to authentic Excel (.xlsx)...');
-      await downloadWorksheetExcelApi(singleSheet ? activeSheetId : undefined);
+      if (singleSheet && onExportOverride) {
+        await onExportOverride();
+      } else {
+        await downloadWorksheetExcelApi(singleSheet ? activeSheetId : undefined);
+      }
       setMessage('Excel download completed.');
       setTimeout(() => setMessage(''), 3000);
     } catch (err: any) {

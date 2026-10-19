@@ -7,7 +7,7 @@
 
 import type ExcelJSType from 'exceljs';
 import type { Personnel, AssignmentRecord, EducationRecord, TrainingRecord, PromotionRecord } from '../types/pais.ts';
-import { getRankFullName, normalizeRankCode } from '../constants/ranks.ts';
+import { getRankFullName, normalizeRankCode, PNP_RANKS } from '../constants/ranks.ts';
 import { calculateTimeInGrade, parseCalendarDate } from './timeInGrade.ts';
 
 export interface PromotionalApplicantData {
@@ -66,21 +66,60 @@ export const MANDATORY_COURSES_BY_RANK: Record<string, string[]> = {
   PCOL: ['PSOSEC', 'PUBLIC SAFETY OFFICERS SENIOR EXECUTIVE COURSE']
 };
 
-/**
- * Builds the dynamic promotional title from rank or category
- * e.g. "POLICE MASTER SERGEANT PROMOTIONAL EXAMINATION"
- */
+const NEXT_PROMOTION_RANK: Record<string, string> = {
+  Pat: 'PCpl',
+  PCpl: 'PSSg',
+  PSSg: 'PMSg',
+  PMSg: 'PSMS',
+  PSMS: 'PCMS',
+  PCMS: 'PEMS',
+  PEMS: 'PLT',
+  PLT: 'PCPT',
+  PCPT: 'PMAJ',
+  PMAJ: 'PLTCOL',
+  PLTCOL: 'PCOL',
+  PCOL: 'PBGEN',
+  PBGEN: 'PMGEN',
+  PMGEN: 'PLTGEN',
+  PLTGEN: 'PGEN'
+};
+
+function resolvePromotionalRank(value: string) {
+  const clean = value.trim();
+  const upper = clean.toUpperCase();
+  const exactRank = PNP_RANKS.find(rank => rank.code.toUpperCase() === upper || rank.name.toUpperCase() === upper);
+  if (exactRank) return exactRank;
+  const normalizedCode = normalizeRankCode(clean);
+  return PNP_RANKS.find(rank => rank.code === normalizedCode);
+}
+
+/** Builds a promotion path title from the applicant's current rank. */
 export function getDynamicPromotionalTitle(targetRankOrTitle?: string): string {
-  if (!targetRankOrTitle || !targetRankOrTitle.trim()) {
-    return 'PROMOTIONAL EXAMINATION';
-  }
+  if (!targetRankOrTitle || !targetRankOrTitle.trim()) return '';
   const clean = targetRankOrTitle.trim();
-  if (clean.toUpperCase().endsWith('PROMOTIONAL EXAMINATION')) {
-    return clean.toUpperCase();
+  if (clean.toUpperCase() === 'ALL' || clean.toUpperCase() === 'PROMOTIONAL EXAMINATION') return '';
+  const rankTitle = clean.replace(/\s+PROMOTIONAL EXAMINATION$/i, '').trim();
+  if (!rankTitle) return '';
+
+  const explicitPath = rankTitle.match(/^(.+?)\s+TO\s+(.+)$/i);
+  if (explicitPath) {
+    const fromRank = resolvePromotionalRank(explicitPath[1]);
+    const toRank = resolvePromotionalRank(explicitPath[2]);
+    const fromName = fromRank?.name || explicitPath[1].trim();
+    const toName = toRank?.name || explicitPath[2].trim();
+    return `${fromName.toUpperCase()} TO ${toName.toUpperCase()}`;
   }
-  const rankNorm = normalizeRankCode(clean);
-  const fullRank = getRankFullName(rankNorm || clean);
-  return `${fullRank.toUpperCase()} PROMOTIONAL EXAMINATION`;
+
+  const currentRank = resolvePromotionalRank(rankTitle);
+  if (!currentRank) {
+    const rankNorm = normalizeRankCode(rankTitle);
+    return getRankFullName(rankNorm || rankTitle).toUpperCase();
+  }
+
+  const nextRankCode = NEXT_PROMOTION_RANK[currentRank.code];
+  const nextRank = nextRankCode ? PNP_RANKS.find(rank => rank.code === nextRankCode) : undefined;
+  const path = nextRank ? ` TO ${nextRank.name.toUpperCase()}` : '';
+  return `${currentRank.name.toUpperCase()}${path}`;
 }
 
 /**
@@ -153,6 +192,10 @@ export function resolveHighestEducation(
   person: Personnel,
   educationList: EducationRecord[] = []
 ): string {
+  const raw = person as any;
+  const importedEducation = String(person.highestEducationalAttainment || raw.highest_educational_attainment || '').trim();
+  if (importedEducation) return importedEducation;
+
   const records = educationList.filter(e => e.personnelId === person.id);
   if (!records.length) {
     return person.qualification && !person.qualification.match(/^(JR|SR|II|III|IV|\.)/i) ? person.qualification.trim() : '';
@@ -194,6 +237,9 @@ export function resolveAppropriateEligibility(
   educationList: EducationRecord[] = [],
   trainingList: TrainingRecord[] = []
 ): string {
+  const importedEligibility = person.civilServiceEligibility?.trim();
+  if (importedEligibility) return importedEligibility;
+
   const personEdus = educationList.filter(e => e.personnelId === person.id);
   const certs = personEdus.flatMap(e => e.certifications || []).filter(Boolean);
   if (certs.length) {
@@ -222,6 +268,9 @@ export function resolveHighestMandatoryCourse(
   person: Personnel,
   trainingList: TrainingRecord[] = []
 ): string {
+  const importedCourse = person.mandatoryCourse?.trim();
+  if (importedCourse) return importedCourse;
+
   const personTrainings = trainingList.filter(t => t.personnelId === person.id);
   if (!personTrainings.length) return '';
 
@@ -696,7 +745,7 @@ export function buildPromotionalWorksheetDetail(
   // Row 4: Header Line 3 (Dynamic promotional exam title)
   cells['A4'] = {
     v: dynamicTitle,
-    s: { b: 1, sz: 11, ah: 'center', av: 'middle', fn: 'Arial', c: '#1d4ed8' }
+    s: { b: 1, sz: 11, ah: 'center', av: 'middle', fn: 'Arial', c: '#000000' }
   };
 
   // Row 6: Main Column Headers
@@ -739,7 +788,7 @@ export function buildPromotionalWorksheetDetail(
     cells[`J${rNum}`] = { v: row.designation || '', s: { ah: 'left', av: 'middle', sz: 10 }, personnelId: pid, field: 'designation' };
     cells[`K${rNum}`] = { v: formatDdMmYyyy(row.dateDesignated), s: { ah: 'center', av: 'middle', sz: 10, nf: 'dd/mm/yyyy' }, personnelId: pid, field: 'designationDate' };
     cells[`L${rNum}`] = { v: formatDdMmYyyy(row.dateEnteredPNP), s: { ah: 'center', av: 'middle', sz: 10, nf: 'dd/mm/yyyy' }, personnelId: pid, field: 'dateOfEntry' };
-    cells[`M${rNum}`] = { v: row.highestEducationalAttainment || '', s: { ah: 'left', av: 'middle', sz: 10 }, personnelId: pid, field: 'qualification' };
+    cells[`M${rNum}`] = { v: row.highestEducationalAttainment || '', s: { ah: 'left', av: 'middle', sz: 10 }, personnelId: pid, field: 'highestEducationalAttainment' };
     cells[`N${rNum}`] = { v: row.appropriateEligibility || '', s: { ah: 'left', av: 'middle', sz: 10 }, personnelId: pid, field: 'civilServiceEligibility' };
     cells[`O${rNum}`] = { v: row.highestMandatoryCourse || '', s: { ah: 'left', av: 'middle', sz: 10 }, personnelId: pid, field: 'mandatoryCourse' };
     cells[`P${rNum}`] = { v: formatDdMmYyyy(row.dateOfLastPromotion), s: { ah: 'center', av: 'middle', sz: 10, nf: 'dd/mm/yyyy' }, personnelId: pid, field: 'lastPromotionDate' };

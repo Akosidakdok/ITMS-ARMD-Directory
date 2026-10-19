@@ -10,6 +10,10 @@
 -- ============================================================================
 
 ALTER TABLE public.personnel
+  -- Highest Educational Attainment
+  ADD COLUMN IF NOT EXISTS "highestEducationalAttainment" TEXT,
+  ADD COLUMN IF NOT EXISTS "highest_educational_attainment" TEXT,
+
   -- Appropriate Eligibility
   ADD COLUMN IF NOT EXISTS "civilServiceEligibility" TEXT,
   ADD COLUMN IF NOT EXISTS "civil_service_eligibility" TEXT,
@@ -27,6 +31,7 @@ SELECT column_name, data_type, is_nullable
 FROM information_schema.columns
 WHERE table_name = 'personnel'
   AND column_name IN (
+    'highestEducationalAttainment', 'highest_educational_attainment',
     'civilServiceEligibility', 'civil_service_eligibility',
     'mandatoryCourse', 'mandatory_course',
     'timeInGrade', 'time_in_grade'

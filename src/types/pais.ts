@@ -76,6 +76,8 @@ export interface Personnel {
   avatarUrl?: string;
   officeDivision?: string;
   qualification?: string;
+  highestEducationalAttainment?: string;
+  highest_educational_attainment?: string;
   ageToDate?: string | number;
   birthdate?: string;
   ageOfServiceToDate?: string | number;
