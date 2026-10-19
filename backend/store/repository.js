@@ -329,7 +329,13 @@ export class PAISRepository {
       sourceLink: data.sourceLink || data.source_link || '',
       source_link: data.source_link || data.sourceLink || '',
       accountNumber: data.accountNumber || data.account_number || '',
-      account_number: data.account_number || data.accountNumber || ''
+      account_number: data.account_number || data.accountNumber || '',
+      civilServiceEligibility: data.civilServiceEligibility || data.civil_service_eligibility || '',
+      civil_service_eligibility: data.civil_service_eligibility || data.civilServiceEligibility || '',
+      mandatoryCourse: data.mandatoryCourse || data.mandatory_course || '',
+      mandatory_course: data.mandatory_course || data.mandatoryCourse || '',
+      timeInGrade: data.timeInGrade || data.time_in_grade || '',
+      time_in_grade: data.time_in_grade || data.timeInGrade || ''
     };
   }
 
@@ -430,6 +436,9 @@ export class PAISRepository {
       'gsisNumber', 'philHealthNo', 'pagibigNo',
       'source_link', 'account_number',
       'pnco', 'nup',
+      'civilServiceEligibility', 'civil_service_eligibility',
+      'mandatoryCourse', 'mandatory_course',
+      'timeInGrade', 'time_in_grade',
       'createdAt', 'updatedAt'
     ]);
 
