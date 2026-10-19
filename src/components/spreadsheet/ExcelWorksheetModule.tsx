@@ -29,6 +29,9 @@ import {
   type WorksheetCell
 } from '../../services/api';
 import { useAuthRole } from '../../context/AuthRoleContext';
+import { buildPromotionalWorksheetDetail, parseDateToIso } from '../../utils/promotionalWorksheetExport';
+import { calculateTimeInGrade } from '../../utils/timeInGrade';
+import type { Personnel } from '../../types/pais';
 import {
   colNumToLetter,
   colLetterToNum,
@@ -121,8 +124,16 @@ interface WorksheetHistorySnapshot {
   selectionRange: { startRow: number; startCol: number; endRow: number; endCol: number } | null;
 }
 
-export const ExcelWorksheetModule: React.FC = () => {
-  const { role } = useAuthRole();
+export interface ExcelWorksheetModuleProps {
+  sheetDataOverride?: WorksheetDetail | null;
+  onSheetDataChange?: (data: WorksheetDetail) => void;
+}
+
+export const ExcelWorksheetModule: React.FC<ExcelWorksheetModuleProps> = ({
+  sheetDataOverride,
+  onSheetDataChange
+}) => {
+  const { role, personnelList, assignmentsList, educationList, trainingList, promotionsList, updatePersonnel } = useAuthRole();
   const [isProtected, setIsProtected] = useState(false);
   const canEdit = !isProtected && role !== 'view_only';
 
@@ -362,8 +373,44 @@ export const ExcelWorksheetModule: React.FC = () => {
     }
   }, [sheetData]);
 
+  // Synchronize sheetDataOverride when passed from parent
+  useEffect(() => {
+    if (sheetDataOverride) {
+      sheetCacheRef.current.set(sheetDataOverride.id, sheetDataOverride);
+      setSheetData(sheetDataOverride);
+      setActiveSheetId(sheetDataOverride.id);
+      setLoading(false);
+      setError('');
+      setUndoStack([]);
+      setRedoStack([]);
+      setSheets(prev => {
+        const found = prev.find(s => s.id === sheetDataOverride.id);
+        if (found) {
+          return prev.map(s => s.id === sheetDataOverride.id ? { ...s, name: sheetDataOverride.name, rowCount: sheetDataOverride.rowCount } : s);
+        }
+        return [{
+          id: sheetDataOverride.id,
+          name: sheetDataOverride.name,
+          order: 1,
+          rowCount: sheetDataOverride.rowCount,
+          colCount: sheetDataOverride.colCount,
+          mergesCount: sheetDataOverride.merges?.length || 0
+        }, ...prev];
+      });
+    }
+  }, [sheetDataOverride]);
+
   // Load single worksheet details
   const loadActiveSheet = useCallback(async (id: string) => {
+    if (sheetDataOverride && (sheetDataOverride.id === id || id === 'sheet-1')) {
+      setSheetData(sheetDataOverride);
+      setLoading(false);
+      setError('');
+      setUndoStack([]);
+      setRedoStack([]);
+      return;
+    }
+
     // If cached in memory, display immediately with 0ms delay
     const cached = sheetCacheRef.current.get(id);
     if (cached) {
@@ -383,6 +430,26 @@ export const ExcelWorksheetModule: React.FC = () => {
         console.log(`[WorksheetModule] Loading sheet ${id} retry ${attempt}, waiting ${delayMs}ms...`);
       });
       setWakingUp(false);
+
+      // Auto-populate: If sheet has 0 cells, automatically populate with PNP promotional examination worksheet
+      if ((!data.cells || Object.keys(data.cells).length === 0) && personnelList && personnelList.length > 0) {
+        const promo = buildPromotionalWorksheetDetail({
+          targetRank: 'PMSg',
+          selectedPersonnelIds: [],
+          personnelList,
+          assignmentsList,
+          educationList,
+          trainingList,
+          promotionsList
+        });
+        data.cells = promo.cells;
+        data.merges = promo.merges;
+        data.columnConfig = promo.columnConfig;
+        data.rowConfig = promo.rowConfig;
+        data.rowCount = promo.rowCount;
+        data.name = promo.name;
+      }
+
       sheetCacheRef.current.set(id, data);
       setSheetData(data);
       setLoading(false);
@@ -488,13 +555,78 @@ export const ExcelWorksheetModule: React.FC = () => {
     applied.changes.forEach(change => {
       const existingCell = sheetData.cells[change.address] || {};
       const existingStyle = existingCell.s || {};
-      const rowNum = parseAddress(change.address).row;
+      const addrInfo = parseAddress(change.address);
+      const rowNum = addrInfo.row;
+      const colLetter = addrInfo.letter;
       const newStyle = {
         ...existingStyle,
         ah: existingStyle.ah || (rowNum <= 8 ? 'center' : undefined)
       };
       styleByAddress[change.address] = newStyle;
       nextCells[change.address] = { ...nextCells[change.address], s: newStyle };
+
+      // Bidirectional Live Sync to PAIS Personnel database
+      const isPromoSheet = sheetData.name === 'Promotional Worksheet' || sheetData.id === 'sheet-1' || /promotional/i.test(sheetData.name);
+      if (isPromoSheet && rowNum >= 8 && updatePersonnel) {
+        const promoFieldMap: Record<string, keyof Personnel> = {
+          B: 'rank',
+          C: 'lastName',
+          D: 'firstName',
+          E: 'middleName',
+          F: 'qualifier',
+          G: 'badgeNo',
+          H: 'sub_unit',
+          I: 'effectiveDate',
+          J: 'designation',
+          K: 'designationDate',
+          L: 'dateOfEntry',
+          M: 'qualification',
+          N: 'civilServiceEligibility',
+          O: 'mandatoryCourse',
+          P: 'lastPromotionDate'
+        };
+
+        const targetField = (existingCell.field as keyof Personnel) || promoFieldMap[colLetter];
+        const personId = existingCell.personnelId || sheetData.cells[`A${rowNum}`]?.personnelId || sheetData.cells[`C${rowNum}`]?.personnelId;
+
+        if (targetField && personId) {
+          const person = personnelList.find(p => p.id === personId);
+          if (person) {
+            let normalizedVal: any = change.newValue;
+            if (['effectiveDate', 'designationDate', 'dateOfEntry', 'lastPromotionDate'].includes(targetField as string)) {
+              normalizedVal = parseDateToIso(change.newValue) || change.newValue;
+            }
+
+            const updatedPerson: Personnel = {
+              ...person,
+              [targetField]: normalizedVal
+            };
+
+            // Sync fullName if name parts changed
+            if (['lastName', 'firstName', 'middleName', 'qualifier'].includes(targetField as string)) {
+              const l = targetField === 'lastName' ? normalizedVal : (person.lastName || '');
+              const f = targetField === 'firstName' ? normalizedVal : (person.firstName || '');
+              const m = targetField === 'middleName' ? normalizedVal : (person.middleName || '');
+              const q = targetField === 'qualifier' ? normalizedVal : (person.qualifier || '');
+              updatedPerson.fullName = `${l}, ${f} ${m} ${q}`.replace(/\s+/g, ' ').trim();
+            }
+
+            // Sync timeInGrade if lastPromotionDate changed
+            if (targetField === 'lastPromotionDate' && normalizedVal) {
+              const tig = calculateTimeInGrade(normalizedVal);
+              updatedPerson.timeInGrade = tig.formatted;
+              const qAddr = `Q${rowNum}`;
+              if (nextCells[qAddr]) {
+                nextCells[qAddr] = { ...nextCells[qAddr], v: tig.formatted };
+              }
+            }
+
+            updatePersonnel(updatedPerson).catch(err => {
+              console.warn('[LiveSync] Failed to update personnel in PAIS database:', err);
+            });
+          }
+        }
+      }
     });
 
     const nextWorkbook = {
@@ -517,7 +649,7 @@ export const ExcelWorksheetModule: React.FC = () => {
       });
       return next;
     });
-  }, [sheetData, formulaSheets, pushUndoSnapshot]);
+  }, [sheetData, formulaSheets, pushUndoSnapshot, personnelList, updatePersonnel]);
 
   const applyCellChange = useCallback((address: string, rawValue: string) => {
     applyCellChanges([{ address, rawValue }]);
@@ -1173,7 +1305,9 @@ export const ExcelWorksheetModule: React.FC = () => {
         oldValue: ch.oldValue,
         formula: ch.formula,
         formulaResult: sheetData.cells[address]?.res,
-        style: ch.style
+        style: ch.style,
+        personnelId: sheetData.cells[address]?.personnelId,
+        field: sheetData.cells[address]?.field
       }));
 
       if (updates.length > 0) {

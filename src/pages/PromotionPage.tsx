@@ -11,12 +11,14 @@ import {
   Trash2, 
   Info,
   History,
-  ChevronDown
+  ChevronDown,
+  FileSpreadsheet
 } from 'lucide-react';
 import { Badge } from '../components/common/Badge';
 import { Modal } from '../components/common/Modal';
 import { NotificationToast } from '../components/common/NotificationToast';
 import { EmptyState, PageHeader } from '../components/common/SystemUI';
+import { PromotionalWorksheetModal } from '../components/promotions/PromotionalWorksheetModal';
 import { calculateTimeInGrade, parseCalendarDate, type TimeInGrade } from '../utils/timeInGrade';
 import { hasManagementAccess } from '../utils/accessControl';
 import { PNP_RANKS, getRankFullName, getNextRank, getMinimumTigYears, getRankCategory } from '../constants/ranks';
@@ -62,6 +64,7 @@ export const PromotionPage: React.FC = () => {
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isWorksheetModalOpen, setIsWorksheetModalOpen] = useState(false);
   const [editingPromotion, setEditingPromotion] = useState<PromotionRecord | null>(null);
   const [deletingPromotion, setDeletingPromotion] = useState<PromotionRecord | null>(null);
 
@@ -370,6 +373,15 @@ export const PromotionPage: React.FC = () => {
         description="Review uniformed rank-promotion eligibility separately from non-uniformed personnel, with Time in Position based on the effective date of the current designation."
         actions={
           <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setIsWorksheetModalOpen(true)}
+              className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold bg-white text-slate-800 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors shadow-2xs"
+              title="Open promotional examination worksheet generator"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+              Promotional Worksheet
+            </button>
             {canManage && activeTab === 'uniformed' && (
               <button
                 type="button"
@@ -958,6 +970,12 @@ export const PromotionPage: React.FC = () => {
           </div>
         </Modal>
       )}
+
+      {/* Promotional Worksheet Generator Modal */}
+      <PromotionalWorksheetModal
+        isOpen={isWorksheetModalOpen}
+        onClose={() => setIsWorksheetModalOpen(false)}
+      />
     </div>
   );
 };

@@ -82,6 +82,9 @@ export interface Personnel {
   desUp?: string;
   pnco?: string;
   nup?: string;
+  civilServiceEligibility?: string;
+  mandatoryCourse?: string;
+  timeInGrade?: string;
   // 34-column official schema fields
   civilStatus?: string;
   religion?: string;

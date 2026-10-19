@@ -14,6 +14,12 @@ import {
   deleteWorksheet,
   updateWorksheetMerges
 } from '../services/worksheetDataService.js';
+import {
+  getPromotionalApplicantsData,
+  validatePromotionalPersonnelRows,
+  generatePromotionalWorksheetBuffer,
+  getDynamicPromotionalTitle
+} from '../services/promotionalWorksheetService.js';
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
@@ -67,6 +73,66 @@ router.get('/export/download', async (req, res) => {
     return res.send(Buffer.from(buffer));
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Export failed', error: error.message });
+  }
+});
+
+// Validate personnel before promotional worksheet generation
+router.post('/promotional/validate', async (req, res) => {
+  try {
+    const { selectedPersonnelIds = [], targetRank = '', promotionalTitle = '' } = req.body;
+    if (!Array.isArray(selectedPersonnelIds) || !selectedPersonnelIds.length) {
+      return res.status(400).json({ success: false, message: 'No personnel selected for promotional worksheet.' });
+    }
+    const rows = await getPromotionalApplicantsData(selectedPersonnelIds, promotionalTitle || targetRank);
+    const issues = validatePromotionalPersonnelRows(rows);
+    return res.json({
+      success: issues.length === 0,
+      title: getDynamicPromotionalTitle(promotionalTitle || targetRank),
+      totalCount: rows.length,
+      validCount: rows.length - issues.length,
+      issuesCount: issues.length,
+      issues,
+      rows
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Validation failed', error: error.message });
+  }
+});
+
+// Export promotional worksheet as official single-sheet .xlsx
+router.post('/promotional/export', async (req, res) => {
+  try {
+    const { selectedPersonnelIds = [], targetRank = '', promotionalTitle = '' } = req.body;
+    if (!Array.isArray(selectedPersonnelIds) || !selectedPersonnelIds.length) {
+      return res.status(400).json({ success: false, message: 'No personnel selected for promotional worksheet.' });
+    }
+
+    const buffer = await generatePromotionalWorksheetBuffer({
+      selectedPersonnelIds,
+      targetRank,
+      promotionalTitle
+    });
+
+    const rankPart = (targetRank || promotionalTitle || 'promotional')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '');
+    const dateStr = new Date().toISOString().split('T')[0];
+    const filename = `worksheet_${rankPart}_${dateStr}.xlsx`;
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
+    return res.send(Buffer.from(buffer));
+  } catch (error) {
+    if (error.statusCode === 422) {
+      return res.status(422).json({
+        success: false,
+        message: error.message,
+        issues: error.issues || []
+      });
+    }
+    return res.status(500).json({ success: false, message: 'Promotional worksheet export failed', error: error.message });
   }
 });
 

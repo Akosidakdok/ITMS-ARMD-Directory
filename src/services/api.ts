@@ -664,6 +664,7 @@ export interface WorksheetCell {
     nf?: string;
   };
   personnelId?: string;
+  field?: string;
   isCalculated?: boolean;
 }
 

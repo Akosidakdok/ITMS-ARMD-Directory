@@ -361,15 +361,33 @@ export function deleteWorksheet(sheetId) {
  */
 export function parseDateSafe(d) {
   if (!d) return null;
-  if (d instanceof Date) return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  if (d instanceof Date) return isNaN(d.getTime()) ? null : new Date(d.getFullYear(), d.getMonth(), d.getDate());
   if (typeof d === 'string') {
-    const m = d.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    const trimmed = d.trim();
+    const dmy = trimmed.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
+    if (dmy) {
+      return new Date(parseInt(dmy[3], 10), parseInt(dmy[2], 10) - 1, parseInt(dmy[1], 10));
+    }
+    const m = trimmed.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})/);
     if (m) {
       return new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10));
     }
+    const dt = new Date(trimmed);
+    return isNaN(dt.getTime()) ? null : new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
   }
-  const dt = new Date(d);
-  return isNaN(dt.getTime()) ? null : new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
+  return null;
+}
+
+/**
+ * Normalizes date inputs (Date, dd/mm/yyyy, or yyyy-mm-dd) to ISO YYYY-MM-DD
+ */
+export function parseDateToIso(d) {
+  const dt = parseDateSafe(d);
+  if (!dt) return null;
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth() + 1).padStart(2, '0');
+  const day = String(dt.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 /**
@@ -434,9 +452,35 @@ export function parseAddress(address) {
 function getSheetFieldMapping(sheet, rowNum, colLetter) {
   const name = typeof sheet === 'object' ? sheet.name : '';
   const order = typeof sheet === 'object' ? (sheet.legacyOrder ?? sheet.order) : sheet;
+  const sheetId = typeof sheet === 'object' ? sheet.id : '';
+
+  // Promotional Worksheet mapping (Rows 8+)
+  if (name === 'Promotional Worksheet' || sheetId === 'sheet-1' || (typeof name === 'string' && /promotional/i.test(name))) {
+    if (rowNum >= 8) {
+      const promoMap = {
+        B: 'rank',
+        C: 'lastName',
+        D: 'firstName',
+        E: 'middleName',
+        F: 'qualifier',
+        G: 'badgeNo',
+        H: 'sub_unit',
+        I: 'effectiveDate',
+        J: 'designation',
+        K: 'designationDate',
+        L: 'dateOfEntry',
+        M: 'qualification',
+        N: 'civilServiceEligibility',
+        O: 'mandatoryCourse',
+        P: 'lastPromotionDate',
+        Q: 'timeInGrade'
+      };
+      return promoMap[colLetter] || null;
+    }
+  }
 
   // Worksheets 1, 2, 3: legacy DISPO Att (2), DISPO Att, detail Crame based
-  if (typeof order === 'number' && order >= 1 && order <= 3 && name !== 'Disposition' && name !== 'Alpha List') {
+  if (typeof order === 'number' && order >= 1 && order <= 3 && name !== 'Disposition' && name !== 'Alpha List' && name !== 'Promotional Worksheet') {
     if (rowNum >= 10) {
       const map = {
         B: 'sub_unit',
@@ -532,6 +576,91 @@ export function getWorksheetDetail(sheetId, personnelList = []) {
   const outputCells = {};
   for (const [addr, cell] of Object.entries(sheet.cells)) {
     outputCells[addr] = { ...cell };
+  }
+
+  // Auto-populate Promotional Examination Worksheet if sheet-1 has 0 cells and personnelList exists
+  if (sheet.id === 'sheet-1' && Object.keys(outputCells).length === 0 && Array.isArray(personnelList) && personnelList.length > 0) {
+    const promoTitle = 'POLICE MASTER SERGEANT PROMOTIONAL EXAMINATION';
+    sheet.name = 'Promotional Worksheet';
+    sheet.merges = [
+      'A2:Q2', 'A3:Q3', 'A4:Q4', 'A6:A7', 'B6:F6',
+      'G6:G7', 'H6:H7', 'I6:I7', 'J6:J7', 'K6:K7',
+      'L6:L7', 'M6:M7', 'N6:N7', 'O6:O7', 'P6:P7', 'Q6:Q7'
+    ];
+    sheet.columnConfig = {
+      A: { width: 55, hidden: false, letter: 'A' },
+      B: { width: 90, hidden: false, letter: 'B' },
+      C: { width: 140, hidden: false, letter: 'C' },
+      D: { width: 140, hidden: false, letter: 'D' },
+      E: { width: 120, hidden: false, letter: 'E' },
+      F: { width: 80, hidden: false, letter: 'F' },
+      G: { width: 120, hidden: false, letter: 'G' },
+      H: { width: 130, hidden: false, letter: 'H' },
+      I: { width: 150, hidden: false, letter: 'I' },
+      J: { width: 180, hidden: false, letter: 'J' },
+      K: { width: 150, hidden: false, letter: 'K' },
+      L: { width: 150, hidden: false, letter: 'L' },
+      M: { width: 240, hidden: false, letter: 'M' },
+      N: { width: 220, hidden: false, letter: 'N' },
+      O: { width: 240, hidden: false, letter: 'O' },
+      P: { width: 150, hidden: false, letter: 'P' },
+      Q: { width: 180, hidden: false, letter: 'Q' }
+    };
+    sheet.rowConfig = {
+      '2': { height: 28 }, '3': { height: 22 }, '4': { height: 24 }, '6': { height: 26 }, '7': { height: 22 }
+    };
+
+    outputCells['A2'] = { v: 'INFORMATION TECHNOLOGY MANAGEMENT SERVICE', s: { b: 1, sz: 12, ah: 'center', av: 'middle', fn: 'Arial' } };
+    outputCells['A3'] = { v: 'WORKSHEET', s: { b: 1, sz: 11, ah: 'center', av: 'middle', fn: 'Arial' } };
+    outputCells['A4'] = { v: promoTitle, s: { b: 1, sz: 11, ah: 'center', av: 'middle', fn: 'Arial', c: '#1d4ed8' } };
+
+    const hdrStyle = { b: 1, sz: 10, ah: 'center', av: 'middle', bg: '#f1f5f9', wrap: 1, fn: 'Arial' };
+    outputCells['A6'] = { v: 'NR', s: hdrStyle };
+    outputCells['B6'] = { v: 'NAME OF APPLICANTS', s: { ...hdrStyle, bg: '#e2e8f0' } };
+    outputCells['G6'] = { v: 'Badge Number', s: hdrStyle };
+    outputCells['H6'] = { v: 'Office/Unit', s: hdrStyle };
+    outputCells['I6'] = { v: 'Date of Unit Assignment', s: hdrStyle };
+    outputCells['J6'] = { v: 'Designation', s: hdrStyle };
+    outputCells['K6'] = { v: 'Date Designated', s: hdrStyle };
+    outputCells['L6'] = { v: 'Date Entered the PNP', s: hdrStyle };
+    outputCells['M6'] = { v: 'Highest Educational Attainment', s: hdrStyle };
+    outputCells['N6'] = { v: 'Appropriate Eligibility', s: hdrStyle };
+    outputCells['O6'] = { v: 'Highest Mandatory Course', s: hdrStyle };
+    outputCells['P6'] = { v: 'Date of Last Promotion', s: hdrStyle };
+    outputCells['Q6'] = { v: 'Time in Grade / Experience', s: hdrStyle };
+
+    const subHdrStyle = { b: 1, sz: 9, ah: 'center', av: 'middle', bg: '#f1f5f9', fn: 'Arial' };
+    outputCells['B7'] = { v: 'Rank', s: subHdrStyle };
+    outputCells['C7'] = { v: 'Last Name', s: subHdrStyle };
+    outputCells['D7'] = { v: 'First Name', s: subHdrStyle };
+    outputCells['E7'] = { v: 'Middle Name', s: subHdrStyle };
+    outputCells['F7'] = { v: 'Qualifier', s: subHdrStyle };
+
+    const pmsgCandidates = personnelList.filter(p => (p.rank || '').toUpperCase().includes('PMSG') || p.rank === 'PMSg');
+    const displayList = pmsgCandidates.length > 0 ? pmsgCandidates : personnelList.filter(p => p.rankCategory !== 'NUP').slice(0, 30);
+
+    displayList.forEach((person, idx) => {
+      const rNum = 8 + idx;
+      const pid = person.id;
+      outputCells[`A${rNum}`] = { v: idx + 1, s: { ah: 'center', av: 'middle', sz: 10 }, personnelId: pid, field: 'nr' };
+      outputCells[`B${rNum}`] = { v: person.rank || '', s: { b: 1, ah: 'center', av: 'middle', sz: 10, c: '#1e3a8a' }, personnelId: pid, field: 'rank' };
+      outputCells[`C${rNum}`] = { v: person.lastName || person.last_name || '', s: { b: 1, ah: 'left', av: 'middle', sz: 10 }, personnelId: pid, field: 'lastName' };
+      outputCells[`D${rNum}`] = { v: person.firstName || person.first_name || '', s: { ah: 'left', av: 'middle', sz: 10 }, personnelId: pid, field: 'firstName' };
+      outputCells[`E${rNum}`] = { v: person.middleName || person.middle_name || '', s: { ah: 'left', av: 'middle', sz: 10 }, personnelId: pid, field: 'middleName' };
+      outputCells[`F${rNum}`] = { v: person.qualifier || person.qualification || '', s: { ah: 'center', av: 'middle', sz: 10 }, personnelId: pid, field: 'qualifier' };
+      outputCells[`G${rNum}`] = { v: person.badgeNo || person.badge_number || '', s: { ah: 'center', av: 'middle', sz: 10 }, personnelId: pid, field: 'badgeNo' };
+      outputCells[`H${rNum}`] = { v: person.sub_unit || person.division || person.unit || '', s: { ah: 'center', av: 'middle', sz: 10 }, personnelId: pid, field: 'sub_unit' };
+      outputCells[`I${rNum}`] = { v: person.effectiveDate || '', s: { ah: 'center', av: 'middle', sz: 10, nf: 'dd/mm/yyyy' }, personnelId: pid, field: 'effectiveDate' };
+      outputCells[`J${rNum}`] = { v: person.designation || '', s: { ah: 'left', av: 'middle', sz: 10 }, personnelId: pid, field: 'designation' };
+      outputCells[`K${rNum}`] = { v: person.designationDate || person.designation_date || '', s: { ah: 'center', av: 'middle', sz: 10, nf: 'dd/mm/yyyy' }, personnelId: pid, field: 'designationDate' };
+      outputCells[`L${rNum}`] = { v: person.dateOfEntry || person.date_entered_service || '', s: { ah: 'center', av: 'middle', sz: 10, nf: 'dd/mm/yyyy' }, personnelId: pid, field: 'dateOfEntry' };
+      outputCells[`M${rNum}`] = { v: person.qualification || '', s: { ah: 'left', av: 'middle', sz: 10 }, personnelId: pid, field: 'qualification' };
+      outputCells[`N${rNum}`] = { v: person.civilServiceEligibility || '', s: { ah: 'left', av: 'middle', sz: 10 }, personnelId: pid, field: 'civilServiceEligibility' };
+      outputCells[`O${rNum}`] = { v: person.mandatoryCourse || '', s: { ah: 'left', av: 'middle', sz: 10 }, personnelId: pid, field: 'mandatoryCourse' };
+      outputCells[`P${rNum}`] = { v: person.lastPromotionDate || person.last_promotion_date || '', s: { ah: 'center', av: 'middle', sz: 10, nf: 'dd/mm/yyyy' }, personnelId: pid, field: 'lastPromotionDate' };
+      outputCells[`Q${rNum}`] = { v: person.timeInGrade || calculateDatedif(person.lastPromotionDate || person.last_promotion_date) || '', s: { ah: 'left', av: 'middle', sz: 10 }, personnelId: pid, field: 'timeInGrade' };
+    });
+    sheet.rowCount = Math.max(50, displayList.length + 15);
   }
 
   // Apply cell overrides (if any)
@@ -868,37 +997,89 @@ export function getWorksheetDetail(sheetId, personnelList = []) {
 export async function updateWorksheetCell(sheetId, cellUpdate, user, db) {
   await loadWorksheetPersistence({ required: Boolean(db) });
   const { address, value, oldValue } = cellUpdate;
-  const sheet = getWorksheetDetail(sheetId);
+  const personnelList = db ? await db.getPersonnel({ search: '' }) : [];
+  const sheet = getWorksheetDetail(sheetId, personnelList);
   if (!sheet) throw new Error(`Worksheet not found: ${sheetId}`);
 
   const { row, letter, col } = parseAddress(address);
-  const field = getSheetFieldMapping(sheet, row, letter);
+  const field = cellUpdate.field || sheet.cells[address]?.field || getSheetFieldMapping(sheet, row, letter);
 
   let personnelUpdated = null;
 
   if (field && db) {
-    // Determine the person on this row
-    const lastCell = sheet.cells[`E${row}`];
-    const firstCell = sheet.cells[`F${row}`];
-    if (lastCell?.v && firstCell?.v) {
-      const query = `${lastCell.v} ${firstCell.v}`;
-      const people = await db.getPersonnel({ search: query });
-      const matched = people.find(p => 
-        p.lastName?.toUpperCase().trim() === String(lastCell.v).toUpperCase().trim() &&
-        p.firstName?.toUpperCase().trim() === String(firstCell.v).toUpperCase().trim()
-      );
+    // 1. Identify person by cell/row personnelId
+    let personId = cellUpdate.personnelId || sheet.cells[address]?.personnelId || sheet.cells[`A${row}`]?.personnelId || sheet.cells[`C${row}`]?.personnelId;
+    let matched = null;
 
-      if (matched) {
-        const payload = { [field]: value };
-        // Sync fullName if name parts changed
-        if (field === 'lastName') {
-          payload.fullName = `${value}, ${matched.firstName} ${matched.middleName || ''}`.trim();
-        } else if (field === 'firstName') {
-          payload.fullName = `${matched.lastName}, ${value} ${matched.middleName || ''}`.trim();
-        }
-        await db.updatePersonnel(matched.id, payload);
-        personnelUpdated = { id: matched.id, field, value };
+    if (personId) {
+      const candidates = await db.getPersonnel({ search: '' });
+      matched = candidates.find(p => String(p.id) === String(personId));
+    }
+
+    // 2. Fallback: match by badge number (col G in promo worksheet, col D in alpha list)
+    if (!matched) {
+      const badgeVal = sheet.cells[`G${row}`]?.v || sheet.cells[`D${row}`]?.v;
+      if (badgeVal) {
+        const candidates = await db.getPersonnel({ search: String(badgeVal).trim() });
+        matched = candidates.find(p => String(p.badgeNo).trim().toUpperCase() === String(badgeVal).trim().toUpperCase());
       }
+    }
+
+    // 3. Fallback: match by name
+    if (!matched) {
+      const isPromo = sheet.name === 'Promotional Worksheet' || sheet.id === 'sheet-1' || (typeof sheet.name === 'string' && /promotional/i.test(sheet.name));
+      const lastCell = isPromo ? sheet.cells[`C${row}`] : sheet.cells[`E${row}`];
+      const firstCell = isPromo ? sheet.cells[`D${row}`] : sheet.cells[`F${row}`];
+      if (lastCell?.v && firstCell?.v) {
+        const query = `${lastCell.v} ${firstCell.v}`;
+        const people = await db.getPersonnel({ search: query });
+        matched = people.find(p => 
+          p.lastName?.toUpperCase().trim() === String(lastCell.v).toUpperCase().trim() &&
+          p.firstName?.toUpperCase().trim() === String(firstCell.v).toUpperCase().trim()
+        );
+      }
+    }
+    // 4. Fallback: match by candidate row index for promotional worksheet
+    const isPromoSheet = sheet.name === 'Promotional Worksheet' || sheet.id === 'sheet-1' || (typeof sheet.name === 'string' && /promotional/i.test(sheet.name));
+    if (!matched && isPromoSheet && row >= 8) {
+      const candidates = personnelList.length > 0 ? personnelList : (await db.getPersonnel({ search: '' }));
+      const rowIndex = row - 8;
+      if (rowIndex >= 0 && rowIndex < candidates.length) {
+        matched = candidates[rowIndex];
+      }
+    }
+
+    if (matched) {
+      let normalizedValue = value;
+      // Date normalization for date fields
+      if (['effectiveDate', 'designationDate', 'dateOfEntry', 'lastPromotionDate'].includes(field)) {
+        normalizedValue = parseDateToIso(value) || value;
+      }
+
+      const payload = { [field]: normalizedValue };
+      // Sync fullName if name parts changed
+      if (field === 'lastName') {
+        payload.fullName = `${normalizedValue}, ${matched.firstName || ''} ${matched.middleName || ''} ${matched.qualifier || ''}`.replace(/\s+/g, ' ').trim();
+      } else if (field === 'firstName') {
+        payload.fullName = `${matched.lastName || ''}, ${normalizedValue} ${matched.middleName || ''} ${matched.qualifier || ''}`.replace(/\s+/g, ' ').trim();
+      } else if (field === 'middleName') {
+        payload.fullName = `${matched.lastName || ''}, ${matched.firstName || ''} ${normalizedValue || ''} ${matched.qualifier || ''}`.replace(/\s+/g, ' ').trim();
+      } else if (field === 'qualifier') {
+        payload.fullName = `${matched.lastName || ''}, ${matched.firstName || ''} ${matched.middleName || ''} ${normalizedValue || ''}`.replace(/\s+/g, ' ').trim();
+      }
+
+      // If lastPromotionDate changed, also recalculate timeInGrade
+      if (field === 'lastPromotionDate' && normalizedValue) {
+        const tig = calculateDatedif(normalizedValue);
+        payload.timeInGrade = tig;
+        const tigAddr = `Q${row}`;
+        if (sheet.cells[tigAddr]) {
+          sheet.cells[tigAddr].v = tig;
+        }
+      }
+
+      await db.updatePersonnel(matched.id, payload);
+      personnelUpdated = { id: matched.id, field, value: normalizedValue };
     }
   }
 
