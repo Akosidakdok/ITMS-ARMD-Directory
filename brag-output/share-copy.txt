@@ -1,0 +1,1 @@
+Built PAIS 2.0 for the Philippine National Police Information Technology Management Service (PNP-ITMS): a unified institutional platform that bridges live personnel records directly with automated promotional auditing and single-sheet official Excel worksheets. One database, zero redundant entry, 100% calculation and template parity.

@@ -17,3 +17,7 @@ october.xlsx
 
 # User testing survey artifacts
 /docs/testing/*.md
+
+# Hyperframes build artifacts and temporary test audio
+**/.hyperframes/
+test*.wav
