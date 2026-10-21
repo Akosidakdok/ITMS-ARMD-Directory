@@ -16,6 +16,10 @@ Project documentation is grouped by topic. The backend guide remains beside the 
 
 ## Feature implementation
 
+### DLOS case monitoring
+
+- [IDMIS Terminal implementation plan](features/dlos/DLOS_CASE_MONITORING_IMPLEMENTATION_PLAN.md)
+
 ### Excel integration
 
 - [Excel integration implementation plan](features/excel/EXCEL_INTEGRATION_IMPLEMENTATION_PLAN.md)

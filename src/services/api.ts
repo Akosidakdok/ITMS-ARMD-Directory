@@ -18,10 +18,12 @@ const BULK_IMPORT_BATCH_SIZE = 250;
 export const AUTH_TOKEN_KEY = 'pais.auth.token';
 
 export interface AuthenticatedUser {
+  id: string;
   username: string;
   displayName: string;
   email?: string;
   role: 'superadmin' | 'admin' | 'view_only';
+  dlosRole?: 'viewer' | 'encoder' | 'reviewer' | null;
 }
 
 export const getStoredToken = () => {

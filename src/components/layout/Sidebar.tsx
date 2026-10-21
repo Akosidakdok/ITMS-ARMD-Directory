@@ -4,6 +4,8 @@ import type { LucideIcon } from 'lucide-react';
 import {
   Award,
   Briefcase,
+  ClipboardList,
+  LockKeyhole,
   FileSpreadsheet,
   FileText,
   GraduationCap,
@@ -22,6 +24,7 @@ interface NavigationItem {
   path: string;
   icon: LucideIcon;
   superadminOnly?: boolean;
+  dlosOnly?: boolean;
 }
 
 interface NavigationGroup {
@@ -56,8 +59,15 @@ const navigationGroups: NavigationGroup[] = [
     ]
   },
   {
+    label: 'Case Monitoring',
+    items: [{ label: 'IDMIS Terminal', path: '/dlos', icon: ClipboardList, dlosOnly: true }]
+  },
+  {
     label: 'System Administration',
-    items: [{ label: 'Administrator Accounts', path: '/admin-accounts', icon: UserCog, superadminOnly: true }]
+    items: [
+      { label: 'Administrator Accounts', path: '/admin-accounts', icon: UserCog, superadminOnly: true },
+      { label: 'IDMIS Terminal Access', path: '/dlos-access', icon: LockKeyhole, superadminOnly: true }
+    ]
   }
 ];
 
@@ -102,7 +112,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobile = false, onNavigate, co
       <nav className={`flex-1 overflow-y-auto py-4 ${isCollapsed ? 'px-2' : 'px-3'}`}>
         <div className="space-y-5">
           {navigationGroups.map(group => {
-            const visibleItems = group.items.filter(item => !item.superadminOnly || role === 'superadmin');
+            const visibleItems = group.items.filter(item =>
+              (!item.superadminOnly || role === 'superadmin') && (!item.dlosOnly || Boolean(authUser?.dlosRole)));
             if (!visibleItems.length) return null;
             const groupId = `${sidebarVariant}-nav-${group.label.replace(/\s+/g, '-').toLowerCase()}`;
             return (

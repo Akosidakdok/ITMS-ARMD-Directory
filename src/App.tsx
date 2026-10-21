@@ -18,6 +18,8 @@ const loadManagementPage = () => import('./pages/ManagementPage');
 const loadAdminAccountsPage = () => import('./pages/AdminAccountsPage');
 const loadExcelIntegrationPage = () => import('./pages/ExcelIntegrationPage');
 const loadDocumentsPage = () => import('./pages/DocumentsPage');
+const loadDlosPage = () => import('./pages/DlosPage');
+const loadDlosAccessPage = () => import('./pages/DlosAccessPage');
 
 const DashboardPage = lazy(() => loadDashboardPage().then(module => ({ default: module.DashboardPage })));
 const PersonnelPage = lazy(() => loadPersonnelPage().then(module => ({ default: module.PersonnelPage })));
@@ -30,6 +32,8 @@ const ManagementPage = lazy(() => loadManagementPage().then(module => ({ default
 const AdminAccountsPage = lazy(() => loadAdminAccountsPage().then(module => ({ default: module.AdminAccountsPage })));
 const ExcelIntegrationPage = lazy(() => loadExcelIntegrationPage().then(module => ({ default: module.ExcelIntegrationPage })));
 const DocumentsPage = lazy(() => loadDocumentsPage().then(module => ({ default: module.DocumentsPage })));
+const DlosPage = lazy(() => loadDlosPage().then(module => ({ default: module.DlosPage })));
+const DlosAccessPage = lazy(() => loadDlosAccessPage().then(module => ({ default: module.DlosAccessPage })));
 
 const routeLoaders: Record<string, () => Promise<unknown>> = {
   '/': loadDashboardPage,
@@ -42,7 +46,9 @@ const routeLoaders: Record<string, () => Promise<unknown>> = {
   '/management': loadManagementPage,
   '/admin-accounts': loadAdminAccountsPage,
   '/excel-integration': loadExcelIntegrationPage,
-  '/documents': loadDocumentsPage
+  '/documents': loadDocumentsPage,
+  '/dlos': loadDlosPage,
+  '/dlos-access': loadDlosAccessPage
 };
 
 const AuthenticatedApplication: React.FC = () => {
@@ -58,7 +64,7 @@ const AuthenticatedApplication: React.FC = () => {
     let cancelled = false;
     setInitialRouteReady(false);
     const normalizedPath = window.location.pathname.replace(/\/$/, '') || '/';
-    const loader = routeLoaders[normalizedPath] || loadDashboardPage;
+    const loader = normalizedPath.startsWith('/dlos/') ? loadDlosPage : (routeLoaders[normalizedPath] || loadDashboardPage);
     loader()
       .catch(() => undefined)
       .finally(() => {
@@ -112,6 +118,11 @@ const AuthenticatedApplication: React.FC = () => {
                   <Route path="admin-accounts" element={<AdminAccountsPage />} />
                   <Route path="excel-integration" element={<ExcelIntegrationPage />} />
                   <Route path="documents" element={<DocumentsPage />} />
+                  <Route path="dlos" element={<DlosPage />} />
+                  <Route path="dlos/:year" element={<DlosPage />} />
+                  <Route path="dlos/:year/:month" element={<DlosPage />} />
+                  <Route path="dlos/:year/:month/:classification" element={<DlosPage />} />
+                  <Route path="dlos-access" element={<DlosAccessPage />} />
                   <Route path="*" element={<DashboardPage />} />
                 </Route>
               </Routes>
