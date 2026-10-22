@@ -7,7 +7,7 @@ import { requireDlosAccess, requireDlosRole } from '../middleware/dlosAccess.js'
 import { handleDlosUpload, handleDlosWorkflowUpload, validDlosFile } from '../middleware/dlosUpload.js';
 import {
   applyDlosAction, getDlosCase, getDlosDocument, getDlosDocuments, getDlosHistory,
-  getDlosOptions, getDlosUpdates, getDlosWorkflow, recordDlosDocument,
+  getDlosOptions, getDlosPenaltyDirectory, getDlosUpdates, getDlosWorkflow, recordDlosDocument,
   recordDlosWorkflow, saveDlosCase, searchDlosCases
 } from '../store/dlosRepository.js';
 import { downloadDlosFile, removeDlosFile, uploadDlosFile } from '../services/dlosDocumentStorage.js';
@@ -21,6 +21,11 @@ const validId = value => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a
 
 router.get('/options', async (_req, res) => {
   try { return res.json({ success: true, data: await getDlosOptions() }); }
+  catch (error) { return respondError(res, error); }
+});
+
+router.get('/penalties', async (_req, res) => {
+  try { return res.json({ success: true, data: await getDlosPenaltyDirectory() }); }
   catch (error) { return respondError(res, error); }
 });
 

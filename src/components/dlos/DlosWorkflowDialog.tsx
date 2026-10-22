@@ -7,7 +7,7 @@ import { downloadDlosDocument, runDlosAction, saveDlosWorkflow } from '../../ser
 import type { DlosCase, DlosCaseDocument, DlosWorkflowRecord } from '../../types/dlos';
 import { DLOS_STATUS_LABELS } from './dlosStatuses';
 
-type Field = { key: string; label: string; type?: 'date' | 'textarea' | 'respondent' };
+type Field = { key: string; label: string; type?: 'date' | 'textarea' | 'respondent' | 'category' };
 type Step = { key: string; label: string; fields: Field[]; files: { key: string; label: string }[]; note?: string };
 const steps: Step[] = [
   { key: 'roi', label: 'Submission of ROI from SHO', fields: [
@@ -43,7 +43,10 @@ const steps: Step[] = [
   ], files: [{ key: 'certificate', label: 'Certificate of Finality' }] },
   { key: 'implementation', label: 'Implementation', fields: [
     { key: 'respondentKey', label: 'Respondent', type: 'respondent' },
-    { key: 'orderDate', label: 'Implementation order date', type: 'date' }
+    { key: 'penaltyCategory', label: 'Penalty category', type: 'category' },
+    { key: 'orderDate', label: 'Implementation order date', type: 'date' },
+    { key: 'effectivityDate', label: 'Penalty effectivity date', type: 'date' },
+    { key: 'penaltyDuration', label: 'Penalty duration (suspension only)' }
   ], files: [{ key: 'order', label: 'Implementation order' }] }
 ];
 const shoStep: Step = { key: 'sho_amendment', label: 'Amendment / Change of Designated SHO', fields: [
@@ -267,6 +270,7 @@ export const DlosWorkflowDialog = ({ item, records, documents, initialStep, onCl
           {!initialStep && <><h4 className="border-b border-slate-200 pb-2 text-sm font-semibold text-slate-800">Details</h4><p className="-mt-1 text-xs leading-relaxed text-slate-500">Save this step to record changes. Unsaved edits stay available while you switch steps or close and reopen this dialog.</p></>}
           <div className="grid gap-4 sm:grid-cols-2">{step.fields.map(field => <label key={field.key} className={`block text-sm font-semibold text-slate-700 ${field.type === 'textarea' ? 'sm:col-span-2' : ''}`}>{field.label}
             {field.type === 'respondent' ? <select className={initialStep ? shoInputClass : inputClass} required value={fields[field.key] || ''} onChange={event => setField(field.key, event.target.value)}><option value="">Select respondent</option>{respondents.map(person => <option key={person.id} value={person.id}>{person.rank} {person.nameSnapshot} · {person.status || 'No status'}</option>)}</select>
+              : field.type === 'category' ? <select className={initialStep ? shoInputClass : inputClass} value={fields[field.key] || ''} onChange={event => setField(field.key, event.target.value)}><option value="">Select category</option><option value="suspension">Suspension</option><option value="demotion">Demotion</option><option value="dismissal">Dismissal</option><option value="exonerated">Exonerated</option></select>
               : field.type === 'textarea' ? <textarea className={initialStep ? shoInputClass : inputClass} rows={3} maxLength={2000} value={fields[field.key] || ''} onChange={event => setField(field.key, event.target.value)} />
                 : <input className={initialStep ? shoInputClass : inputClass} type={field.type === 'date' ? 'date' : 'text'} maxLength={2000} value={fields[field.key] || ''} onChange={event => setField(field.key, event.target.value)} />}
           </label>)}</div>

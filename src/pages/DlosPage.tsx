@@ -8,8 +8,8 @@ import { DlosCaseDialog, type DlosDialogMode } from '../components/dlos/DlosCase
 import { DlosWorkflowDialog } from '../components/dlos/DlosWorkflowDialog';
 import { DlosCaseFilters, DLOS_FILTER_KEYS } from '../components/dlos/DlosCaseFilters';
 import { DlosPeriodPicker } from '../components/dlos/DlosPeriodPicker';
-import { fetchDlosCase, fetchDlosCases, fetchDlosDocuments, fetchDlosHistory, fetchDlosPeriods, fetchDlosUpdates, fetchDlosWorkflow, runDlosAction, uploadDlosDocument } from '../services/dlosApi';
-import type { DlosCase, DlosCaseDocument, DlosCaseEvent, DlosCasePage, DlosCaseUpdate, DlosClassification, DlosPeriod, DlosWorkflowRecord } from '../types/dlos';
+import { fetchDlosCase, fetchDlosCases, fetchDlosDocuments, fetchDlosHistory, fetchDlosPenaltyDirectory, fetchDlosPeriods, fetchDlosUpdates, fetchDlosWorkflow, runDlosAction, uploadDlosDocument } from '../services/dlosApi';
+import type { DlosCase, DlosCaseDocument, DlosCaseEvent, DlosCasePage, DlosCaseUpdate, DlosClassification, DlosPenaltyEntry, DlosPeriod, DlosWorkflowRecord } from '../types/dlos';
 import './ModulePages.css';
 import './DlosPage.css';
 
@@ -28,6 +28,9 @@ export const DlosPage = () => {
   const [optionsError, setOptionsError] = useState('');
   const [loadingOptions, setLoadingOptions] = useState(false);
   const [pageData, setPageData] = useState<DlosCasePage | null>(null);
+  const [penalties, setPenalties] = useState<DlosPenaltyEntry[]>([]);
+  const [penaltiesLoading, setPenaltiesLoading] = useState(false);
+  const [penaltiesError, setPenaltiesError] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [filters, setFilters] = useState<Record<string, string>>({});
@@ -62,6 +65,11 @@ export const DlosPage = () => {
     setLoadingOptions(true);
     fetchDlosPeriods().then(setPeriods).catch(cause => setOptionsError(cause instanceof Error ? cause.message : 'Unable to load periods.')).finally(() => setLoadingOptions(false));
   }, [authUser?.dlosRole]);
+  useEffect(() => {
+    if (!validYear || !validMonth || !authUser?.dlosRole) return;
+    setPenaltiesLoading(true); setPenaltiesError('');
+    fetchDlosPenaltyDirectory().then(setPenalties).catch(cause => setPenaltiesError(cause instanceof Error ? cause.message : 'Unable to load penalty personnel.')).finally(() => setPenaltiesLoading(false));
+  }, [validYear, validMonth, authUser?.dlosRole]);
   useEffect(() => { setFilters(Object.fromEntries(searchParams.entries())); }, [query]);
   const loadCases = useCallback(async () => {
     if (!validYear || !validMonth || !validClassification || !authUser?.dlosRole) return;
@@ -140,6 +148,7 @@ export const DlosPage = () => {
     {(!yearParam || !monthParam) && <DlosPeriodPicker year={yearParam ? year : undefined}
       periods={periods} currentYear={currentYear} countsReady={!loadingOptions && !optionsError} />}
     {validYear && validMonth && <DlosCaseFilters filters={filters} classification={validClassification ? classification : null} appliedCount={appliedCount}
+      penalties={penalties} penaltiesLoading={penaltiesLoading} penaltiesError={penaltiesError}
       onChange={setFilters} onClassificationChange={selectClassification}
       onSearch={event => {
         event.preventDefault();

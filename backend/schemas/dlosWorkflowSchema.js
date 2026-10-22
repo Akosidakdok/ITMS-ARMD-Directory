@@ -3,13 +3,13 @@ import { dlosError, parseDlosVersion } from './dlosCaseSchema.js';
 export const DLOS_WORKFLOW = {
   roi: { fields: { roiDate: 'date', receivedDate: 'date' }, files: ['roi', 'memo'] },
   resolution: { fields: { resolutionDate: 'date' }, files: ['resolution'] },
-  decision: { fields: { decisionDate: 'date', authority: 'text', liability: 'text', penalty: 'text' }, files: ['decision'] },
+  decision: { fields: { decisionDate: 'date', authority: 'text', liability: 'text', penalty: 'text', penaltyCategory: 'text' }, files: ['decision'] },
   decision_resolution: { fields: { resolutionDate: 'date' }, files: ['resolution'] },
   decision_service: { fields: { proofType: 'text', receivedDate: 'date' }, files: ['proof'] },
   mr_resolution: { fields: { filedDate: 'date', resolutionDate: 'date', resolution: 'text' }, files: ['mr_resolution'] },
   mr_service: { fields: { serviceDate: 'date' }, files: ['proof'] },
   finality: { fields: { finalityDate: 'date' }, files: ['certificate'] },
-  implementation: { fields: { respondentKey: 'uuid', orderDate: 'date' }, files: ['order'] },
+  implementation: { fields: { respondentKey: 'uuid', orderDate: 'date', effectivityDate: 'date', penaltyDuration: 'text', penaltyCategory: 'text' }, files: ['order'] },
   sho_amendment: { fields: { shoName: 'text', shoPersonnelId: 'text', memorandumDate: 'date' }, files: ['memorandum'] }
 };
 
@@ -36,6 +36,9 @@ export const parseDlosWorkflow = (step, body, files = []) => {
   if (step === 'sho_amendment' && !String(fields.shoName || '').trim()) throw dlosError('New SHO is required.');
   if (step === 'sho_amendment' && !fields.memorandumDate) throw dlosError('Memorandum date is required.');
   if (step === 'implementation' && !fields.respondentKey) throw dlosError('Select a respondent.');
+  if (['decision', 'implementation'].includes(step) && fields.penaltyCategory && !['suspension', 'demotion', 'dismissal', 'exonerated'].includes(fields.penaltyCategory)) {
+    throw dlosError('Penalty category is invalid.');
+  }
   if (step === 'decision' && (!fields.decisionDate || !fields.authority || !fields.liability || !fields.penalty)) {
     throw dlosError('Decision date, disciplinary authority, liability, and penalty are required.');
   }

@@ -46,6 +46,52 @@ export const enrichDlosCase = item => {
 
 export const getDlosOptions = async () => result(await client().rpc('dlos_case_options')) || [];
 
+export const getDlosPenaltyDirectory = async () => {
+  const db = client();
+  const readAll = async buildQuery => {
+    const rows = [];
+    for (let start = 0; ; start += 1000) {
+      const batch = result(await buildQuery().range(start, start + 999)) || [];
+      rows.push(...batch);
+      if (batch.length < 1000) return rows;
+    }
+  };
+  const workflows = await readAll(() => db.from('dlos_case_workflow')
+    .select('caseId,stepKey,respondentKey,fields').in('stepKey', ['decision', 'implementation']));
+  const caseIds = [...new Set(workflows.filter(row => row.stepKey === 'decision').map(row => row.caseId))];
+  if (!caseIds.length) return [];
+  const cases = [];
+  for (let start = 0; start < caseIds.length; start += 200) {
+    cases.push(...(result(await db.from('dlos_cases')
+      .select('id,docketNumber,people:dlos_case_personnel(id,role,nameSnapshot)')
+      .in('id', caseIds.slice(start, start + 200)).is('archivedAt', null)) || []));
+  }
+  const casesById = new Map(cases.map(row => [row.id, row]));
+  const implementations = new Map(workflows.filter(row => row.stepKey === 'implementation').map(row => [`${row.caseId}:${row.respondentKey}`, row.fields || {}]));
+  const labels = ['suspension', 'demotion', 'dismissal', 'exonerated'];
+  const resultEntries = [];
+  for (const decision of workflows.filter(row => row.stepKey === 'decision')) {
+    const item = casesById.get(decision.caseId);
+    if (!item) continue;
+    const fields = decision.fields || {};
+    const penalty = String(fields.penalty || '');
+    for (const person of (item.people || []).filter(person => person.role === 'respondent')) {
+      const implementation = implementations.get(`${item.id}:${person.id}`) || {};
+      const category = labels.includes(implementation.penaltyCategory) ? implementation.penaltyCategory
+        : labels.includes(fields.penaltyCategory) ? fields.penaltyCategory
+          : labels.find(label => label === 'exonerated' ? /exon[eo]rat/i.test(penalty) : new RegExp(label, 'i').test(penalty));
+      if (!category) continue;
+      resultEntries.push({
+        id: `${item.id}:${person.id}`, category, name: person.nameSnapshot,
+        caseId: item.id, docketNumber: item.docketNumber,
+        effectivityDate: implementation.effectivityDate || implementation.orderDate || '',
+        duration: category === 'suspension' ? implementation.penaltyDuration || '' : ''
+      });
+    }
+  }
+  return resultEntries;
+};
+
 export const searchDlosCases = async ({ year, month, classification, page, pageSize, sort, direction, filters }) => {
   const data = result(await client().rpc('dlos_search_cases', {
     p_year: year, p_month: month, p_classification: classification, p_filters: filters,

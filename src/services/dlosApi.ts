@@ -1,5 +1,5 @@
 import { API_BASE_URL, apiFetch } from './api';
-import type { DlosAccount, DlosCase, DlosCaseDocument, DlosCaseDraft, DlosCaseEvent, DlosCasePage, DlosCaseUpdate, DlosPeriod, DlosRole, DlosWorkflowRecord } from '../types/dlos';
+import type { DlosAccount, DlosCase, DlosCaseDocument, DlosCaseDraft, DlosCaseEvent, DlosCasePage, DlosCaseUpdate, DlosPenaltyEntry, DlosPeriod, DlosRole, DlosWorkflowRecord } from '../types/dlos';
 
 const read = async <T>(response: Response): Promise<T> => {
   const body = await response.json().catch(() => null);
@@ -8,6 +8,8 @@ const read = async <T>(response: Response): Promise<T> => {
 };
 
 export const fetchDlosPeriods = async () => read<DlosPeriod[]>(await apiFetch(`${API_BASE_URL}/dlos/options`));
+
+export const fetchDlosPenaltyDirectory = async () => read<DlosPenaltyEntry[]>(await apiFetch(`${API_BASE_URL}/dlos/penalties`));
 
 export const fetchDlosCases = async (params: URLSearchParams) =>
   read<DlosCasePage>(await apiFetch(`${API_BASE_URL}/dlos/cases?${params.toString()}`));

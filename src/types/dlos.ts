@@ -102,6 +102,16 @@ export interface DlosWorkflowRecord {
 
 export interface DlosPeriod { year: number; month: number; count: number }
 
+export interface DlosPenaltyEntry {
+  id: string;
+  category: 'suspension' | 'demotion' | 'dismissal' | 'exonerated';
+  name: string;
+  caseId: string;
+  docketNumber: string;
+  effectivityDate: string;
+  duration: string;
+}
+
 export interface DlosCasePage {
   items: DlosCase[];
   total: number;
