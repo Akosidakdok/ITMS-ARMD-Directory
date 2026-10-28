@@ -125,8 +125,8 @@ export const parseDlosPeople = value => {
 export const parseDlosListQuery = query => {
   const year = integer(query.year, 'Year', 1900, 2100);
   const month = integer(query.month, 'Month', 1, 12);
-  const classification = text(query.classification, 'Classification', 20);
-  if (!DLOS_CLASSIFICATIONS.includes(classification)) throw dlosError('Classification must be Grave or Less Grave.');
+  const classification = text(query.classification == null || query.classification === '' ? 'all' : query.classification, 'Classification', 20);
+  if (classification !== 'all' && !DLOS_CLASSIFICATIONS.includes(classification)) throw dlosError('Classification must be All, Grave, or Less Grave.');
   const page = integer(query.page || 1, 'Page', 1, 100000);
   const pageSize = integer(query.pageSize || 10, 'Page size', 1, 50);
   const sort = text(query.sort || 'caseDate', 'Sort field', 30);

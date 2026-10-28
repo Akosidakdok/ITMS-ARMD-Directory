@@ -24,8 +24,12 @@ router.get('/options', async (_req, res) => {
   catch (error) { return respondError(res, error); }
 });
 
-router.get('/penalties', async (_req, res) => {
-  try { return res.json({ success: true, data: await getDlosPenaltyDirectory() }); }
+router.get('/penalties', async (req, res) => {
+  const year = Number(req.query.year);
+  if (typeof req.query.year !== 'string' || !/^\d{4}$/.test(req.query.year) || !Number.isInteger(year) || year < 1900 || year > 2100) {
+    return res.status(400).json({ success: false, message: 'Invalid year.' });
+  }
+  try { return res.json({ success: true, data: await getDlosPenaltyDirectory(year) }); }
   catch (error) { return respondError(res, error); }
 });
 

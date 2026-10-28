@@ -86,14 +86,14 @@ export const DlosCaseDialog = ({ mode, item, history, updates, documents, classi
     finally { setSaving(false); }
   };
   return <Modal isOpen={mode !== null} onClose={() => !saving && onClose()}
-    title={mode === 'create' ? 'Encode DLOS case' : mode === 'edit' ? 'Edit Case Details' : mode === 'respondents' ? 'Manage Respondents' : `Case Details: ${item?.docketNumber || ''}`}
-    subtitle="Case registration date determines year and month." maxWidth="4xl">
+    title={mode === 'create' ? 'Encode case' : mode === 'edit' ? 'Edit case details' : mode === 'respondents' ? 'Manage respondents' : `Case details: ${item?.docketNumber || ''}`}
+    subtitle={mode === 'create' || mode === 'edit' ? 'The registration date sets the year and month.' : item?.caseDate} maxWidth="4xl">
     <form onSubmit={submit} className="max-h-[75vh] space-y-5 overflow-y-auto p-4 sm:p-5">
       {error && <p role="alert" className="rounded border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">{error}</p>}
-      {mode === 'view' && <div role="tablist" aria-label="Case details" className="flex flex-wrap gap-2 border-b border-slate-200 pb-3">{([
-        ['complaint', 'Complaint Details'], ['complainant', 'Complainant'], ['respondent', 'Respondent'],
+      {mode === 'view' && <div role="group" aria-label="Case details sections" className="dlos-case-tabs">{([
+        ['complaint', 'Complaint details'], ['complainant', 'Complainant'], ['respondent', 'Respondent'],
         ['witness', 'Witness'], ['attachments', 'Attachments']
-      ] as const).map(([key, label]) => <button key={key} role="tab" aria-selected={tab === key} type="button" onClick={() => setTab(key)} className={`rounded-lg px-3 py-2 text-xs font-semibold ${tab === key ? 'bg-teal-700 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>{label}</button>)}</div>}
+      ] as const).map(([key, label]) => <button key={key} aria-pressed={tab === key} type="button" onClick={() => setTab(key)} className="dlos-case-tab">{label}</button>)}</div>}
       {mode !== 'respondents' && (mode !== 'view' || tab === 'complaint') && <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <label className="text-xs font-semibold">Classification<input className={fieldClass} disabled value={classification === 'grave' ? 'Grave' : 'Less Grave'} /></label>
         <label className="text-xs font-semibold">Case registration date *<input className={fieldClass} type="date" required disabled={readonly} value={draft.caseDate} onChange={event => update('caseDate', event.target.value)} /></label>

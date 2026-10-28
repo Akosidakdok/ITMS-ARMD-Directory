@@ -1,5 +1,6 @@
 import { API_BASE_URL, apiFetch } from './api';
 import type { DlosAccount, DlosCase, DlosCaseDocument, DlosCaseDraft, DlosCaseEvent, DlosCasePage, DlosCaseUpdate, DlosPenaltyEntry, DlosPeriod, DlosRole, DlosWorkflowRecord } from '../types/dlos';
+import { fetchCombinedDlosCases } from '../utils/dlosCombinedCases';
 
 const read = async <T>(response: Response): Promise<T> => {
   const body = await response.json().catch(() => null);
@@ -9,10 +10,15 @@ const read = async <T>(response: Response): Promise<T> => {
 
 export const fetchDlosPeriods = async () => read<DlosPeriod[]>(await apiFetch(`${API_BASE_URL}/dlos/options`));
 
-export const fetchDlosPenaltyDirectory = async () => read<DlosPenaltyEntry[]>(await apiFetch(`${API_BASE_URL}/dlos/penalties`));
+export const fetchDlosPenaltyDirectory = async (year: number) => read<DlosPenaltyEntry[]>(await apiFetch(`${API_BASE_URL}/dlos/penalties?year=${year}`));
+
+const fetchDlosCasePage = async (params: URLSearchParams) =>
+  read<DlosCasePage>(await apiFetch(`${API_BASE_URL}/dlos/cases?${params.toString()}`));
 
 export const fetchDlosCases = async (params: URLSearchParams) =>
-  read<DlosCasePage>(await apiFetch(`${API_BASE_URL}/dlos/cases?${params.toString()}`));
+  !params.get('classification') || params.get('classification') === 'all'
+    ? fetchCombinedDlosCases(params, fetchDlosCasePage)
+    : fetchDlosCasePage(params);
 
 export const fetchDlosCase = async (id: string) =>
   read<DlosCase>(await apiFetch(`${API_BASE_URL}/dlos/cases/${encodeURIComponent(id)}`));

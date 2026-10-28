@@ -53,7 +53,7 @@ const shoStep: Step = { key: 'sho_amendment', label: 'Amendment / Change of Desi
   { key: 'memorandumDate', label: 'Date of memorandum for amendment', type: 'date' }
 ], files: [{ key: 'memorandum', label: 'Memorandum file' }] };
 const inputClass = 'mt-1 min-h-11 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100 sm:text-sm';
-const shoInputClass = 'mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-100';
+const shoInputClass = 'mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100';
 const fileAccept = '.pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp';
 type WorkflowStepDraft = { fields: Record<string, string>; files: Record<string, File>; noDocument: boolean };
 const workflowDraftKey = (caseId: string, stepKey: string, respondentKey = '') =>
@@ -200,7 +200,7 @@ export const DlosWorkflowDialog = ({ item, records, documents, initialStep, onCl
     title={initialStep ? shoStep.label : 'Case Updates'} subtitle={item?.docketNumber} maxWidth="4xl">
     <div className={`-m-4 min-w-0 bg-white sm:-m-5 ${initialStep ? '' : 'lg:grid lg:h-[min(76vh,44rem)] lg:min-h-[30rem] lg:grid-cols-[19rem_minmax(0,1fr)]'}`}>
       {!initialStep && <aside className="flex min-w-0 flex-col border-b border-slate-300 bg-slate-50 lg:min-h-0 lg:border-b-0 lg:border-r">
-        <div className="flex items-center justify-between gap-3 bg-[#263b50] px-4 py-3 text-white">
+        <div className="dlos-workflow-sidebar-heading flex items-center justify-between gap-3 px-4 py-3">
           <h3 className="text-sm font-semibold">Workflow steps</h3>
           <span className="text-xs text-slate-200">{completedStepCount} of {steps.length} saved</span>
         </div>
@@ -263,7 +263,7 @@ export const DlosWorkflowDialog = ({ item, records, documents, initialStep, onCl
         {error && <p role="alert" className="rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{error}</p>}
         {initialStep && <div className="space-y-2 rounded-xl border border-slate-200 p-4">
           <label className="block text-sm font-semibold">Search new SHO<input className={shoInputClass} type="search" value={shoSearch} onChange={event => setShoSearch(event.target.value)} placeholder="Rank or name" /></label>
-          <div className="max-h-36 space-y-1 overflow-y-auto">{matchingPersonnel.map(person => <button key={person.id} type="button" className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-teal-50" onClick={() => setFields(current => ({ ...current, shoName: `${person.rank || ''} ${person.fullName}`.trim(), shoPersonnelId: person.id }))}><Search size={13} />{person.rank} {person.fullName}</button>)}</div>
+          <div className="max-h-36 space-y-1 overflow-y-auto">{matchingPersonnel.map(person => <button key={person.id} type="button" className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-blue-50" onClick={() => setFields(current => ({ ...current, shoName: `${person.rank || ''} ${person.fullName}`.trim(), shoPersonnelId: person.id }))}><Search size={13} />{person.rank} {person.fullName}</button>)}</div>
           <label className="block text-sm font-semibold">Selected SHO<input className={shoInputClass} required maxLength={160} value={fields.shoName || ''} onChange={event => setFields(current => ({ ...current, shoName: event.target.value, shoPersonnelId: '' }))} /></label>
         </div>}
         <section className="space-y-3">

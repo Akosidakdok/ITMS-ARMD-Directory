@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, CalendarDays } from 'lucide-react';
+import { ArrowRight, CalendarDays, ListFilter } from 'lucide-react';
 import type { DlosPeriod } from '../../types/dlos';
 
 const months = Array.from({ length: 12 }, (_, index) =>
@@ -53,13 +53,20 @@ export const DlosPeriodPicker = ({ year, periods, currentYear, countsReady }: Pr
   </section>;
 
   return <section className="dlos-picker-surface" aria-labelledby="dlos-months-heading">
-    <div className="dlos-picker-heading"><div><h2 id="dlos-months-heading">{year} registration months</h2><p>Choose a month to continue.</p></div><CalendarDays aria-hidden="true" size={19} /></div>
-    <div className="dlos-picker-body"><div className="dlos-month-grid">{months.map((label, index) => {
+    <div className="dlos-picker-heading"><div><h2 id="dlos-months-heading">{year} registration months</h2><p>Choose a month to browse registered cases.</p></div><CalendarDays aria-hidden="true" size={19} /></div>
+    <div className="dlos-picker-body">
+      <div className="dlos-month-toolbar">
+        <span>Filter this year</span>
+        <Link to={`/dlos/${year}/decisions`} className="dlos-decision-filter"><ListFilter aria-hidden="true" size={16} />Decisions<ArrowRight aria-hidden="true" size={15} /></Link>
+        <span className="dlos-month-toolbar-hint">Browse personnel by penalty</span>
+      </div>
+      <div className="dlos-month-grid">{months.map((label, index) => {
       const count = periods.find(period => period.year === year && period.month === index + 1)?.count || 0;
-      return <Link key={label} to={`/dlos/${year}/${index + 1}`} className="dlos-period-link dlos-month-link">
+      return <Link key={label} to={`/dlos/${year}/${index + 1}`} className="dlos-period-link dlos-month-link" data-has-cases={count > 0}>
         <span className="dlos-month-index">{String(index + 1).padStart(2, '0')}</span><span className="dlos-month-name">{label}</span>
         <span className="dlos-period-meta">{countLabel(count)}</span><ArrowRight aria-hidden="true" className="dlos-period-arrow" size={17} />
       </Link>;
-    })}</div></div>
+    })}</div>
+    </div>
   </section>;
 };

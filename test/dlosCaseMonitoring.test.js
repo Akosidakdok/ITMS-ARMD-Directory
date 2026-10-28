@@ -13,6 +13,7 @@ test('registration date and classification are validated independently of other 
   assert.equal(parseDlosCase(baseCase).caseDate, '2026-10-21');
   assert.throws(() => parseDlosCase({ ...baseCase, caseDate: '2026-02-30' }), /valid YYYY-MM-DD/);
   assert.throws(() => parseDlosCase({ ...baseCase, classification: 'other' }), /Grave or Less Grave/);
+  assert.throws(() => parseDlosCase({ ...baseCase, classification: 'all' }), /Grave or Less Grave/);
   assert.throws(() => parseDlosCase({ ...baseCase, receivedByShoDate: '2026-10-21', resolvedByShoDate: '2026-10-20' }), /cannot precede/);
 });
 
@@ -36,6 +37,16 @@ test('person and list input limits prevent malformed searches and oversized reco
   assert.equal(parseDlosListQuery({ year: '2026', month: '10', classification: 'less_grave', dateField: 'caseDate', dateFrom: '2026-10-01', dateTo: '2026-10-31' }).filters.dateTo, '2026-10-31');
   assert.throws(() => parseDlosListQuery({ year: '2026', month: '10', classification: 'grave', dateFrom: '2026-10-01' }), /Select a date field/);
   assert.throws(() => parseDlosListQuery({ year: '2026', month: '13', classification: 'grave' }), /Month must be/);
+});
+
+test('monthly case searches default to both classifications', () => {
+  const period = { year: '2026', month: '10' };
+  assert.equal(parseDlosListQuery(period).classification, 'all');
+  assert.equal(parseDlosListQuery({ ...period, classification: 'all' }).classification, 'all');
+  assert.equal(parseDlosListQuery({ ...period, classification: 'grave' }).classification, 'grave');
+  assert.equal(parseDlosListQuery({ ...period, classification: 'less_grave' }).classification, 'less_grave');
+  assert.throws(() => parseDlosListQuery({ ...period, classification: 'unknown' }), /All, Grave, or Less Grave/);
+  assert.throws(() => parseDlosListQuery({ ...period, classification: 0 }), /Classification must be text/);
 });
 
 test('workflow accepts only fields and file slots for the chosen step', () => {

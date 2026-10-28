@@ -1,13 +1,13 @@
 .dlos-page { min-width: 0; }
 
-.dlos-breadcrumb { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: var(--muted-foreground); }
+.dlos-breadcrumb { display: flex; min-height: 20px; flex-wrap: wrap; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: var(--muted-foreground); }
 .dlos-breadcrumb a { color: var(--accent-foreground); text-decoration: none; text-underline-offset: 3px; }
 .dlos-breadcrumb a:hover { text-decoration: underline; }
 .dlos-breadcrumb [aria-current="page"] { color: var(--foreground); font-weight: 600; }
+.dlos-page > .app-page-header { margin-top: -0.75rem; }
 
-.dlos-picker-surface, .dlos-filter-surface, .dlos-list-surface { min-width: 0; overflow: hidden; border: 1px solid var(--border); border-radius: var(--pais-radius-panel); background: var(--card); color: var(--foreground); }
+.dlos-picker-surface, .dlos-filter-surface, .dlos-decision-surface, .dlos-list-surface { min-width: 0; overflow: hidden; border: 1px solid var(--border); border-radius: var(--pais-radius-panel); background: var(--card); color: var(--foreground); }
 .dlos-picker-heading, .dlos-filter-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); }
-.dlos-filter-header { display: grid; grid-template-columns: minmax(16rem, 0.9fr) minmax(0, 1.6fr); align-items: center; gap: 1.25rem; }
 .dlos-picker-heading h2, .dlos-filter-header h2 { margin: 0; font-size: 0.9375rem; font-weight: 650; line-height: 1.35; }
 .dlos-picker-heading p, .dlos-filter-header p { margin: 0.25rem 0 0; color: var(--muted-foreground); font-size: 0.75rem; line-height: 1.5; }
 .dlos-filter-header-copy { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; }
@@ -21,7 +21,7 @@
 .dlos-year-number { font-size: 1.125rem; font-weight: 650; line-height: 1.15; font-variant-numeric: tabular-nums; }
 .dlos-period-meta { color: var(--muted-foreground); font-size: 0.6875rem; line-height: 1.35; font-variant-numeric: tabular-nums; }
 .dlos-period-arrow { position: absolute; right: 0.875rem; top: 50%; transform: translateY(-50%); color: var(--muted-foreground); }
-.dlos-current-tag { position: absolute; top: 0.5rem; right: 0.75rem; color: var(--accent-foreground); font-size: 0.625rem; font-weight: 650; }
+.dlos-current-tag { position: absolute; top: 0.5rem; right: 0.75rem; color: var(--accent-foreground); font-size: 0.6875rem; font-weight: 650; }
 .dlos-year-link:has(.dlos-current-tag) { border-color: var(--ring); }
 .dlos-year-link:has(.dlos-current-tag) .dlos-period-arrow { top: auto; bottom: 0.7rem; transform: none; }
 .dlos-earlier-years { margin-top: 1.25rem; border-top: 1px solid var(--border); }
@@ -38,6 +38,14 @@
 .dlos-jump-form button:hover { background: var(--accent); }
 .dlos-month-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.625rem; }
 .dlos-month-link { min-height: 88px; padding-left: 3.5rem; }
+.dlos-month-link[data-has-cases="true"] .dlos-period-meta { color: var(--color-data-blue); font-weight: 600; }
+.dlos-month-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.625rem 0.875rem; margin-bottom: 1rem; padding: 0.75rem 0.875rem; border: 1px solid var(--border); border-radius: var(--pais-radius-control); background: var(--secondary); }
+.dlos-month-toolbar > span:first-child { color: var(--foreground); font-size: 0.75rem; font-weight: 650; }
+.dlos-month-toolbar-hint { color: var(--muted-foreground); font-size: 0.75rem; }
+.dlos-decision-filter { display: inline-flex; min-height: 40px; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: var(--pais-radius-control); background: var(--card); color: var(--accent-foreground); font-size: 0.75rem; font-weight: 650; text-decoration: none; }
+.dlos-decision-filter:hover { border-color: var(--ring); background: var(--accent); }
+.dlos-decision-filter:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.dlos-decision-filter svg:last-child { margin-left: 0.5rem; color: var(--muted-foreground); }
 .dlos-month-index { position: absolute; left: 1rem; top: 1.1rem; color: var(--muted-foreground); font-size: 0.75rem; font-variant-numeric: tabular-nums; }
 .dlos-month-name { font-size: 0.875rem; font-weight: 600; }
 .dlos-applied-count { flex: none; padding: 0.25rem 0.5rem; border-radius: var(--pais-radius-control); background: var(--accent); color: var(--accent-foreground); font-size: 0.6875rem; font-weight: 600; }
@@ -46,104 +54,134 @@
 .dlos-penalty-options { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.5rem; }
 .dlos-penalty-option { display: flex; min-width: 0; min-height: 44px; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: var(--pais-radius-control); background: var(--card); color: var(--foreground); font-size: 0.75rem; font-weight: 650; text-align: left; text-transform: uppercase; transition: border-color 140ms ease, background-color 140ms ease; }
 .dlos-penalty-option:hover { border-color: var(--ring); background: var(--accent); }
-.dlos-penalty-option[aria-pressed="true"] { border-color: var(--primary); background: var(--accent); color: var(--accent-foreground); box-shadow: inset 0 -3px var(--color-brand-yellow-ink); }
+.dlos-penalty-option[aria-pressed="true"] { border-color: var(--primary); background: var(--accent); color: var(--accent-foreground); }
 .dlos-penalty-option:focus-visible, .dlos-penalty-person:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
-.dlos-penalty-count { flex: none; min-width: 1.5rem; padding: 0.125rem 0.375rem; border-radius: 999px; background: var(--secondary); color: var(--muted-foreground); font-size: 0.6875rem; font-variant-numeric: tabular-nums; text-align: center; text-transform: none; }
-.dlos-filter-body { padding: 1rem 1.25rem; }
-.dlos-penalty-results { margin-bottom: 0.75rem; }
+.dlos-penalty-count { flex: none; min-width: 1.5rem; padding: 0.125rem 0.375rem; border-radius: var(--pais-radius-control); background: var(--secondary); color: var(--muted-foreground); font-size: 0.6875rem; font-variant-numeric: tabular-nums; text-align: center; text-transform: none; }
+.dlos-filter-body { min-width: 0; margin: 1.125rem 1.25rem 1.25rem; padding: 1.125rem 0 0; border: 0; border-top: 1px solid var(--pais-line-strong); }
+.dlos-filter-legend { display: inline-flex; align-items: center; gap: 0.375rem; padding: 0 0.5rem 0 0; color: var(--foreground); font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+.dlos-penalty-results { margin-top: 1rem; }
 .dlos-penalty-empty { margin: 0; padding: 0.75rem 0.875rem; border: 1px dashed var(--border); border-radius: var(--pais-radius-control); color: var(--muted-foreground); font-size: 0.75rem; }
 .dlos-penalty-results-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 0.5rem; }
 .dlos-penalty-results-heading h3 { margin: 0; color: var(--foreground); font-size: 0.8125rem; font-weight: 650; text-transform: capitalize; }
 .dlos-penalty-results-heading p { margin: 0.125rem 0 0; color: var(--muted-foreground); font-size: 0.6875rem; }
 .dlos-penalty-results-heading > span { flex: none; color: var(--muted-foreground); font-size: 0.6875rem; font-variant-numeric: tabular-nums; }
+.dlos-decision-search { display: block; max-width: 22rem; margin-bottom: 0.75rem; color: var(--foreground); font-size: 0.75rem; font-weight: 600; }
+.dlos-decision-search input { display: block; width: 100%; min-height: 40px; margin-top: 0.375rem; padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: var(--pais-radius-control); background: var(--input); color: var(--foreground); font-size: 0.8125rem; font-weight: 400; }
 .dlos-penalty-people { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; margin: 0; padding: 0; list-style: none; }
 .dlos-penalty-person { display: flex; width: 100%; min-width: 0; min-height: 40px; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: var(--pais-radius-control); background: var(--card); color: var(--accent-foreground); font-size: 0.75rem; font-weight: 600; text-align: left; }
 .dlos-penalty-person span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dlos-penalty-person svg { flex: none; color: var(--muted-foreground); }
 .dlos-penalty-person:hover { border-color: var(--ring); background: var(--accent); }
-.dlos-filter-classification { display: flex; min-width: 0; align-items: center; gap: 0.625rem; }
-.dlos-filter-classification-label { flex: none; color: var(--muted-foreground); font-size: 0.75rem; font-weight: 600; white-space: nowrap; }
-.dlos-filter-classification-options { display: grid; width: 15rem; grid-template-columns: repeat(2, minmax(0, 1fr)); border: 1px solid var(--border); border-radius: var(--pais-radius-control); background: var(--card); }
-.dlos-filter-classification-option { position: relative; min-height: 36px; padding: 0.375rem 0.5rem; border: 0; border-radius: 0; background: transparent; color: var(--muted-foreground); font-size: 0.75rem; font-weight: 600; white-space: nowrap; }
+.dlos-filter-classification-options { display: grid; width: min(100%, 21rem); grid-template-columns: repeat(3, minmax(0, 1fr)); overflow: hidden; border: 1px solid var(--border); border-radius: var(--pais-radius-control); background: var(--card); }
+.dlos-filter-classification-option { position: relative; min-height: 44px; padding: 0.5rem; border: 0; border-radius: 0; background: transparent; color: var(--muted-foreground); font-size: 0.75rem; font-weight: 600; white-space: nowrap; }
 .dlos-filter-classification-option + .dlos-filter-classification-option { border-left: 1px solid var(--border); }
-.dlos-filter-classification-option:first-child { border-radius: calc(var(--pais-radius-control) - 1px) 0 0 calc(var(--pais-radius-control) - 1px); }
-.dlos-filter-classification-option:last-child { border-radius: 0 calc(var(--pais-radius-control) - 1px) calc(var(--pais-radius-control) - 1px) 0; }
 .dlos-filter-classification-option:hover { background: var(--accent); color: var(--foreground); }
-.dlos-filter-classification-option[aria-pressed="true"] { background: var(--accent); color: var(--accent-foreground); box-shadow: inset 0 -3px var(--color-brand-yellow-ink); }
+.dlos-filter-classification-option[aria-pressed="true"] { background: var(--accent); color: var(--accent-foreground); }
 .dlos-filter-classification-option:focus-visible { z-index: 1; outline: 2px solid var(--ring); outline-offset: -3px; }
-.dlos-filter-classification-prompt { margin: 0; color: var(--muted-foreground); font-size: 0.8125rem; }
-.dlos-filter-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.75rem; }
-.dlos-filter-grid label { display: flex; min-width: 0; flex-direction: column; gap: 0.375rem; color: var(--foreground); font-size: 0.75rem; font-weight: 600; }
-.dlos-filter-grid :is(input, select) { width: 100%; padding: 0.5rem 0.625rem; font-weight: 400; }
-.dlos-filter-grid :is(input, select):disabled { background: var(--secondary); color: var(--muted-foreground); }
-.dlos-advanced-filters { margin-top: 1rem; border-top: 1px solid var(--border); }
-.dlos-advanced-filters > summary { display: flex; min-height: 44px; align-items: center; gap: 0.5rem; cursor: pointer; color: var(--accent-foreground); font-size: 0.75rem; font-weight: 600; }
-.dlos-advanced-filters[open] > .dlos-filter-grid { padding: 0.25rem 0 0.5rem; }
-.dlos-filter-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem; }
+.dlos-filter-row { display: grid; gap: 0.75rem; }
+.dlos-filter-row + .dlos-filter-row { margin-top: 0.75rem; }
+.dlos-filter-row-four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.dlos-filter-row-three, .dlos-filter-row-last { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.dlos-filter-row label, .dlos-filter-date-range { display: flex; min-width: 0; flex-direction: column; gap: 0.375rem; color: var(--foreground); font-size: 0.75rem; font-weight: 600; }
+.dlos-filter-date-range > div { display: flex; min-width: 0; align-items: center; gap: 0.375rem; }
+.dlos-filter-date-range > div > span { flex: none; color: var(--muted-foreground); font-size: 0.6875rem; font-weight: 500; }
+.dlos-filter-row :is(input, select) { width: 100%; min-width: 0; padding: 0.5rem 0.625rem; font-weight: 400; }
+.dlos-filter-combobox { position: relative; display: block; min-width: 0; }
+.dlos-filter-combobox input { padding-right: 2rem; }
+.dlos-filter-combobox svg { position: absolute; top: 50%; right: 0.625rem; transform: translateY(-50%); pointer-events: none; color: var(--muted-foreground); }
+.dlos-filter-date-range input { flex: 1 1 0; }
+.dlos-filter-row :is(input, select):disabled { background: var(--secondary); color: var(--muted-foreground); }
+.dlos-filter-row input::placeholder { color: var(--muted-foreground); opacity: 1; }
+.dlos-filter-actions { display: flex; align-items: flex-end; justify-content: flex-end; flex-wrap: wrap; gap: 0.5rem; }
+.dlos-filter-actions > button { min-height: 40px; }
+.dlos-filter-more { margin-top: 1rem; border-top: 1px solid var(--border); }
+.dlos-filter-more summary { display: inline-flex; min-height: 40px; align-items: center; cursor: pointer; color: var(--accent-foreground); font-size: 0.75rem; font-weight: 600; }
+.dlos-filter-more summary:hover { text-decoration: underline; text-underline-offset: 3px; }
+.dlos-filter-more > .dlos-filter-row { padding: 0.25rem 0 0.5rem; }
 .dlos-list-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.875rem 1.25rem; border-bottom: 1px solid var(--border); }
-.dlos-list-toolbar strong { color: var(--foreground); font-size: 0.8125rem; font-weight: 650; font-variant-numeric: tabular-nums; }
+.dlos-list-toolbar strong { color: var(--foreground); font-size: 0.9375rem; font-weight: 650; font-variant-numeric: tabular-nums; }
 .dlos-list-heading { display: flex; flex-direction: column; gap: 0.125rem; }
 .dlos-list-heading span { color: var(--muted-foreground); font-size: 0.6875rem; }
+.dlos-list-heading .dlos-page-size-label { display: inline-flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem; color: var(--muted-foreground); font-size: 0.75rem; }
+.dlos-list-heading .dlos-page-size-label select { width: 4.5rem; min-height: 36px; padding: 0.25rem 0.5rem; border: 1px solid var(--border); border-radius: var(--pais-radius-control); background: var(--input); color: var(--foreground); }
 .dlos-list-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 0.5rem; }
 .dlos-list-controls label { color: var(--muted-foreground); font-size: 0.75rem; white-space: nowrap; }
-.dlos-list-controls select { width: auto; min-width: 0; min-height: 36px; padding: 0.375rem 0.5rem; }
+.dlos-list-controls select { width: auto; min-width: 0; min-height: 40px; padding: 0.375rem 0.5rem; border: 1px solid var(--border); border-radius: var(--pais-radius-control); background: var(--input); color: var(--foreground); }
 .dlos-list-controls .dlos-list-sort-select { width: 11rem; }
 .dlos-list-controls .dlos-list-direction-select { width: 8rem; }
 .dlos-list-controls .dlos-list-page-size-select { width: 4.5rem; }
 .dlos-table-scroll { max-width: 100%; overflow-x: auto; scrollbar-width: thin; scrollbar-color: var(--pais-line-strong) var(--muted); }
+.dlos-table-hint { display: none; margin: 0; padding: 0.625rem 0.875rem; border-bottom: 1px solid var(--border); color: var(--muted-foreground); font-size: 0.6875rem; }
 .dlos-table { border-collapse: separate; border-spacing: 0; font-variant-numeric: tabular-nums; }
-.dlos-table th { background: var(--secondary); color: var(--muted-foreground); font-weight: 650; }
+.dlos-table th { background: var(--secondary); color: var(--muted-foreground); font-weight: 650; white-space: nowrap; }
 .dlos-table th, .dlos-table td { max-width: 17rem; border-bottom: 1px solid var(--border); padding: 0.875rem; line-height: 1.5; overflow-wrap: anywhere; }
 .dlos-table td { background: var(--card); color: var(--foreground); }
 .dlos-table tbody tr:hover td { background: var(--accent); }
+.dlos-table tbody tr { vertical-align: top; }
+.dlos-table td:first-child strong { display: block; font-weight: 650; }
+.dlos-table td:first-child small { display: block; margin-top: 0.25rem; color: var(--muted-foreground); font-size: 0.6875rem; }
+.dlos-table th:first-child { position: sticky; left: 0; z-index: 2; box-shadow: 1px 0 0 var(--border); }
 .dlos-table td:first-child { position: sticky; left: 0; z-index: 1; min-width: 9rem; box-shadow: 1px 0 0 var(--border); }
-.dlos-table td:first-child > div { color: var(--muted-foreground); }
-.dlos-table details { min-width: 9rem; }
-.dlos-table summary { cursor: pointer; color: var(--accent-foreground); font-weight: 600; }
-.dlos-table details > div { margin-top: 0.5rem; border: 1px solid var(--border); border-radius: var(--pais-radius-control); background: var(--card); }
-.dlos-table details button { min-height: 36px; white-space: normal !important; color: var(--foreground); }
-.dlos-table details button:hover { background: var(--accent); }
-.dlos-table details button:disabled { color: var(--muted-foreground); }
+.dlos-case-status { display: inline-block; max-width: 100%; padding: 0.25rem 0.5rem; border: 1px solid var(--border); border-radius: var(--pais-radius-control); background: var(--secondary); color: var(--foreground); font-size: 0.6875rem; font-weight: 600; }
+.dlos-row-actions { display: flex; min-width: 12rem; flex-direction: column; align-items: stretch; gap: 0.375rem; }
+.dlos-row-actions button, .dlos-row-actions select { min-height: 36px; border: 1px solid var(--border); border-radius: var(--pais-radius-control); background: var(--card); color: var(--accent-foreground); font-size: 0.75rem; font-weight: 600; }
+.dlos-row-actions button { padding: 0.375rem 0.625rem; text-align: left; }
+.dlos-row-actions select { width: 100%; padding: 0.375rem 0.5rem; }
+.dlos-row-actions :is(button, select):hover { border-color: var(--ring); background: var(--accent); }
 .dlos-list-pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 0.75rem; padding: 0.875rem 1.25rem; color: var(--muted-foreground); font-size: 0.75rem; font-variant-numeric: tabular-nums; }
 .dlos-page [role="dialog"] :is(label, h4, strong) { color: var(--foreground); }
 .dlos-page [role="dialog"] :is(.text-slate-500, .text-slate-600) { color: var(--muted-foreground); }
 .dlos-page [role="dialog"] :is(.text-slate-700, .text-slate-900) { color: var(--foreground); }
 .dlos-page [role="dialog"] .bg-slate-50 { background: var(--secondary); }
 .dlos-page [role="dialog"] .border-slate-200 { border-color: var(--border); }
+.dlos-case-tabs { display: flex; flex-wrap: wrap; gap: 0.375rem; border-bottom: 1px solid var(--border); padding-bottom: 0.625rem; }
+.dlos-case-tab { min-height: 40px; padding: 0.5rem 0.75rem; border: 1px solid transparent; border-radius: var(--pais-radius-control); background: transparent; color: var(--muted-foreground); font-size: 0.75rem; font-weight: 600; }
+.dlos-case-tab:hover { background: var(--accent); color: var(--foreground); }
+.dlos-case-tab[aria-pressed="true"] { border-color: var(--border); background: var(--accent); color: var(--accent-foreground); }
 .dlos-access-surface { overflow: hidden; border: 1px solid var(--border); border-radius: var(--pais-radius-panel); background: var(--card); color: var(--foreground); }
 .dlos-access-toolbar { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 0.75rem; padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); }
 .dlos-access-toolbar label { min-width: min(100%, 20rem); color: var(--foreground); }
 .dlos-access-toolbar input, .dlos-access-table select { min-height: 40px; border: 1px solid var(--border); border-radius: var(--pais-radius-control); background: var(--input); color: var(--foreground); }
+.dlos-access-toolbar input { width: 100%; }
 .dlos-access-toolbar > span { color: var(--muted-foreground); font-size: 0.75rem; font-variant-numeric: tabular-nums; }
 .dlos-access-table th, .dlos-access-table td { padding: 0.875rem 1.25rem; border-bottom: 1px solid var(--border); }
 .dlos-access-table th { background: var(--secondary); color: var(--muted-foreground); font-size: 0.6875rem; font-weight: 650; }
 .dlos-access-table td { color: var(--foreground); font-size: 0.75rem; }
 .dlos-access-table td span { color: var(--muted-foreground); }
 .dlos-access-table tr:hover td { background: var(--accent); }
-.dlos-access-table select { min-width: 9rem; padding: 0.5rem 0.625rem; }
+.dlos-access-table { min-width: 36rem; }
+.dlos-access-table td:first-child { overflow-wrap: anywhere; }
+.dlos-access-table select { width: 100%; min-width: 9rem; padding: 0.5rem 0.625rem; }
 .dlos-access-page [role="dialog"] label { color: var(--foreground); }
+.dlos-workflow-sidebar-heading { background: var(--sidebar-bg); color: #fff; }
 
 @media (max-width: 900px) {
-  .dlos-filter-header { grid-template-columns: 1fr; }
   .dlos-year-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .dlos-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dlos-filter-row-four, .dlos-filter-row-three, .dlos-filter-row-last { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dlos-filter-actions { justify-content: flex-start; }
 }
 @media (max-width: 639px) {
-  .dlos-picker-heading, .dlos-filter-header, .dlos-picker-body, .dlos-filter-body { padding-inline: 1rem; }
-  .dlos-filter-header { align-items: stretch; }
+  .dlos-table-hint { display: block; }
+  .dlos-picker-heading, .dlos-filter-header, .dlos-picker-body { padding-inline: 1rem; }
+  .dlos-filter-body { margin-inline: 1rem; }
+  .dlos-filter-header { flex-direction: column; align-items: stretch; }
+  .dlos-filter-classification-options { width: 100%; }
   .dlos-penalty-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .dlos-penalty-people { grid-template-columns: 1fr; }
-  .dlos-year-grid, .dlos-month-grid, .dlos-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dlos-year-grid, .dlos-month-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dlos-filter-row-last .dlos-filter-date-range { grid-column: 1 / -1; }
+  .dlos-filter-row-last .dlos-filter-actions { grid-column: 1 / -1; }
   .dlos-list-toolbar { align-items: flex-start; }
-  .dlos-list-controls { justify-content: flex-start; }
+  .dlos-list-controls { justify-content: flex-start; width: 100%; }
   .dlos-list-controls .dlos-list-sort-select { width: 9rem; }
   .dlos-list-controls .dlos-list-direction-select { width: 7.5rem; }
-  .dlos-list-controls .dlos-list-page-size-select { width: 4rem; }
-  .dlos-filter-classification { width: 100%; }
-  .dlos-filter-classification-options { width: min(15rem, calc(100% - 4.5rem)); }
+  .dlos-month-toolbar-hint { flex-basis: 100%; }
+  .dlos-access-toolbar > span { width: 100%; }
 }
 @media (max-width: 420px) {
-  .dlos-year-grid, .dlos-month-grid, .dlos-filter-grid { grid-template-columns: 1fr; }
+  .dlos-year-grid, .dlos-month-grid, .dlos-filter-row-four, .dlos-filter-row-three, .dlos-filter-row-last { grid-template-columns: 1fr; }
+  .dlos-filter-row-last .dlos-filter-date-range { grid-column: auto; }
+  .dlos-filter-actions { grid-column: auto; }
   .dlos-list-controls .dlos-list-sort-select { width: 8rem; }
 }
 @media (prefers-reduced-motion: reduce) {

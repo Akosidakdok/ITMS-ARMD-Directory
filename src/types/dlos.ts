@@ -1,4 +1,5 @@
 export type DlosClassification = 'grave' | 'less_grave';
+export type DlosCaseView = DlosClassification | 'all';
 export type DlosRole = 'viewer' | 'encoder' | 'reviewer';
 export type DlosStatus = string;
 export type DlosConfirmation = 'not_applicable' | 'pending' | 'confirmed' | 'not_confirmed';

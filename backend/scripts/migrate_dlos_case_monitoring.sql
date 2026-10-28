@@ -533,7 +533,7 @@ create or replace function public.dlos_search_cases(
   with filtered as (
     select c.* from public.dlos_cases c
     where c."archivedAt" is null
-      and c.classification = p_classification
+      and (p_classification = 'all' or c.classification = p_classification)
       and c."caseDate" >= make_date(p_year, p_month, 1)
       and c."caseDate" < (make_date(p_year, p_month, 1) + interval '1 month')::date
       and (coalesce(p_filters->>'docketNumber', '') = '' or position(lower(p_filters->>'docketNumber') in lower(c."docketNumber")) > 0)

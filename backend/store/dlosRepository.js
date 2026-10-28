@@ -46,7 +46,7 @@ export const enrichDlosCase = item => {
 
 export const getDlosOptions = async () => result(await client().rpc('dlos_case_options')) || [];
 
-export const getDlosPenaltyDirectory = async () => {
+export const getDlosPenaltyDirectory = async year => {
   const db = client();
   const readAll = async buildQuery => {
     const rows = [];
@@ -64,7 +64,8 @@ export const getDlosPenaltyDirectory = async () => {
   for (let start = 0; start < caseIds.length; start += 200) {
     cases.push(...(result(await db.from('dlos_cases')
       .select('id,docketNumber,people:dlos_case_personnel(id,role,nameSnapshot)')
-      .in('id', caseIds.slice(start, start + 200)).is('archivedAt', null)) || []));
+      .in('id', caseIds.slice(start, start + 200)).is('archivedAt', null)
+      .gte('caseDate', `${year}-01-01`).lte('caseDate', `${year}-12-31`)) || []));
   }
   const casesById = new Map(cases.map(row => [row.id, row]));
   const implementations = new Map(workflows.filter(row => row.stepKey === 'implementation').map(row => [`${row.caseId}:${row.respondentKey}`, row.fields || {}]));
