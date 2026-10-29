@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { Check, ChevronRight, Download, FileText, Pencil, Search } from 'lucide-react';
+import { Check, CircleDot, Download, FileText, ListChecks, Pencil, Search } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/SystemUI';
 import { useAuthRole } from '../../context/AuthRoleContext';
-import { downloadDlosDocument, runDlosAction, saveDlosWorkflow } from '../../services/dlosApi';
+import { downloadDlosDocument, fetchDlosDocumentBlob, runDlosAction, saveDlosWorkflow } from '../../services/dlosApi';
 import type { DlosCase, DlosCaseDocument, DlosWorkflowRecord } from '../../types/dlos';
 import { DLOS_STATUS_LABELS } from './dlosStatuses';
 
-type Field = { key: string; label: string; type?: 'date' | 'textarea' | 'respondent' | 'category' };
+type Field = { key: string; label: string; type?: 'date' | 'textarea' | 'respondent' | 'category' | 'choice' };
 type Step = { key: string; label: string; fields: Field[]; files: { key: string; label: string }[]; note?: string };
 const steps: Step[] = [
   { key: 'roi', label: 'Submission of ROI from SHO', fields: [
@@ -18,22 +18,20 @@ const steps: Step[] = [
     { key: 'resolutionDate', label: 'Resolution date', type: 'date' }
   ], files: [{ key: 'resolution', label: 'Resolution' }] },
   { key: 'decision', label: 'Decision', fields: [
-    { key: 'liability', label: 'Administrative liability', type: 'textarea' },
-    { key: 'penalty', label: 'Penalty', type: 'textarea' },
     { key: 'decisionDate', label: 'Date of decision of DA', type: 'date' },
-    { key: 'authority', label: 'Disciplinary Authority (DA)' }
+    { key: 'authority', label: 'Disciplinary Authority (DA)', type: 'choice' }
   ], files: [{ key: 'decision', label: 'Decision of DA' }] },
   { key: 'decision_resolution', label: 'Resolution of Decision', note: 'For 3rd level officers only', fields: [
     { key: 'resolutionDate', label: 'Resolution date', type: 'date' }
   ], files: [{ key: 'resolution', label: 'Resolution of decision' }] },
   { key: 'decision_service', label: 'Proof of Service From Receipt of Decision', fields: [
-    { key: 'proofType', label: 'Proof of Service (POS) of Decision' },
+    { key: 'proofType', label: 'Proof of Service (POS) of Decision', type: 'choice' },
     { key: 'receivedDate', label: 'Date received', type: 'date' }
   ], files: [{ key: 'proof', label: 'Proof of service' }] },
   { key: 'mr_resolution', label: 'Resolution of Motion for Reconsideration (MR)', fields: [
     { key: 'filedDate', label: 'Date MR filed', type: 'date' },
     { key: 'resolutionDate', label: 'Date of resolution of DA', type: 'date' },
-    { key: 'resolution', label: 'Resolution' }
+    { key: 'resolution', label: 'Resolution', type: 'choice' }
   ], files: [{ key: 'mr_resolution', label: 'Copy of MR and resolution of DA' }] },
   { key: 'mr_service', label: 'Proof of Service of MR', fields: [
     { key: 'serviceDate', label: 'Date of service', type: 'date' }
@@ -55,6 +53,28 @@ const shoStep: Step = { key: 'sho_amendment', label: 'Amendment / Change of Desi
 const inputClass = 'mt-1 min-h-11 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100 sm:text-sm';
 const shoInputClass = 'mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100';
 const fileAccept = '.pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp';
+const choiceOptions: Record<string, string[]> = {
+  authority: ['Chief, PNP', 'Regional Director', 'Director, IAS', 'Inspector General'],
+  proofType: ['Personal service', 'Registered mail', 'Courier service', 'Electronic service'],
+  resolution: ['Granted', 'Denied', 'Partially granted', 'Dismissed']
+};
+
+const WorkflowChoice = ({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (value: string) => void }) => {
+  const [custom, setCustom] = useState(false);
+  const known = options.includes(value);
+  return <label>{label}
+    <select className={inputClass} value={custom ? '__custom__' : value} onChange={event => {
+      if (event.target.value === '__custom__') { setCustom(true); onChange(''); }
+      else { setCustom(false); onChange(event.target.value); }
+    }}>
+      <option value="">Select an option</option>
+      {!custom && value && !known && <option value={value}>{value}</option>}
+      {options.map(option => <option key={option} value={option}>{option}</option>)}
+      <option value="__custom__">Other (specify)</option>
+    </select>
+    {custom && <input className={inputClass} autoFocus maxLength={2000} aria-label={`Other ${label}`} placeholder="Specify value" value={value} onChange={event => onChange(event.target.value)} />}
+  </label>;
+};
 type WorkflowStepDraft = { fields: Record<string, string>; files: Record<string, File>; noDocument: boolean };
 const workflowDraftKey = (caseId: string, stepKey: string, respondentKey = '') =>
   `${caseId}:${stepKey}${stepKey === 'implementation' ? `:${respondentKey || 'unselected'}` : ''}`;
@@ -70,13 +90,19 @@ interface Props {
 }
 
 export const DlosWorkflowDialog = ({ item, records, documents, initialStep, onClose, onSaved, onEditCase }: Props) => {
-  const { personnelList } = useAuthRole();
+  const { personnelList, authUser } = useAuthRole();
   const [stepKey, setStepKey] = useState(initialStep || steps[0].key);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [implementationEditing, setImplementationEditing] = useState(false);
+  const [attachmentsOpen, setAttachmentsOpen] = useState(false);
   const [fields, setFields] = useState<Record<string, string>>({});
   const [files, setFiles] = useState<Record<string, File>>({});
   const [noDocument, setNoDocument] = useState(false);
   const [shoSearch, setShoSearch] = useState('');
+  const [shoSearchActive, setShoSearchActive] = useState(false);
+  const [decisionFieldsOpen, setDecisionFieldsOpen] = useState(false);
   const [memorandumPreview, setMemorandumPreview] = useState('');
+  const [savedMemorandumPreview, setSavedMemorandumPreview] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [statusSelection, setStatusSelection] = useState('');
@@ -84,6 +110,10 @@ export const DlosWorkflowDialog = ({ item, records, documents, initialStep, onCl
   const [statusEditorOpen, setStatusEditorOpen] = useState(false);
   const draftCacheRef = useRef<Record<string, WorkflowStepDraft>>({});
   const lastImplementationRespondentRef = useRef<Record<string, string>>({});
+  const formRef = useRef<HTMLFormElement>(null);
+  const rosterRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const lastDetailTriggerRef = useRef<HTMLButtonElement>(null);
   const step = initialStep ? shoStep : steps.find(entry => entry.key === stepKey) || steps[0];
   const respondents = item?.people.filter(person => person.role === 'respondent') || [];
   const selectedRecord = records.find(record => record.stepKey === step.key && (step.key !== 'implementation' || record.respondentKey === fields.respondentKey));
@@ -133,12 +163,41 @@ export const DlosWorkflowDialog = ({ item, records, documents, initialStep, onCl
   }, [item?.id, stepKey, initialStep, records]);
   useEffect(() => { setStatusSelection(item?.caseStatus || ''); setStatusReason(''); setStatusEditorOpen(false); }, [item?.id, item?.caseStatus]);
   useEffect(() => {
+    setDetailOpen(false);
+    setImplementationEditing(false);
+    setAttachmentsOpen(false);
+    if (item?.id && !initialStep) {
+      setStepKey(steps[0].key);
+      if (listRef.current) listRef.current.scrollTop = 0;
+    }
+  }, [item?.id, initialStep]);
+  useEffect(() => {
+    if (!detailOpen) return;
+    const frame = window.requestAnimationFrame(() => {
+      (formRef.current?.querySelector<HTMLElement>('input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled])')
+        || rosterRef.current?.querySelector<HTMLElement>('button:not([disabled])'))?.focus();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [detailOpen, stepKey, implementationEditing]);
+  useEffect(() => {
     const file = files.memorandum;
     if (!file) { setMemorandumPreview(''); return; }
     const url = URL.createObjectURL(file);
     setMemorandumPreview(url);
     return () => URL.revokeObjectURL(url);
   }, [files.memorandum]);
+  const savedMemorandum = initialStep ? stepDocuments[0] : undefined;
+  useEffect(() => {
+    if (!initialStep || !item || !savedMemorandum || files.memorandum) { setSavedMemorandumPreview(''); return; }
+    let cancelled = false;
+    let url = '';
+    void fetchDlosDocumentBlob(item, savedMemorandum).then(blob => {
+      if (cancelled) return;
+      url = URL.createObjectURL(blob);
+      setSavedMemorandumPreview(url);
+    }).catch(() => { if (!cancelled) setSavedMemorandumPreview(''); });
+    return () => { cancelled = true; if (url) URL.revokeObjectURL(url); };
+  }, [initialStep, item?.id, savedMemorandum?.id, files.memorandum]);
 
   const cacheCurrentDraft = () => {
     if (!item) return;
@@ -150,9 +209,25 @@ export const DlosWorkflowDialog = ({ item, records, documents, initialStep, onCl
     if (nextStepKey === stepKey) return;
     cacheCurrentDraft();
     setStepKey(nextStepKey);
+    setAttachmentsOpen(false);
+  };
+  const openStep = (nextStepKey: string) => {
+    selectStep(nextStepKey);
+    setDecisionFieldsOpen(false);
+    setImplementationEditing(false);
+    setDetailOpen(true);
+  };
+  const closeDetail = () => {
+    cacheCurrentDraft();
+    setDetailOpen(false);
+    setImplementationEditing(false);
+    setAttachmentsOpen(false);
+    setError('');
+    window.requestAnimationFrame(() => lastDetailTriggerRef.current?.focus());
   };
   const closeDialog = () => {
     if (busy) return;
+    if (detailOpen && !initialStep) { closeDetail(); return; }
     cacheCurrentDraft();
     onClose();
   };
@@ -174,6 +249,11 @@ export const DlosWorkflowDialog = ({ item, records, documents, initialStep, onCl
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (!item || busy) return;
+    if (step.key === 'decision' && (!fields.liability?.trim() || !fields.penalty?.trim())) {
+      setDecisionFieldsOpen(true);
+      setError('Set administrative liability and penalty before submitting the decision.');
+      return;
+    }
     setBusy(true); setError('');
     try {
       for (const file of Object.values(files)) if (file.size > 10 * 1024 * 1024) throw new Error('Each PDF or image must be 10 MB or smaller.');
@@ -196,108 +276,140 @@ export const DlosWorkflowDialog = ({ item, records, documents, initialStep, onCl
     finally { setBusy(false); }
   };
 
+  const showingForm = Boolean(initialStep || detailOpen && (step.key !== 'implementation' || implementationEditing));
+  const roleLabel = authUser?.dlosRole === 'reviewer' ? 'Reviewer' : 'Encoder';
+
   return <Modal isOpen={item !== null} onClose={closeDialog}
-    title={initialStep ? shoStep.label : 'Case Updates'} subtitle={item?.docketNumber} maxWidth="4xl">
-    <div className={`-m-4 min-w-0 bg-white sm:-m-5 ${initialStep ? '' : 'lg:grid lg:h-[min(76vh,44rem)] lg:min-h-[30rem] lg:grid-cols-[19rem_minmax(0,1fr)]'}`}>
-      {!initialStep && <aside className="flex min-w-0 flex-col border-b border-slate-300 bg-slate-50 lg:min-h-0 lg:border-b-0 lg:border-r">
-        <div className="dlos-workflow-sidebar-heading flex items-center justify-between gap-3 px-4 py-3">
-          <h3 className="text-sm font-semibold">Workflow steps</h3>
-          <span className="text-xs text-slate-200">{completedStepCount} of {steps.length} saved</span>
-        </div>
-        <section className="border-b border-slate-200 bg-white px-4 py-3">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Current case status</p>
-              <span className="mt-1 inline-flex max-w-full rounded-sm bg-slate-600 px-2 py-1 text-xs font-semibold leading-snug text-white">{item?.caseStatus}</span>
+    title={initialStep ? shoStep.label : 'Case Updates'}
+    subtitle={initialStep ? item?.docketNumber : undefined}
+    maxWidth={initialStep ? '4xl' : 'lg'}
+    closeLabel="Close case updates"
+    headerInert={detailOpen}
+    panelClassName={initialStep ? 'dlos-sho-modal' : 'dlos-workflow-modal'}
+    bodyClassName={initialStep ? 'dlos-sho-modal-body' : 'dlos-workflow-modal-body'}
+    headerContent={initialStep ? undefined : <div className="dlos-workflow-header">
+      <span className="dlos-workflow-header-icon" aria-hidden="true"><ListChecks size={19} /></span>
+      <div className="dlos-workflow-header-copy">
+        <span>Case updates</span>
+        <strong>{'Docket No.: ' + (item?.docketNumber || '')}</strong>
+      </div>
+      <span className="dlos-workflow-role">For Updating by DLOS {roleLabel}</span>
+    </div>}
+    footer={!initialStep && <button type="button" className="dlos-workflow-close" disabled={busy || detailOpen} onClick={closeDialog}>Close</button>}>
+    {!initialStep && <div ref={listRef} className="dlos-workflow-list" inert={detailOpen} aria-hidden={detailOpen}>
+      <div className="dlos-workflow-timeline" role="list" aria-label="Case update steps">
+        {stepSummaries.map(({ entry, complete, detailState, documentState }) => <div className="dlos-workflow-row" role="listitem" key={entry.key}>
+          <span className={'dlos-workflow-marker' + (complete ? ' is-complete' : '')} aria-hidden="true">{complete ? <Check size={11} /> : <CircleDot size={10} />}</span>
+          <div className="dlos-workflow-card">
+            <div className="dlos-workflow-card-copy">
+              <strong>{entry.label}</strong>
+              {entry.note && <span className="dlos-workflow-note">{entry.note}</span>}
+              <span className="dlos-workflow-file-state">{documentState}</span>
+              {complete && <span className="dlos-workflow-saved">{detailState}</span>}
+              {entry.key === step.key && hasUnsavedChanges && <span className="dlos-workflow-unsaved">Unsaved changes</span>}
             </div>
-            <button type="button" aria-expanded={statusEditorOpen} onClick={() => setStatusEditorOpen(open => !open)}
-              className="inline-flex min-h-10 shrink-0 items-center rounded-md px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
-              {statusEditorOpen ? 'Close' : 'Change'}
-            </button>
+            <button type="button" className="dlos-workflow-details" onClick={event => { lastDetailTriggerRef.current = event.currentTarget; openStep(entry.key); }}
+              aria-label={'Details for ' + entry.label}><Pencil size={12} aria-hidden="true" /> Details</button>
           </div>
-          {statusEditorOpen && <div className="mt-3 space-y-3 border-t border-slate-200 pt-3">
-            <label className="block text-xs font-semibold text-slate-700">New case status<select className={inputClass} value={statusSelection} onChange={event => setStatusSelection(event.target.value)}>
-              {!DLOS_STATUS_LABELS.includes(item?.caseStatus as typeof DLOS_STATUS_LABELS[number]) && <option value={item?.caseStatus}>{item?.caseStatus}</option>}
-              {DLOS_STATUS_LABELS.map(status => <option key={status} value={status}>{status}</option>)}
-            </select></label>
-            <label className="block text-xs font-semibold text-slate-700">Reason for status change<input className={inputClass} maxLength={500} value={statusReason} onChange={event => setStatusReason(event.target.value)} /></label>
-            <div className="flex justify-end"><Button type="button" disabled={busy || !statusReason.trim() || statusSelection === item?.caseStatus} onClick={() => void changeStatus()}>Save status</Button></div>
-          </div>}
-        </section>
-        <nav aria-label="Case update steps" className="hidden divide-y divide-slate-200 overflow-y-auto lg:block lg:min-h-0 lg:flex-1">
-          {stepSummaries.map(({ entry, index, complete, detailState, documentState }) => {
-            const isSelected = entry.key === step.key;
-            return <button key={entry.key} type="button" aria-current={isSelected ? 'step' : undefined} onClick={() => selectStep(entry.key)}
-              className={`group flex w-full items-center gap-3 px-3 py-3 text-left focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-blue-700 ${isSelected ? 'bg-[#fff7d6] text-[#172b4d]' : 'bg-white text-slate-800 hover:bg-slate-100'}`}>
-              <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-sm border text-xs font-semibold ${isSelected ? 'border-[#d8ad24] bg-[#f4c542] text-[#172b4d]' : complete ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-slate-300 bg-white text-slate-500'}`}>{complete ? <Check size={14} aria-label="Saved" /> : index + 1}</span>
-              <span className="min-w-0 flex-1">
-                <strong className="block text-xs font-semibold leading-snug">{entry.label}</strong>
-                {entry.note && <small className="mt-0.5 block text-[11px] text-slate-500">{entry.note}</small>}
-                <span className="mt-1 block text-[11px] text-slate-500">{isSelected && hasUnsavedChanges ? 'Unsaved changes' : detailState} <span aria-hidden="true">·</span> {documentState}</span>
-              </span>
-              <span className={`inline-flex shrink-0 items-center gap-1 text-[11px] font-semibold ${isSelected ? 'text-[#172b4d]' : 'text-blue-700'}`}>Details<ChevronRight size={14} /></span>
-            </button>;
-          })}
-        </nav>
-        <button type="button" className="flex min-h-11 items-center gap-2 border-t border-slate-200 bg-white px-4 py-3 text-left text-xs font-semibold text-blue-700 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-blue-700" onClick={() => { cacheCurrentDraft(); onEditCase(); }}>
-          <Pencil size={14} /> Edit case fields and dated notes
-        </button>
-      </aside>}
-      {!initialStep && <div className="space-y-2 border-b border-slate-200 bg-white px-4 py-3 lg:hidden">
-        <label className="block text-xs font-semibold text-slate-700">Choose a case update step<select className={inputClass} value={stepKey} onChange={event => selectStep(event.target.value)}>
-          {stepSummaries.map(({ entry, index, complete }) => <option key={entry.key} value={entry.key}>{index + 1}. {entry.label} · {entry.key === step.key && hasUnsavedChanges ? 'Unsaved' : complete ? 'Saved' : 'Pending'}</option>)}
-        </select></label>
-        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-slate-500">
-          <span>{completedStepCount} of {steps.length} details saved</span><span>{attachedStepDocumentCount} files attached</span>
+        </div>)}
+      </div>
+      <section className="dlos-workflow-management" aria-label="Case management">
+        <div className="dlos-workflow-management-top">
+          <div><span className="dlos-workflow-eyebrow">Current case status</span><strong>{item?.caseStatus}</strong></div>
+          <button type="button" className="dlos-workflow-text-button" aria-expanded={statusEditorOpen} onClick={() => setStatusEditorOpen(open => !open)}>{statusEditorOpen ? 'Cancel' : 'Change status'}</button>
         </div>
-      </div>}
-      <form onSubmit={submit} className={`min-w-0 space-y-5 p-4 sm:p-6 ${initialStep ? '' : 'lg:h-full lg:overflow-y-auto'}`}>
-        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 pb-4">
-          <div className="min-w-0">
-            <h3 className="text-lg font-semibold leading-snug text-slate-900">{step.label}</h3>
-            {step.note && <p className="mt-1 text-sm text-slate-500">{step.note}</p>}
-            {selectedRecord && <p className="mt-2 text-xs text-slate-500">Last saved by {selectedRecord.actorName} on {new Date(selectedRecord.updatedAt).toLocaleString('en-PH')}</p>}
-          </div>
-          {hasUnsavedChanges ? <span className="inline-flex shrink-0 items-center gap-1.5 rounded-sm bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-900">Unsaved changes</span> : selectedRecord && <span className="inline-flex shrink-0 items-center gap-1.5 rounded-sm bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-800"><Check size={13} /> Details saved</span>}
-        </div>
-        {error && <p role="alert" className="rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{error}</p>}
-        {initialStep && <div className="space-y-2 rounded-xl border border-slate-200 p-4">
-          <label className="block text-sm font-semibold">Search new SHO<input className={shoInputClass} type="search" value={shoSearch} onChange={event => setShoSearch(event.target.value)} placeholder="Rank or name" /></label>
-          <div className="max-h-36 space-y-1 overflow-y-auto">{matchingPersonnel.map(person => <button key={person.id} type="button" className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-blue-50" onClick={() => setFields(current => ({ ...current, shoName: `${person.rank || ''} ${person.fullName}`.trim(), shoPersonnelId: person.id }))}><Search size={13} />{person.rank} {person.fullName}</button>)}</div>
-          <label className="block text-sm font-semibold">Selected SHO<input className={shoInputClass} required maxLength={160} value={fields.shoName || ''} onChange={event => setFields(current => ({ ...current, shoName: event.target.value, shoPersonnelId: '' }))} /></label>
+        {statusEditorOpen && <div className="dlos-workflow-status-editor">
+          <label>New case status<select className={inputClass} value={statusSelection} onChange={event => setStatusSelection(event.target.value)}>
+            {!DLOS_STATUS_LABELS.includes(item?.caseStatus as typeof DLOS_STATUS_LABELS[number]) && <option value={item?.caseStatus}>{item?.caseStatus}</option>}
+            {DLOS_STATUS_LABELS.map(status => <option key={status} value={status}>{status}</option>)}
+          </select></label>
+          <label>Reason for status change<input className={inputClass} maxLength={500} value={statusReason} onChange={event => setStatusReason(event.target.value)} /></label>
+          {error && <p role="alert" className="dlos-workflow-error">{error}</p>}
+          <Button type="button" disabled={busy || !statusReason.trim() || statusSelection === item?.caseStatus} onClick={() => void changeStatus()}>Save status</Button>
         </div>}
-        <section className="space-y-3">
-          {!initialStep && <><h4 className="border-b border-slate-200 pb-2 text-sm font-semibold text-slate-800">Details</h4><p className="-mt-1 text-xs leading-relaxed text-slate-500">Save this step to record changes. Unsaved edits stay available while you switch steps or close and reopen this dialog.</p></>}
-          <div className="grid gap-4 sm:grid-cols-2">{step.fields.map(field => <label key={field.key} className={`block text-sm font-semibold text-slate-700 ${field.type === 'textarea' ? 'sm:col-span-2' : ''}`}>{field.label}
-            {field.type === 'respondent' ? <select className={initialStep ? shoInputClass : inputClass} required value={fields[field.key] || ''} onChange={event => setField(field.key, event.target.value)}><option value="">Select respondent</option>{respondents.map(person => <option key={person.id} value={person.id}>{person.rank} {person.nameSnapshot} · {person.status || 'No status'}</option>)}</select>
-              : field.type === 'category' ? <select className={initialStep ? shoInputClass : inputClass} value={fields[field.key] || ''} onChange={event => setField(field.key, event.target.value)}><option value="">Select category</option><option value="suspension">Suspension</option><option value="demotion">Demotion</option><option value="dismissal">Dismissal</option><option value="exonerated">Exonerated</option></select>
-              : field.type === 'textarea' ? <textarea className={initialStep ? shoInputClass : inputClass} rows={3} maxLength={2000} value={fields[field.key] || ''} onChange={event => setField(field.key, event.target.value)} />
-                : <input className={initialStep ? shoInputClass : inputClass} type={field.type === 'date' ? 'date' : 'text'} maxLength={2000} value={fields[field.key] || ''} onChange={event => setField(field.key, event.target.value)} />}
-          </label>)}</div>
-        </section>
-        <section className="space-y-3 border-t border-slate-200 pt-4">
-          {initialStep ? <h4 className="flex items-center gap-2 text-sm font-semibold"><FileText size={16} /> Documents</h4> : <div className="flex flex-wrap items-center justify-between gap-3">
-            <h4 className="flex items-center gap-2 text-sm font-semibold text-slate-800"><FileText size={16} className="text-blue-700" /> Supporting documents</h4>
-            <label className="inline-flex min-h-11 items-center gap-2 py-2 text-xs font-medium text-slate-700"><input className="accent-blue-700" type="checkbox" checked={noDocument} onChange={event => { setNoDocument(event.target.checked); if (event.target.checked) setFiles({}); }} />No document available</label>
-          </div>}
-          <div className={initialStep ? 'space-y-3' : 'grid gap-3 sm:grid-cols-2'}>
-            {step.files.map(slot => <label key={slot.key} className={initialStep ? 'block text-sm font-medium text-slate-700' : `block border border-slate-200 bg-slate-50 p-3 ${noDocument ? 'opacity-60' : ''}`}>
-              <span className={initialStep ? '' : 'block text-xs font-semibold text-slate-700'}>{slot.label}</span>
-              <input key={`${step.key}-${noDocument ? 'none' : 'file'}`} className={initialStep ? shoInputClass : 'mt-2 block min-h-11 w-full min-w-0 text-xs text-slate-600 file:mr-2 file:rounded-sm file:border-0 file:bg-white file:px-2 file:py-1.5 file:font-semibold file:text-blue-700 hover:file:bg-slate-100'} type="file" accept={fileAccept} disabled={noDocument} onChange={event => { const chosen = event.target.files?.[0]; if (chosen) setNoDocument(false); setFiles(current => { const next = { ...current }; if (chosen) next[slot.key] = chosen; else delete next[slot.key]; return next; }); }} />
-              {!initialStep && files[slot.key] && <span className="mt-2 block truncate text-[11px] text-slate-500">Selected: {files[slot.key].name}</span>}
-            </label>)}
-          </div>
-          {initialStep && <label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={noDocument} onChange={event => { setNoDocument(event.target.checked); if (event.target.checked) setFiles({}); }} />No document available</label>}
-          {initialStep && memorandumPreview && (files.memorandum?.type.startsWith('image/') ? <img src={memorandumPreview} alt="Selected memorandum preview" className="max-h-64 rounded-lg border object-contain" /> : <iframe src={memorandumPreview} title="Selected memorandum preview" className="h-64 w-full rounded-lg border" />)}
-          {stepDocuments.length > 0 && <div className={initialStep ? 'space-y-1 rounded-lg bg-slate-50 p-3' : 'overflow-hidden border border-slate-200'}>
-            <h5 className={initialStep ? 'text-xs text-slate-600' : 'bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700'}>{initialStep ? 'Previous files' : 'Files already on record'}</h5>
-            {stepDocuments.map(file => <button key={file.id} type="button" className={initialStep ? 'block text-left text-sm text-blue-700 underline' : 'flex w-full items-center gap-2 border-t border-slate-200 bg-white px-3 py-2 text-left text-xs text-blue-700 hover:bg-blue-50'} onClick={() => void downloadDlosDocument(item!, file).catch(cause => setError(cause instanceof Error ? cause.message : 'Download failed.'))}>
-              {initialStep ? `${file.fileRole || file.kind} · ${file.fileName}` : <><Download size={14} className="shrink-0" /><span className="min-w-0 flex-1 truncate">{file.fileRole || file.kind} · {file.fileName}</span><span className="shrink-0 text-[11px] text-slate-500">{file.documentDate || ''}</span></>}
-            </button>)}
-          </div>}
-        </section>
-        <div className="flex justify-end gap-2 border-t border-slate-200 pt-4"><Button type="button" onClick={closeDialog} disabled={busy}>Close</Button><Button type="submit" variant="primary" disabled={busy}>{busy ? 'Saving…' : initialStep ? 'Save step' : 'Save details'}</Button></div>
-      </form>
-    </div>
+        <div className="dlos-workflow-management-bottom">
+          <span>{completedStepCount} of {steps.length} updates saved · {attachedStepDocumentCount} files attached</span>
+          <button type="button" className="dlos-workflow-text-button" onClick={() => { cacheCurrentDraft(); onEditCase(); }}><Pencil size={13} /> Edit case fields and notes</button>
+        </div>
+      </section>
+    </div>}
+    {(detailOpen || initialStep) && <div className={initialStep ? 'dlos-workflow-sho-content' : 'dlos-workflow-detail-layer'} onMouseDown={event => { if (detailOpen && !busy && event.target === event.currentTarget) closeDetail(); }}>
+      <div className={initialStep ? 'dlos-workflow-sho-content' : 'dlos-workflow-detail-panel'} role={initialStep ? undefined : 'group'} aria-label={initialStep ? undefined : step.label}>
+    {!initialStep && <div className="dlos-workflow-detail-header">
+      <span className="dlos-workflow-header-icon" aria-hidden="true"><FileText size={19} /></span>
+      <div className="dlos-workflow-header-copy"><span>Case updates</span><strong>{step.label}</strong></div>
+      <button type="button" aria-label="Close update details" disabled={busy} onClick={closeDetail}>×</button>
+    </div>}
+    {!initialStep && detailOpen && step.key === 'implementation' && !implementationEditing && <div ref={rosterRef} className="dlos-workflow-roster">
+      <p>Choose a respondent to record the implementation order.</p>
+      {respondents.length ? <div className="dlos-workflow-roster-table" role="table" aria-label="Respondents">
+        <div className="dlos-workflow-roster-head" role="row"><span role="columnheader">Respondent name</span><span role="columnheader">Status</span><span role="columnheader">Action</span></div>
+        {respondents.map(person => {
+          const saved = records.some(record => record.stepKey === 'implementation' && record.respondentKey === person.id);
+          return <div className="dlos-workflow-roster-row" role="row" key={person.id}>
+            <span role="cell">{person.rank} {person.nameSnapshot}</span>
+            <span role="cell">{person.status || 'No status recorded'}{saved && <small>Details saved</small>}</span>
+            <span role="cell"><button type="button" onClick={() => { setField('respondentKey', person.id || ''); setImplementationEditing(true); setAttachmentsOpen(false); }}>Upload implementation order</button></span>
+          </div>;
+        })}
+      </div> : <p className="dlos-workflow-empty">No respondents are attached to this case yet.</p>}
+    </div>}
+    {showingForm && <form ref={formRef} onSubmit={submit} className={'dlos-workflow-form' + (initialStep ? ' dlos-workflow-sho-form' : '')}>
+      {step.key === 'implementation' && !initialStep && <button type="button" className="dlos-workflow-text-button" onClick={() => { cacheCurrentDraft(); setImplementationEditing(false); setError(''); }}>← All respondents</button>}
+      {selectedRecord && <p className="dlos-workflow-last-saved">Last saved by {selectedRecord.actorName} on {new Date(selectedRecord.updatedAt).toLocaleString('en-PH')}</p>}
+      {hasUnsavedChanges && <p className="dlos-workflow-unsaved">Unsaved changes</p>}
+      {error && <p role="alert" className="dlos-workflow-error">{error}</p>}
+      {initialStep && <>
+        <div className="dlos-workflow-sho-search">
+          <label>New Summary Hearing Officer<input data-autofocus className={shoInputClass} type="search" value={shoSearch} onChange={event => { setShoSearch(event.target.value); setShoSearchActive(false); }} placeholder="Search by rank or name" /></label>
+          <button type="button" className="dlos-workflow-sho-search-button" onClick={() => setShoSearchActive(true)}><Search size={15} /> Search New SHO</button>
+          {shoSearchActive && shoSearch.trim() && <div className="dlos-workflow-sho-results" aria-label="Matching personnel">{matchingPersonnel.length ? matchingPersonnel.map(person => <button key={person.id} type="button" onClick={() => { setFields(current => ({ ...current, shoName: ((person.rank || '') + ' ' + person.fullName).trim(), shoPersonnelId: person.id })); setShoSearchActive(false); }}><Search size={13} /> {person.rank} {person.fullName}</button>) : <p>No personnel found. Enter the SHO name below.</p>}</div>}
+          <label className="dlos-workflow-sho-selected">Selected SHO<input className={shoInputClass} required maxLength={160} value={fields.shoName || ''} onChange={event => setFields(current => ({ ...current, shoName: event.target.value, shoPersonnelId: '' }))} /></label>
+        </div>
+        <div className="dlos-workflow-sho-fields">
+          <label>Date of Memorandum<input className={shoInputClass} type="date" value={fields.memorandumDate || ''} onChange={event => setField('memorandumDate', event.target.value)} /></label>
+          <label>Memorandum File<input key={noDocument ? 'none' : savedMemorandum?.id || 'new'} className={shoInputClass} type="file" accept={fileAccept} disabled={noDocument} onChange={event => { const chosen = event.target.files?.[0]; if (chosen) { setNoDocument(false); setFiles(current => ({ ...current, memorandum: chosen })); } }} /></label>
+        </div>
+        <label className="dlos-workflow-sho-no-document"><input type="checkbox" checked={noDocument} onChange={event => { setNoDocument(event.target.checked); if (event.target.checked) setFiles({}); }} /> No document available</label>
+        <div className="dlos-workflow-sho-preview"><strong>Memorandum Preview</strong><div className="dlos-workflow-sho-preview-frame">
+          {(memorandumPreview || savedMemorandumPreview) ? (files.memorandum?.type || savedMemorandum?.mimeType || '').startsWith('image/') ? <img src={memorandumPreview || savedMemorandumPreview} alt="Memorandum preview" className="dlos-workflow-preview" /> : <iframe src={memorandumPreview || savedMemorandumPreview} title="Memorandum preview" className="dlos-workflow-preview" />
+            : <div className="dlos-workflow-sho-preview-empty"><FileText size={30} /><span>{stepDocuments.length ? `On record: ${stepDocuments[0].fileName}` : 'Select a memorandum file to preview it here.'}</span></div>}
+        </div></div>
+        <div className="dlos-workflow-sho-footer"><Button type="button" disabled={busy} onClick={closeDialog}>Cancel</Button><button type="submit" className="dlos-workflow-submit" disabled={busy}>{busy ? 'Saving…' : 'Save Amendment'}</button></div>
+      </>}
+      {!initialStep && <label className="dlos-workflow-no-document"><input type="checkbox" checked={noDocument} onChange={event => { setNoDocument(event.target.checked); if (event.target.checked) setFiles({}); }} /> No available documents to upload? Check this box.</label>}
+      {!initialStep && step.key === 'decision' && <div className="dlos-workflow-decision-prompt">
+        <p>Please set Administrative Liability and Penalty before submitting the Decision.</p>
+        <button type="button" onClick={() => { setDecisionFieldsOpen(open => !open); setError(''); }}>{decisionFieldsOpen ? 'Back to Decision' : fields.liability?.trim() && fields.penalty?.trim() ? 'Change Administrative Liability and Penalty' : 'Set Administrative Liability and Penalty'}</button>
+        {!decisionFieldsOpen && fields.liability?.trim() && fields.penalty?.trim() && <small>Administrative liability and penalty are set.</small>}
+      </div>}
+      {!initialStep && step.key === 'decision' && decisionFieldsOpen && <div className="dlos-workflow-decision-fields">
+        <label>Administrative Liability<textarea className={inputClass} rows={3} maxLength={2000} value={fields.liability || ''} onChange={event => setField('liability', event.target.value)} /></label>
+        <label>Penalty<textarea className={inputClass} rows={3} maxLength={2000} value={fields.penalty || ''} onChange={event => setField('penalty', event.target.value)} /></label>
+        <button type="button" className="dlos-workflow-submit" onClick={() => { if (!fields.liability?.trim() || !fields.penalty?.trim()) { setError('Enter both administrative liability and penalty.'); return; } setError(''); setDecisionFieldsOpen(false); }}>Done</button>
+      </div>}
+      {!initialStep && !(step.key === 'decision' && decisionFieldsOpen) && <div className="dlos-workflow-fields">{step.fields.map(field => field.type === 'choice'
+        ? <WorkflowChoice key={field.key} label={field.label} value={fields[field.key] || ''} options={choiceOptions[field.key]} onChange={value => setField(field.key, value)} />
+        : <label key={field.key}>{field.label}
+        {field.type === 'respondent' ? <select className={inputClass} required value={fields[field.key] || ''} onChange={event => setField(field.key, event.target.value)}><option value="">Select respondent</option>{respondents.map(person => <option key={person.id} value={person.id}>{person.rank} {person.nameSnapshot} · {person.status || 'No status'}</option>)}</select>
+        : field.type === 'category' ? <select className={inputClass} value={fields[field.key] || ''} onChange={event => setField(field.key, event.target.value)}><option value="">Select category</option><option value="suspension">Suspension</option><option value="demotion">Demotion</option><option value="dismissal">Dismissal</option><option value="exonerated">Exonerated</option></select>
+        : field.type === 'textarea' ? <textarea className={inputClass} rows={3} maxLength={2000} value={fields[field.key] || ''} onChange={event => setField(field.key, event.target.value)} />
+        : <input className={inputClass} type={field.type === 'date' ? 'date' : 'text'} maxLength={2000} value={fields[field.key] || ''} onChange={event => setField(field.key, event.target.value)} />}
+      </label>)}</div>}
+      {!initialStep && !(step.key === 'decision' && decisionFieldsOpen) && <div className="dlos-workflow-files">
+        {step.files.map(slot => <label key={slot.key}>{slot.label}
+          <input key={step.key + '-' + slot.key + '-' + (noDocument ? 'none' : 'file')} type="file" accept={fileAccept} disabled={noDocument} onChange={event => { const chosen = event.target.files?.[0]; if (chosen) setNoDocument(false); setFiles(current => { const next = { ...current }; if (chosen) next[slot.key] = chosen; else delete next[slot.key]; return next; }); }} />
+          {files[slot.key] && <small>Selected: {files[slot.key].name}</small>}
+        </label>)}
+      </div>}
+      {!initialStep && !(step.key === 'decision' && decisionFieldsOpen) && <button type="submit" className="dlos-workflow-submit" disabled={busy}>{busy ? 'Saving…' : 'Submit'}</button>}
+      {!initialStep && <button type="button" className="dlos-workflow-attachments-button" aria-expanded={attachmentsOpen} onClick={() => setAttachmentsOpen(open => !open)}>{attachmentsOpen ? 'Hide attachments' : 'View attachments'}</button>}
+      {attachmentsOpen && <div className="dlos-workflow-attachments">
+        {stepDocuments.length ? stepDocuments.map(file => <button key={file.id} type="button" onClick={() => void downloadDlosDocument(item!, file).catch(cause => setError(cause instanceof Error ? cause.message : 'Download failed.'))}><Download size={14} /><span>{file.fileRole || file.kind} · {file.fileName}</span></button>) : <p>No attachments on record for this update.</p>}
+      </div>}
+    </form>}
+    {!initialStep && <div className="dlos-workflow-detail-footer"><button type="button" className="dlos-workflow-close" disabled={busy} onClick={closeDetail}>Close</button></div>}
+      </div>
+    </div>}
   </Modal>;
 };

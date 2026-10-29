@@ -70,13 +70,17 @@ export const saveDlosWorkflow = async (
   }));
 };
 
-export const downloadDlosDocument = async (item: DlosCase, file: DlosCaseDocument) => {
+export const fetchDlosDocumentBlob = async (item: DlosCase, file: DlosCaseDocument) => {
   const response = await apiFetch(`${API_BASE_URL}/dlos/cases/${encodeURIComponent(item.id)}/documents/${encodeURIComponent(file.id)}`);
   if (!response.ok) {
     const body = await response.json().catch(() => null);
     throw new Error(body?.message || 'Unable to download document.');
   }
-  const url = URL.createObjectURL(await response.blob());
+  return response.blob();
+};
+
+export const downloadDlosDocument = async (item: DlosCase, file: DlosCaseDocument) => {
+  const url = URL.createObjectURL(await fetchDlosDocumentBlob(item, file));
   const link = window.document.createElement('a');
   link.href = url;
   link.download = file.fileName;

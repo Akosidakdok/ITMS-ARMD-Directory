@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Search, Trash2 } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/SystemUI';
 import { useAuthRole } from '../../context/AuthRoleContext';
@@ -60,11 +60,13 @@ export const DlosCaseDialog = ({ mode, item, history, updates, documents, classi
   const [error, setError] = useState('');
   const [tab, setTab] = useState<'complaint' | 'complainant' | 'respondent' | 'witness' | 'attachments'>('complaint');
   const [personnelSearch, setPersonnelSearch] = useState('');
+  const [respondentSearchOpen, setRespondentSearchOpen] = useState(false);
+  const [editingRespondentIndex, setEditingRespondentIndex] = useState<number | null>(null);
   const readonly = mode === 'view';
   const canWrite = authUser?.dlosRole === 'encoder' || authUser?.dlosRole === 'reviewer';
   useEffect(() => {
     setDraft(item ? draftFrom(item) : blankDlosCase(classification, year, month));
-    setNote(''); setUpdateDate(today()); setError(''); setTab('complaint'); setPersonnelSearch('');
+    setNote(''); setUpdateDate(today()); setError(''); setTab('complaint'); setPersonnelSearch(''); setRespondentSearchOpen(false); setEditingRespondentIndex(null);
   }, [item?.id, mode, classification, year, month]);
   const update = (field: keyof DlosCaseDraft, value: string) => setDraft(current => ({ ...current, [field]: value }));
   const updatePerson = (index: number, patch: Partial<DlosPerson>) => setDraft(current => ({
@@ -85,8 +87,53 @@ export const DlosCaseDialog = ({ mode, item, history, updates, documents, classi
     catch (cause) { setError(cause instanceof Error ? cause.message : 'Unable to add update.'); }
     finally { setSaving(false); }
   };
+  const matchingPersonnel = personnelSearch.trim() ? personnelList.filter(entry =>
+    `${entry.rank || ''} ${entry.fullName || ''}`.toLowerCase().includes(personnelSearch.trim().toLowerCase())).slice(0, 30) : [];
+  const personLimitReached = draft.people.length >= 25;
+  const unnamedRespondent = draft.people.some(person => person.role === 'respondent' && !person.nameSnapshot.trim());
+  if (mode === 'respondents') return <Modal isOpen onClose={() => !saving && onClose()} title="Manage Respondents" subtitle={item?.docketNumber} maxWidth="4xl" panelClassName="dlos-respondents-modal">
+    <form onSubmit={submit} className="dlos-respondents-form">
+      {error && <p role="alert" className="dlos-workflow-error">{error}</p>}
+      <p className="dlos-respondents-hint">Search PNP personnel first. The form will appear after you select someone from the search results.</p>
+      <div className="dlos-respondents-search">
+        <label>Search PNP Personnel<input type="search" value={personnelSearch} onChange={event => { setPersonnelSearch(event.target.value); setRespondentSearchOpen(false); }} placeholder="Enter rank or name" /></label>
+        <button type="button" onClick={() => setRespondentSearchOpen(true)}><Search size={15} /> Search PNP Personnel</button>
+      </div>
+      {respondentSearchOpen && <div className="dlos-respondents-results" aria-label="Personnel search results">
+        {matchingPersonnel.length ? matchingPersonnel.map(entry => {
+          const added = draft.people.some(person => person.role === 'respondent' && person.personnelId === entry.id);
+          return <button key={entry.id} type="button" disabled={added || personLimitReached} onClick={() => {
+            setDraft(current => ({ ...current, people: [...current.people, {
+              personnelId: entry.id, role: 'respondent', rank: entry.rank || '', firstName: entry.firstName || '', middleName: entry.middleName || '', lastName: entry.lastName || '',
+              nameSnapshot: entry.fullName || '', unit: entry.sub_unit || entry.division || entry.station || '', status: ''
+            }] }));
+            setEditingRespondentIndex(draft.people.length);
+            setRespondentSearchOpen(false);
+          }}>{entry.rank} {entry.fullName}{added && <span>Already added</span>}</button>;
+        }) : <p>{personnelSearch.trim() ? 'No matching personnel found.' : 'Enter a rank or name to search.'}</p>}
+      </div>}
+      <section className="dlos-respondents-section">
+        <div className="dlos-respondents-heading"><h4>Respondents Added</h4><button type="button" disabled={personLimitReached} onClick={() => { setDraft(current => ({ ...current, people: [...current.people, blankPerson()] })); setEditingRespondentIndex(draft.people.length); }}>Add unlinked respondent</button></div>
+        <div className="dlos-respondents-table-wrap"><table className="dlos-respondents-table"><thead><tr><th>Rank</th><th>Name</th><th>Unit</th><th>Status</th><th>Action</th></tr></thead><tbody>
+          {draft.people.map((person, index) => ({ person, index })).filter(({ person }) => person.role === 'respondent').map(({ person, index }) => <tr key={person.id || `new-${index}`}>
+            <td>{person.rank || '—'}</td><td>{person.nameSnapshot || 'New respondent'}</td><td>{person.unit || '—'}</td><td>{person.status || '—'}</td>
+            <td><button type="button" onClick={() => setEditingRespondentIndex(index)}>Edit</button><button type="button" className="dlos-respondents-remove" aria-label={`Remove ${person.nameSnapshot || 'respondent'}`} onClick={() => { setDraft(current => ({ ...current, people: current.people.filter((_, position) => position !== index) })); setEditingRespondentIndex(null); }}><Trash2 size={14} /></button></td>
+          </tr>)}
+          {!draft.people.some(person => person.role === 'respondent') && <tr><td colSpan={5} className="dlos-respondents-empty">No respondents added yet.</td></tr>}
+        </tbody></table></div>
+      </section>
+      {editingRespondentIndex !== null && draft.people[editingRespondentIndex]?.role === 'respondent' && <section className="dlos-respondents-editor">
+        <div className="dlos-respondents-heading"><h4>Respondent details</h4><button type="button" disabled={!draft.people[editingRespondentIndex].nameSnapshot.trim()} onClick={() => setEditingRespondentIndex(null)}>Done</button></div>
+        <div className="dlos-respondents-editor-grid">
+          {(['rank', 'nameSnapshot', 'unit', 'status'] as const).map(field => <label key={field}>{field === 'nameSnapshot' ? 'Full name *' : field.charAt(0).toUpperCase() + field.slice(1)}<input required={field === 'nameSnapshot'} maxLength={field === 'nameSnapshot' ? 240 : 160} value={draft.people[editingRespondentIndex][field] || ''} onChange={event => updatePerson(editingRespondentIndex, { [field]: event.target.value, ...(field === 'nameSnapshot' ? { personnelId: null, firstName: '', middleName: '', lastName: '' } : {}) })} /></label>)}
+        </div>
+      </section>}
+      {unnamedRespondent && <p className="dlos-respondents-validation">Enter a full name for each respondent before saving.</p>}
+      <div className="dlos-respondents-footer"><Button type="button" disabled={saving} onClick={onClose}>Close</Button><Button type="submit" variant="primary" disabled={saving || unnamedRespondent}>{saving ? 'Saving…' : 'Save Respondents'}</Button></div>
+    </form>
+  </Modal>;
   return <Modal isOpen={mode !== null} onClose={() => !saving && onClose()}
-    title={mode === 'create' ? 'Encode case' : mode === 'edit' ? 'Edit case details' : mode === 'respondents' ? 'Manage respondents' : `Case details: ${item?.docketNumber || ''}`}
+    title={mode === 'create' ? 'Encode case' : mode === 'edit' ? 'Edit case details' : `Case details: ${item?.docketNumber || ''}`}
     subtitle={mode === 'create' || mode === 'edit' ? 'The registration date sets the year and month.' : item?.caseDate} maxWidth="4xl">
     <form onSubmit={submit} className="max-h-[75vh] space-y-5 overflow-y-auto p-4 sm:p-5">
       {error && <p role="alert" className="rounded border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">{error}</p>}
@@ -94,7 +141,7 @@ export const DlosCaseDialog = ({ mode, item, history, updates, documents, classi
         ['complaint', 'Complaint details'], ['complainant', 'Complainant'], ['respondent', 'Respondent'],
         ['witness', 'Witness'], ['attachments', 'Attachments']
       ] as const).map(([key, label]) => <button key={key} aria-pressed={tab === key} type="button" onClick={() => setTab(key)} className="dlos-case-tab">{label}</button>)}</div>}
-      {mode !== 'respondents' && (mode !== 'view' || tab === 'complaint') && <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {(mode !== 'view' || tab === 'complaint') && <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <label className="text-xs font-semibold">Classification<input className={fieldClass} disabled value={classification === 'grave' ? 'Grave' : 'Less Grave'} /></label>
         <label className="text-xs font-semibold">Case registration date *<input className={fieldClass} type="date" required disabled={readonly} value={draft.caseDate} onChange={event => update('caseDate', event.target.value)} /></label>
         <label className="text-xs font-semibold">Docket number *<input className={fieldClass} required maxLength={160} disabled={readonly} value={draft.docketNumber} onChange={event => update('docketNumber', event.target.value)} /></label>
@@ -128,15 +175,15 @@ export const DlosCaseDialog = ({ mode, item, history, updates, documents, classi
           {!readonly && <Button type="button" icon={Plus} onClick={() => setDraft(current => ({ ...current, people: [...current.people, blankPerson()] }))}>Add name</Button>}
         </div>
         {!readonly && <label className="block text-xs font-semibold">Search PNP personnel<input className={fieldClass} type="search" value={personnelSearch} onChange={event => setPersonnelSearch(event.target.value)} placeholder="Rank or name" /></label>}
-        {!draft.people.some(person => mode === 'view' ? person.role === tab : mode !== 'respondents' || person.role === 'respondent') && <p className="text-xs text-slate-500">No names entered.</p>}
-        {draft.people.map((person, index) => ({ person, index })).filter(({ person }) => mode === 'view' ? person.role === tab : mode !== 'respondents' || person.role === 'respondent').map(({ person, index }) => <div key={person.id || index} className="rounded border border-slate-200 bg-slate-50 p-3">
+        {!draft.people.some(person => mode === 'view' ? person.role === tab : true) && <p className="text-xs text-slate-500">No names entered.</p>}
+        {draft.people.map((person, index) => ({ person, index })).filter(({ person }) => mode === 'view' ? person.role === tab : true).map(({ person, index }) => <div key={person.id || index} className="rounded border border-slate-200 bg-slate-50 p-3">
           <div className="mb-2 flex justify-between"><strong className="text-xs">Person {index + 1}</strong>{!readonly && <button type="button" className="text-xs text-rose-700" onClick={() => setDraft(current => ({ ...current, people: current.people.filter((_, position) => position !== index) }))}><Trash2 className="inline h-3 w-3" /> Remove</button>}</div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <label className="text-xs font-semibold">PAIS personnel link<select className={fieldClass} disabled={readonly} value={person.personnelId || ''} onChange={event => {
               const selected = personnelList.find(entry => entry.id === event.target.value);
               updatePerson(index, selected ? { personnelId: selected.id, rank: selected.rank || '', firstName: selected.firstName || '', middleName: selected.middleName || '', lastName: selected.lastName || '', nameSnapshot: selected.fullName || '', unit: selected.sub_unit || selected.division || selected.station || '' } : { personnelId: null });
             }}><option value="">Unlinked / external</option>{personnelList.filter(entry => entry.id === person.personnelId || `${entry.rank} ${entry.fullName}`.toLowerCase().includes(personnelSearch.toLowerCase())).slice(0, 60).map(entry => <option key={entry.id} value={entry.id}>{entry.rank} {entry.fullName}</option>)}</select></label>
-            <label className="text-xs font-semibold">Role<select className={fieldClass} disabled={readonly || mode === 'respondents'} value={person.role} onChange={event => updatePerson(index, { role: event.target.value as DlosPerson['role'] })}><option value="respondent">Respondent</option><option value="complainant">Complainant</option><option value="witness">Witness</option><option value="involved">Involved</option></select></label>
+            <label className="text-xs font-semibold">Role<select className={fieldClass} disabled={readonly} value={person.role} onChange={event => updatePerson(index, { role: event.target.value as DlosPerson['role'] })}><option value="respondent">Respondent</option><option value="complainant">Complainant</option><option value="witness">Witness</option><option value="involved">Involved</option></select></label>
             {(['rank', 'firstName', 'middleName', 'lastName', 'nameSnapshot'] as const).map(field => <label key={field} className="text-xs font-semibold">{field === 'nameSnapshot' ? 'Full name *' : field.replace(/([A-Z])/g, ' $1')}
               <input className={fieldClass} maxLength={field === 'nameSnapshot' ? 240 : 160} disabled={readonly} value={person[field]} onChange={event => updatePerson(index, { [field]: event.target.value })} />
             </label>)}

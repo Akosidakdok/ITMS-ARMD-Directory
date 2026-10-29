@@ -5,6 +5,7 @@ import { useAuthRole } from '../context/AuthRoleContext';
 import { Button, EmptyState, PageHeader, TableLoadingState } from '../components/common/SystemUI';
 import { Modal } from '../components/common/Modal';
 import { DlosCaseDialog, type DlosDialogMode } from '../components/dlos/DlosCaseDialog';
+import { DlosCaseActionsMenu } from '../components/dlos/DlosCaseActionsMenu';
 import { DlosWorkflowDialog } from '../components/dlos/DlosWorkflowDialog';
 import { DlosCaseFilters, DLOS_FILTER_KEYS } from '../components/dlos/DlosCaseFilters';
 import { DlosDecisionDirectory } from '../components/dlos/DlosDecisionDirectory';
@@ -239,21 +240,8 @@ export const DlosPage = () => {
                 <td title={'As of ' + row.aging.asOfDate}>{displayAging(row.aging.forShoDays, 'Case not yet received by SHO')}</td>
                 <td title={'As of ' + row.aging.asOfDate}>{displayAging(row.aging.forReviewDays, 'Decision not yet issued')}</td>
                 <td>{row.encoderName}</td>
-                <td><div className="dlos-row-actions">
-                  <button type="button" onClick={() => void openCase(row, 'view')}>View details</button>
-                  {canWrite && <select aria-label={'More actions for ' + row.docketNumber} defaultValue="" onChange={event => {
-                    handleTableAction(row, event.currentTarget.value);
-                    event.currentTarget.value = '';
-                  }}>
-                    <option value="">More actions</option>
-                    <option value="refer_case">Refer case</option>
-                    <option value="updates">Case updates</option>
-                    <option value="sho">Change assigned SHO</option>
-                    <option value="record_sho_received">Record SHO receipt</option>
-                    <option value="respondents">Manage respondents</option>
-                    <option value="upload">Upload transmittal/PCE</option>
-                  </select>}
-                </div></td>
+                <td><div className="dlos-row-actions"><DlosCaseActionsMenu docketNumber={row.docketNumber} canWrite={canWrite}
+                  onView={() => void openCase(row, 'view')} onAction={action => handleTableAction(row, action)} /></div></td>
               </tr>)}</tbody>
             </table>
           </div>}

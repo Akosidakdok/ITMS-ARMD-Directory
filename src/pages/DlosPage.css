@@ -123,11 +123,12 @@
 .dlos-table th:first-child { position: sticky; left: 0; z-index: 2; box-shadow: 1px 0 0 var(--border); }
 .dlos-table td:first-child { position: sticky; left: 0; z-index: 1; min-width: 9rem; box-shadow: 1px 0 0 var(--border); }
 .dlos-case-status { display: inline-block; max-width: 100%; padding: 0.25rem 0.5rem; border: 1px solid var(--border); border-radius: var(--pais-radius-control); background: var(--secondary); color: var(--foreground); font-size: 0.6875rem; font-weight: 600; }
-.dlos-row-actions { display: flex; min-width: 12rem; flex-direction: column; align-items: stretch; gap: 0.375rem; }
-.dlos-row-actions button, .dlos-row-actions select { min-height: 36px; border: 1px solid var(--border); border-radius: var(--pais-radius-control); background: var(--card); color: var(--accent-foreground); font-size: 0.75rem; font-weight: 600; }
-.dlos-row-actions button { padding: 0.375rem 0.625rem; text-align: left; }
-.dlos-row-actions select { width: 100%; padding: 0.375rem 0.5rem; }
-.dlos-row-actions :is(button, select):hover { border-color: var(--ring); background: var(--accent); }
+.dlos-row-actions { display: flex; min-width: 9rem; align-items: flex-start; }
+.dlos-actions-trigger { display: inline-flex; min-height: 36px; align-items: center; justify-content: space-between; gap: 0.5rem; border: 1px solid var(--border); border-radius: var(--pais-radius-control); background: var(--card); padding: 0.375rem 0.65rem; color: var(--accent-foreground); font-size: 0.75rem; font-weight: 600; }
+.dlos-actions-trigger:hover { border-color: var(--ring); background: var(--accent); }
+.dlos-actions-menu { position: fixed; z-index: 100; display: grid; max-height: min(22rem, calc(100dvh - 1rem)); overflow-y: auto; border: 1px solid var(--border); border-radius: 0.4rem; background: var(--card); padding: 0.3rem; box-shadow: 0 12px 30px #0b1c3440; }
+.dlos-actions-menu button { min-height: 36px; border-radius: 0.25rem; padding: 0.4rem 0.65rem; color: var(--foreground); font-size: 0.75rem; text-align: left; }
+.dlos-actions-menu button:hover, .dlos-actions-menu button:focus-visible { background: var(--accent); outline: none; }
 .dlos-list-pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 0.75rem; padding: 0.875rem 1.25rem; color: var(--muted-foreground); font-size: 0.75rem; font-variant-numeric: tabular-nums; }
 .dlos-page [role="dialog"] :is(label, h4, strong) { color: var(--foreground); }
 .dlos-page [role="dialog"] :is(.text-slate-500, .text-slate-600) { color: var(--muted-foreground); }
@@ -153,7 +154,185 @@
 .dlos-access-table td:first-child { overflow-wrap: anywhere; }
 .dlos-access-table select { width: 100%; min-width: 9rem; padding: 0.5rem 0.625rem; }
 .dlos-access-page [role="dialog"] label { color: var(--foreground); }
-.dlos-workflow-sidebar-heading { background: var(--sidebar-bg); color: #fff; }
+.dlos-workflow-modal {
+  position: relative;
+  --workflow-green: #087e68;
+  --workflow-green-dark: #076450;
+  --workflow-green-soft: #e8f7f3;
+  --workflow-canvas: #f5f7f9;
+  --workflow-ink: #243446;
+  height: min(39rem, calc(100dvh - 2rem));
+  border-radius: 0.75rem;
+}
+.dlos-workflow-modal.max-w-lg { max-width: min(66rem, calc(100vw - 2rem)); }
+.dlos-workflow-modal > :first-child { flex: none; align-items: center; padding: 0.75rem 1rem; }
+.dlos-workflow-modal > :first-child > button { flex: none; }
+.dlos-workflow-modal-body { display: flex; min-height: 0; flex-direction: column; overflow: visible !important; padding: 0 !important; }
+.dlos-workflow-detail-layer { position: absolute; z-index: 2; inset: 0; display: flex; min-height: 0; align-items: center; justify-content: center; background: #172b4d70; padding: 0.5rem; }
+.dlos-workflow-detail-panel { display: flex; width: min(56rem, 100%); max-height: calc(100% - 0.5rem); min-height: 0; flex-direction: column; overflow: hidden; border: 1px solid var(--border); border-radius: 0.7rem; background: var(--card); box-shadow: 0 14px 40px #071b3560; }
+.dlos-workflow-detail-header { display: flex; flex: none; align-items: center; gap: 0.7rem; border-bottom: 1px solid var(--border); background: var(--card); padding: 0.8rem 1rem; }
+.dlos-workflow-detail-header > button { display: grid; width: 1.8rem; height: 1.8rem; flex: none; place-items: center; border-radius: 0.25rem; color: var(--muted-foreground); font-size: 1.35rem; line-height: 1; }
+.dlos-workflow-detail-header > button:hover { background: var(--secondary); color: var(--foreground); }
+.dlos-workflow-detail-footer { display: flex; flex: none; justify-content: flex-end; border-top: 1px solid var(--border); background: var(--card); padding: 0.7rem 1rem; }
+.dlos-workflow-sho-content { display: contents; }
+.dlos-workflow-header { display: flex; min-width: 0; align-items: center; gap: 0.7rem; }
+.dlos-workflow-header-icon { display: grid; width: 2.125rem; height: 2.125rem; flex: none; place-items: center; border-radius: 0.5rem; background: var(--workflow-green); box-shadow: 0 3px 9px #0e947d32; color: white; }
+.dlos-workflow-header-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 0.125rem; }
+.dlos-workflow-header-copy > span, .dlos-workflow-eyebrow { color: var(--workflow-green-dark); font-size: 0.625rem; font-weight: 750; letter-spacing: 0.045em; text-transform: uppercase; }
+.dlos-workflow-header-copy > strong { overflow: hidden; color: var(--workflow-ink); font-size: 1.05rem; font-weight: 700; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
+.dlos-workflow-role { max-width: 8.5rem; flex: none; border-radius: 999px; background: var(--workflow-green); padding: 0.32rem 0.7rem; color: white; font-size: 0.625rem; font-weight: 700; line-height: 1.1; text-align: center; }
+.dlos-workflow-list { min-height: 0; flex: 1; overflow-y: auto; background: var(--workflow-canvas); scrollbar-color: #9da4aa transparent; scrollbar-width: thin; }
+.dlos-workflow-timeline { padding: 1rem 1.2rem 0.75rem 1rem; }
+.dlos-workflow-row { position: relative; display: flex; min-width: 0; align-items: flex-start; gap: 0.7rem; padding-bottom: 0.625rem; }
+.dlos-workflow-row:not(:last-child)::before { position: absolute; top: 1.55rem; bottom: -0.125rem; left: 0.75rem; width: 1px; background: #b8dfd6; content: ''; }
+.dlos-workflow-marker { z-index: 1; display: grid; width: 1.5rem; height: 1.5rem; flex: none; place-items: center; margin-top: 0.05rem; border: 1px solid #b8dfd6; border-radius: 50%; background: var(--card); color: #8ba7a2; }
+.dlos-workflow-marker.is-complete { border-color: var(--workflow-green); background: var(--workflow-green-soft); color: var(--workflow-green-dark); }
+.dlos-workflow-card { display: flex; min-width: 0; min-height: 4.1rem; flex: 1; align-items: center; justify-content: space-between; gap: 0.75rem; border: 1px solid var(--border); border-radius: 0.5rem; background: var(--card); padding: 0.75rem 0.9rem; box-shadow: 0 2px 5px #13233b08; }
+.dlos-workflow-card:hover, .dlos-workflow-card:focus-within { border-color: #a4ded1; box-shadow: 0 2px 9px #0a8f7c16; }
+.dlos-workflow-card-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; align-items: flex-start; gap: 0.17rem; }
+.dlos-workflow-card-copy > strong { color: var(--workflow-ink); font-size: 0.86rem; font-weight: 600; line-height: 1.3; }
+.dlos-workflow-note { border-radius: 999px; background: #edf5fa; padding: 0.1rem 0.4rem; color: #37627b; font-size: 0.7rem; line-height: 1.2; }
+.dlos-workflow-file-state, .dlos-workflow-saved { color: var(--muted-foreground); font-size: 0.74rem; line-height: 1.3; }
+.dlos-workflow-saved { color: var(--workflow-green-dark); }
+.dlos-workflow-unsaved { color: #a5680b; font-size: 0.7rem; font-weight: 650; }
+.dlos-workflow-details { display: inline-flex; min-height: 2.2rem; flex: none; align-items: center; justify-content: center; gap: 0.35rem; border: 1px solid #b8e6da; border-radius: 0.375rem; background: var(--workflow-green-soft); padding: 0.4rem 0.75rem; color: var(--workflow-green-dark); font-size: 0.78rem; font-weight: 650; }
+.dlos-workflow-details:hover { border-color: var(--workflow-green); background: var(--workflow-green); color: white; }
+.dlos-workflow-management { margin: 0 1.2rem 1rem 3.2rem; border: 1px solid var(--border); border-radius: 0.5rem; background: var(--card); padding: 0.85rem; }
+.dlos-workflow-management-top, .dlos-workflow-management-bottom { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+.dlos-workflow-management-top > div { display: flex; min-width: 0; flex-direction: column; gap: 0.15rem; }
+.dlos-workflow-management-top strong { font-size: 0.75rem; line-height: 1.3; }
+.dlos-workflow-management-bottom { flex-wrap: wrap; margin-top: 0.75rem; border-top: 1px solid var(--border); padding-top: 0.75rem; }
+.dlos-workflow-management-bottom span { color: var(--muted-foreground); font-size: 0.675rem; }
+.dlos-workflow-text-button { display: inline-flex; min-height: 2rem; align-items: center; gap: 0.3rem; border-radius: 0.3rem; color: var(--workflow-green-dark); font-size: 0.72rem; font-weight: 650; text-align: left; }
+.dlos-workflow-text-button:hover { text-decoration: underline; }
+.dlos-workflow-status-editor { display: grid; gap: 0.75rem; margin-top: 0.7rem; border-top: 1px solid var(--border); padding-top: 0.75rem; }
+.dlos-workflow-status-editor label { font-size: 0.72rem; font-weight: 650; }
+.dlos-workflow-status-editor > button { justify-self: end; }
+.dlos-workflow-modal .record-action-bar { display: flex; justify-content: flex-end; border-top: 1px solid var(--border); background: var(--card); padding: 0.7rem 1rem; }
+.dlos-workflow-close { min-height: 1.9rem; border-radius: 0.25rem; background: #69737d; padding: 0.35rem 0.65rem; color: #fff; font-size: 0.72rem; font-weight: 650; }
+.dlos-workflow-close:hover { background: #4d5863; }
+.dlos-workflow-form, .dlos-workflow-roster { min-height: 0; flex: 1; overflow-y: auto; background: var(--workflow-canvas); padding: 1rem; }
+.dlos-workflow-form { display: flex; flex-direction: column; gap: 0.8rem; }
+.dlos-workflow-last-saved { color: var(--muted-foreground); font-size: 0.7rem; }
+.dlos-workflow-error { border: 1px solid #f3a6ae; border-radius: 0.4rem; background: #fff2f3; padding: 0.7rem; color: #a6293b; font-size: 0.75rem; }
+.dlos-workflow-no-document { display: flex; min-height: 2.6rem; align-items: center; gap: 0.5rem; border: 1px solid #f0bac0; border-radius: 0.4rem; background: #fff4f5; padding: 0.55rem 0.75rem; color: #ad3543; font-size: 0.72rem; font-weight: 650; }
+.dlos-workflow-no-document input { flex: none; accent-color: var(--workflow-green); }
+.dlos-workflow-fields, .dlos-workflow-files, .dlos-workflow-sho-search { display: grid; gap: 0.75rem; }
+.dlos-workflow-fields label, .dlos-workflow-files label, .dlos-workflow-sho-search label { display: block; min-width: 0; color: var(--workflow-ink); font-size: 0.72rem; font-weight: 650; }
+.dlos-workflow-fields :is(input, select, textarea), .dlos-workflow-files input, .dlos-workflow-sho-search input { display: block; width: 100%; min-height: 2.5rem; margin-top: 0.3rem; border: 1px solid var(--border); border-radius: 0.375rem; background: var(--input); padding: 0.5rem 0.65rem; color: var(--foreground); font-size: 0.8rem; font-weight: 400; }
+.dlos-workflow-files input { padding: 0.35rem; font-size: 0.72rem; }
+.dlos-workflow-files input:disabled { opacity: 0.55; }
+.dlos-workflow-files small { display: block; overflow-wrap: anywhere; margin-top: 0.25rem; color: var(--muted-foreground); font-size: 0.65rem; }
+.dlos-workflow-submit, .dlos-workflow-attachments-button { display: flex; min-height: 2.5rem; width: 100%; align-items: center; justify-content: center; border-radius: 0.375rem; font-size: 0.75rem; font-weight: 700; }
+.dlos-workflow-submit { background: var(--workflow-green); color: white; }
+.dlos-workflow-submit:hover { background: var(--workflow-green-dark); }
+.dlos-workflow-submit:disabled { opacity: 0.6; }
+.dlos-workflow-attachments-button { border: 1px solid #f0d2af; background: #fff6eb; color: #a96720; }
+.dlos-workflow-attachments-button:hover { background: #ffecd5; }
+.dlos-workflow-attachments { border: 1px solid var(--border); border-radius: 0.375rem; background: var(--card); }
+.dlos-workflow-attachments button { display: flex; width: 100%; align-items: center; gap: 0.4rem; padding: 0.65rem; color: var(--workflow-green-dark); font-size: 0.72rem; text-align: left; }
+.dlos-workflow-attachments button + button { border-top: 1px solid var(--border); }
+.dlos-workflow-attachments button span { overflow-wrap: anywhere; }
+.dlos-workflow-attachments p { padding: 0.75rem; color: var(--muted-foreground); font-size: 0.72rem; }
+.dlos-workflow-roster > p { margin-bottom: 0.75rem; color: var(--muted-foreground); font-size: 0.75rem; }
+.dlos-workflow-roster-table { border: 1px solid var(--border); background: var(--card); }
+.dlos-workflow-roster-head, .dlos-workflow-roster-row { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.9fr) minmax(0, 0.9fr); }
+.dlos-workflow-roster-head { background: var(--secondary); font-size: 0.7rem; font-weight: 700; }
+.dlos-workflow-roster-row { border-top: 1px solid var(--border); font-size: 0.72rem; }
+.dlos-workflow-roster-table [role="columnheader"], .dlos-workflow-roster-table [role="cell"] { min-width: 0; padding: 0.6rem; overflow-wrap: anywhere; }
+.dlos-workflow-roster-table [role="columnheader"] + [role="columnheader"], .dlos-workflow-roster-table [role="cell"] + [role="cell"] { border-left: 1px solid var(--border); }
+.dlos-workflow-roster-row small { display: block; margin-top: 0.2rem; color: var(--workflow-green-dark); }
+.dlos-workflow-roster-row button { border-radius: 0.35rem; background: #176d9d; padding: 0.45rem 0.5rem; color: white; font-size: 0.675rem; font-weight: 650; }
+.dlos-workflow-roster-row button:hover { background: #146b98; }
+.dlos-workflow-empty { border: 1px dashed var(--border); border-radius: 0.4rem; padding: 1rem; }
+.dlos-workflow-sho-form { background: var(--card); }
+.dlos-sho-modal { max-width: min(72rem, calc(100vw - 2rem)); height: min(48rem, calc(100dvh - 2rem)); }
+.dlos-sho-modal-body { display: flex; min-height: 0; padding: 0 !important; }
+.dlos-sho-modal .dlos-workflow-sho-form { padding: 1.25rem 1.5rem; }
+.dlos-workflow-sho-search { grid-template-columns: minmax(0, 1fr) auto; align-items: end; }
+.dlos-workflow-sho-search-button { display: inline-flex; min-height: 2.5rem; align-items: center; justify-content: center; gap: 0.35rem; border-radius: 0.35rem; background: #0e936f; padding: 0.5rem 0.8rem; color: white; font-size: 0.75rem; font-weight: 700; }
+.dlos-workflow-sho-search-button:hover { background: #087e68; }
+.dlos-workflow-sho-results, .dlos-workflow-sho-selected { grid-column: 1 / -1; }
+.dlos-workflow-sho-results { border: 1px solid var(--border); border-radius: 0.35rem; background: var(--card); }
+.dlos-workflow-sho-results p { padding: 0.6rem; color: var(--muted-foreground); font-size: 0.75rem; }
+.dlos-workflow-sho-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.dlos-workflow-sho-fields label { min-width: 0; font-size: 0.75rem; font-weight: 650; }
+.dlos-workflow-sho-fields input { min-height: 2.5rem; }
+.dlos-workflow-sho-preview { display: flex; min-height: 15rem; flex: 1; flex-direction: column; gap: 0.5rem; }
+.dlos-workflow-sho-preview > strong { font-size: 0.75rem; }
+.dlos-workflow-sho-preview-frame { display: flex; min-height: 14rem; flex: 1; align-items: stretch; justify-content: stretch; border: 1px solid var(--border); border-radius: 0.35rem; background: var(--secondary); }
+.dlos-workflow-sho-preview-empty { display: flex; width: 100%; flex-direction: column; align-items: center; justify-content: center; gap: 0.55rem; color: var(--muted-foreground); font-size: 0.75rem; text-align: center; }
+.dlos-workflow-sho-preview .dlos-workflow-preview { height: 100%; min-height: 14rem; border: 0; }
+.dlos-sho-modal .dlos-workflow-sho-footer { position: sticky; bottom: -1.25rem; gap: 0.6rem; margin: auto -1.5rem -1.25rem; border-top: 1px solid var(--border); background: var(--card); padding: 0.75rem 1.5rem; }
+.dlos-sho-modal .dlos-workflow-sho-footer .dlos-workflow-submit { width: auto; min-width: 9rem; padding: 0.5rem 1rem; }
+.dlos-workflow-sho-results { max-height: 9rem; overflow-y: auto; }
+.dlos-workflow-sho-results button { display: flex; width: 100%; align-items: center; gap: 0.4rem; padding: 0.35rem; text-align: left; font-size: 0.75rem; }
+.dlos-workflow-sho-results button:hover { background: var(--accent); }
+.dlos-workflow-sho-no-document { display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; }
+.dlos-workflow-preview { width: 100%; height: 16rem; border: 1px solid var(--border); object-fit: contain; }
+.dlos-workflow-sho-footer { display: flex; justify-content: flex-end; }
+.dlos-workflow-decision-prompt { display: grid; gap: 0.55rem; border: 1px solid #c6d9e8; border-radius: 0.4rem; background: #f0f7fc; padding: 0.8rem; color: #2b5d79; font-size: 0.75rem; }
+.dlos-workflow-decision-prompt button { justify-self: start; border-radius: 0.3rem; background: #c73d4c; padding: 0.55rem 0.8rem; color: white; font-size: 0.73rem; font-weight: 700; }
+.dlos-workflow-decision-prompt button:hover { background: #a82e3d; }
+.dlos-workflow-decision-prompt small { color: #087e68; font-size: 0.7rem; }
+.dlos-workflow-decision-fields { display: grid; gap: 0.8rem; border: 1px solid var(--border); border-radius: 0.4rem; background: var(--card); padding: 0.9rem; }
+.dlos-workflow-decision-fields label { font-size: 0.75rem; font-weight: 650; }
+.dlos-workflow-decision-fields button { max-width: 9rem; justify-self: end; }
+.dlos-respondents-modal { max-width: min(60rem, calc(100vw - 2rem)); }
+.dlos-respondents-modal > div:nth-child(2) { padding: 0 !important; }
+.dlos-respondents-form { display: grid; max-height: calc(90dvh - 6rem); gap: 1rem; overflow-y: auto; padding: 1.2rem; }
+.dlos-respondents-hint { border: 1px solid #b8dfd1; border-radius: 0.35rem; background: #eaf8f1; padding: 0.7rem 0.85rem; color: #23694d; font-size: 0.75rem; }
+.dlos-respondents-search { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 0.6rem; }
+.dlos-respondents-search label, .dlos-respondents-editor label { font-size: 0.75rem; font-weight: 650; }
+.dlos-respondents-search input, .dlos-respondents-editor input { display: block; width: 100%; min-height: 2.5rem; margin-top: 0.3rem; border: 1px solid var(--border); border-radius: 0.35rem; background: var(--input); padding: 0.5rem 0.7rem; font-size: 0.8rem; font-weight: 400; }
+.dlos-respondents-search > button { display: inline-flex; min-height: 2.5rem; align-items: center; gap: 0.4rem; border-radius: 0.35rem; background: #c83f65; padding: 0.5rem 0.8rem; color: white; font-size: 0.75rem; font-weight: 700; }
+.dlos-respondents-search > button:hover { background: #ad3154; }
+.dlos-respondents-results { display: grid; max-height: 12rem; overflow-y: auto; border: 1px solid var(--border); border-radius: 0.35rem; }
+.dlos-respondents-results button { display: flex; justify-content: space-between; gap: 0.6rem; padding: 0.55rem 0.7rem; font-size: 0.75rem; text-align: left; }
+.dlos-respondents-results button + button { border-top: 1px solid var(--border); }
+.dlos-respondents-results button:hover { background: var(--accent); }
+.dlos-respondents-results button:disabled { color: var(--muted-foreground); }
+.dlos-respondents-results p { padding: 0.75rem; color: var(--muted-foreground); font-size: 0.75rem; }
+.dlos-respondents-heading { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.5rem; }
+.dlos-respondents-heading h4 { font-size: 0.85rem; font-weight: 700; }
+.dlos-respondents-heading button { color: #0a6e7d; font-size: 0.72rem; font-weight: 650; }
+.dlos-respondents-heading button:hover { text-decoration: underline; }
+.dlos-respondents-heading button:disabled { opacity: 0.45; cursor: not-allowed; text-decoration: none; }
+.dlos-respondents-table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 0.35rem; }
+.dlos-respondents-table { width: 100%; min-width: 38rem; border-collapse: collapse; font-size: 0.75rem; }
+.dlos-respondents-table th { background: var(--secondary); color: var(--muted-foreground); font-size: 0.7rem; text-align: left; }
+.dlos-respondents-table th, .dlos-respondents-table td { border-bottom: 1px solid var(--border); padding: 0.6rem 0.7rem; }
+.dlos-respondents-table tr:last-child td { border-bottom: 0; }
+.dlos-respondents-table td button { margin-right: 0.5rem; color: #0a6e7d; font-weight: 650; }
+.dlos-respondents-table td button.dlos-respondents-remove { color: #b13b49; vertical-align: middle; }
+.dlos-respondents-empty { color: var(--muted-foreground); text-align: center; }
+.dlos-respondents-editor { border: 1px solid var(--border); border-radius: 0.35rem; background: var(--secondary); padding: 0.8rem; }
+.dlos-respondents-editor-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.7rem; }
+.dlos-respondents-footer { display: flex; justify-content: flex-end; gap: 0.6rem; border-top: 1px solid var(--border); padding-top: 0.8rem; }
+.dlos-respondents-validation { color: #a6293b; font-size: 0.72rem; }
+.dark .dlos-respondents-hint, [data-theme="dark"] .dlos-respondents-hint { border-color: #34644f; background: #18382b; color: #a2e3c0; }
+.dark .dlos-workflow-decision-prompt, [data-theme="dark"] .dlos-workflow-decision-prompt { border-color: #375e79; background: #193144; color: #b6d8ed; }
+.dlos-workflow-modal :is(button, input, select, textarea):focus-visible { outline: 2px solid var(--workflow-green-dark); outline-offset: 2px; }
+.dark .dlos-workflow-modal, [data-theme="dark"] .dlos-workflow-modal { --workflow-green-soft: #153d3b; --workflow-canvas: #122235; --workflow-ink: #e5f0f7; --workflow-green-dark: #65dec2; }
+.dark .dlos-workflow-note, [data-theme="dark"] .dlos-workflow-note { background: #223f51; color: #b9d9e6; }
+.dark .dlos-workflow-modal :is(.dlos-workflow-submit, .dlos-workflow-details):hover, [data-theme="dark"] .dlos-workflow-modal :is(.dlos-workflow-submit, .dlos-workflow-details):hover { background: #076450; color: white; }
+.dark .dlos-workflow-no-document, [data-theme="dark"] .dlos-workflow-no-document { background: #42252e; color: #ffb3be; border-color: #8f4b59; }
+.dark .dlos-workflow-attachments-button, [data-theme="dark"] .dlos-workflow-attachments-button { background: #473624; color: #ffd69f; border-color: #8b6740; }
+
+@media (max-width: 520px) {
+  .dlos-workflow-sho-search, .dlos-workflow-sho-fields, .dlos-respondents-search, .dlos-respondents-editor-grid { grid-template-columns: 1fr; }
+  .dlos-workflow-header { flex-wrap: wrap; }
+  .dlos-workflow-header-copy { flex-basis: calc(100% - 3rem); }
+  .dlos-workflow-header-copy > strong { font-size: 0.82rem; }
+  .dlos-workflow-role { max-width: none; margin-left: 2.8rem; }
+  .dlos-workflow-timeline { padding-right: 0.75rem; padding-left: 0.75rem; }
+  .dlos-workflow-card { align-items: flex-start; padding: 0.6rem; }
+  .dlos-workflow-management { margin-right: 0.75rem; margin-left: 2.95rem; }
+  .dlos-workflow-roster-head { display: none; }
+  .dlos-workflow-roster-row { grid-template-columns: minmax(0, 1fr); }
+  .dlos-workflow-roster-table [role="cell"] + [role="cell"] { border-top: 1px solid var(--border); border-left: 0; }
+  .dlos-workflow-roster-row button { width: 100%; }
+}
 
 @media (max-width: 900px) {
   .dlos-year-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
