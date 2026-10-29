@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Filter } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, Filter } from 'lucide-react';
 import type { LeaveRecord, Personnel } from '../../types/pais';
 import {
   getLeaveTypePresentation,
@@ -18,10 +18,11 @@ interface LeaveCalendarProps {
   onPersonnelFilterChange: (value: string) => void;
   onLeaveTypeFilterChange: (value: string) => void;
   onSelectLeave: (leave: LeaveRecord) => void;
+  onExport?: () => void;
 }
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const MONTH_NAMES = [
+export const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'
 ];
@@ -48,7 +49,8 @@ export const LeaveCalendar: React.FC<LeaveCalendarProps> = ({
   onMonthChange,
   onPersonnelFilterChange,
   onLeaveTypeFilterChange,
-  onSelectLeave
+  onSelectLeave,
+  onExport
 }) => {
   const personnelById = useMemo(
     () => new Map(personnel.map(person => [person.id, person])),
@@ -116,9 +118,21 @@ export const LeaveCalendar: React.FC<LeaveCalendarProps> = ({
   return (
     <div className="space-y-4">
       <div className="p-4 rounded-2xl border border-slate-200 bg-white shadow-2xs">
-        <div className="flex items-center gap-2 mb-3">
-          <Filter className="w-4 h-4 text-blue-600" />
-          <h3 className="text-xs font-extrabold text-slate-900 uppercase tracking-wide">Calendar Filters</h3>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Filter className="w-4 h-4 text-blue-600" />
+            <h3 className="text-xs font-extrabold text-slate-900 uppercase tracking-wide">Calendar Filters</h3>
+          </div>
+          {onExport && (
+            <button
+              type="button"
+              onClick={onExport}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 transition-colors shadow-2xs"
+            >
+              <Download className="w-3.5 h-3.5 text-slate-500" />
+              Export
+            </button>
+          )}
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
           <SearchableSelect
