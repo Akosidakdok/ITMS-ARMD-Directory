@@ -120,7 +120,7 @@ interface AuthRoleContextType {
   previewOrderDocument: (id: string) => Promise<OrderDocumentPreview>;
   deleteOrderDocument: (id: string) => Promise<OrderRecord>;
   generateOrderDocument: (id: string) => Promise<OrderRecord>;
-  getGeneratedOrderDocument: (id: string, download?: boolean) => Promise<OrderDocumentLink>;
+  getGeneratedOrderDocument: (id: string, download?: boolean, version?: number) => Promise<OrderDocumentLink>;
   previewGeneratedOrderDocument: (id: string) => Promise<OrderDocumentPreview>;
   uploadSignedOrderDocument: (id: string, file: File) => Promise<OrderRecord>;
   getSignedOrderDocument: (id: string, download?: boolean) => Promise<SignedOrderDocumentLink>;
@@ -545,9 +545,9 @@ export const AuthRoleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return updated;
   };
 
-  const getGeneratedOrderDocument = async (id: string, download = false) => {
+  const getGeneratedOrderDocument = async (id: string, download = false, version?: number) => {
     if (!backendConnected) throw new Error('The backend is offline. Generated document retrieval requires an active server connection.');
-    return getGeneratedOrderDocumentApi(id, download);
+    return getGeneratedOrderDocumentApi(id, download, version);
   };
 
   const previewGeneratedOrderDocument = async (id: string) => {

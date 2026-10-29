@@ -16,6 +16,9 @@ import {
   uploadOrderDocument as storeOrderDocument
 } from '../services/orderDocumentStorage.js';
 import { generateOrderDocx } from '../services/orderDocxGenerator.js';
+import { buildGeneratedOrderPreviewPath, getGeneratedOrderPreviewUrl } from '../services/orderPreviewPdf.js';
+
+const generatedVersionChanged = (req, document) => req.query.version != null && String(document.version) !== String(req.query.version);
 
 const getPersonnelDisplayName = person => person.fullName || [person.rank, person.firstName, person.middleName, person.lastName].filter(Boolean).join(' ');
 
@@ -190,7 +193,10 @@ export const deleteOrder = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
     if (order.storagePath) await removeOrderDocument(order.storagePath).catch(() => {});
-    if (order.generatedDocument?.storagePath) await removeOrderDocument(order.generatedDocument.storagePath).catch(() => {});
+    if (order.generatedDocument?.storagePath) {
+      await removeOrderDocument(order.generatedDocument.storagePath).catch(() => {});
+      await removeOrderDocument(buildGeneratedOrderPreviewPath(order.generatedDocument.storagePath)).catch(() => {});
+    }
     if (order.signedDocument?.storagePath) await removeOrderDocument(order.signedDocument.storagePath).catch(() => {});
     res.json({
       success: true,
@@ -287,6 +293,7 @@ export const regenerateOrderDocument = async (req, res) => {
     }
     if (order.generatedDocument?.storagePath && order.generatedDocument.storagePath !== generatedPath) {
       await removeOrderDocument(order.generatedDocument.storagePath).catch(() => {});
+      await removeOrderDocument(buildGeneratedOrderPreviewPath(order.generatedDocument.storagePath)).catch(() => {});
     }
     res.status(201).json({ success: true, message: 'Generated order document created successfully.', data: updated });
   } catch (error) {
@@ -301,6 +308,7 @@ export const getGeneratedOrderDocument = async (req, res) => {
     if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
     const document = order.generatedDocument;
     if (!document?.storagePath) return res.status(404).json({ success: false, message: 'This order has no generated document.' });
+    if (generatedVersionChanged(req, document)) return res.status(409).json({ success: false, message: 'This generated order changed. Reopen its preview.' });
     const downloadName = req.query.download === '1'
       ? `${order.orderNumber || order.id}.docx`
       : undefined;
@@ -308,6 +316,42 @@ export const getGeneratedOrderDocument = async (req, res) => {
     res.json({ success: true, data: { ...document, url, expiresIn: 300 } });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message, error: error.message });
+  }
+};
+
+export const getGeneratedOrderDocumentContent = async (req, res) => {
+  try {
+    const order = await db.getOrderById(req.params.id);
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    const document = order.generatedDocument;
+    if (!document?.storagePath) return res.status(404).json({ success: false, message: 'This order has no generated document.' });
+    if (generatedVersionChanged(req, document)) return res.status(409).json({ success: false, message: 'This generated order changed. Reopen its preview.' });
+    const buffer = await downloadOrderDocument(document.storagePath);
+    res.set('Cache-Control', 'private, no-store');
+    res.type(GENERATED_ORDER_DOCUMENT_MIME).send(buffer);
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message, error: error.message });
+  }
+};
+
+export const getGeneratedOrderPreviewPdf = async (req, res) => {
+  try {
+    const order = await db.getOrderById(req.params.id);
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    const document = order.generatedDocument;
+    if (!document?.storagePath) return res.status(404).json({ success: false, message: 'This order has no generated document.' });
+    if (generatedVersionChanged(req, document)) return res.status(409).json({ success: false, message: 'This generated order changed. Reopen its preview.' });
+    const fileName = `${order.orderNumber || order.id}.pdf`;
+    const url = await getGeneratedOrderPreviewUrl(document.storagePath, req.query.download === '1' ? fileName : undefined);
+    if (req.query.content === '1') {
+      const buffer = await downloadOrderDocument(buildGeneratedOrderPreviewPath(document.storagePath));
+      res.set('Cache-Control', 'private, no-store');
+      return res.type('application/pdf').send(buffer);
+    }
+    res.json({ success: true, data: { url, fileName, version: document.version, expiresIn: 300 } });
+  } catch (error) {
+    const unavailable = error?.code === 'ENOENT' || error?.code === 'ETIMEDOUT' || /soffice|LibreOffice|renderer/i.test(error?.message || '');
+    res.status(unavailable ? 503 : 500).json({ success: false, message: unavailable ? 'PDF preview is unavailable on this server.' : error.message });
   }
 };
 

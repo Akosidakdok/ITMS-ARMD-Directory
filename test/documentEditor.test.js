@@ -130,7 +130,7 @@ test('PAIS Field Resolver: Correctly replaces placeholders with live personnel a
   assert.ok(resolved.includes('PBGEN BENJAMIN H ACORDA'), 'Signatory resolved');
 });
 
-test('Document Format Unification: Canonical order HTML matches Download source of truth layout', async () => {
+test('generated DOCX preserves the official order number', async () => {
   const { formatDocumentOrderNumber, generateOrderDocx } = await import('../backend/services/orderDocxGenerator.js');
 
   const order = {
@@ -160,12 +160,12 @@ test('Document Format Unification: Canonical order HTML matches Download source 
     ]
   };
 
-  // 1. Verify download output generates valid buffer
+  // Verify the generated download has a DOCX body and manifest.
   const { buffer, manifest } = await generateOrderDocx(order);
   assert.ok(buffer && buffer.length > 0, 'Download generator creates valid DOCX package');
   assert.equal(manifest.orderNumber, 'ITMS-SO-DES-2026-0099');
 
-  // 2. Check formatDocumentOrderNumber matches between frontend and backend
+  // The official reference is not shortened for the document.
   const formattedNo = formatDocumentOrderNumber(order.orderNumber);
   assert.equal(formattedNo, 'ITMS-SO-DES-2026-0099', 'Order number formatting preserves the complete official reference');
 });

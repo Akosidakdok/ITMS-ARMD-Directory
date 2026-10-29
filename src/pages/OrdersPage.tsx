@@ -25,11 +25,11 @@ import { DocumentTemplatePanel } from '../components/orders/DocumentTemplatePane
 import { DocumentEditorModule } from '../components/document/DocumentEditorModule';
 import { DocumentErrorBoundary } from '../components/document/DocumentErrorBoundary';
 import { DocumentPageSheet } from '../components/document/canvas/DocumentPageSheet';
+import { GeneratedOrderPreview } from '../components/orders/GeneratedOrderPreview';
 import {
   buildCanonicalOrderDocumentHtml,
   CANONICAL_DOCUMENT_CONFIG
 } from '../components/document/utils/sharedOrderDocument';
-import { exportToDocx } from '../components/document/utils/docxExporter';
 import {
   createDocumentApi,
   fetchOrderDocumentForEditApi,
@@ -52,6 +52,7 @@ import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 import { getOfficialOrderNumber, getOrderNumberDisplay } from '../utils/orderNumber';
 import type { LeaveRecord, OrderRecord } from '../types/pais';
 import { LEAVE_TYPES } from '../data/leaveTypes';
+import { getGeneratedOrderDocumentContentApi, getGeneratedOrderPreviewPdfApi, getGeneratedOrderPreviewPdfContentApi } from '../services/api';
 import type { OrderStatusHistoryRecord } from '../services/api';
 import {
   getOrderPurposeLabel,
@@ -148,12 +149,15 @@ const normalizedOrderStatus = (order: OrderRecord): OrderDocumentStatus => {
 };
 
 const hasGeneratedOrderDocument = (order: OrderRecord) => {
-  if (Boolean(order.generatedDocument?.storagePath)) return true;
+  return Boolean(order.generatedDocument?.storagePath);
+};
+
+const hasLocalOrderDraft = (order: OrderRecord) => {
   try {
     const raw = localStorage.getItem('pais.local_order_documents.v1');
     if (raw) {
       const map = JSON.parse(raw);
-      if (map[order.id]) return true;
+      if (map[order.id]?.content_html) return true;
     }
   } catch {}
   return false;
@@ -223,6 +227,7 @@ const ModalShell = ({
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (!dialogRef.current?.contains(document.activeElement)) return;
       if (event.key === 'Escape') {
         event.preventDefault();
         onCloseRef.current();
@@ -285,11 +290,8 @@ export const OrdersPage = () => {
     fetchOrderStatusHistory,
     uploadOrderDocument,
     getOrderDocument,
-    previewOrderDocument,
     deleteOrderDocument,
     generateOrderDocument,
-    getGeneratedOrderDocument,
-    previewGeneratedOrderDocument,
     uploadSignedOrderDocument,
     getSignedOrderDocument,
     deleteSignedOrderDocument,
@@ -309,6 +311,7 @@ export const OrdersPage = () => {
   const [orderHistory, setOrderHistory] = useState<OrderStatusHistoryRecord[]>([]);
   const [selectedLeave, setSelectedLeave] = useState<LeaveRecord | null>(null);
   const [documentPreview, setDocumentPreview] = useState<{ order: OrderRecord; html: string } | null>(null);
+  const [generatedPreview, setGeneratedPreview] = useState<{ order: OrderRecord; pdfUrl?: string; docxBlob?: Blob; version?: number } | null>(null);
   const [loadingDocumentPreview, setLoadingDocumentPreview] = useState(false);
   const [regeneratingDocument, setRegeneratingDocument] = useState(false);
   const [revokeDialogOpen, setRevokeDialogOpen] = useState(false);
@@ -957,70 +960,61 @@ export const OrdersPage = () => {
     }
   };
 
-  const openOrderDocument = async (order: OrderRecord, download = false) => {
-    if (!getOfficialOrderNumber(order)) {
-      setToast({ type: 'error', message: 'Issue this draft first to assign its official order number before generating or downloading its document.' });
-      return;
-    }
+  const openStoredDocument = async (order: OrderRecord, download = false) => {
     try {
-      // 1. Check if a local edited document exists
-      try {
-        const raw = localStorage.getItem('pais.local_order_documents.v1');
-        if (raw) {
-          const map = JSON.parse(raw);
-          if (map[order.id]?.content_html) {
-            await exportToDocx(map[order.id].content_html, {
-              title: getOrderNumberDisplay(order, order.id || 'Order_Document'),
-              pageSize: CANONICAL_DOCUMENT_CONFIG.pageSize,
-              orientation: CANONICAL_DOCUMENT_CONFIG.orientation,
-              marginTop: CANONICAL_DOCUMENT_CONFIG.marginTop,
-              marginBottom: CANONICAL_DOCUMENT_CONFIG.marginBottom,
-              marginLeft: CANONICAL_DOCUMENT_CONFIG.marginLeft,
-              marginRight: CANONICAL_DOCUMENT_CONFIG.marginRight,
-              headerText: CANONICAL_DOCUMENT_CONFIG.headerText,
-              footerText: CANONICAL_DOCUMENT_CONFIG.footerText
-            });
-            setToast({ type: 'success', message: 'Order document downloaded successfully.' });
-            return;
-          }
-        }
-      } catch (e) {
-        console.warn('Local order document export notice:', e);
-      }
-
-      // 2. If backend connected, try backend link
-      if (backendConnected && hasGeneratedOrderDocument(order)) {
-        try {
-          const link = await getGeneratedOrderDocument(order.id, download);
-          if (link?.url) {
-            window.open(link.url, '_blank', 'noopener,noreferrer');
-            return;
-          }
-        } catch (serverErr) {
-          console.warn('Backend download failed, falling back to local canonical generator:', serverErr);
-        }
-      }
-
-      // 3. Fallback / offline: Export canonical order document directly to DOCX
-      const canonicalHtml = buildCanonicalOrderDocumentHtml(order, { personnelMap: personnelNames });
-      await exportToDocx(canonicalHtml, {
-        title: getOrderNumberDisplay(order, order.id || 'Order_Document'),
-        pageSize: CANONICAL_DOCUMENT_CONFIG.pageSize,
-        orientation: CANONICAL_DOCUMENT_CONFIG.orientation,
-        marginTop: CANONICAL_DOCUMENT_CONFIG.marginTop,
-        marginBottom: CANONICAL_DOCUMENT_CONFIG.marginBottom,
-        marginLeft: CANONICAL_DOCUMENT_CONFIG.marginLeft,
-        marginRight: CANONICAL_DOCUMENT_CONFIG.marginRight,
-        headerText: CANONICAL_DOCUMENT_CONFIG.headerText,
-        footerText: CANONICAL_DOCUMENT_CONFIG.footerText
-      });
-      setToast({ type: 'success', message: 'Order document downloaded successfully.' });
+      const link = await getOrderDocument(order.id, download);
+      if (!link?.url) throw new Error('Document link is unavailable.');
+      window.open(link.url, '_blank', 'noopener,noreferrer');
     } catch (error) {
-      setToast({ type: 'error', message: error instanceof Error ? error.message : 'Unable to open or download the order document.' });
+      setToast({ type: 'error', message: error instanceof Error ? error.message : 'Unable to open the stored document.' });
     }
   };
 
-  const viewOrderDocument = async (order: OrderRecord) => {
+  const saveDocumentBlob = (blob: Blob, fileName: string) => {
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = fileName;
+    document.body.append(anchor);
+    anchor.click();
+    anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  };
+
+  const downloadGeneratedOrderDocument = async (order: OrderRecord, version = order.generatedDocument?.version) => {
+    const blob = await getGeneratedOrderDocumentContentApi(order.id, version);
+    saveDocumentBlob(blob, order.generatedDocument?.fileName || `${getOrderNumberDisplay(order, order.id)}.docx`);
+  };
+
+  const downloadGeneratedOrderPdf = async (order: OrderRecord, version = order.generatedDocument?.version) => {
+    const blob = await getGeneratedOrderPreviewPdfContentApi(order.id, version);
+    const fileName = (order.generatedDocument?.fileName || `${getOrderNumberDisplay(order, order.id)}.docx`).replace(/\.docx$/i, '.pdf');
+    saveDocumentBlob(blob, fileName);
+  };
+
+  const viewGeneratedOrderDocument = async (order: OrderRecord) => {
+    if (!order.generatedDocument?.storagePath) {
+      setToast({ type: 'error', message: 'This order has no generated DOCX on the server.' });
+      return;
+    }
+    setLoadingDocumentPreview(true);
+    try {
+      try {
+        const preview = await getGeneratedOrderPreviewPdfApi(order.id, false, order.generatedDocument.version);
+        setGeneratedPreview({ order, pdfUrl: preview.url, version: preview.version || order.generatedDocument.version });
+      } catch (pdfError) {
+        const docxBlob = await getGeneratedOrderDocumentContentApi(order.id, order.generatedDocument.version);
+        setGeneratedPreview({ order, docxBlob, version: order.generatedDocument.version });
+        console.warn('PDF preview unavailable; rendering the stored DOCX in the browser:', pdfError);
+      }
+    } catch (error) {
+      setToast({ type: 'error', message: error instanceof Error ? error.message : 'Unable to preview the generated order.' });
+    } finally {
+      setLoadingDocumentPreview(false);
+    }
+  };
+
+  const viewOrderDraft = async (order: OrderRecord) => {
     if (!getOfficialOrderNumber(order)) {
       setToast({ type: 'error', message: 'Issue this draft first to assign its official order number before previewing its document.' });
       return;
@@ -1031,21 +1025,19 @@ export const OrdersPage = () => {
         const raw = localStorage.getItem('pais.local_order_documents.v1');
         if (raw) {
           const map = JSON.parse(raw);
-          // Always use the stored document if it exists, regardless of HTML format.
-          // This ensures user edits are preserved in the preview.
+          // Browser-local editor changes take precedence in the draft preview.
           if (map[order.id]?.content_html) {
             setDocumentPreview({ order, html: DOMPurify.sanitize(map[order.id].content_html) });
-            setLoadingDocumentPreview(false);
             return;
           }
         }
       } catch {}
 
-      // Canonical document matching source of truth
+      // Start a draft from order fields if this browser has no saved edit.
       const canonicalHtml = buildCanonicalOrderDocumentHtml(order, { personnelMap: personnelNames });
       setDocumentPreview({ order, html: DOMPurify.sanitize(canonicalHtml) });
     } catch (error) {
-      setToast({ type: 'error', message: error instanceof Error ? error.message : 'Unable to preview the order document.' });
+      setToast({ type: 'error', message: error instanceof Error ? error.message : 'Unable to preview the local draft.' });
     } finally {
       setLoadingDocumentPreview(false);
     }
@@ -1774,11 +1766,12 @@ export const OrdersPage = () => {
               <div className="rounded-xl border border-teal-200 bg-teal-50 p-4">
                 <p className="flex items-center gap-2 text-sm font-semibold text-teal-950"><FileText size={16} /> Generated unsigned order</p>
                 <p className="mt-1 text-xs text-teal-800">System-generated DOCX prepared for printing and wet signature.</p>
+                <p className="mt-1 text-xs text-teal-800">Document Editor changes are saved as a separate local draft.</p>
                 {hasGeneratedOrderDocument(selectedOrder) ? (
                   <div className="mt-3 grid grid-cols-2 gap-2">
                     <button
                       type="button"
-                      onClick={() => viewOrderDocument(selectedOrder)}
+                      onClick={() => void viewGeneratedOrderDocument(selectedOrder)}
                       disabled={loadingDocumentPreview}
                       className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-teal-300 bg-white px-3 py-2 text-xs font-semibold text-teal-700 hover:bg-teal-100 disabled:opacity-60"
                     >
@@ -1786,7 +1779,7 @@ export const OrdersPage = () => {
                     </button>
                     <button
                       type="button"
-                      onClick={() => openOrderDocument(selectedOrder, true)}
+                      onClick={() => void downloadGeneratedOrderDocument(selectedOrder).catch(error => setToast({ type: 'error', message: error instanceof Error ? error.message : 'Unable to download the generated order.' }))}
                       className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-teal-300 bg-white px-3 py-2 text-xs font-semibold text-teal-700 hover:bg-teal-100"
                     >
                       <Download size={15} /> Download
@@ -1807,8 +1800,9 @@ export const OrdersPage = () => {
                       disabled={loadingOrderEditor}
                       className="col-span-2 inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-xs font-semibold text-teal-900 hover:bg-teal-100 disabled:opacity-60"
                     >
-                      <FilePenLine size={15} /> {loadingOrderEditor ? 'Opening...' : 'Edit in Document Editor'}
+                      <FilePenLine size={15} /> {loadingOrderEditor ? 'Opening...' : 'Edit local draft'}
                     </button>
+                    {hasLocalOrderDraft(selectedOrder) && <button type="button" onClick={() => void viewOrderDraft(selectedOrder)} className="col-span-2 inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 hover:bg-amber-100"><Eye size={15} /> Preview local draft</button>}
                   </div>
                 ) : (
                   <div className="mt-3 rounded-lg border border-dashed border-teal-300 bg-white p-3 text-xs text-teal-800">
@@ -1820,8 +1814,9 @@ export const OrdersPage = () => {
                         disabled={loadingOrderEditor}
                         className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-teal-300 bg-teal-600 px-3 py-2 text-xs font-semibold text-white hover:bg-teal-700 disabled:opacity-60"
                       >
-                        <FilePenLine size={15} /> {loadingOrderEditor ? 'Opening...' : 'Edit in Document Editor'}
+                        <FilePenLine size={15} /> {loadingOrderEditor ? 'Opening...' : 'Edit local draft'}
                       </button>
+                      {hasLocalOrderDraft(selectedOrder) && <button type="button" onClick={() => void viewOrderDraft(selectedOrder)} className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 hover:bg-amber-100"><Eye size={15} /> Preview local draft</button>}
                       {canEdit && backendConnected && !LOCKED_ORDER_STATUSES.has(selectedOrderStatus || '') && (
                         <button
                           type="button"
@@ -1865,8 +1860,8 @@ export const OrdersPage = () => {
                     <p className="mt-1 text-xs text-slate-500">Version {selectedOrder.documentVersion || 1} · {selectedOrder.fileSize ? `${(selectedOrder.fileSize / 1024 / 1024).toFixed(2)} MB` : 'Size unavailable'}</p>
                   </div>
                   <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
-                    <button type="button" onClick={() => viewOrderDocument(selectedOrder)} disabled={loadingDocumentPreview} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-teal-300 bg-white px-3 py-2 text-xs font-semibold text-teal-700 transition hover:bg-teal-50 disabled:cursor-not-allowed disabled:opacity-60"><Eye size={15} /> {loadingDocumentPreview ? 'Loading...' : 'View'}</button>
-                    <button type="button" onClick={() => openOrderDocument(selectedOrder, true)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"><Download size={15} /> Download</button>
+                    <button type="button" onClick={() => void openStoredDocument(selectedOrder)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-teal-300 bg-white px-3 py-2 text-xs font-semibold text-teal-700 transition hover:bg-teal-50"><Eye size={15} /> Open source</button>
+                    <button type="button" onClick={() => void openStoredDocument(selectedOrder, true)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"><Download size={15} /> Download</button>
                     <span className="col-span-2 text-[11px] text-slate-500">Legacy DOCX is read-only. Use the generated order and approved copy sections for current document actions.</span>
                   </div>
                 </div>
@@ -2005,6 +2000,21 @@ export const OrdersPage = () => {
         </div>
       )}
 
+      {generatedPreview && <GeneratedOrderPreview
+        title={getOrderNumberDisplay(generatedPreview.order, 'Administrative Order')}
+        version={generatedPreview.version}
+        pdfUrl={generatedPreview.pdfUrl}
+        docxBlob={generatedPreview.docxBlob}
+        onClose={() => setGeneratedPreview(null)}
+        onEdit={canEdit && !LOCKED_ORDER_STATUSES.has(normalizedOrderStatus(generatedPreview.order)) ? () => {
+          const order = generatedPreview.order;
+          setGeneratedPreview(null);
+          void handleEditOrderInDocumentEditor(order);
+        } : undefined}
+        onDownloadDocx={() => downloadGeneratedOrderDocument(generatedPreview.order, generatedPreview.version)}
+        onDownloadPdf={generatedPreview.pdfUrl ? () => downloadGeneratedOrderPdf(generatedPreview.order, generatedPreview.version) : undefined}
+      />}
+
       {selectedLeave && (
         <ModalShell title="Leave Information" eyebrow="Leave Calendar" onClose={() => setSelectedLeave(null)} maxWidth="max-w-xl">
           <div className="space-y-5 p-6">
@@ -2039,7 +2049,7 @@ export const OrdersPage = () => {
                 onClose={() => {
                   setOrderEditingInDocumentEditor(null);
                   if (selectedOrder) {
-                    viewOrderDocument(selectedOrder);
+                    viewOrderDraft(selectedOrder);
                   }
                 }}
               />

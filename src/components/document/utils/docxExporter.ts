@@ -52,9 +52,7 @@ const base64ToUint8Array = (dataUrl: string): Uint8Array => {
   return bytes;
 };
 
-/**
- * Converts an HTML document string into a pixel-accurate DOCX matching orderDocxGenerator.js
- */
+/** Converts editor HTML into a DOCX for local drafts. */
 export const exportToDocx = async (
   htmlContent: string,
   options: DocxExportOptions

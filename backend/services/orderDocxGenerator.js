@@ -23,7 +23,7 @@ import { ORDER_CATALOG } from '../utils/orderCatalog.js';
 import { formatOfficialOrderNumber } from '../../shared/orderNumber.js';
 
 export const ORDER_TEMPLATE_KEY = 'pnp-itms-letter-orders';
-export const ORDER_TEMPLATE_VERSION = '1.2.0';
+export const ORDER_TEMPLATE_VERSION = '1.8.0';
 
 const FONT = 'Arial';
 const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -173,35 +173,44 @@ const buildSignatureTable = order => {
   const certifyingRank = safeText(order.certifyingOfficialRank || 'Police Colonel');
   const certifyingPosition = safeText(order.certifyingOfficialPosition || 'Chief, Administrative and Resource Management Division');
   const signatory = safeText(order.signatory || 'PBGEN BENJAMIN H ACORDA');
+  const signatoryRank = safeText(order.signatoryRank || 'Police Brigadier General');
   const signatoryTitle = safeText(order.signatoryTitle || 'Director, ITMS');
   const distribution = safeText(order.distribution || 'C');
 
   return [
     textParagraph(authority, { alignment: AlignmentType.CENTER, runOptions: { bold: true } }),
-    blankParagraph(),
+    ...Array.from({ length: 4 }, () => blankParagraph()),
     new Table({
       width: { size: 100, type: WidthType.PERCENTAGE },
       borders: NO_BORDERS,
       columnWidths: [3456, 672, 3456],
       rows: [new TableRow({ children: [
-        cell(textParagraph('OFFICIAL:')),
+        cell(blankParagraph()),
         cell(blankParagraph()),
         cell([
           textParagraph(signatory, { runOptions: { bold: true, italics: true } }),
-          textParagraph('Police Brigadier General'),
+          textParagraph(signatoryRank),
           textParagraph(signatoryTitle)
-        ])
-      ] }), new TableRow({ children: [
-        cell(blankParagraph()),
-        cell(blankParagraph()),
-        cell([
-          blankParagraph(),
-          textParagraph(certifyingName, { runOptions: { bold: true, italics: true } }),
-          textParagraph(certifyingRank),
-          textParagraph(certifyingPosition)
         ])
       ] })]
     }),
+    textParagraph('OFFICIAL:', { alignment: AlignmentType.LEFT }),
+    ...Array.from({ length: 4 }, () => blankParagraph()),
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      borders: NO_BORDERS,
+      columnWidths: [3456, 672, 3456],
+      rows: [new TableRow({ children: [
+        cell([
+          textParagraph(certifyingName, { runOptions: { bold: true, italics: true } }),
+          textParagraph(certifyingRank),
+          textParagraph(certifyingPosition)
+        ]),
+        cell(blankParagraph()),
+        cell(blankParagraph())
+      ] })]
+    }),
+    blankParagraph(),
     blankParagraph(),
     textParagraph('DISTRIBUTION:'),
     textParagraph(`        "${distribution}"`)
@@ -214,10 +223,14 @@ export const computeOrderSourceHash = order => {
     series: order.series || '',
     purposeCode: order.purposeCode || '',
     subject: safeText(order.subject),
+    authorityText: safeText(order.authorityText),
     signatory: safeText(order.signatory),
+    signatoryRank: safeText(order.signatoryRank),
+    signatoryTitle: safeText(order.signatoryTitle),
     certifyingOfficial: safeText(order.certifyingOfficial),
     certifyingOfficialRank: safeText(order.certifyingOfficialRank),
     certifyingOfficialPosition: safeText(order.certifyingOfficialPosition),
+    distribution: safeText(order.distribution),
     issuedDate: order.issuedDate || '',
     effectiveDate: order.effectiveDate || '',
     personnelSnapshot: getPersonnel(order).map(p => ({
@@ -278,7 +291,7 @@ export const generateOrderDocx = async order => {
     paragraph(singlePersonNarrative || [run(getNarrative(order))], { alignment: AlignmentType.JUSTIFIED, indent: { firstLine: 720 } }),
     ...getPurposeDetails(order).flatMap(detail => [textParagraph(detail, { indent: { left: 720 } })]),
     ...(description ? description.split(/\r?\n/).map(line => line ? textParagraph(line, { alignment: AlignmentType.JUSTIFIED }) : blankParagraph()) : []),
-    blankParagraph(),
+    ...(singlePersonNarrative ? [] : [blankParagraph()]),
     ...(singlePersonNarrative ? [] : personnel.filter(p => p.role !== 'driver').map((person, idx) => {
       const seq = personnel.length > 1 ? `${idx + 1}. ` : '';
       const roleStr = person.role && person.role !== 'affected' ? ` (${roleLabel(person.role)})` : '';
