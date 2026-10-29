@@ -9,6 +9,7 @@ interface ExportPrintModalProps {
   data: any[];
   columns: { key: string; label: string }[];
   reportType?: string;
+  controls?: React.ReactNode;
 }
 
 export const ExportPrintModal: React.FC<ExportPrintModalProps> = ({
@@ -17,7 +18,8 @@ export const ExportPrintModal: React.FC<ExportPrintModalProps> = ({
   reportTitle,
   data,
   columns,
-  reportType
+  reportType,
+  controls
 }) => {
   const [downloadSuccess, setDownloadSuccess] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
@@ -103,11 +105,12 @@ export const ExportPrintModal: React.FC<ExportPrintModalProps> = ({
       <div className="space-y-6">
         {/* Action bar */}
         <div className="no-print flex flex-wrap items-center justify-between gap-4 rounded-md border border-slate-300 bg-white p-4">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-3">
             <span className="px-2.5 py-1 text-xs font-extrabold rounded bg-blue-50 text-blue-700 border border-blue-200">
               Official ITMS Format
             </span>
             <span className="text-xs text-slate-600 font-bold">Total Rows: <strong className="text-slate-900 font-mono">{data.length}</strong></span>
+            {controls}
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -176,16 +179,24 @@ export const ExportPrintModal: React.FC<ExportPrintModalProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-900 font-bold">
-                {data.map((row, idx) => (
-                  <tr key={idx} className="hover:bg-slate-50">
-                    <td className="py-2 px-3 text-slate-400 font-mono font-normal">{idx + 1}</td>
-                    {columns.map(c => (
-                      <td key={c.key} className="py-2 px-3">
-                        {String(row[c.key] ?? '—')}
-                      </td>
-                    ))}
+                {data.length === 0 ? (
+                  <tr>
+                    <td colSpan={columns.length + 1} className="py-8 text-center text-slate-500 font-semibold">
+                      No matching records found.
+                    </td>
                   </tr>
-                ))}
+                ) : (
+                  data.map((row, idx) => (
+                    <tr key={idx} className="hover:bg-slate-50">
+                      <td className="py-2 px-3 text-slate-400 font-mono font-normal">{idx + 1}</td>
+                      {columns.map(c => (
+                        <td key={c.key} className="py-2 px-3">
+                          {String(row[c.key] ?? '—')}
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

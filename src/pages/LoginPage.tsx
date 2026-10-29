@@ -1,7 +1,6 @@
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import {
   ArrowRight,
-  ChevronDown,
   Database,
   Eye,
   EyeOff,
@@ -19,19 +18,6 @@ import { useAuthRole } from '../context/AuthRoleContext';
 import { useTheme } from '../context/ThemeContext';
 import './LoginPage.css';
 
-const developmentAccounts = [
-  {
-    email: 'cjbaldonado11@gmail.com',
-    password: 'PAIS-Admin-2026!',
-    role: 'Superadmin'
-  },
-  {
-    email: 'admin@gmail.com',
-    password: '12345678',
-    role: 'Admin'
-  }
-] as const;
-
 export const LoginPage: React.FC = () => {
   const { login } = useAuthRole();
   const { theme, toggleTheme } = useTheme();
@@ -41,16 +27,6 @@ export const LoginPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [demoOpen, setDemoOpen] = useState(true);
-  const usernameInputRef = useRef<HTMLInputElement>(null);
-
-  const fillDevelopmentAccount = (account: (typeof developmentAccounts)[number]) => {
-    setUsername(account.email);
-    setPassword(account.password);
-    setError('');
-    usernameInputRef.current?.focus();
-  };
-
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError('');
@@ -210,51 +186,12 @@ export const LoginPage: React.FC = () => {
             </div>
           )}
 
-          <div className="pais-login__development">
-            <button type="button" onClick={() => setDemoOpen(open => !open)} aria-expanded={demoOpen} className="pais-login__development-toggle">
-              <span>
-                <LockKeyhole aria-hidden="true" />
-                <span><strong>Development access</strong><small>Choose a prepared test account</small></span>
-              </span>
-              <ChevronDown aria-hidden="true" className={demoOpen ? 'is-open' : ''} />
-            </button>
-
-            {demoOpen && (
-              <div className="pais-login__account-grid">
-                {developmentAccounts.map(account => {
-                  const isSuperadmin = account.role === 'Superadmin';
-                  const isSelected = username === account.email;
-                  return (
-                    <button
-                      key={account.email}
-                      type="button"
-                      onClick={() => fillDevelopmentAccount(account)}
-                      aria-label={`Use ${account.role} development account`}
-                      aria-pressed={isSelected}
-                      className={`pais-login__account${isSelected ? ' is-selected' : ''}`}
-                    >
-                      <span className={`pais-login__account-icon${isSuperadmin ? ' is-superadmin' : ''}`}>
-                        {isSuperadmin ? <ShieldCheck aria-hidden="true" /> : <Shield aria-hidden="true" />}
-                      </span>
-                      <span className="pais-login__account-copy">
-                        <strong>{account.role}</strong>
-                        <small>{account.email}</small>
-                        <span>Use account <ArrowRight aria-hidden="true" /></span>
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
           <div className="pais-login__fields">
             <div className="pais-login__field">
               <label htmlFor="login-username">Email address</label>
               <div className="pais-login__input">
                 <User aria-hidden="true" />
                 <input
-                  ref={usernameInputRef}
                   id="login-username"
                   name="email"
                   type="email"

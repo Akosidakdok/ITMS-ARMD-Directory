@@ -1,0 +1,1269 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>PAIS 2.0 — Institutional 3D Motion Graphics Showcase</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      *, *::before, *::after {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html, body {
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #040711;
+        font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+        color: #f8fafc;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      /* Root Composition Stage with 3D Perspective */
+      #root {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        background: #040711;
+        overflow: hidden;
+        perspective: 1600px;
+      }
+
+      /* Base Scene Layer */
+      .scene {
+        position: absolute;
+        inset: 0;
+        width: 1920px;
+        height: 1080px;
+        opacity: 0;
+        pointer-events: none;
+        overflow: hidden;
+        transform-style: preserve-3d;
+      }
+
+      /* 3D Deep Space & Ambient Light */
+      .ambient-canvas {
+        position: absolute;
+        inset: 0;
+        background: 
+          radial-gradient(circle at 50% 15%, rgba(37, 99, 235, 0.22) 0%, transparent 65%),
+          radial-gradient(circle at 85% 85%, rgba(30, 58, 138, 0.35) 0%, transparent 60%),
+          linear-gradient(180deg, #03060d 0%, #080f20 45%, #040711 100%);
+        z-index: 0;
+      }
+      .grid-3d {
+        position: absolute;
+        inset: -200px;
+        background-image: 
+          linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+          linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+        background-size: 60px 60px;
+        transform: rotateX(60deg) translateY(-80px);
+        transform-origin: center center;
+        opacity: 0.6;
+        mask-image: radial-gradient(ellipse at center, rgba(0,0,0,1) 30%, rgba(0,0,0,0) 80%);
+      }
+
+      /* Universal Header Overlay */
+      .cinematic-hud-header {
+        position: absolute;
+        top: 24px;
+        left: 48px;
+        right: 48px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        z-index: 100;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+        padding-bottom: 14px;
+      }
+      .hud-branding {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+      .hud-branding img {
+        height: 36px;
+        width: auto;
+        object-fit: contain;
+      }
+      .hud-title-text h2 {
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #93c5fd;
+      }
+      .hud-title-text p {
+        font-size: 10px;
+        font-weight: 600;
+        color: #cbd5e1;
+      }
+      .hud-module-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(30, 58, 138, 0.7);
+        border: 1px solid rgba(147, 197, 253, 0.45);
+        padding: 6px 14px;
+        border-radius: 9999px;
+        font-size: 11px;
+        font-weight: 800;
+        color: #ffffff;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+      .live-pulse-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #22c55e;
+        box-shadow: 0 0 10px #22c55e;
+      }
+
+      /* 3D Showcase Chassis & Screen Container */
+      .chassis-3d {
+        position: relative;
+        border-radius: 14px;
+        background: #090f1e;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        box-shadow: 
+          0 35px 80px -15px rgba(0, 0, 0, 0.9),
+          0 0 45px rgba(37, 99, 235, 0.25),
+          0 0 0 1px rgba(255, 255, 255, 0.08);
+        overflow: hidden;
+        transform-style: preserve-3d;
+      }
+      .chassis-window-bar {
+        height: 32px;
+        background: #0f172a;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 14px;
+      }
+      .window-dots {
+        display: flex;
+        gap: 6px;
+      }
+      .window-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+      }
+      .window-url-bar {
+        background: #1e293b;
+        border: 1px solid #334155;
+        border-radius: 4px;
+        padding: 2px 16px;
+        font-size: 10px;
+        font-family: monospace;
+        color: #94a3b8;
+      }
+      .chassis-screenshot {
+        width: 100%;
+        height: auto;
+        display: block;
+        object-fit: cover;
+      }
+
+      /* Floating 3D Feature Callouts */
+      .callout-card-3d {
+        position: absolute;
+        background: rgba(15, 23, 42, 0.92);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(59, 130, 246, 0.5);
+        border-radius: 12px;
+        padding: 16px 20px;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.6), 0 0 25px rgba(59,130,246,0.3);
+        z-index: 50;
+      }
+
+      /* Badges & Tags */
+      .gold-badge {
+        background: rgba(245, 158, 11, 0.2);
+        color: #fde68a;
+        border: 1px solid rgba(245, 158, 11, 0.6);
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+      }
+      .blue-badge {
+        background: rgba(37, 99, 235, 0.2);
+        color: #bfdbfe;
+        border: 1px solid rgba(59, 130, 246, 0.6);
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+      }
+      .green-badge {
+        background: rgba(34, 197, 94, 0.2);
+        color: #86efac;
+        border: 1px solid rgba(34, 197, 94, 0.6);
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+      }
+
+      /* Kinetic Title Styles */
+      .hero-glow-title {
+        font-size: 88px;
+        font-weight: 900;
+        letter-spacing: -0.02em;
+        line-height: 1.05;
+        background: linear-gradient(135deg, #ffffff 40%, #93c5fd 75%, #3b82f6 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        filter: drop-shadow(0 0 35px rgba(59, 130, 246, 0.4));
+      }
+      .hero-sub-label {
+        font-size: 16px;
+        font-weight: 800;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: #fbbf24;
+      }
+
+      /* 3D Transform States */
+      .iso-left {
+        transform: rotateY(16deg) rotateX(7deg) translateZ(30px);
+      }
+      .iso-right {
+        transform: rotateY(-16deg) rotateX(7deg) translateZ(30px);
+      }
+      .iso-center {
+        transform: rotateX(5deg) translateZ(40px);
+      }
+      .iso-revolve {
+        transform: rotateY(-12deg) rotateX(10deg) scale(0.92);
+      }
+
+      /* High-Tech Motion Graphics Styles */
+      .laser-scanline {
+        position: absolute;
+        top: 32px;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, transparent, #38bdf8, #60a5fa, #38bdf8, transparent);
+        box-shadow: 0 0 16px #38bdf8, 0 0 32px #2563eb;
+        pointer-events: none;
+        z-index: 60;
+        opacity: 0.85;
+      }
+      .radar-ring {
+        position: absolute;
+        border-radius: 50%;
+        border: 1px dashed rgba(59, 130, 246, 0.45);
+        pointer-events: none;
+        box-shadow: 0 0 30px rgba(59, 130, 246, 0.2);
+      }
+      .hud-reticle-box {
+        position: absolute;
+        border: 2px solid rgba(56, 189, 248, 0.7);
+        border-radius: 6px;
+        pointer-events: none;
+        box-shadow: 0 0 20px rgba(56, 189, 248, 0.4), inset 0 0 15px rgba(56, 189, 248, 0.15);
+        z-index: 55;
+      }
+      .hud-corner {
+        position: absolute;
+        width: 14px;
+        height: 14px;
+        border-color: #38bdf8;
+        border-style: solid;
+        pointer-events: none;
+      }
+      .hud-c-tl { top: -2px; left: -2px; border-width: 3px 0 0 3px; }
+      .hud-c-tr { top: -2px; right: -2px; border-width: 3px 3px 0 0; }
+      .hud-c-bl { bottom: -2px; left: -2px; border-width: 0 0 3px 3px; }
+      .hud-c-br { bottom: -2px; right: -2px; border-width: 0 3px 3px 0; }
+
+      .motion-tag-pill {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(15, 23, 42, 0.95);
+        border: 1px solid rgba(34, 197, 94, 0.6);
+        border-radius: 8px;
+        padding: 8px 14px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 15px rgba(34, 197, 94, 0.3);
+      }
+
+      /* Interactive UI Animation Elements */
+      .interactive-cursor {
+        position: absolute;
+        width: 32px;
+        height: 32px;
+        pointer-events: none;
+        z-index: 200;
+        filter: drop-shadow(0 3px 10px rgba(0,0,0,0.85));
+      }
+      .click-ripple {
+        position: absolute;
+        width: 36px;
+        height: 36px;
+        margin-left: -18px;
+        margin-top: -18px;
+        border-radius: 50%;
+        border: 2px solid #38bdf8;
+        background: rgba(56, 189, 248, 0.35);
+        pointer-events: none;
+        z-index: 195;
+      }
+      .interactive-dropdown {
+        position: absolute;
+        background: rgba(15, 23, 42, 0.97);
+        border: 1px solid rgba(59, 130, 246, 0.6);
+        border-radius: 10px;
+        padding: 12px 16px;
+        box-shadow: 0 14px 35px rgba(0,0,0,0.85), 0 0 20px rgba(59, 130, 246, 0.35);
+        backdrop-filter: blur(14px);
+        z-index: 150;
+        pointer-events: none;
+      }
+      .interactive-toast {
+        position: absolute;
+        background: rgba(15, 23, 42, 0.97);
+        border: 1px solid #22c55e;
+        border-radius: 10px;
+        padding: 12px 22px;
+        box-shadow: 0 14px 40px rgba(0,0,0,0.9), 0 0 25px rgba(34, 197, 94, 0.4);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        z-index: 180;
+      }
+      .excel-cell-selection {
+        position: absolute;
+        border: 2px solid #3b82f6;
+        box-shadow: 0 0 14px rgba(59, 130, 246, 0.7);
+        pointer-events: none;
+        z-index: 120;
+      }
+      .excel-cell-handle {
+        position: absolute;
+        bottom: -4px;
+        right: -4px;
+        width: 8px;
+        height: 8px;
+        background: #3b82f6;
+        border: 1px solid #ffffff;
+      }
+      .flow-packet {
+        position: absolute;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 800;
+        color: #ffffff;
+        background: rgba(30, 58, 138, 0.9);
+        border: 1px solid #60a5fa;
+        box-shadow: 0 0 16px rgba(96, 165, 250, 0.6);
+        pointer-events: none;
+        z-index: 45;
+        white-space: nowrap;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="120"
+      data-width="1920"
+      data-height="1080"
+    >
+      <!-- Master Audio Track (BGM + Spoken Voiceover Aligned) -->
+      <audio
+        id="bg-soundtrack"
+        class="clip"
+        data-start="0"
+        data-duration="120"
+        data-volume="1.0"
+        src="assets/music/soundtrack.mp3"
+      ></audio>
+
+      <!-- 3D Tech Background Layer -->
+      <div class="ambient-canvas clip" data-start="0" data-duration="120">
+        <div class="grid-3d"></div>
+      </div>
+
+      <!-- ===================================================================== -->
+      <!-- SCENE 1: CINEMATIC OPENING & INSIGNIA (0:00 - 0:07, 7s) -->
+      <!-- ===================================================================== -->
+      <section id="scene-1" class="scene clip" data-start="0" data-duration="7">
+        <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; z-index: 20;">
+          <!-- Motion Graphics: Radar Telemetry Rings -->
+          <div class="radar-ring" style="width: 340px; height: 340px; border-color: rgba(59, 130, 246, 0.4);"></div>
+          <div class="radar-ring" style="width: 520px; height: 520px; border-color: rgba(245, 158, 11, 0.3); border-style: dotted;"></div>
+
+          <div id="s1-insignia" style="display: flex; align-items: center; gap: 24px; margin-bottom: 24px; z-index: 30;">
+            <img src="assets/images/pnp-logo.png" alt="PNP" style="height: 120px; filter: drop-shadow(0 0 35px rgba(59,130,246,0.8));" />
+            <img src="assets/images/itms-logo.jpg" alt="ITMS" style="height: 120px; border-radius: 50%; filter: drop-shadow(0 0 35px rgba(245,158,11,0.8));" />
+          </div>
+          <p id="s1-subtitle1" class="hero-sub-label" style="margin-bottom: 12px; z-index: 30;">PHILIPPINE NATIONAL POLICE · ITMS</p>
+          <h1 id="s1-main-title" class="hero-glow-title" style="font-size: 116px; margin-bottom: 14px; z-index: 30;">PAIS 2.0</h1>
+          <p id="s1-subtitle2" style="font-size: 26px; font-weight: 700; color: #cbd5e1; max-width: 1020px; letter-spacing: 0.04em; z-index: 30;">
+            PERSONNEL INFORMATION AND WORKSHEET MANAGEMENT SYSTEM
+          </p>
+          <div id="s1-badges" style="display: flex; gap: 14px; margin-top: 30px; z-index: 30;">
+            <span class="gold-badge">Sovereign Enterprise Core</span>
+            <span class="blue-badge">Automated Promotional Engine</span>
+            <span class="green-badge">Official Excel Worksheets</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================================================================== -->
+      <!-- SCENE 2: SYSTEM ARCHITECTURE & ONE CONNECTED SYSTEM (0:07 - 0:15, 8s) -->
+      <!-- ===================================================================== -->
+      <section id="scene-2" class="scene clip" data-start="7" data-duration="8">
+        <div class="cinematic-hud-header">
+          <div class="hud-branding">
+            <img src="assets/images/pnp-logo.png" alt="" />
+            <div class="hud-title-text">
+              <h2>PNP–ITMS PAIS 2.0</h2>
+              <p>Platform Architecture &amp; Unified Data Model</p>
+            </div>
+          </div>
+          <span class="hud-module-indicator"><span class="live-pulse-dot"></span> Module 02 · One Connected System</span>
+        </div>
+
+        <div style="position: absolute; top: 100px; left: 80px; right: 80px; text-align: center;">
+          <h2 style="font-size: 42px; font-weight: 900; color: #ffffff;">ONE CONNECTED ENTERPRISE SYSTEM</h2>
+          <p style="font-size: 16px; color: #94a3b8; margin-top: 6px;">
+            A centralized personnel database serves as the canonical source across assignments, promotions, and worksheets.
+          </p>
+        </div>
+
+        <!-- 3D Perspective Floating Screenshots & Core Engine -->
+        <div id="s2-stage" data-layout-allow-overlap data-layout-allow-occlusion style="position: absolute; top: 210px; left: 100px; right: 100px; height: 500px; display: flex; align-items: center; justify-content: space-around;">
+          
+          <!-- Left 3D Panel: Real Login & Auth -->
+          <div class="chassis-3d iso-left" data-layout-allow-overlap data-layout-allow-occlusion style="width: 480px; height: 320px;">
+            <div class="chassis-window-bar">
+              <div class="window-dots">
+                <span class="window-dot" style="background:#ef4444;"></span>
+                <span class="window-dot" style="background:#eab308;"></span>
+                <span class="window-dot" style="background:#22c55e;"></span>
+              </div>
+              <span class="window-url-bar">pais.itms.pnp.gov.ph/login</span>
+              <span class="blue-badge" data-layout-allow-overlap>Auth 2.0</span>
+            </div>
+            <img src="assets/screenshots/01-login.png" class="chassis-screenshot" alt="PAIS 2.0 Login" />
+          </div>
+
+          <!-- Center Engine Core -->
+          <div data-layout-allow-overlap data-layout-allow-occlusion style="display: flex; flex-direction: column; align-items: center; z-index: 40;">
+            <div style="width: 130px; height: 130px; border-radius: 50%; background: radial-gradient(circle, #2563eb, #0f172a); border: 2px solid #60a5fa; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 0 50px rgba(37,99,235,0.7);">
+              <span style="font-size: 38px;">🗄️</span>
+              <span style="font-size: 11px; font-weight: 900; color: #ffffff; margin-top: 4px;">PAIS 2.0</span>
+              <span style="font-size: 9px; font-weight: 700; color: #93c5fd;">DATABASE</span>
+            </div>
+            <div style="margin-top: 14px; text-align: center;">
+              <span class="gold-badge">Single Source of Truth</span>
+              <p style="font-size: 12px; color: #94a3b8; margin-top: 6px;">Zero Duplicate Entry</p>
+            </div>
+          </div>
+
+          <!-- Right 3D Panel: Real Dashboard -->
+          <div class="chassis-3d iso-right" data-layout-allow-overlap data-layout-allow-occlusion style="width: 480px; height: 320px;">
+            <div class="chassis-window-bar">
+              <div class="window-dots">
+                <span class="window-dot" style="background:#ef4444;"></span>
+                <span class="window-dot" style="background:#eab308;"></span>
+                <span class="window-dot" style="background:#22c55e;"></span>
+              </div>
+              <span class="window-url-bar">pais.itms.pnp.gov.ph/dashboard</span>
+              <span class="green-badge" data-layout-allow-overlap>Live Operational</span>
+            </div>
+            <img src="assets/screenshots/02-dashboard.png" class="chassis-screenshot" alt="PAIS 2.0 Dashboard" />
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ===================================================================== -->
+      <!-- SCENE 3: REAL DASHBOARD & AUTOMATED STRENGTH (0:15 - 0:25, 10s) -->
+      <!-- ===================================================================== -->
+      <section id="scene-3" class="scene clip" data-start="15" data-duration="10">
+        <div class="cinematic-hud-header">
+          <div class="hud-branding">
+            <img src="assets/images/pnp-logo.png" alt="" />
+            <div class="hud-title-text">
+              <h2>PNP–ITMS PAIS 2.0</h2>
+              <p>Main Dashboard · Strength Analytics &amp; Active Postings</p>
+            </div>
+          </div>
+          <span class="hud-module-indicator"><span class="live-pulse-dot"></span> Module 02 · Live Dashboard</span>
+        </div>
+
+        <!-- 3D Angled Hero Dashboard Display -->
+        <div id="s3-chassis" class="chassis-3d" data-layout-allow-overlap data-layout-allow-occlusion style="position: absolute; top: 90px; left: 160px; right: 160px; height: 860px; transform: rotateX(6deg) scale(0.96);">
+          <div id="s3-laser" class="laser-scanline"></div>
+          <div class="chassis-window-bar">
+            <div class="window-dots">
+              <span class="window-dot" style="background:#ef4444;"></span>
+              <span class="window-dot" style="background:#eab308;"></span>
+              <span class="window-dot" style="background:#22c55e;"></span>
+            </div>
+            <span class="window-url-bar">https://itms-armd-directory.internal/dashboard</span>
+            <span class="blue-badge" data-layout-allow-occlusion>Automated Strength Counter</span>
+          </div>
+          <img src="assets/screenshots/02-dashboard.png" class="chassis-screenshot" style="height: calc(100% - 32px);" alt="" />
+        </div>
+
+        <!-- Motion Graphics: Live KPI Counter Telemetry -->
+        <div id="s3-kpi" class="callout-card-3d" data-layout-allow-overlap data-layout-allow-occlusion style="top: 190px; left: 60px; width: 300px; border-color: #38bdf8;">
+          <span class="blue-badge"><span class="live-pulse-dot"></span> Live Telemetry</span>
+          <div style="font-size: 11px; font-weight: 800; color: #94a3b8; margin-top: 8px;">RECORDED ACTIVE STRENGTH</div>
+          <div id="s3-strength-num" style="font-size: 44px; font-weight: 900; color: #ffffff; line-height: 1.1; margin-top: 2px;">248</div>
+          <div style="display: flex; gap: 14px; margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.1);">
+            <div><span style="font-size: 10px; font-weight: 800; color: #fbbf24;">PCO</span> <strong style="color: #fff; font-size: 13px;">54</strong></div>
+            <div><span style="font-size: 10px; font-weight: 800; color: #60a5fa;">PNCO</span> <strong style="color: #fff; font-size: 13px;">182</strong></div>
+            <div><span style="font-size: 10px; font-weight: 800; color: #4ade80;">NUP</span> <strong style="color: #fff; font-size: 13px;">12</strong></div>
+          </div>
+        </div>
+
+        <!-- Floating 3D Feature Callout -->
+        <div class="callout-card-3d" data-layout-allow-overlap data-layout-allow-occlusion style="top: 190px; right: 60px; width: 340px;">
+          <span class="gold-badge">Automated Strength</span>
+          <h3 style="font-size: 16px; font-weight: 800; color: #ffffff; margin-top: 8px;">PCO · PNCO · NUP Headcount</h3>
+          <p style="font-size: 12px; color: #cbd5e1; margin-top: 6px; line-height: 1.4;">
+            Real-time counting engine aggregates active duty personnel, sub-unit assignments, and approved leaves across all ITMS divisions.
+          </p>
+        </div>
+
+        <!-- Interactive UI: Virtual Cursor & Dropdown Filter Simulation -->
+        <svg id="s3-cursor" class="interactive-cursor" viewBox="0 0 24 24" fill="none" data-layout-allow-overlap data-layout-allow-occlusion style="top: 260px; left: 880px; opacity: 0;">
+          <path d="M4 3L11 20L14 13L21 10L4 3Z" fill="#38bdf8" stroke="#ffffff" stroke-width="2" stroke-linejoin="round"/>
+        </svg>
+        <div id="s3-ripple" class="click-ripple" data-layout-allow-overlap data-layout-allow-occlusion style="top: 260px; left: 880px; opacity: 0;"></div>
+        <div id="s3-dropdown" class="interactive-dropdown" data-layout-allow-overlap data-layout-allow-occlusion style="top: 295px; left: 780px; width: 320px; opacity: 0;">
+          <div style="font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase; margin-bottom: 6px;">Filter Strength By Unit</div>
+          <div style="font-size: 12px; font-weight: 800; color: #22c55e; display: flex; align-items: center; gap: 6px; padding: 4px 0;">
+            <span>✓</span> <span>ARMD - Administrative Resource Mgt (184)</span>
+          </div>
+          <div style="font-size: 11px; color: #94a3b8; padding: 3px 0;">IT Operations &amp; Support Division (52)</div>
+          <div style="font-size: 11px; color: #94a3b8; padding: 3px 0;">Network Operations &amp; Security (12)</div>
+        </div>
+      </section>
+
+      <!-- ===================================================================== -->
+      <!-- SCENE 4: PERSONNEL DATABASE & 201 PROFILE (0:25 - 0:38, 13s) -->
+      <!-- ===================================================================== -->
+      <section id="scene-4" class="scene clip" data-start="25" data-duration="13">
+        <div class="cinematic-hud-header">
+          <div class="hud-branding">
+            <img src="assets/images/pnp-logo.png" alt="" />
+            <div class="hud-title-text">
+              <h2>PNP–ITMS PAIS 2.0</h2>
+              <p>Centralized Personnel Database · Official 201 Records</p>
+            </div>
+          </div>
+          <span class="hud-module-indicator"><span class="live-pulse-dot"></span> Module 03-08 · Personnel Master</span>
+        </div>
+
+        <!-- Left Main 3D Panel: Personnel Directory -->
+        <div id="s4-left-panel" class="chassis-3d" style="position: absolute; top: 100px; left: 80px; width: 1080px; height: 840px; transform: rotateY(8deg) rotateX(4deg);">
+          <div id="s4-laser" class="laser-scanline"></div>
+          <div class="chassis-window-bar">
+            <div class="window-dots">
+              <span class="window-dot" style="background:#ef4444;"></span>
+              <span class="window-dot" style="background:#eab308;"></span>
+              <span class="window-dot" style="background:#22c55e;"></span>
+            </div>
+            <span class="window-url-bar">pais.itms.pnp.gov.ph/personnel</span>
+            <span class="blue-badge">600 Master Records</span>
+          </div>
+          <img src="assets/screenshots/03-personnel-list.png" class="chassis-screenshot" style="height: calc(100% - 32px);" alt="" />
+        </div>
+
+        <!-- Motion Graphics: Search Focus Reticle -->
+        <div id="s4-hud" class="hud-reticle-box" data-layout-allow-overlap data-layout-allow-occlusion style="top: 170px; left: 160px; width: 440px; height: 50px;">
+          <div class="hud-corner hud-c-tl"></div>
+          <div class="hud-corner hud-c-tr"></div>
+          <div class="hud-corner hud-c-bl"></div>
+          <div class="hud-corner hud-c-br"></div>
+          <span style="position: absolute; right: 10px; top: 14px; font-size: 10px; font-weight: 800; color: #38bdf8; font-family: monospace;">TARGET: PMSg ROSTER</span>
+        </div>
+
+        <!-- Interactive UI: Cursor, Typing Search & Matched Record -->
+        <svg id="s4-cursor" class="interactive-cursor" viewBox="0 0 24 24" fill="none" data-layout-allow-overlap data-layout-allow-occlusion style="top: 220px; left: 340px; opacity: 0;">
+          <path d="M4 3L11 20L14 13L21 10L4 3Z" fill="#38bdf8" stroke="#ffffff" stroke-width="2" stroke-linejoin="round"/>
+        </svg>
+        <div id="s4-ripple" class="click-ripple" data-layout-allow-overlap data-layout-allow-occlusion style="top: 220px; left: 340px; opacity: 0;"></div>
+        <div id="s4-type-search" class="motion-tag-pill" data-layout-allow-overlap data-layout-allow-occlusion style="position: absolute; top: 200px; left: 240px; border-color: #38bdf8; background: rgba(15,23,42,0.95); opacity: 0; z-index: 80;">
+          <span style="font-size: 13px;">🔍</span>
+          <span style="font-size: 12px; font-weight: 800; color: #ffffff;">DELA CRUZ<span class="blinking-caret"></span></span>
+          <span class="blue-badge" style="font-size: 9px; margin-left: 8px;">1 Match</span>
+        </div>
+        <div id="s4-match-card" class="interactive-toast" data-layout-allow-overlap data-layout-allow-occlusion style="top: 260px; left: 240px; opacity: 0;">
+          <span style="font-size: 18px; color: #22c55e;">✓</span>
+          <div>
+            <div style="font-size: 12px; font-weight: 800; color: #ffffff;">PMSg DELA CRUZ, JUAN P.</div>
+            <div style="font-size: 10px; color: #94a3b8;">Badge #184920 · Verified 201 File Loaded</div>
+          </div>
+        </div>
+
+        <!-- Right Floating 3D Panel: Real Personnel Profile View -->
+        <div id="s4-right-panel" class="chassis-3d" style="position: absolute; top: 160px; right: 70px; width: 680px; height: 720px; transform: rotateY(-8deg) rotateX(4deg) translateZ(40px); border-color: #3b82f6;">
+          <div class="chassis-window-bar" style="background: #1e3a8a;">
+            <div class="window-dots">
+              <span class="window-dot" style="background:#ef4444;"></span>
+              <span class="window-dot" style="background:#eab308;"></span>
+              <span class="window-dot" style="background:#22c55e;"></span>
+            </div>
+            <span class="window-url-bar">Personnel 201 Profile Record</span>
+            <span class="gold-badge">Official Record</span>
+          </div>
+          <img src="assets/screenshots/04-personnel-profile.png" class="chassis-screenshot" style="height: calc(100% - 32px);" alt="" />
+        </div>
+      </section>
+
+      <!-- ===================================================================== -->
+      <!-- SCENE 5: PROMOTIONAL MODULE & QUALIFICATION (0:38 - 0:50, 12s) -->
+      <!-- ===================================================================== -->
+      <section id="scene-5" class="scene clip" data-start="38" data-duration="12">
+        <div class="cinematic-hud-header">
+          <div class="hud-branding">
+            <img src="assets/images/pnp-logo.png" alt="" />
+            <div class="hud-title-text">
+              <h2>PNP–ITMS PAIS 2.0</h2>
+              <p>Promotional Module · Seniority, TIG &amp; TIP Qualification</p>
+            </div>
+          </div>
+          <span class="hud-module-indicator"><span class="live-pulse-dot"></span> Module 09-11 · Promotion Desk</span>
+        </div>
+
+        <!-- 3D Promotion Desk Display -->
+        <div id="s5-chassis" class="chassis-3d" style="position: absolute; top: 100px; left: 140px; right: 140px; height: 840px; transform: rotateX(4deg);">
+          <div id="s5-laser" class="laser-scanline"></div>
+          <div class="chassis-window-bar">
+            <div class="window-dots">
+              <span class="window-dot" style="background:#ef4444;"></span>
+              <span class="window-dot" style="background:#eab308;"></span>
+              <span class="window-dot" style="background:#22c55e;"></span>
+            </div>
+            <span class="window-url-bar">pais.itms.pnp.gov.ph/promotion</span>
+            <span class="gold-badge">Time in Grade Audit</span>
+          </div>
+          <img src="assets/screenshots/05-promotion.png" class="chassis-screenshot" style="height: calc(100% - 32px);" alt="" />
+        </div>
+
+        <!-- Floating Callout -->
+        <div class="callout-card-3d" style="top: 170px; left: 60px; width: 360px;">
+          <span class="gold-badge">Promotional Qualification</span>
+          <h3 style="font-size: 16px; font-weight: 800; color: #ffffff; margin-top: 8px;">Automated Seniority Roster</h3>
+          <p style="font-size: 12px; color: #cbd5e1; margin-top: 6px; line-height: 1.4;">
+            Instantly computes Time in Grade (TIG) and Time in Position (TIP) against official PNP rank criteria to determine eligible candidates.
+          </p>
+        </div>
+      </section>
+
+      <!-- ===================================================================== -->
+      <!-- SCENE 6: CANDIDATE SELECTION & VALIDATION (0:50 - 1:00, 10s) -->
+      <!-- ===================================================================== -->
+      <section id="scene-6" class="scene clip" data-start="50" data-duration="10">
+        <div class="cinematic-hud-header">
+          <div class="hud-branding">
+            <img src="assets/images/pnp-logo.png" alt="" />
+            <div class="hud-title-text">
+              <h2>PNP–ITMS PAIS 2.0</h2>
+              <p>Promotional Worksheet Generator · Candidate Selection &amp; Validation</p>
+            </div>
+          </div>
+          <span class="hud-module-indicator"><span class="live-pulse-dot"></span> Module 12-15 · Selection &amp; Validation</span>
+        </div>
+
+        <!-- 3D Modal Display -->
+        <div id="s6-chassis" class="chassis-3d" style="position: absolute; top: 100px; left: 160px; right: 420px; height: 840px; transform: rotateX(5deg);">
+          <div class="chassis-window-bar">
+            <div class="window-dots">
+              <span class="window-dot" style="background:#ef4444;"></span>
+              <span class="window-dot" style="background:#eab308;"></span>
+              <span class="window-dot" style="background:#22c55e;"></span>
+            </div>
+            <span class="window-url-bar">Promotional Examination Worksheet Generator</span>
+            <span class="green-badge">5 Candidates Selected</span>
+          </div>
+          <img src="assets/screenshots/06-promotional-modal.png" class="chassis-screenshot" style="height: calc(100% - 32px);" alt="" />
+        </div>
+
+        <!-- Motion Graphics: Candidate Selection Verification Stack -->
+        <div id="s6-selection-stack" data-layout-allow-overlap data-layout-allow-occlusion style="position: absolute; top: 160px; right: 50px; display: flex; flex-direction: column; gap: 10px; width: 340px; z-index: 50;">
+          <div class="motion-tag-pill s6-item">
+            <span style="color: #22c55e; font-weight: 900;">✓</span>
+            <span style="font-size: 12px; font-weight: 800; color: #ffffff;">PMSg DELA CRUZ, J.</span>
+            <span class="green-badge" style="margin-left: auto; font-size: 9px;">Candidate 1</span>
+          </div>
+          <div class="motion-tag-pill s6-item">
+            <span style="color: #22c55e; font-weight: 900;">✓</span>
+            <span style="font-size: 12px; font-weight: 800; color: #ffffff;">PMSg SANTOS, M.</span>
+            <span class="green-badge" style="margin-left: auto; font-size: 9px;">Candidate 2</span>
+          </div>
+          <div class="motion-tag-pill s6-item">
+            <span style="color: #22c55e; font-weight: 900;">✓</span>
+            <span style="font-size: 12px; font-weight: 800; color: #ffffff;">PMSg GARCIA, R.</span>
+            <span class="green-badge" style="margin-left: auto; font-size: 9px;">Candidate 3</span>
+          </div>
+          <div class="motion-tag-pill s6-item">
+            <span style="color: #22c55e; font-weight: 900;">✓</span>
+            <span style="font-size: 12px; font-weight: 800; color: #ffffff;">PMSg RAMOS, A.</span>
+            <span class="green-badge" style="margin-left: auto; font-size: 9px;">Candidate 4</span>
+          </div>
+          <div class="motion-tag-pill s6-item">
+            <span style="color: #22c55e; font-weight: 900;">✓</span>
+            <span style="font-size: 12px; font-weight: 800; color: #ffffff;">PMSg NAVARRO, E.</span>
+            <span class="green-badge" style="margin-left: auto; font-size: 9px;">Candidate 5</span>
+          </div>
+        </div>
+
+        <!-- Interactive UI: Cursor, Counter & Action Button -->
+        <svg id="s6-cursor" class="interactive-cursor" viewBox="0 0 24 24" fill="none" data-layout-allow-overlap data-layout-allow-occlusion style="top: 200px; right: 180px; opacity: 0;">
+          <path d="M4 3L11 20L14 13L21 10L4 3Z" fill="#38bdf8" stroke="#ffffff" stroke-width="2" stroke-linejoin="round"/>
+        </svg>
+        <div id="s6-ripple" class="click-ripple" data-layout-allow-overlap data-layout-allow-occlusion style="top: 200px; right: 180px; opacity: 0;"></div>
+        <div id="s6-interactive-bar" class="motion-tag-pill" data-layout-allow-overlap data-layout-allow-occlusion style="position: absolute; bottom: 135px; right: 50px; width: 340px; flex-direction: column; align-items: stretch; gap: 6px; border-color: #3b82f6; z-index: 60; opacity: 0;">
+          <div style="display: flex; justify-content: space-between; font-size: 11px; font-weight: 800;">
+            <span style="color: #94a3b8;">SELECTION STATUS:</span>
+            <span id="s6-counter-txt" style="color: #22c55e;">5 OF 5 SELECTED</span>
+          </div>
+          <div style="height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden;">
+            <div id="s6-progress-fill" style="height: 100%; width: 0%; background: #22c55e; border-radius: 3px;"></div>
+          </div>
+          <div id="s6-generate-btn" style="margin-top: 4px; padding: 7px 0; background: #2563eb; color: #fff; font-size: 11px; font-weight: 900; text-align: center; border-radius: 6px; letter-spacing: 0.05em; box-shadow: 0 0 15px rgba(37,99,235,0.5);">
+            ⚡ GENERATE WORKSHEET (.XLSX)
+          </div>
+        </div>
+
+        <!-- Floating Validation Notice Callout -->
+        <div class="callout-card-3d" data-layout-allow-overlap data-layout-allow-occlusion style="bottom: 40px; right: 50px; width: 340px; border-color: #22c55e;">
+          <span class="green-badge">Data Validation Engine</span>
+          <h3 style="font-size: 15px; font-weight: 800; color: #ffffff; margin-top: 6px;">Integrity Verification Complete</h3>
+          <p style="font-size: 11px; color: #cbd5e1; margin-top: 4px; line-height: 1.4;">
+            Validated required fields: Badge, Assignment, Education, and Mandatory Courses.
+          </p>
+        </div>
+      </section>
+
+      <!-- ===================================================================== -->
+      <!-- SCENE 7: WORKSHEET CENTER & SPREADSHEET RIBBON (1:00 - 1:12, 12s) -->
+      <!-- ===================================================================== -->
+      <section id="scene-7" class="scene clip" data-start="60" data-duration="12">
+        <div class="cinematic-hud-header">
+          <div class="hud-branding">
+            <img src="assets/images/pnp-logo.png" alt="" />
+            <div class="hud-title-text">
+              <h2>PNP–ITMS PAIS 2.0</h2>
+              <p>Worksheet Center · Full Interactive Spreadsheet Module</p>
+            </div>
+          </div>
+          <span class="hud-module-indicator"><span class="live-pulse-dot"></span> Module 16, 24-25 · Excel Integration</span>
+        </div>
+
+        <!-- 3D Perspective Excel Worksheet Module -->
+        <div id="s7-chassis" class="chassis-3d" style="position: absolute; top: 100px; left: 100px; right: 100px; height: 840px; transform: rotateX(5deg);">
+          <div id="s7-laser" class="laser-scanline"></div>
+          <div class="chassis-window-bar">
+            <div class="window-dots">
+              <span class="window-dot" style="background:#ef4444;"></span>
+              <span class="window-dot" style="background:#eab308;"></span>
+              <span class="window-dot" style="background:#22c55e;"></span>
+            </div>
+            <span class="window-url-bar">pais.itms.pnp.gov.ph/excel-integration</span>
+            <span class="blue-badge">Interactive Excel Ribbon &amp; Grid</span>
+          </div>
+          <img src="assets/screenshots/08-worksheet-center.png" class="chassis-screenshot" style="height: calc(100% - 32px);" alt="" />
+        </div>
+
+        <!-- Motion Graphics: Formula Callout -->
+        <div id="s7-formula" class="callout-card-3d" data-layout-allow-overlap data-layout-allow-occlusion style="bottom: 70px; left: 140px; width: 440px; border-color: #38bdf8;">
+          <span class="blue-badge">Dynamic Formula Sync</span>
+          <div style="font-family: monospace; font-size: 13px; color: #93c5fd; margin-top: 6px;">=PROMOTION_EXAM("Police Master Sergeant")</div>
+          <p style="font-size: 11px; color: #cbd5e1; margin-top: 4px;">Dynamic title updates header and calculation rules automatically.</p>
+        </div>
+
+        <!-- Interactive UI: Cell Selection Box & Cursor -->
+        <svg id="s7-cursor" class="interactive-cursor" viewBox="0 0 24 24" fill="none" data-layout-allow-overlap data-layout-allow-occlusion style="top: 420px; left: 620px; opacity: 0;">
+          <path d="M4 3L11 20L14 13L21 10L4 3Z" fill="#38bdf8" stroke="#ffffff" stroke-width="2" stroke-linejoin="round"/>
+        </svg>
+        <div id="s7-ripple" class="click-ripple" data-layout-allow-overlap data-layout-allow-occlusion style="top: 420px; left: 620px; opacity: 0;"></div>
+        <div id="s7-cell-box" class="excel-cell-selection" data-layout-allow-overlap data-layout-allow-occlusion style="top: 400px; left: 580px; width: 140px; height: 32px; opacity: 0;">
+          <div class="excel-cell-handle"></div>
+        </div>
+        <div id="s7-cell-popup" class="motion-tag-pill" data-layout-allow-overlap data-layout-allow-occlusion style="position: absolute; top: 355px; left: 600px; border-color: #38bdf8; z-index: 90; opacity: 0;">
+          <span style="font-size: 11px; font-weight: 800; color: #ffffff;">Cell E8: <strong style="color: #4ade80;">"QUALIFIED"</strong></span>
+          <span class="green-badge" style="font-size: 9px; margin-left: 6px;">Live Formula</span>
+        </div>
+
+        <!-- Floating Ribbon Callout -->
+        <div class="callout-card-3d" style="top: 160px; right: 50px; width: 340px;">
+          <span class="blue-badge">Excel Parity</span>
+          <h3 style="font-size: 16px; font-weight: 800; color: #ffffff; margin-top: 8px;">Complete Office Controls</h3>
+          <p style="font-size: 12px; color: #cbd5e1; margin-top: 6px; line-height: 1.4;">
+            Features formula bar, formatting ribbons, frozen header rows, and live synchronization with the PAIS 2.0 database.
+          </p>
+        </div>
+      </section>
+
+      <!-- ===================================================================== -->
+      <!-- SCENE 8: DATABASE → WORKSHEET FIELD MAPPING (1:12 - 1:26, 14s) -->
+      <!-- ===================================================================== -->
+      <section id="scene-8" class="scene clip" data-start="72" data-duration="14">
+        <div class="cinematic-hud-header">
+          <div class="hud-branding">
+            <img src="assets/images/pnp-logo.png" alt="" />
+            <div class="hud-title-text">
+              <h2>PNP–ITMS PAIS 2.0</h2>
+              <p>Relational Data Mapping · Database to Official Worksheet</p>
+            </div>
+          </div>
+          <span class="hud-module-indicator"><span class="live-pulse-dot"></span> Module 18-20, 26 · Field Pipeline</span>
+        </div>
+
+        <div style="position: absolute; top: 96px; left: 80px; right: 80px; text-align: center;">
+          <h2 style="font-size: 38px; font-weight: 900; color: #ffffff;">CANONICAL FIELD MAPPING ENGINE</h2>
+          <p style="font-size: 15px; color: #94a3b8; margin-top: 4px;">
+            Personnel records stream directly from database tables into the 17 official worksheet columns.
+          </p>
+        </div>
+
+        <!-- Motion Graphics: Data Stream Pipes -->
+        <svg style="position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 35;">
+          <path id="s8-pipe1" d="M 640 420 C 850 420, 950 360, 1080 360" fill="none" stroke="#3b82f6" stroke-width="4" stroke-dasharray="12 8" opacity="0.85"/>
+          <path id="s8-pipe2" d="M 640 540 C 850 540, 950 500, 1080 500" fill="none" stroke="#f59e0b" stroke-width="4" stroke-dasharray="12 8" opacity="0.85"/>
+          <path id="s8-pipe3" d="M 640 680 C 850 680, 950 660, 1080 660" fill="none" stroke="#10b981" stroke-width="4" stroke-dasharray="12 8" opacity="0.85"/>
+        </svg>
+
+        <!-- Interactive Data Stream Packets -->
+        <div id="s8-packet1" class="flow-packet" data-layout-allow-overlap data-layout-allow-occlusion style="top: 406px; left: 640px; opacity: 0;">Badge #184920</div>
+        <div id="s8-packet2" class="flow-packet" data-layout-allow-overlap data-layout-allow-occlusion style="top: 526px; left: 640px; opacity: 0; background: rgba(180,83,9,0.9); border-color: #f59e0b;">PMSg DELA CRUZ, J.</div>
+        <div id="s8-packet3" class="flow-packet" data-layout-allow-overlap data-layout-allow-occlusion style="top: 666px; left: 640px; opacity: 0; background: rgba(6,95,70,0.9); border-color: #10b981;">Seniority Pts: 35.00</div>
+
+        <!-- 3D Split Display: Personnel on Left, Preview on Right -->
+        <div id="s8-grid" data-layout-allow-overlap data-layout-allow-occlusion style="position: absolute; top: 190px; left: 80px; right: 80px; height: 750px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px;">
+          
+          <div class="chassis-3d iso-left" data-layout-allow-overlap data-layout-allow-occlusion style="height: 680px;">
+            <div class="chassis-window-bar" data-layout-allow-overlap data-layout-allow-occlusion>
+              <span class="window-url-bar" data-layout-allow-overlap>Database Schema: Personnel Master</span>
+              <span class="blue-badge" data-layout-allow-overlap>Source Record</span>
+            </div>
+            <img src="assets/screenshots/03-personnel-list.png" class="chassis-screenshot" style="height: calc(100% - 32px);" alt="" />
+          </div>
+
+          <div class="chassis-3d iso-right" data-layout-allow-overlap data-layout-allow-occlusion style="height: 680px; border-color: #f59e0b;">
+            <div class="chassis-window-bar" data-layout-allow-overlap data-layout-allow-occlusion style="background: #78350f;">
+              <span class="window-url-bar" data-layout-allow-overlap>Target Output: 17-Column Official Worksheet</span>
+              <span class="gold-badge" data-layout-allow-overlap>Populated Grid</span>
+            </div>
+            <img src="assets/screenshots/07-promotional-preview.png" class="chassis-screenshot" style="height: calc(100% - 32px);" alt="" />
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ===================================================================== -->
+      <!-- SCENE 9: COMPLETED OFFICIAL WORKSHEET (1:26 - 1:39, 13s) -->
+      <!-- ===================================================================== -->
+      <section id="scene-9" class="scene clip" data-start="86" data-duration="13">
+        <div class="cinematic-hud-header">
+          <div class="hud-branding">
+            <img src="assets/images/pnp-logo.png" alt="" />
+            <div class="hud-title-text">
+              <h2>PNP–ITMS PAIS 2.0</h2>
+              <p>Official Promotional Examination Worksheet · 17 Columns</p>
+            </div>
+          </div>
+          <span class="hud-module-indicator"><span class="live-pulse-dot"></span> Module 17, 20-22 · Output Document</span>
+        </div>
+
+        <!-- Full Real Promotional Worksheet Preview Screenshot -->
+        <div id="s9-chassis" class="chassis-3d" data-layout-allow-overlap data-layout-allow-occlusion style="position: absolute; top: 100px; left: 120px; right: 120px; height: 840px; transform: rotateX(4deg);">
+          <div id="s9-laser" class="laser-scanline"></div>
+          <div class="chassis-window-bar" style="background: #1e3a8a;">
+            <div class="window-dots">
+              <span class="window-dot" style="background:#ef4444;"></span>
+              <span class="window-dot" style="background:#eab308;"></span>
+              <span class="window-dot" style="background:#22c55e;"></span>
+            </div>
+            <span class="window-url-bar">Official Single-Sheet Promotional Examination Worksheet (A4 Landscape)</span>
+            <span class="gold-badge">100% Populated</span>
+          </div>
+          <img src="assets/screenshots/07-promotional-preview.png" class="chassis-screenshot" style="height: calc(100% - 32px);" alt="" />
+        </div>
+
+        <!-- Interactive UI: Cursor & Export Toast Notification -->
+        <svg id="s9-cursor" class="interactive-cursor" viewBox="0 0 24 24" fill="none" data-layout-allow-overlap data-layout-allow-occlusion style="top: 140px; right: 200px; opacity: 0;">
+          <path d="M4 3L11 20L14 13L21 10L4 3Z" fill="#38bdf8" stroke="#ffffff" stroke-width="2" stroke-linejoin="round"/>
+        </svg>
+        <div id="s9-ripple" class="click-ripple" data-layout-allow-overlap data-layout-allow-occlusion style="top: 140px; right: 200px; opacity: 0;"></div>
+        <div id="s9-toast" class="interactive-toast" data-layout-allow-overlap data-layout-allow-occlusion style="top: 170px; right: 120px; opacity: 0;">
+          <span style="font-size: 24px;">📥</span>
+          <div>
+            <div style="font-size: 13px; font-weight: 800; color: #22c55e;">Excel Worksheet Generated!</div>
+            <div style="font-size: 11px; color: #cbd5e1;">ITMS_PMSg_Worksheet_2026.xlsx · 1 Sheet (A4 Landscape)</div>
+          </div>
+        </div>
+
+        <!-- Motion Graphics: Validation Stamp -->
+        <div id="s9-stamp" class="callout-card-3d" data-layout-allow-overlap data-layout-allow-occlusion style="top: 180px; left: 140px; width: 300px; border-color: #22c55e;">
+          <span class="green-badge">Official Template Output</span>
+          <h3 style="font-size: 15px; font-weight: 800; color: #ffffff; margin-top: 6px;">17 Columns Populated</h3>
+          <p style="font-size: 11px; color: #cbd5e1; margin-top: 4px; line-height: 1.4;">
+            Official A4 Landscape Layout · Complete PNP-ITMS Data Parity.
+          </p>
+        </div>
+
+        <!-- Callout Banner -->
+        <div class="callout-card-3d" data-layout-allow-overlap data-layout-allow-occlusion style="bottom: 60px; right: 70px; width: 380px;">
+          <span class="gold-badge">Official Template</span>
+          <h3 style="font-size: 16px; font-weight: 800; color: #ffffff; margin-top: 8px;">Dynamic Exam Title Resolution</h3>
+          <p style="font-size: 12px; color: #cbd5e1; margin-top: 6px; line-height: 1.4;">
+            Header dynamically formats for "POLICE MASTER SERGEANT PROMOTIONAL EXAMINATION" with official ITMS institutional branding.
+          </p>
+        </div>
+      </section>
+
+      <!-- ===================================================================== -->
+      <!-- SCENE 10: FORMULAS, PRINT SETUP & EXCEL OUTPUT (1:39 - 1:49, 10s) -->
+      <!-- ===================================================================== -->
+      <section id="scene-10" class="scene clip" data-start="99" data-duration="10">
+        <div class="cinematic-hud-header">
+          <div class="hud-branding">
+            <img src="assets/images/pnp-logo.png" alt="" />
+            <div class="hud-title-text">
+              <h2>PNP–ITMS PAIS 2.0</h2>
+              <p>Excel Output Delivery · Single-Sheet Workbook &amp; Formula Parity</p>
+            </div>
+          </div>
+          <span class="hud-module-indicator"><span class="live-pulse-dot"></span> Module 29-32 · Excel Delivery</span>
+        </div>
+
+        <!-- 3D Staged Export View -->
+        <div id="s10-stage" data-layout-allow-overlap data-layout-allow-occlusion style="position: absolute; top: 110px; left: 100px; right: 100px; height: 780px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center;">
+          
+          <div class="chassis-3d iso-left" data-layout-allow-overlap data-layout-allow-occlusion style="height: 600px; position: relative; overflow: hidden;">
+            <div id="s10-laser" class="laser-scanline" data-layout-allow-overlap></div>
+            <div class="chassis-window-bar">
+              <span class="window-url-bar">Excel Worksheet Module: Formula Bar &amp; Grid</span>
+              <span class="green-badge">Formula Parity</span>
+            </div>
+            <img src="assets/screenshots/08-worksheet-center.png" class="chassis-screenshot" style="height: calc(100% - 32px);" alt="" />
+          </div>
+
+          <!-- Feature Cards -->
+          <div data-layout-allow-overlap data-layout-allow-occlusion style="display: flex; flex-direction: column; gap: 20px;">
+            <div class="callout-card-3d" data-layout-allow-overlap data-layout-allow-occlusion style="position: relative; width: 100%;">
+              <span class="gold-badge">Single-Sheet Rule</span>
+              <h3 style="font-size: 18px; font-weight: 800; color: #ffffff; margin-top: 8px;">Guaranteed Single Worksheet (.xlsx)</h3>
+              <p style="font-size: 13px; color: #cbd5e1; margin-top: 6px; line-height: 1.5;">
+                Generates a clean, official Excel workbook containing exactly one sheet named "Worksheet" with no hidden or unnecessary sheets.
+              </p>
+            </div>
+
+            <div class="callout-card-3d" data-layout-allow-overlap data-layout-allow-occlusion style="position: relative; width: 100%;">
+              <span class="blue-badge">Landscape Print Setup</span>
+              <h3 style="font-size: 18px; font-weight: 800; color: #ffffff; margin-top: 8px;">A4 Fit-to-Page Layout</h3>
+              <p style="font-size: 13px; color: #cbd5e1; margin-top: 6px; line-height: 1.5;">
+                Pre-configured with 0.5-inch margins, repeating print title rows 6:7, and landscape single-width scaling ready for official administrative printing.
+              </p>
+            </div>
+
+            <!-- Interactive UI: Print Scale Toggle -->
+            <div id="s10-print-toggle" class="motion-tag-pill" data-layout-allow-overlap data-layout-allow-occlusion style="border-color: #22c55e; background: rgba(15,23,42,0.96); width: 100%; opacity: 0;">
+              <span style="font-size: 16px;">🖨️</span>
+              <span style="font-size: 12px; font-weight: 800; color: #ffffff;">Fit Sheet On 1 Page Wide:</span>
+              <span class="green-badge" style="margin-left: auto; font-size: 10px;">ACTIVE ✓</span>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ===================================================================== -->
+      <!-- SCENE 11: FULL REPOSITORY ECOSYSTEM COVERAGE (1:49 - 1:56, 7s) -->
+      <!-- ===================================================================== -->
+      <section id="scene-11" class="scene clip" data-start="109" data-duration="7">
+        <div class="cinematic-hud-header">
+          <div class="hud-branding">
+            <img src="assets/images/pnp-logo.png" alt="" />
+            <div class="hud-title-text">
+              <h2>PNP–ITMS PAIS 2.0</h2>
+              <p>Complete Enterprise Ecosystem Coverage</p>
+            </div>
+          </div>
+          <span class="hud-module-indicator"><span class="live-pulse-dot"></span> Module 33-39 · All Modules</span>
+        </div>
+
+        <div style="position: absolute; top: 96px; left: 80px; right: 80px; text-align: center;">
+          <h2 style="font-size: 38px; font-weight: 900; color: #ffffff;">COMPLETE MODULE REPOSITORY COVERAGE</h2>
+          <p style="font-size: 15px; color: #94a3b8; margin-top: 4px;">
+            Every operational desk verified and running in the PAIS 2.0 repository.
+          </p>
+        </div>
+
+        <!-- 3D Revolving Card Stadium -->
+        <div id="s11-stadium" data-layout-allow-overlap data-layout-allow-occlusion style="position: absolute; top: 180px; left: 60px; right: 60px; height: 750px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px;">
+          
+          <div class="chassis-3d" data-layout-allow-overlap data-layout-allow-occlusion style="height: 340px;">
+            <div class="chassis-window-bar" data-layout-allow-overlap data-layout-allow-occlusion>
+              <span style="font-size: 11px; font-weight: 800; color: #60a5fa;" data-layout-allow-overlap>Special Orders</span>
+              <span class="blue-badge" data-layout-allow-overlap>/orders</span>
+            </div>
+            <img src="assets/screenshots/09-orders.png" class="chassis-screenshot" style="height: calc(100% - 32px);" alt="" />
+          </div>
+
+          <div class="chassis-3d" data-layout-allow-overlap data-layout-allow-occlusion style="height: 340px;">
+            <div class="chassis-window-bar" data-layout-allow-overlap data-layout-allow-occlusion>
+              <span style="font-size: 11px; font-weight: 800; color: #fbbf24;" data-layout-allow-overlap>Assignments</span>
+              <span class="gold-badge" data-layout-allow-overlap>/assignment</span>
+            </div>
+            <img src="assets/screenshots/10-assignment.png" class="chassis-screenshot" style="height: calc(100% - 32px);" alt="" />
+          </div>
+
+          <div class="chassis-3d" data-layout-allow-overlap data-layout-allow-occlusion style="height: 340px;">
+            <div class="chassis-window-bar" data-layout-allow-overlap data-layout-allow-occlusion>
+              <span style="font-size: 11px; font-weight: 800; color: #4ade80;" data-layout-allow-overlap>Education &amp; Training</span>
+              <span class="green-badge" data-layout-allow-overlap>/education</span>
+            </div>
+            <img src="assets/screenshots/11-education.png" class="chassis-screenshot" style="height: calc(100% - 32px);" alt="" />
+          </div>
+
+          <div class="chassis-3d" data-layout-allow-overlap data-layout-allow-occlusion style="height: 340px;">
+            <div class="chassis-window-bar" data-layout-allow-overlap data-layout-allow-occlusion>
+              <span style="font-size: 11px; font-weight: 800; color: #c084fc;" data-layout-allow-overlap>Reports Desk</span>
+              <span class="blue-badge" data-layout-allow-overlap>/reports</span>
+            </div>
+            <img src="assets/screenshots/12-reports.png" class="chassis-screenshot" style="height: calc(100% - 32px);" alt="" />
+          </div>
+
+          <div class="chassis-3d" data-layout-allow-overlap data-layout-allow-occlusion style="height: 340px;">
+            <div class="chassis-window-bar" data-layout-allow-overlap data-layout-allow-occlusion>
+              <span style="font-size: 11px; font-weight: 800; color: #f472b6;" data-layout-allow-overlap>Document Editor</span>
+              <span class="gold-badge" data-layout-allow-overlap>/documents</span>
+            </div>
+            <img src="assets/screenshots/13-documents.png" class="chassis-screenshot" style="height: calc(100% - 32px);" alt="" />
+          </div>
+
+          <div class="chassis-3d" data-layout-allow-overlap data-layout-allow-occlusion style="height: 340px;">
+            <div class="chassis-window-bar" data-layout-allow-overlap data-layout-allow-occlusion>
+              <span style="font-size: 11px; font-weight: 800; color: #2dd4bf;" data-layout-allow-overlap>Management Center</span>
+              <span class="green-badge" data-layout-allow-overlap>/management</span>
+            </div>
+            <img src="assets/screenshots/14-management.png" class="chassis-screenshot" style="height: calc(100% - 32px);" alt="" />
+          </div>
+
+          <div class="chassis-3d" data-layout-allow-overlap data-layout-allow-occlusion style="height: 340px;">
+            <div class="chassis-window-bar" data-layout-allow-overlap data-layout-allow-occlusion>
+              <span style="font-size: 11px; font-weight: 800; color: #fde047;" data-layout-allow-overlap>Admin Accounts</span>
+              <span class="blue-badge" data-layout-allow-overlap>/admin-accounts</span>
+            </div>
+            <img src="assets/screenshots/15-admin-accounts.png" class="chassis-screenshot" style="height: calc(100% - 32px);" alt="" />
+          </div>
+
+          <div class="chassis-3d" data-layout-allow-overlap data-layout-allow-occlusion style="height: 340px;">
+            <div class="chassis-window-bar" data-layout-allow-overlap data-layout-allow-occlusion>
+              <span style="font-size: 11px; font-weight: 800; color: #67e8f9;" data-layout-allow-overlap>Authentication</span>
+              <span class="gold-badge" data-layout-allow-overlap>/login</span>
+            </div>
+            <img src="assets/screenshots/01-login.png" class="chassis-screenshot" style="height: calc(100% - 32px);" alt="" />
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ===================================================================== -->
+      <!-- SCENE 12: GRAND FINALE (1:56 - 2:00, 4s) -->
+      <!-- ===================================================================== -->
+      <section id="scene-12" class="scene clip" data-start="116" data-duration="4">
+        <div class="radar-ring" style="width: 440px; height: 440px;" data-layout-allow-overlap></div>
+        <div class="radar-ring" style="width: 620px; height: 620px; border-color: rgba(245,158,11,0.25);" data-layout-allow-overlap></div>
+        <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; z-index: 20;">
+          <div id="s12-logos" style="display: flex; align-items: center; gap: 28px; margin-bottom: 24px;">
+            <img src="assets/images/pnp-logo.png" style="height: 130px; filter: drop-shadow(0 0 40px rgba(59,130,246,0.9));" alt="" />
+            <img src="assets/images/itms-logo.jpg" style="height: 130px; border-radius: 50%; filter: drop-shadow(0 0 40px rgba(245,158,11,0.9));" alt="" />
+          </div>
+          <h1 id="s12-title" class="hero-glow-title" style="font-size: 128px; margin-bottom: 14px;">PAIS 2.0</h1>
+          <p id="s12-slogan" style="font-size: 30px; font-weight: 900; letter-spacing: 0.16em; color: #fbbf24; text-transform: uppercase; margin-bottom: 14px;">
+            CONNECTED RECORDS. CONSISTENT WORKSHEETS. ONE SYSTEM.
+          </p>
+          <p id="s12-sub" style="font-size: 16px; font-weight: 700; color: #94a3b8; letter-spacing: 0.08em; text-transform: uppercase;">
+            PHILIPPINE NATIONAL POLICE · INFORMATION TECHNOLOGY MANAGEMENT SERVICE
+          </p>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- Master GSAP 3D Motion Graphics Script -->
+    <script>
+      const tl = gsap.timeline({ paused: true });
+
+      // ==========================================
+      // Scene 1: Opening Reveal (0s - 7s)
+      // ==========================================
+      tl.fromTo("#scene-1", { opacity: 0 }, { opacity: 1, duration: 0.8 }, 0);
+      tl.fromTo("#scene-1 .radar-ring", { scale: 0.5, opacity: 0 }, { scale: 1.15, opacity: 0.75, stagger: 0.3, duration: 4.0, ease: "power2.out" }, 0.5);
+      tl.fromTo("#s1-insignia", { scale: 0.65, opacity: 0, y: 40 }, { scale: 1, opacity: 1, y: 0, duration: 1.4, ease: "power3.out" }, 0.2);
+      tl.fromTo("#s1-subtitle1", { opacity: 0, y: 15 }, { opacity: 1, y: 0, duration: 0.8 }, 0.8);
+      tl.fromTo("#s1-main-title", { opacity: 0, scale: 0.88, y: 25 }, { opacity: 1, scale: 1, y: 0, duration: 1.3, ease: "back.out(1.5)" }, 1.2);
+      tl.fromTo("#s1-subtitle2", { opacity: 0, y: 15 }, { opacity: 1, y: 0, duration: 0.8 }, 1.8);
+      tl.fromTo("#s1-badges", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.8 }, 2.4);
+      tl.to("#scene-1", { opacity: 0, scale: 1.08, duration: 0.6, ease: "power2.in" }, 6.4);
+
+      // ==========================================
+      // Scene 2: System Architecture Overview (7s - 15s)
+      // ==========================================
+      tl.fromTo("#scene-2", { opacity: 0 }, { opacity: 1, duration: 0.7 }, 7.0);
+      tl.fromTo("#s2-stage .iso-left", { x: -80, opacity: 0 }, { x: 0, opacity: 1, duration: 1.0, ease: "power3.out" }, 7.4);
+      tl.fromTo("#s2-stage .iso-right", { x: 80, opacity: 0 }, { x: 0, opacity: 1, duration: 1.0, ease: "power3.out" }, 7.8);
+      tl.to("#scene-2", { opacity: 0, scale: 0.94, duration: 0.6 }, 14.4);
+
+      // ==========================================
+      // Scene 3: Real Dashboard & Strength (15s - 25s)
+      // ==========================================
+      tl.fromTo("#scene-3", { opacity: 0, scale: 0.94 }, { opacity: 1, scale: 1, duration: 0.8, ease: "power3.out" }, 15.0);
+      tl.fromTo("#s3-chassis", { rotateX: 18, y: 50 }, { rotateX: 6, y: 0, duration: 1.5, ease: "power2.out" }, 15.2);
+      tl.fromTo("#s3-laser", { y: 0, opacity: 0 }, { y: 550, opacity: 0.85, duration: 3.5, repeat: 1, yoyo: true, ease: "sine.inOut" }, 15.6);
+      tl.fromTo("#s3-kpi", { x: -40, opacity: 0 }, { x: 0, opacity: 1, duration: 0.8, ease: "power2.out" }, 16.0);
+      tl.fromTo("#s3-cursor", { x: 80, y: 80, opacity: 0 }, { x: 0, y: 0, opacity: 1, duration: 0.8, ease: "power2.out" }, 16.5);
+      tl.to("#s3-cursor", { scale: 0.85, duration: 0.12, yoyo: true, repeat: 1 }, 17.5);
+      tl.fromTo("#s3-ripple", { scale: 0.2, opacity: 1 }, { scale: 2.2, opacity: 0, duration: 0.6, ease: "power2.out" }, 17.5);
+      tl.fromTo("#s3-dropdown", { scale: 0.9, y: -10, opacity: 0 }, { scale: 1, y: 0, opacity: 1, duration: 0.5, ease: "back.out(1.5)" }, 17.6);
+      tl.to("#scene-3", { opacity: 0, y: -30, duration: 0.6 }, 24.4);
+
+      // ==========================================
+      // Scene 4: Personnel Database & 201 Profile (25s - 38s)
+      // ==========================================
+      tl.fromTo("#scene-4", { opacity: 0 }, { opacity: 1, duration: 0.7 }, 25.0);
+      tl.fromTo("#s4-left-panel", { x: -60, opacity: 0 }, { x: 0, opacity: 1, duration: 1.0, ease: "power3.out" }, 25.3);
+      tl.fromTo("#s4-right-panel", { x: 60, opacity: 0 }, { x: 0, opacity: 1, duration: 1.0, ease: "power3.out" }, 26.2);
+      tl.fromTo("#s4-laser", { y: 0, opacity: 0 }, { y: 550, opacity: 0.8, duration: 4.0, repeat: 1, yoyo: true, ease: "sine.inOut" }, 26.5);
+      tl.fromTo("#s4-hud", { scale: 1.35, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.8, ease: "back.out(2)" }, 27.2);
+      tl.fromTo("#s4-cursor", { x: -60, y: 40, opacity: 0 }, { x: 0, y: 0, opacity: 1, duration: 0.8 }, 26.5);
+      tl.to("#s4-cursor", { scale: 0.85, duration: 0.12, yoyo: true, repeat: 1 }, 27.4);
+      tl.fromTo("#s4-ripple", { scale: 0.2, opacity: 1 }, { scale: 2.2, opacity: 0, duration: 0.6, ease: "power2.out" }, 27.4);
+      tl.fromTo("#s4-type-search", { y: -10, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4 }, 27.5);
+      tl.fromTo("#s4-match-card", { y: 15, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: "back.out(1.5)" }, 28.5);
+      tl.to("#scene-4", { opacity: 0, scale: 1.04, duration: 0.6 }, 37.4);
+
+      // ==========================================
+      // Scene 5: Promotional Module (38s - 50s)
+      // ==========================================
+      tl.fromTo("#scene-5", { opacity: 0 }, { opacity: 1, duration: 0.7 }, 38.0);
+      tl.fromTo("#s5-chassis", { rotateX: 15, y: 40 }, { rotateX: 4, y: 0, duration: 1.3, ease: "power2.out" }, 38.3);
+      tl.fromTo("#s5-laser", { y: 0, opacity: 0 }, { y: 580, opacity: 0.8, duration: 4.0, repeat: 1, yoyo: true, ease: "sine.inOut" }, 39.0);
+      tl.to("#scene-5", { opacity: 0, duration: 0.6 }, 49.4);
+
+      // ==========================================
+      // Scene 6: Candidate Selection & Validation (50s - 60s)
+      // ==========================================
+      tl.fromTo("#scene-6", { opacity: 0, scale: 0.92 }, { opacity: 1, scale: 1, duration: 0.8, ease: "power3.out" }, 50.0);
+      tl.fromTo("#s6-cursor", { x: 50, y: -40, opacity: 0 }, { x: 0, y: 0, opacity: 1, duration: 0.3 }, 50.8);
+      tl.fromTo("#s6-selection-stack .s6-item", { x: 40, opacity: 0 }, { x: 0, opacity: 1, stagger: 0.5, duration: 0.5, ease: "back.out(1.5)" }, 51.2);
+      tl.to("#s6-cursor", { scale: 0.85, duration: 0.1, yoyo: true, repeat: 1 }, 51.3);
+      tl.to("#s6-cursor", { y: 45, duration: 0.2 }, 51.8);
+      tl.to("#s6-cursor", { scale: 0.85, duration: 0.1, yoyo: true, repeat: 1 }, 52.0);
+      tl.to("#s6-cursor", { y: 90, duration: 0.2 }, 52.6);
+      tl.to("#s6-cursor", { scale: 0.85, duration: 0.1, yoyo: true, repeat: 1 }, 52.8);
+      tl.to("#s6-cursor", { y: 135, duration: 0.2 }, 53.4);
+      tl.to("#s6-cursor", { scale: 0.85, duration: 0.1, yoyo: true, repeat: 1 }, 53.6);
+      tl.to("#s6-cursor", { y: 180, duration: 0.2 }, 54.2);
+      tl.to("#s6-cursor", { scale: 0.85, duration: 0.1, yoyo: true, repeat: 1 }, 54.4);
+      tl.fromTo("#s6-interactive-bar", { opacity: 0, y: 15 }, { opacity: 1, y: 0, duration: 0.6 }, 54.6);
+      tl.fromTo("#s6-progress-fill", { width: "0%" }, { width: "100%", duration: 1.2, ease: "power2.inOut" }, 54.8);
+      tl.to("#s6-cursor", { x: 10, y: 240, duration: 0.4 }, 56.0);
+      tl.to("#s6-cursor", { scale: 0.85, duration: 0.1, yoyo: true, repeat: 1 }, 56.5);
+      tl.to("#s6-generate-btn", { scale: 0.94, duration: 0.1, yoyo: true, repeat: 1 }, 56.5);
+      tl.to("#scene-6", { opacity: 0, scale: 1.05, duration: 0.6 }, 59.4);
+
+      // ==========================================
+      // Scene 7: Worksheet Center & Ribbon (60s - 72s)
+      // ==========================================
+      tl.fromTo("#scene-7", { opacity: 0 }, { opacity: 1, duration: 0.7 }, 60.0);
+      tl.fromTo("#s7-chassis", { rotateX: 16, y: 40 }, { rotateX: 5, y: 0, duration: 1.4, ease: "power2.out" }, 60.3);
+      tl.fromTo("#s7-formula", { y: -25, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8, ease: "power2.out" }, 61.2);
+      tl.fromTo("#s7-laser", { y: 0, opacity: 0 }, { y: 580, opacity: 0.8, duration: 4.0, repeat: 1, yoyo: true, ease: "sine.inOut" }, 61.8);
+      tl.fromTo("#s7-cursor", { x: 60, y: 50, opacity: 0 }, { x: 0, y: 0, opacity: 1, duration: 0.8 }, 62.0);
+      tl.to("#s7-cursor", { scale: 0.85, duration: 0.1, yoyo: true, repeat: 1 }, 63.0);
+      tl.fromTo("#s7-ripple", { scale: 0.2, opacity: 1 }, { scale: 2.2, opacity: 0, duration: 0.6 }, 63.0);
+      tl.fromTo("#s7-cell-box", { scale: 1.3, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.4, ease: "back.out(2)" }, 63.1);
+      tl.fromTo("#s7-cell-popup", { y: 15, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "back.out(1.5)" }, 63.8);
+      tl.to("#scene-7", { opacity: 0, duration: 0.6 }, 71.4);
+
+      // ==========================================
+      // Scene 8: Database → Worksheet Mapping (72s - 86s)
+      // ==========================================
+      tl.fromTo("#scene-8", { opacity: 0 }, { opacity: 1, duration: 0.7 }, 72.0);
+      tl.fromTo("#scene-8 svg path", { strokeDashoffset: 100 }, { strokeDashoffset: 0, duration: 8, ease: "none" }, 72.5);
+      tl.fromTo("#s8-packet1", { x: 0, opacity: 0 }, { x: 440, opacity: 1, duration: 3.5, repeat: 1, ease: "sine.inOut" }, 73.0);
+      tl.fromTo("#s8-packet2", { x: 0, opacity: 0 }, { x: 440, opacity: 1, duration: 3.5, repeat: 1, delay: 0.5, ease: "sine.inOut" }, 74.0);
+      tl.fromTo("#s8-packet3", { x: 0, opacity: 0 }, { x: 440, opacity: 1, duration: 3.5, repeat: 1, delay: 1.0, ease: "sine.inOut" }, 75.0);
+      tl.to("#scene-8", { opacity: 0, scale: 1.03, duration: 0.6 }, 85.4);
+
+      // ==========================================
+      // Scene 9: Completed Official Worksheet (86s - 99s)
+      // ==========================================
+      tl.fromTo("#scene-9", { opacity: 0, scale: 0.94 }, { opacity: 1, scale: 1, duration: 0.8, ease: "power3.out" }, 86.0);
+      tl.fromTo("#s9-laser", { y: 0, opacity: 0 }, { y: 600, opacity: 0.85, duration: 4.5, repeat: 1, yoyo: true, ease: "sine.inOut" }, 86.8);
+      tl.fromTo("#s9-cursor", { x: 60, y: 40, opacity: 0 }, { x: 0, y: 0, opacity: 1, duration: 0.7 }, 87.5);
+      tl.to("#s9-cursor", { scale: 0.85, duration: 0.1, yoyo: true, repeat: 1 }, 88.5);
+      tl.fromTo("#s9-ripple", { scale: 0.2, opacity: 1 }, { scale: 2.2, opacity: 0, duration: 0.6 }, 88.5);
+      tl.fromTo("#s9-toast", { y: -20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: "back.out(1.5)" }, 88.8);
+      tl.fromTo("#s9-stamp", { scale: 2.5, opacity: 0, rotate: -20 }, { scale: 1, opacity: 1, rotate: -5, duration: 0.8, ease: "back.out(2)" }, 89.2);
+      tl.to("#scene-9", { opacity: 0, duration: 0.6 }, 98.4);
+
+      // ==========================================
+      // Scene 10: Formulas & Output (99s - 109s)
+      // ==========================================
+      tl.fromTo("#scene-10", { opacity: 0 }, { opacity: 1, duration: 0.7 }, 99.0);
+      tl.fromTo("#s10-laser", { y: 0, opacity: 0 }, { y: 500, opacity: 0.8, duration: 4.0, repeat: 1, yoyo: true, ease: "sine.inOut" }, 99.8);
+      tl.fromTo("#s10-print-toggle", { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.7, ease: "back.out(1.5)" }, 101.0);
+      tl.to("#scene-10", { opacity: 0, duration: 0.6 }, 108.4);
+
+      // ==========================================
+      // Scene 11: All Repository Modules (109s - 116s)
+      // ==========================================
+      tl.fromTo("#scene-11", { opacity: 0 }, { opacity: 1, duration: 0.7 }, 109.0);
+      tl.fromTo("#s11-stadium .chassis-3d", { scale: 0.8, opacity: 0, y: 30 }, { scale: 1, opacity: 1, y: 0, stagger: 0.12, duration: 0.9, ease: "back.out(1.4)" }, 109.3);
+      tl.to("#scene-11", { opacity: 0, duration: 0.6 }, 115.4);
+
+      // ==========================================
+      // Scene 12: Grand Finale (116s - 120s)
+      // ==========================================
+      tl.fromTo("#scene-12", { opacity: 0 }, { opacity: 1, duration: 0.8 }, 116.0);
+      tl.fromTo("#scene-12 .radar-ring", { scale: 0.5, opacity: 0 }, { scale: 1.2, opacity: 0.8, stagger: 0.25, duration: 2.8, ease: "power2.out" }, 116.1);
+      tl.fromTo("#s12-logos", { scale: 0.75, opacity: 0 }, { scale: 1, opacity: 1, duration: 1.0, ease: "back.out(1.5)" }, 116.2);
+      tl.fromTo("#s12-title", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 1.0, ease: "power3.out" }, 116.5);
+      tl.fromTo("#s12-slogan", { opacity: 0, y: 15 }, { opacity: 1, y: 0, duration: 0.8 }, 117.0);
+      tl.fromTo("#s12-sub", { opacity: 0 }, { opacity: 1, duration: 0.8 }, 117.4);
+      tl.to("#scene-12", { opacity: 0, duration: 0.8 }, 119.2);
+
+      // Register master timeline
+      window.__timelines = window.__timelines || {};
+      window.__timelines["main"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

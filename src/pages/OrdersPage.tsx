@@ -37,10 +37,11 @@ import {
   updateDocumentApi
 } from '../services/documentsApi';
 import type { DocumentRecord } from '../services/documentsApi';
-import { LeaveCalendar } from '../components/orders/LeaveCalendar';
+import { LeaveCalendar, MONTH_NAMES } from '../components/orders/LeaveCalendar';
 import { LeaveCalendarForm } from '../components/orders/LeaveCalendarForm';
 import { OrderTypeSelectorModal } from '../components/orders/OrderTypeSelectorModal';
 import { NotificationToast } from '../components/common/NotificationToast';
+import { ExportPrintModal } from '../components/common/ExportPrintModal';
 import { Modal } from '../components/common/Modal';
 import { SearchableSelect } from '../components/common/SearchableSelect';
 import './ModulePages.css';
@@ -51,8 +52,7 @@ import { hasManagementAccess } from '../utils/accessControl';
 import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 import { getOfficialOrderNumber, getOrderNumberDisplay } from '../utils/orderNumber';
 import type { LeaveRecord, OrderRecord } from '../types/pais';
-import { LEAVE_TYPES } from '../data/leaveTypes';
-import { getGeneratedOrderDocumentContentApi, getGeneratedOrderPreviewPdfApi, getGeneratedOrderPreviewPdfContentApi } from '../services/api';
+import { LEAVE_TYPES, getLeaveTypePresentation } from '../data/leaveTypes';
 import type { OrderStatusHistoryRecord } from '../services/api';
 import {
   getOrderPurposeLabel,
@@ -503,6 +503,8 @@ export const OrdersPage = () => {
   const [calendarYear, setCalendarYear] = useState(today.getFullYear());
   const [calendarPersonnel, setCalendarPersonnel] = useState('');
   const [calendarLeaveType, setCalendarLeaveType] = useState('');
+  const [isLeaveExportOpen, setIsLeaveExportOpen] = useState(false);
+  const [leaveExportScope, setLeaveExportScope] = useState<'current' | 'all'>('current');
 
   const selectedOrderStatus = selectedOrder ? normalizedOrderStatus(selectedOrder) : null;
   const revokedReturnStatus = orderHistory.find(event => event.toStatus === 'Revoked' && event.fromStatus)?.fromStatus || 'For Approval';
@@ -575,6 +577,98 @@ export const OrdersPage = () => {
     : 'Select an issued date to preview the order number';
 
   const calendarLeaves = leaveList;
+
+  const LEAVE_EXPORT_COLUMNS = useMemo(() => [
+    { key: 'rank', label: 'Rank' },
+    { key: 'fullName', label: 'Full Name' },
+    { key: 'badgeNo', label: 'Badge No.' },
+    { key: 'sub_unit', label: 'Sub-Unit' },
+    { key: 'leaveType', label: 'Leave Type' },
+    { key: 'startDate', label: 'Start Date' },
+    { key: 'endDate', label: 'End Date' },
+    { key: 'days', label: 'Days' },
+    { key: 'status', label: 'Status' },
+    { key: 'purpose', label: 'Purpose / Remarks' }
+  ], []);
+
+  const personnelMap = useMemo(() => {
+    return new Map(personnelList.map(p => [p.id, p]));
+  }, [personnelList]);
+
+  const leaveExportRows = useMemo(() => {
+    const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
+    const monthStart = `${calendarYear}-${String(calendarMonth + 1).padStart(2, '0')}-01`;
+    const monthEnd = `${calendarYear}-${String(calendarMonth + 1).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`;
+
+    const filtered = calendarLeaves.filter(l => {
+      if (leaveExportScope === 'current') {
+        const leaveStart = l.startDate;
+        const leaveEnd = l.endDate || l.startDate;
+        const overlapsMonth = leaveStart <= monthEnd && leaveEnd >= monthStart;
+        if (!overlapsMonth) return false;
+        if (calendarPersonnel && l.personnelId !== calendarPersonnel) return false;
+        if (calendarLeaveType && getLeaveTypePresentation(l.leaveType).value !== calendarLeaveType) return false;
+      }
+      return true;
+    });
+
+    return filtered.map(l => {
+      const p = personnelMap.get(l.personnelId);
+      const start = l.startDate || '';
+      const end = l.endDate || start;
+      const days = typeof l.days === 'number' && l.days > 0
+        ? l.days
+        : typeof l.daysCount === 'number' && l.daysCount > 0
+          ? l.daysCount
+          : (start && end ? Math.max(1, Math.floor((Date.parse(end) - Date.parse(start)) / 86400000) + 1) : 1);
+
+      return {
+        id: l.id,
+        rank: p?.rank || 'PNP',
+        fullName: p?.fullName || 'Personnel',
+        badgeNo: p?.badgeNo || '—',
+        sub_unit: p?.sub_unit || p?.division || 'HQ',
+        leaveType: l.leaveType || 'Leave',
+        startDate: start,
+        endDate: end,
+        days,
+        status: l.status || 'Approved',
+        purpose: l.purpose || '—'
+      };
+    });
+  }, [calendarLeaves, leaveExportScope, calendarMonth, calendarYear, calendarPersonnel, calendarLeaveType, personnelMap]);
+
+  const leaveExportTitle = leaveExportScope === 'current'
+    ? `PNP ITMS Leave Schedule — ${MONTH_NAMES[calendarMonth]} ${calendarYear}`
+    : 'PNP ITMS Leave Records Master Roster';
+
+  const leaveExportControls = (
+    <div className="flex flex-wrap items-center gap-1.5 ml-auto sm:ml-2">
+      <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mr-1">Scope:</span>
+      <button
+        type="button"
+        onClick={() => setLeaveExportScope('current')}
+        className={`px-2.5 py-1 text-xs font-bold rounded-lg border transition-colors ${
+          leaveExportScope === 'current'
+            ? 'border-blue-600 bg-blue-50 text-blue-700'
+            : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+        }`}
+      >
+        {MONTH_NAMES[calendarMonth]} {calendarYear}
+      </button>
+      <button
+        type="button"
+        onClick={() => setLeaveExportScope('all')}
+        className={`px-2.5 py-1 text-xs font-bold rounded-lg border transition-colors ${
+          leaveExportScope === 'all'
+            ? 'border-blue-600 bg-blue-50 text-blue-700'
+            : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+        }`}
+      >
+        All Records ({calendarLeaves.length})
+      </button>
+    </div>
+  );
 
   const resetOrderForm = () => {
     setEditingOrder(null);
@@ -1264,6 +1358,13 @@ export const OrdersPage = () => {
               <button type="button" onClick={() => setActiveView('list')} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
                 Back to All Orders
               </button>
+              <button
+                type="button"
+                onClick={() => setIsLeaveExportOpen(true)}
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 shadow-2xs transition-colors"
+              >
+                <Download size={17} className="text-slate-500" /> Export Leave Records
+              </button>
               {canEdit && (
                 <button type="button" onClick={() => { setEditingLeave(null); setLeaveFormOpen(true); }} className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-800">
                   <Plus size={17} /> Add Leave Record
@@ -1306,6 +1407,7 @@ export const OrdersPage = () => {
           onPersonnelFilterChange={setCalendarPersonnel}
           onLeaveTypeFilterChange={setCalendarLeaveType}
           onSelectLeave={setSelectedLeave}
+          onExport={() => setIsLeaveExportOpen(true)}
         />
       ) : (
         <>
@@ -2056,6 +2158,18 @@ export const OrdersPage = () => {
             </DocumentErrorBoundary>
           </div>
         </div>
+      )}
+
+      {isLeaveExportOpen && (
+        <ExportPrintModal
+          isOpen={isLeaveExportOpen}
+          onClose={() => setIsLeaveExportOpen(false)}
+          reportTitle={leaveExportTitle}
+          data={leaveExportRows}
+          columns={LEAVE_EXPORT_COLUMNS}
+          reportType="leave"
+          controls={leaveExportControls}
+        />
       )}
 
       {toast && <NotificationToast type={toast.type} message={toast.message} onClose={() => setToast(null)} />}
