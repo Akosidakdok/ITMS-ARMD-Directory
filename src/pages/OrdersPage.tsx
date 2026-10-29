@@ -53,6 +53,11 @@ import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 import { getOfficialOrderNumber, getOrderNumberDisplay } from '../utils/orderNumber';
 import type { LeaveRecord, OrderRecord } from '../types/pais';
 import { LEAVE_TYPES, getLeaveTypePresentation } from '../data/leaveTypes';
+import {
+  getGeneratedOrderDocumentContentApi,
+  getGeneratedOrderPreviewPdfApi,
+  getGeneratedOrderPreviewPdfContentApi
+} from '../services/api';
 import type { OrderStatusHistoryRecord } from '../services/api';
 import {
   getOrderPurposeLabel,
