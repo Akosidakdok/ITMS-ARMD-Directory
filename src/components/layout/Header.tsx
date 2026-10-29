@@ -23,7 +23,9 @@ const pageTitles: Record<string, string> = {
   '/reports': 'Reports',
   '/documents': 'Document Editor',
   '/admin-accounts': 'Administrator Accounts',
-  '/excel-integration': 'Interactive Excel Worksheets'
+  '/excel-integration': 'Interactive Excel Worksheets',
+  '/dlos': 'IDMIS Terminal',
+  '/dlos-access': 'IDMIS Terminal Access'
 };
 
 export const Header: React.FC<HeaderProps> = ({ onMenuClick, onSidebarToggle, sidebarCollapsed = false }) => {
@@ -34,7 +36,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick, onSidebarToggle, si
   const [menuOpen, setMenuOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const pageTitle = pageTitles[pathname] || 'Personnel Administration';
+  const pageTitle = pageTitles[pathname] || (pathname.startsWith('/dlos/') ? 'IDMIS Terminal' : 'Personnel Administration');
   const supabaseConnected = Boolean(backendHealth?.database?.supabase?.isConnected);
   const checkingBackend = backendHealth === null;
   const roleLabel = getRoleLabel(role);

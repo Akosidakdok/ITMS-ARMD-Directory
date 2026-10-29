@@ -87,7 +87,12 @@
 
 .document-prose-content .ProseMirror table.pais-signatory-table,
 .pais-canonical-document-content table.pais-signatory-table {
-  margin-bottom: 18px !important;
+  margin-bottom: 0 !important;
+}
+
+.document-prose-content .ProseMirror table.pais-first-officer-table,
+.pais-canonical-document-content table.pais-first-officer-table {
+  margin-bottom: 0 !important;
 }
 
 .document-prose-content .ProseMirror th,
@@ -195,7 +200,15 @@
 .document-prose-content .ProseMirror p.pais-authority-p,
 .pais-canonical-document-content p.pais-authority-p {
   margin: 0 !important;
+  text-align: center !important;
   font-weight: bold !important;
+  font-size: 12pt !important;
+}
+
+.document-prose-content .ProseMirror p.pais-official-label,
+.pais-canonical-document-content p.pais-official-label {
+  margin: 0 !important;
+  text-align: left !important;
   font-size: 12pt !important;
 }
 

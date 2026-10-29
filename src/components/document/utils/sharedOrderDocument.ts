@@ -116,12 +116,8 @@ export const extractPersonnelList = (
   return [];
 };
 
-/**
- * Generates canonical document HTML matching orderDocxGenerator.js identically.
- * This is the SINGLE SOURCE OF TRUTH for:
- * 1. Document Editor initial content
- * 2. Document Preview (View modal)
- * 3. Client-side DOCX / PDF Download
+/** Builds the initial HTML for a browser-local order draft in Document Editor.
+ * Issued generated orders are previewed and downloaded from the stored server DOCX.
  */
 export const buildCanonicalOrderDocumentHtml = (
   order: any,
@@ -230,7 +226,7 @@ export const buildCanonicalOrderDocumentHtml = (
     <tbody>
       <tr style="border: none;">
         <td class="pais-borderless-cell pais-logo-cell" style="width: 17%; text-align: center; vertical-align: middle; border: none; padding: 0;">
-          <img class="pais-logo-img" src="${PNP_LOGO_BASE64}" alt="PNP Logo" width="90" height="126" style="width: 90px; height: 126px; object-fit: contain; display: inline-block;" />
+          <img class="pais-logo-img" src="${PNP_LOGO_BASE64}" alt="PNP Logo" width="68" height="95" style="width: 68px; height: 95px; object-fit: contain; display: inline-block;" />
         </td>
         <td class="pais-borderless-cell" style="width: 66%; text-align: center; vertical-align: middle; border: none; padding: 0;">
           <p class="pais-compact-p" style="margin: 0; font-size: 10pt; line-height: 1.15; color: #000000;">Republic of the Philippines</p>
@@ -240,7 +236,7 @@ export const buildCanonicalOrderDocumentHtml = (
           <p class="pais-compact-p" style="margin: 0; font-size: 10pt; line-height: 1.15; color: #000000;">Camp BGen Rafael T. Crame, Quezon City</p>
         </td>
         <td class="pais-borderless-cell pais-logo-cell" style="width: 17%; text-align: center; vertical-align: middle; border: none; padding: 0;">
-          <img class="pais-logo-img" src="${ITMS_LOGO_BASE64}" alt="ITMS Logo" width="128" height="120" style="width: 128px; height: 120px; object-fit: contain; display: inline-block;" />
+          <img class="pais-logo-img" src="${ITMS_LOGO_BASE64}" alt="ITMS Logo" width="74" height="72" style="width: 74px; height: 72px; object-fit: contain; display: inline-block;" />
         </td>
       </tr>
     </tbody>
@@ -285,23 +281,29 @@ export const buildCanonicalOrderDocumentHtml = (
   ${description ? `<p class="pais-description-p" style="margin: 0 0 12px 0; text-align: justify; white-space: pre-wrap; font-size: 12pt; line-height: 1.2;">${escapeHtml(description)}</p>` : ''}
 
   <!-- PERSONNEL LIST -->
-  <div class="pais-personnel-container" style="margin-bottom: 16px;">
+  <div class="pais-personnel-container" style="margin-bottom: 0;">
     ${personnelItems}
     ${driverItems}
   </div>
 
   <!-- AUTHORITY LINE -->
-  <div class="pais-authority-container" style="text-align: center; margin: 18px 0 16px 0;">
-    <p class="pais-authority-p" style="margin: 0; font-weight: bold; font-size: 12pt;">${authorityText}</p>
+  <div class="pais-authority-container" style="text-align: center; margin: 16px 0 0 0;">
+    <p class="pais-authority-p" style="margin: 0; width: 100%; text-align: center; font-weight: bold; font-size: 12pt;">${authorityText}</p>
   </div>
 
-  <!-- TWO-TIER SIGNATURE TABLE -->
-  <table class="pais-borderless-table pais-signatory-table" style="width: 100%; border-collapse: collapse; margin-bottom: 18px; border: none;">
+  <!-- FOUR BLANK LINES AFTER THE COMMAND BLOCK -->
+  <div class="pais-command-spacing" aria-hidden="true">
+    <p style="margin: 0; font-size: 12pt; line-height: 1.15;">&nbsp;</p>
+    <p style="margin: 0; font-size: 12pt; line-height: 1.15;">&nbsp;</p>
+    <p style="margin: 0; font-size: 12pt; line-height: 1.15;">&nbsp;</p>
+    <p style="margin: 0; font-size: 12pt; line-height: 1.15;">&nbsp;</p>
+  </div>
+
+  <!-- FIRST OFFICER ON THE RIGHT -->
+  <table class="pais-borderless-table pais-first-officer-table" style="width: 100%; border-collapse: collapse; margin-bottom: 0; border: none;">
     <tbody>
       <tr style="border: none;">
-        <td class="pais-borderless-cell" style="width: 45%; vertical-align: top; border: none; padding: 0; font-size: 12pt;">
-          <p class="pais-compact-p" style="margin: 0;">OFFICIAL:</p>
-        </td>
+        <td class="pais-borderless-cell" style="width: 45%; border: none; padding: 0;"></td>
         <td class="pais-borderless-cell" style="width: 10%; border: none; padding: 0;"></td>
         <td class="pais-borderless-cell" style="width: 45%; vertical-align: top; border: none; padding: 0; font-size: 12pt;">
           <p class="pais-compact-p" style="margin: 0; font-weight: bold; font-style: italic;">${signatory}</p>
@@ -309,20 +311,43 @@ export const buildCanonicalOrderDocumentHtml = (
           <p class="pais-compact-p" style="margin: 0;">${signatoryTitle}</p>
         </td>
       </tr>
+    </tbody>
+  </table>
+
+  <!-- OFFICIAL LABEL BETWEEN THE OFFICERS -->
+  <p class="pais-official-label" style="margin: 0; text-align: left; font-size: 12pt;">OFFICIAL:</p>
+
+  <!-- FOUR BLANK LINES BEFORE THE CERTIFYING OFFICER -->
+  <div class="pais-official-spacing" aria-hidden="true">
+    <p style="margin: 0; font-size: 12pt; line-height: 1.15;">&nbsp;</p>
+    <p style="margin: 0; font-size: 12pt; line-height: 1.15;">&nbsp;</p>
+    <p style="margin: 0; font-size: 12pt; line-height: 1.15;">&nbsp;</p>
+    <p style="margin: 0; font-size: 12pt; line-height: 1.15;">&nbsp;</p>
+  </div>
+
+  <!-- CERTIFYING OFFICER ON THE LEFT -->
+  <table class="pais-borderless-table pais-signatory-table" style="width: 100%; border-collapse: collapse; margin-bottom: 0; border: none;">
+    <tbody>
       <tr style="border: none;">
-        <td class="pais-borderless-cell" style="border: none; padding: 0;"></td>
-        <td class="pais-borderless-cell" style="border: none; padding: 0;"></td>
-        <td class="pais-borderless-cell" style="vertical-align: top; border: none; padding: 18px 0 0 0; font-size: 12pt;">
+        <td class="pais-borderless-cell" style="width: 45%; vertical-align: top; border: none; padding: 0; font-size: 12pt;">
           <p class="pais-compact-p" style="margin: 0; font-weight: bold; font-style: italic;">${certifyingOfficial}</p>
           <p class="pais-compact-p" style="margin: 0;">${certifyingOfficialRank}</p>
           <p class="pais-compact-p" style="margin: 0;">${certifyingOfficialPosition}</p>
         </td>
+        <td class="pais-borderless-cell" style="width: 10%; border: none; padding: 0;"></td>
+        <td class="pais-borderless-cell" style="width: 45%; border: none; padding: 0;"></td>
       </tr>
     </tbody>
   </table>
 
+  <!-- TWO BLANK LINES BEFORE DISTRIBUTION -->
+  <div class="pais-distribution-spacing" aria-hidden="true">
+    <p style="margin: 0; font-size: 12pt; line-height: 1.15;">&nbsp;</p>
+    <p style="margin: 0; font-size: 12pt; line-height: 1.15;">&nbsp;</p>
+  </div>
+
   <!-- DISTRIBUTION -->
-  <div class="pais-distribution-container" style="margin-top: 14px;">
+  <div class="pais-distribution-container" style="margin-top: 0;">
     <p class="pais-compact-p" style="margin: 0; font-size: 12pt;">DISTRIBUTION:</p>
     <p class="pais-distribution-p" style="margin: 0; font-size: 12pt; padding-left: 48px;">&ldquo;${distribution}&rdquo;</p>
   </div>

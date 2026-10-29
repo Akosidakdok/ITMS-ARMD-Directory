@@ -52,6 +52,7 @@ export const requireAdminForMutation = (req, res, next) => {
   if (
     ['GET', 'HEAD', 'OPTIONS'].includes(req.method) || 
     ['admin', 'superadmin'].includes(req.user?.role) ||
+    /^\/api\/dlos(?:\/|\?|$)/.test(req.originalUrl || '') ||
     req.baseUrl?.startsWith('/api/worksheets') ||
     req.originalUrl?.includes('/api/worksheets')
   ) return next();

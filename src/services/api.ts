@@ -18,10 +18,12 @@ const BULK_IMPORT_BATCH_SIZE = 250;
 export const AUTH_TOKEN_KEY = 'pais.auth.token';
 
 export interface AuthenticatedUser {
+  id: string;
   username: string;
   displayName: string;
   email?: string;
   role: 'superadmin' | 'admin' | 'view_only';
+  dlosRole?: 'viewer' | 'encoder' | 'reviewer' | null;
 }
 
 export const getStoredToken = () => {
@@ -368,11 +370,49 @@ export const generateOrderDocumentApi = async (id: string): Promise<OrderRecord>
   return json.data;
 };
 
-export const getGeneratedOrderDocumentApi = async (id: string, download = false): Promise<OrderDocumentLink> => {
-  const res = await apiFetch(`${API_BASE_URL}/orders/${id}/generated-document${download ? '?download=1' : ''}`);
+export const getGeneratedOrderDocumentApi = async (id: string, download = false, version?: number): Promise<OrderDocumentLink> => {
+  const query = new URLSearchParams();
+  if (download) query.set('download', '1');
+  if (version != null) query.set('version', String(version));
+  const res = await apiFetch(`${API_BASE_URL}/orders/${id}/generated-document${query.size ? `?${query}` : ''}`);
   const json = await res.json().catch(() => null);
   if (!res.ok) throw new Error(json?.message || json?.error || 'Failed to retrieve generated order document');
   return json.data;
+};
+
+export interface GeneratedOrderPreviewLink extends OrderDocumentLink {
+  version?: number;
+}
+
+export const getGeneratedOrderPreviewPdfApi = async (id: string, download = false, version?: number): Promise<GeneratedOrderPreviewLink> => {
+  const query = new URLSearchParams();
+  if (download) query.set('download', '1');
+  if (version != null) query.set('version', String(version));
+  const res = await apiFetch(`${API_BASE_URL}/orders/${id}/generated-document/preview-pdf${query.size ? `?${query}` : ''}`);
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(json?.message || 'Unable to prepare generated order preview.');
+  return json.data;
+};
+
+export const getGeneratedOrderPreviewPdfContentApi = async (id: string, version?: number): Promise<Blob> => {
+  const query = new URLSearchParams({ content: '1' });
+  if (version != null) query.set('version', String(version));
+  const res = await apiFetch(`${API_BASE_URL}/orders/${id}/generated-document/preview-pdf?${query}`);
+  if (!res.ok) {
+    const json = await res.json().catch(() => null);
+    throw new Error(json?.message || 'Unable to download generated order PDF.');
+  }
+  return res.blob();
+};
+
+export const getGeneratedOrderDocumentContentApi = async (id: string, version?: number): Promise<Blob> => {
+  const query = version != null ? `?version=${encodeURIComponent(String(version))}` : '';
+  const res = await apiFetch(`${API_BASE_URL}/orders/${id}/generated-document/content${query}`);
+  if (!res.ok) {
+    const json = await res.json().catch(() => null);
+    throw new Error(json?.message || 'Unable to open generated order document.');
+  }
+  return res.blob();
 };
 
 export const previewGeneratedOrderDocumentApi = async (id: string): Promise<OrderDocumentPreview> => {

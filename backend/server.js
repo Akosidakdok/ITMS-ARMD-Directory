@@ -13,6 +13,8 @@ import adminUsersRoutes from './routes/adminUsersRoutes.js';
 import dispositionRoutes from './routes/dispositionRoutes.js';
 import worksheetRoutes from './routes/worksheetRoutes.js';
 import documentsRoutes from './routes/documentsRoutes.js';
+import dlosRoutes from './routes/dlosRoutes.js';
+import { getDlosAccess } from './store/dlosRepository.js';
 import {
   authenticateRequest,
   isAuthConfigured,
@@ -102,14 +104,16 @@ app.post('/api/auth/login', async (req, res) => {
   }
   try {
     const result = await login(String(req.body?.email || req.body?.username || '').trim().toLowerCase(), String(req.body?.password || ''));
-    return res.json({ success: true, data: result });
+    const dlosRole = await getDlosAccess(result.user.id).catch(() => null);
+    return res.json({ success: true, data: { ...result, user: { ...result.user, dlosRole } } });
   } catch (error) {
     return res.status(401).json({ success: false, message: error.message || 'Invalid email or password.' });
   }
 });
 
-app.get('/api/auth/session', authenticateRequest, (req, res) => {
-  res.json({ success: true, data: { user: req.user } });
+app.get('/api/auth/session', authenticateRequest, async (req, res) => {
+  const dlosRole = await getDlosAccess(req.user.id).catch(() => null);
+  res.json({ success: true, data: { user: { ...req.user, dlosRole } } });
 });
 
 app.use('/api', authenticateRequest, requireAdminForMutation);
@@ -126,6 +130,7 @@ app.use('/api/admin-users', adminUsersRoutes);
 app.use('/api/disposition', dispositionRoutes);
 app.use('/api/worksheets', worksheetRoutes);
 app.use('/api/documents', documentsRoutes);
+app.use('/api/dlos', dlosRoutes);
 
 // Global Error Handler
 app.use((err, req, res, next) => {

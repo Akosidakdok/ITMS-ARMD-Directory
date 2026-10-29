@@ -14,6 +14,8 @@ import {
   deleteOrderDocument,
   regenerateOrderDocument,
   getGeneratedOrderDocument,
+  getGeneratedOrderDocumentContent,
+  getGeneratedOrderPreviewPdf,
   previewGeneratedOrderDocument,
   uploadSignedOrderDocument,
   getSignedOrderDocument,
@@ -29,6 +31,8 @@ router.get('/:id/history', getOrderStatusHistory);
 router.get('/:id/file', getOrderDocument);
 router.get('/:id/preview', previewOrderDocument);
 router.get('/:id/generated-document', getGeneratedOrderDocument);
+router.get('/:id/generated-document/content', getGeneratedOrderDocumentContent);
+router.get('/:id/generated-document/preview-pdf', getGeneratedOrderPreviewPdf);
 router.get('/:id/generated-document/preview', previewGeneratedOrderDocument);
 router.get('/:id/signed-file', getSignedOrderDocument);
 router.post('/', createOrder);

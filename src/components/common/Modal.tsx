@@ -11,6 +11,11 @@ interface ModalProps {
   maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '4xl';
   footer?: React.ReactNode;
   closeOnBackdrop?: boolean;
+  headerContent?: React.ReactNode;
+  panelClassName?: string;
+  bodyClassName?: string;
+  closeLabel?: string;
+  headerInert?: boolean;
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -21,7 +26,12 @@ export const Modal: React.FC<ModalProps> = ({
   children,
   maxWidth = 'xl',
   footer,
-  closeOnBackdrop = true
+  closeOnBackdrop = true,
+  headerContent,
+  panelClassName = '',
+  bodyClassName = '',
+  closeLabel = 'Close dialog',
+  headerInert = false
 }) => {
   const titleId = useId();
   const descriptionId = useId();
@@ -43,7 +53,7 @@ export const Modal: React.FC<ModalProps> = ({
       if (e.key === 'Tab' && dialogRef.current) {
         const focusable = Array.from(dialogRef.current.querySelectorAll<HTMLElement>(
           'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-        )).filter(element => !element.hasAttribute('hidden'));
+        )).filter(element => !element.closest('[hidden], [inert]') && element.getClientRects().length > 0);
         if (!focusable.length) return;
         const first = focusable[0];
         const last = focusable[focusable.length - 1];
@@ -99,29 +109,27 @@ export const Modal: React.FC<ModalProps> = ({
         aria-labelledby={titleId}
         aria-describedby={subtitle ? descriptionId : undefined}
         tabIndex={-1}
-        className={`my-2 flex max-h-[calc(100vh-1rem)] w-full flex-col overflow-hidden rounded-md border border-slate-300 bg-white shadow-xl sm:my-4 sm:max-h-[90vh] ${maxWidthClass}`}
+        className={`my-2 flex max-h-[calc(100vh-1rem)] w-full flex-col overflow-hidden rounded-md border border-slate-300 bg-white shadow-xl sm:my-4 sm:max-h-[90vh] ${maxWidthClass} ${panelClassName}`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div className="flex items-start justify-between gap-3 border-b border-slate-200 bg-white px-4 py-4 sm:px-5">
-          <div>
+        <div inert={headerInert} className="flex items-start justify-between gap-3 border-b border-slate-200 bg-white px-4 py-4 sm:px-5">
+          {headerContent ? <div className="min-w-0 flex-1"><h3 id={titleId} className="sr-only">{title}</h3>{headerContent}</div> : <div>
             <p className="record-kicker mb-1">PAIS official record</p>
-            <h3 id={titleId} className="text-base font-semibold text-slate-900">
-              {title}
-            </h3>
+            <h3 id={titleId} className="text-base font-semibold text-slate-900">{title}</h3>
             {subtitle && <p id={descriptionId} className="mt-1 text-xs leading-5 text-slate-500">{subtitle}</p>}
-          </div>
+          </div>}
           <button
             onClick={onClose}
             className="rounded p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
-            aria-label="Close dialog"
+            aria-label={closeLabel}
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Modal Body */}
-        <div className="flex-1 overflow-y-auto p-4 text-slate-900 sm:p-5">
+        <div className={`flex-1 overflow-y-auto p-4 text-slate-900 sm:p-5 ${bodyClassName}`}>
           {children}
         </div>
         {footer && <div className="record-action-bar shrink-0 px-4 py-3 sm:px-5">{footer}</div>}

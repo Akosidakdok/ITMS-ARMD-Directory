@@ -89,7 +89,7 @@ export const DocumentPageSheet: React.FC<DocumentPageSheetProps> = ({
               {title}
             </span>
             <span className="rounded-md bg-teal-50 px-2 py-0.5 text-[11px] font-medium text-teal-700 dark:bg-teal-950/60 dark:text-teal-300 border border-teal-200/60 dark:border-teal-800">
-              A4 Format (210 × 297 mm)
+              Local draft · A4 (210 × 297 mm)
             </span>
           </div>
 
@@ -142,7 +142,7 @@ export const DocumentPageSheet: React.FC<DocumentPageSheetProps> = ({
               className="inline-flex items-center gap-1.5 rounded-lg border border-teal-300 bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-800 shadow-2xs hover:bg-teal-100 disabled:opacity-60 dark:border-teal-800 dark:bg-teal-950/60 dark:text-teal-300"
             >
               <Download size={14} />
-              <span>{exportingDocx ? 'Exporting...' : 'DOCX'}</span>
+              <span>{exportingDocx ? 'Exporting...' : 'Export draft DOCX'}</span>
             </button>
 
             {/* Download PDF */}
@@ -153,7 +153,7 @@ export const DocumentPageSheet: React.FC<DocumentPageSheetProps> = ({
               className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-2xs hover:bg-slate-50 disabled:opacity-60 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
             >
               <Download size={14} />
-              <span className="hidden sm:inline">PDF</span>
+              <span className="hidden sm:inline">Export draft PDF</span>
             </button>
 
             {/* Edit in Document Editor */}
