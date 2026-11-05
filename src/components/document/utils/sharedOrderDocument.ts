@@ -299,11 +299,13 @@ export const buildCanonicalOrderDocumentHtml = (
     <p style="margin: 0; font-size: 12pt; line-height: 1.15;">&nbsp;</p>
   </div>
 
-  <!-- FIRST OFFICER ON THE RIGHT -->
+  <!-- OFFICIAL LABEL AND FIRST OFFICER SIDE BY SIDE -->
   <table class="pais-borderless-table pais-first-officer-table" style="width: 100%; border-collapse: collapse; margin-bottom: 0; border: none;">
     <tbody>
       <tr style="border: none;">
-        <td class="pais-borderless-cell" style="width: 45%; border: none; padding: 0;"></td>
+        <td class="pais-borderless-cell" style="width: 45%; vertical-align: top; border: none; padding: 0; font-size: 12pt;">
+          <p class="pais-compact-p" style="margin: 0;">OFFICIAL:</p>
+        </td>
         <td class="pais-borderless-cell" style="width: 10%; border: none; padding: 0;"></td>
         <td class="pais-borderless-cell" style="width: 45%; vertical-align: top; border: none; padding: 0; font-size: 12pt;">
           <p class="pais-compact-p" style="margin: 0; font-weight: bold; font-style: italic;">${signatory}</p>
@@ -314,13 +316,8 @@ export const buildCanonicalOrderDocumentHtml = (
     </tbody>
   </table>
 
-  <!-- OFFICIAL LABEL BETWEEN THE OFFICERS -->
-  <p class="pais-official-label" style="margin: 0; text-align: left; font-size: 12pt;">OFFICIAL:</p>
-
-  <!-- FOUR BLANK LINES BEFORE THE CERTIFYING OFFICER -->
+  <!-- TWO BLANK LINES BEFORE THE CERTIFYING OFFICER -->
   <div class="pais-official-spacing" aria-hidden="true">
-    <p style="margin: 0; font-size: 12pt; line-height: 1.15;">&nbsp;</p>
-    <p style="margin: 0; font-size: 12pt; line-height: 1.15;">&nbsp;</p>
     <p style="margin: 0; font-size: 12pt; line-height: 1.15;">&nbsp;</p>
     <p style="margin: 0; font-size: 12pt; line-height: 1.15;">&nbsp;</p>
   </div>
@@ -330,9 +327,9 @@ export const buildCanonicalOrderDocumentHtml = (
     <tbody>
       <tr style="border: none;">
         <td class="pais-borderless-cell" style="width: 45%; vertical-align: top; border: none; padding: 0; font-size: 12pt;">
-          <p class="pais-compact-p" style="margin: 0; font-weight: bold; font-style: italic;">${certifyingOfficial}</p>
-          <p class="pais-compact-p" style="margin: 0;">${certifyingOfficialRank}</p>
-          <p class="pais-compact-p" style="margin: 0;">${certifyingOfficialPosition}</p>
+          <p class="pais-compact-p" style="margin: 0 0 0 48px !important; font-weight: bold; font-style: italic;">${certifyingOfficial}</p>
+          <p class="pais-compact-p" style="margin: 0 0 0 48px !important;">${certifyingOfficialRank}</p>
+          <p class="pais-compact-p" style="margin: 0 0 0 48px !important;">${certifyingOfficialPosition}</p>
         </td>
         <td class="pais-borderless-cell" style="width: 10%; border: none; padding: 0;"></td>
         <td class="pais-borderless-cell" style="width: 45%; border: none; padding: 0;"></td>

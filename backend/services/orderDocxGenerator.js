@@ -23,7 +23,7 @@ import { ORDER_CATALOG } from '../utils/orderCatalog.js';
 import { formatOfficialOrderNumber } from '../../shared/orderNumber.js';
 
 export const ORDER_TEMPLATE_KEY = 'pnp-itms-letter-orders';
-export const ORDER_TEMPLATE_VERSION = '1.8.0';
+export const ORDER_TEMPLATE_VERSION = '1.11.0';
 
 const FONT = 'Arial';
 const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -185,7 +185,7 @@ const buildSignatureTable = order => {
       borders: NO_BORDERS,
       columnWidths: [3456, 672, 3456],
       rows: [new TableRow({ children: [
-        cell(blankParagraph()),
+        cell(textParagraph('OFFICIAL:', { alignment: AlignmentType.LEFT })),
         cell(blankParagraph()),
         cell([
           textParagraph(signatory, { runOptions: { bold: true, italics: true } }),
@@ -194,17 +194,16 @@ const buildSignatureTable = order => {
         ])
       ] })]
     }),
-    textParagraph('OFFICIAL:', { alignment: AlignmentType.LEFT }),
-    ...Array.from({ length: 4 }, () => blankParagraph()),
+    ...Array.from({ length: 2 }, () => blankParagraph()),
     new Table({
       width: { size: 100, type: WidthType.PERCENTAGE },
       borders: NO_BORDERS,
       columnWidths: [3456, 672, 3456],
       rows: [new TableRow({ children: [
         cell([
-          textParagraph(certifyingName, { runOptions: { bold: true, italics: true } }),
-          textParagraph(certifyingRank),
-          textParagraph(certifyingPosition)
+          textParagraph(certifyingName, { indent: { left: 720 }, runOptions: { bold: true, italics: true } }),
+          textParagraph(certifyingRank, { indent: { left: 720 } }),
+          textParagraph(certifyingPosition, { indent: { left: 720 } })
         ]),
         cell(blankParagraph()),
         cell(blankParagraph())

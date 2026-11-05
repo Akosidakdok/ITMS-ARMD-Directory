@@ -31,7 +31,7 @@ test('generates a reference-based DOCX with order and personnel content', async 
 
   assert.equal(isDocxZip(buffer), true);
   assert.equal(manifest.templateKey, 'pnp-itms-letter-orders');
-  assert.equal(manifest.templateVersion, '1.8.0');
+  assert.equal(manifest.templateVersion, '1.11.0');
   assert.equal(manifest.personnelSnapshot.length, 2);
 
   const converted = await mammoth.convertToHtml({ buffer });
@@ -57,22 +57,24 @@ test('generates a reference-based DOCX with order and personnel content', async 
   const firstOfficerTableEnd = xml.indexOf('</w:tbl>', signatureTableStart) + '</w:tbl>'.length;
   const firstOfficerTable = xml.slice(signatureTableStart, firstOfficerTableEnd);
   const firstOfficerCells = [...firstOfficerTable.matchAll(/<w:tc(?:\s[^>]*)?>[\s\S]*?<\/w:tc>/g)].map(match => match[0]);
+  assert.match(firstOfficerCells[0], /OFFICIAL:/, 'OFFICIAL is in the left cell beside the first officer');
   assert.match(firstOfficerCells[2], /Police Lieutenant General/);
+  const officialIndex = firstOfficerCells[0].indexOf('OFFICIAL:');
+  const officialStart = firstOfficerCells[0].lastIndexOf('<w:p', officialIndex);
+  const officialEnd = firstOfficerCells[0].indexOf('</w:p>', officialIndex) + '</w:p>'.length;
+  assert.match(firstOfficerCells[0].slice(officialStart, officialEnd), /<w:jc w:val="left"\/>/, 'OFFICIAL is left aligned');
 
-  const officialIndex = xml.indexOf('OFFICIAL:', firstOfficerTableEnd);
-  const officialStart = xml.lastIndexOf('<w:p', officialIndex);
-  const officialEnd = xml.indexOf('</w:p>', officialIndex) + '</w:p>'.length;
-  assert.ok(officialStart >= firstOfficerTableEnd, 'OFFICIAL follows the first officer');
-  assert.match(xml.slice(officialStart, officialEnd), /<w:jc w:val="left"\/>/, 'OFFICIAL is left aligned');
-
-  const certifyingTableStart = xml.indexOf('<w:tbl>', officialEnd);
-  const paragraphsAfterOfficial = [...xml.slice(officialEnd, certifyingTableStart).matchAll(/<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>/g)].map(match => match[0]);
-  assert.equal(paragraphsAfterOfficial.length, 4, 'four blank lines separate OFFICIAL from the certifying officer');
-  assert.ok(paragraphsAfterOfficial.every(item => !item.includes('<w:r>')));
+  const certifyingTableStart = xml.indexOf('<w:tbl>', firstOfficerTableEnd);
+  const paragraphsAfterFirstOfficer = [...xml.slice(firstOfficerTableEnd, certifyingTableStart).matchAll(/<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>/g)].map(match => match[0]);
+  assert.equal(paragraphsAfterFirstOfficer.length, 2, 'two blank lines separate the officers');
+  assert.ok(paragraphsAfterFirstOfficer.every(item => !item.includes('<w:r>')));
   const certifyingTable = xml.slice(certifyingTableStart, xml.indexOf('</w:tbl>', certifyingTableStart) + '</w:tbl>'.length);
   const certifyingCells = [...certifyingTable.matchAll(/<w:tc(?:\s[^>]*)?>[\s\S]*?<\/w:tc>/g)].map(match => match[0]);
   assert.match(certifyingCells[0], /COLONEL TEST CERTIFIER/);
   assert.doesNotMatch(certifyingCells[2], /COLONEL TEST CERTIFIER/);
+  const certifyingParagraphs = [...certifyingCells[0].matchAll(/<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>/g)].map(match => match[0]);
+  assert.equal(certifyingParagraphs.length, 3);
+  assert.ok(certifyingParagraphs.every(item => item.includes('<w:ind w:left="720"/>')), 'all certifying officer lines are indented by 0.5 inch');
 
   const certifyingTableEnd = certifyingTableStart + certifyingTable.length;
   const distributionStart = xml.lastIndexOf('<w:p', xml.indexOf('DISTRIBUTION:', certifyingTableEnd));

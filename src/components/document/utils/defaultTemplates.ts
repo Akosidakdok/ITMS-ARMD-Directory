@@ -95,7 +95,7 @@ export const DEFAULT_TEMPLATES: TemplatePreset[] = [
         <p style="margin: 0; font-weight: bold; font-size: 12pt;">BY COMMAND OF POLICE BRIGADIER GENERAL PALGUE:</p>
       </div>
 
-      <table style="width: 100%; border-collapse: collapse; margin-bottom: 18px; border: none;">
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 0; border: none;">
         <tbody>
           <tr style="border: none;">
             <td style="width: 45%; vertical-align: top; border: none; padding: 0; font-size: 12pt;">
@@ -109,18 +109,18 @@ export const DEFAULT_TEMPLATES: TemplatePreset[] = [
             </td>
           </tr>
           <tr style="border: none;">
-            <td style="border: none; padding: 0;"></td>
-            <td style="border: none; padding: 0;"></td>
-            <td style="vertical-align: top; border: none; padding: 18px 0 0 0; font-size: 12pt;">
+            <td style="vertical-align: top; border: none; padding: 28px 0 0 48px; font-size: 12pt;">
               <p style="margin: 0; font-weight: bold; font-style: italic;">VICTORIO M DELA PEÑA, JR</p>
               <p style="margin: 0;">Police Colonel</p>
               <p style="margin: 0;">Chief, Administrative and Resource Management Division</p>
             </td>
+            <td style="border: none; padding: 0;"></td>
+            <td style="border: none; padding: 0;"></td>
           </tr>
         </tbody>
       </table>
 
-      <div style="margin-top: 14px;">
+      <div style="margin-top: 28px;">
         <p style="margin: 0; font-size: 12pt;">DISTRIBUTION:</p>
         <p style="margin: 0; font-size: 12pt; padding-left: 48px;">&ldquo;C&rdquo;</p>
       </div>
