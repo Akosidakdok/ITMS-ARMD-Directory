@@ -57,7 +57,7 @@ export const createPromotion = async (req, res) => {
     const created = await db.createPromotion(req.body);
     res.status(201).json({
       success: true,
-      message: 'Promotion record logged and personnel rank updated successfully',
+      message: 'Promotion record logged successfully',
       data: created
     });
   } catch (error) {

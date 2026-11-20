@@ -7,6 +7,7 @@
  */
 
 import { supabase, isSupabaseAvailable } from '../config/supabase.js';
+import { integrationRpc, paisSpalEnabled } from '../services/paisSpalIntegration.js';
 import { 
   INITIAL_PERSONNEL, 
   INITIAL_ASSIGNMENTS, 
@@ -522,12 +523,42 @@ export class PAISRepository {
   }
 
   async updatePersonnel(id, data) {
-    const payload = this.coerceSalaryGradeForLegacyInt(this.sanitizePersonnelPayload(data));
+    const fields = new Set(Object.keys(data));
+    const aliases = [
+      ['firstName', 'first_name'], ['lastName', 'last_name'], ['middleName', 'middle_name'],
+      ['badgeNo', 'badge_number'], ['birthdate', 'birthday'], ['qualification', 'qualifier'],
+      ['sub_unit', 'division', 'officeDivision'], ['details', 'detail'],
+      ['unitCode', 'unit_code'], ['subUnitCode', 'sub_unit_code'], ['stationCode', 'station_code'],
+      ['subStationCode', 'sub_station_code'], ['subStation', 'sub_station'],
+      ['desUp', 'dateOfEntry', 'dateEnteredService', 'date_entered_service'],
+      ['designationDate', 'designation_date'], ['lastPromotionDate', 'last_promotion_date'],
+      ['enterInOfficerPositionDate', 'dateOfOfficershipOrCommission', 'date_of_officership_or_commission'],
+      ['pstatusDate', 'pstatus_date'], ['rankStatus', 'rank_status'], ['civilStatus', 'civil_status'],
+      ['sourceOfCommissionship', 'source_of_commissionship'], ['contactNumber', 'phone_number'],
+      ['gsisNumber', 'gsis_number'], ['philHealthNo', 'phil_health_no'], ['pagibigNo', 'pagibig_no'],
+      ['sourceLink', 'source_link'], ['accountNumber', 'account_number'],
+      ['civilServiceEligibility', 'civil_service_eligibility'], ['mandatoryCourse', 'mandatory_course'],
+      ['timeInGrade', 'time_in_grade'],
+    ];
+    for (const group of aliases) {
+      if (group.some(field => fields.has(field))) group.forEach(field => fields.add(field));
+    }
+    if (fields.has('status')) fields.add('pstatus');
+    if (fields.has('rank')) fields.add('rankCategory');
+    if (fields.has('agencyType')) ['unit', 'unitCategory', 'subUnitCategory'].forEach(field => fields.add(field));
+    if (fields.has('agencyType') || fields.has('agencyName')) {
+      fields.add('agencyType');
+      fields.add('agencyName');
+    }
+    if (fields.has('firstName') && fields.has('lastName')) fields.add('fullName');
+    const normalized = this.sanitizePersonnelPayload(data);
+    const patch = Object.fromEntries(Object.entries(normalized).filter(([field]) => fields.has(field)));
+    const payload = Object.hasOwn(patch, 'salaryGrade') ? this.coerceSalaryGradeForLegacyInt(patch) : patch;
     if (this.isSupabaseConnected()) {
       const dbPayload = this.toSupabasePersonnelPayload(payload);
       delete dbPayload.id;
       let { data: updated, error } = await supabase.from('personnel').update(dbPayload).eq('id', id).select().single();
-      if (error && error.code === '22P02') {
+      if (error && error.code === '22P02' && Object.hasOwn(dbPayload, 'salaryGrade')) {
         const fallbackPayload = this.coerceSalaryGradeForLegacyInt(dbPayload);
         const retry = await supabase.from('personnel').update(fallbackPayload).eq('id', id).select().single();
         if (!retry.error) {
@@ -1107,6 +1138,12 @@ export class PAISRepository {
     return personnelId ? rows.filter(assignment => assignment.personnelId === personnelId) : rows;
   }
 
+  async spalOwnedPostings(personnelIds) {
+    if (!paisSpalEnabled() || !personnelIds.length) return new Set();
+    const owned = await integrationRpc('pais_spal_owned_postings', { p_personnel_ids: [...new Set(personnelIds)] });
+    return new Set(owned);
+  }
+
   async createOrderDrivenAssignment(order, person, data, effectType) {
     const effectiveDate = String(data.startDate || order.effectiveDate || order.issuedDate || manilaDate()).slice(0, 10);
     const status = effectiveDate > manilaDate() ? 'Scheduled' : 'Current';
@@ -1206,8 +1243,15 @@ export class PAISRepository {
     const today = manilaDate();
     const changedPeople = new Set();
     let rows = assignments;
+    const isDue = row => row.status === 'Scheduled' && (row.effectiveDate || row.startDate) <= today;
+    const isExpired = row => row.status === 'Current' && row.endDate && row.endDate < today;
+    const isMain = row => !row.positionCategory || row.positionCategory === 'Main';
+    const owned = await this.spalOwnedPostings(rows
+      .filter(row => isMain(row) && (isDue(row) || isExpired(row)))
+      .map(row => row.personnelId));
+    const canReconcile = row => !isMain(row) || !owned.has(row.personnelId);
     const dueAssignments = rows
-      .filter(row => row.status === 'Scheduled' && (row.effectiveDate || row.startDate) <= today)
+      .filter(row => isDue(row) && canReconcile(row))
       .sort((a, b) => String(a.effectiveDate || a.startDate).localeCompare(String(b.effectiveDate || b.startDate)) || String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
     for (const scheduled of dueAssignments) {
       const effectiveDate = scheduled.effectiveDate || scheduled.startDate;
@@ -1229,7 +1273,7 @@ export class PAISRepository {
       if (!scheduled.positionCategory || scheduled.positionCategory === 'Main') changedPeople.add(scheduled.personnelId);
       rows = await this.readAssignmentsRaw();
     }
-    for (const expired of rows.filter(row => row.status === 'Current' && row.endDate && row.endDate < today)) {
+    for (const expired of rows.filter(row => isExpired(row) && canReconcile(row))) {
       await this.persistAssignmentPatch(expired.id, { status: expired.terminationOrderId ? 'Terminated' : 'Completed' });
       if (!expired.positionCategory || expired.positionCategory === 'Main') changedPeople.add(expired.personnelId);
     }
@@ -1258,7 +1302,12 @@ export class PAISRepository {
     const effectiveDate = String(order.effectiveDate || order.issuedDate || today).slice(0, 10);
     const purpose = order.purposeData || {};
     const reviewItems = [];
+    const owned = await this.spalOwnedPostings(code === 'DO' ? [] : personnelIds);
     for (const personnelId of personnelIds) {
+      if (owned.has(personnelId)) {
+        reviewItems.push('A linked principal posting must be managed in SPAL');
+        continue;
+      }
       const person = await this.getPersonnelById(personnelId);
       if (!person) { reviewItems.push(`Personnel ${personnelId} was not found`); continue; }
       const records = await this.readAssignmentsRaw(personnelId);
@@ -1390,8 +1439,13 @@ export class PAISRepository {
     const today = manilaDate();
     const changedPeople = new Set();
     const eventsFor = row => (Array.isArray(row.orderEffectHistory) ? row.orderEffectHistory : []).filter(event => event.orderId === order.id);
+    const isMain = row => !row.positionCategory || row.positionCategory === 'Main';
+    const owned = await this.spalOwnedPostings(rows
+      .filter(row => isMain(row) && (row.orderId === order.id || row.endedByOrderId === order.id || eventsFor(row).length))
+      .map(row => row.personnelId));
+    const canReverse = row => !isMain(row) || !owned.has(row.personnelId);
 
-    for (const row of rows.filter(item => item.orderId === order.id)) {
+    for (const row of rows.filter(item => item.orderId === order.id && canReverse(item))) {
       const nextStatus = ['Current', 'Scheduled'].includes(row.status) ? 'Terminated' : row.status;
       await this.persistAssignmentPatch(row.id, {
         status: nextStatus,
@@ -1403,7 +1457,7 @@ export class PAISRepository {
     }
 
     for (const row of rows) {
-      if (row.orderId === order.id) continue;
+      if (row.orderId === order.id || !canReverse(row)) continue;
       const history = eventsFor(row);
       if (!history.length) continue;
       const lastEvent = history[history.length - 1];
@@ -1432,7 +1486,7 @@ export class PAISRepository {
     }
 
     let freshRows = await this.readAssignmentsRaw();
-    for (const row of freshRows.filter(item => item.endedByOrderId === order.id)) {
+    for (const row of freshRows.filter(item => item.endedByOrderId === order.id && canReverse(item))) {
       const laterCurrent = freshRows.some(item => item.personnelId === row.personnelId && item.id !== row.id && item.status === 'Current' && (!item.positionCategory || item.positionCategory === 'Main'));
       if (laterCurrent) continue;
       const event = eventsFor(row).find(item => item.action === 'superseded');
@@ -1449,7 +1503,9 @@ export class PAISRepository {
       const current = (await this.readAssignmentsRaw(personnelId)).find(item => item.status === 'Current' && (!item.positionCategory || item.positionCategory === 'Main'));
       if (current) await this.syncPersonnelFromAssignment(current);
     }
-    return this.setOrderAssignmentEffectStatus(order, 'Reversed', 'Revocation recorded against linked assignment history.');
+    return owned.size
+      ? this.setOrderAssignmentEffectStatus(order, 'Needs review', 'Linked principal postings are managed in SPAL.')
+      : this.setOrderAssignmentEffectStatus(order, 'Reversed', 'Revocation recorded against linked assignment history.');
   }
 
   async getAssignmentById(id) {
@@ -1742,7 +1798,9 @@ export class PAISRepository {
   async syncPersonnelRank(personnelId, baselineRank = null) {
     if (!personnelId) return;
 
-    const promotions = await this.getPromotions(personnelId);
+    const promotions = (await this.getPromotions(personnelId)).filter(
+      promotion => promotion.implemented !== false && promotion.promotionDate <= manilaDate(),
+    );
     promotions.sort((a, b) => new Date(b.promotionDate).getTime() - new Date(a.promotionDate).getTime());
 
     let targetRank = null;
@@ -1759,7 +1817,10 @@ export class PAISRepository {
     if (this.isSupabaseConnected()) {
       try {
         const updateObj = {};
-        if (targetRank) updateObj.rank = targetRank;
+        if (targetRank) {
+          updateObj.rank = targetRank;
+          updateObj.rankCategory = getRankCategoryBackend(targetRank);
+        }
         updateObj.lastPromotionDate = targetDate;
         await supabase.from('personnel').update(updateObj).eq('id', personnelId);
       } catch (e) {
@@ -1769,7 +1830,10 @@ export class PAISRepository {
 
     const pIndex = this.inMemoryPersonnel.findIndex(p => p.id === personnelId);
     if (pIndex !== -1) {
-      if (targetRank) this.inMemoryPersonnel[pIndex].rank = targetRank;
+      if (targetRank) {
+        this.inMemoryPersonnel[pIndex].rank = targetRank;
+        this.inMemoryPersonnel[pIndex].rankCategory = getRankCategoryBackend(targetRank);
+      }
       this.inMemoryPersonnel[pIndex].lastPromotionDate = targetDate;
     }
   }
@@ -1798,6 +1862,8 @@ export class PAISRepository {
       ...data
     };
 
+    if (paisSpalEnabled()) return this.changeLinkedPromotion('create', newRecord.id, newRecord);
+
     if (this.isSupabaseConnected()) {
       const { data: inserted, error } = await supabase.from('promotions').insert([newRecord]).select().single();
       if (error) throw error;
@@ -1811,6 +1877,8 @@ export class PAISRepository {
   }
 
   async deletePromotion(id) {
+    if (paisSpalEnabled()) return Boolean(await this.changeLinkedPromotion('delete', id));
+
     let targetRecord = this.inMemoryPromotions.find(p => p.id === id);
 
     if (this.isSupabaseConnected()) {
@@ -1834,6 +1902,8 @@ export class PAISRepository {
   }
 
   async updatePromotion(id, data) {
+    if (paisSpalEnabled()) return this.changeLinkedPromotion('update', id, data);
+
     if (this.isSupabaseConnected()) {
       const { data: updated, error } = await supabase.from('promotions').update(data).eq('id', id).select().single();
       if (error) throw error;
@@ -1847,6 +1917,18 @@ export class PAISRepository {
     const personnelId = this.inMemoryPromotions[index].personnelId;
     await this.syncPersonnelRank(personnelId);
     return this.inMemoryPromotions[index];
+  }
+
+  async changeLinkedPromotion(action, id, data = {}) {
+    const result = await integrationRpc('pais_spal_change_promotion', {
+      p_action: action, p_id: id, p_data: data,
+    });
+    if (!result) return null;
+    if (!result.linked) {
+      const promotion = result.promotion;
+      await this.syncPersonnelRank(promotion.personnelId, action === 'delete' ? promotion.rankFrom : null);
+    }
+    return result.promotion;
   }
 
   // ================= TRAINING CRUD =================
