@@ -15,6 +15,7 @@ import worksheetRoutes from './routes/worksheetRoutes.js';
 import documentsRoutes from './routes/documentsRoutes.js';
 import dlosRoutes from './routes/dlosRoutes.js';
 import { getDlosAccess } from './store/dlosRepository.js';
+import { receiveAssignment, startRankDelivery } from './services/paisSpalIntegration.js';
 import {
   authenticateRequest,
   isAuthConfigured,
@@ -116,6 +117,7 @@ app.get('/api/auth/session', authenticateRequest, async (req, res) => {
   res.json({ success: true, data: { user: { ...req.user, dlosRole } } });
 });
 
+app.post('/api/integration/v1/assignments', receiveAssignment());
 app.use('/api', authenticateRequest, requireAdminForMutation);
 
 // Mount Routes
@@ -172,6 +174,7 @@ const startServer = async () => {
   if (!supabaseStatus.isConnected) {
     console.log(` Fallback Store: Local Memory (temporary until Supabase is available)`);
   }
+  startRankDelivery();
 };
 
 startServer();
