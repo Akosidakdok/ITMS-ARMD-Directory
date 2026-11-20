@@ -21,6 +21,7 @@ import {
   login,
   requireAdminForMutation
 } from './middleware/auth.js';
+import { securityHeaders, createRateLimiter } from './middleware/security.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -34,9 +35,12 @@ const allowedOrigins = new Set([
   'http://127.0.0.1:3000'
 ]);
 
-// Allow any *.vercel.app subdomain for Vercel preview deployments
-const vercelOriginPattern = /\.vercel\.app$/;
+// Allow specific project preview deployments on *.vercel.app
+const vercelOriginPattern = /^https:\/\/pnp-itms-pais(-[a-z0-9-]+)?\.vercel\.app$/;
 const localhostPattern = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/;
+
+// Security Headers Middleware
+app.use(securityHeaders);
 
 // Middleware
 app.use(cors({
@@ -98,7 +102,13 @@ app.get('/api/health', async (req, res) => {
   });
 });
 
-app.post('/api/auth/login', async (req, res) => {
+const loginLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 15,
+  message: 'Too many login attempts. Please try again after 15 minutes.'
+});
+
+app.post('/api/auth/login', loginLimiter, async (req, res) => {
   if (!isAuthConfigured()) {
     return res.status(503).json({ success: false, message: 'Authentication is not configured on the server.' });
   }
@@ -135,10 +145,11 @@ app.use('/api/dlos', dlosRoutes);
 // Global Error Handler
 app.use((err, req, res, next) => {
   console.error('Unhandled Server Error:', err);
+  const isProd = process.env.NODE_ENV === 'production';
   res.status(500).json({
     success: false,
     message: 'Internal Server Error',
-    error: err.message
+    ...(isProd ? {} : { error: err.message })
   });
 });
 

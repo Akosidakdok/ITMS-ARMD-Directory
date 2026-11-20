@@ -49,12 +49,14 @@ export const authenticateRequest = async (req, res, next) => {
 };
 
 export const requireAdminForMutation = (req, res, next) => {
+  const url = req.originalUrl || req.url || '';
+  const isWorksheetReadOnlyPost = req.method === 'POST' && /\/api\/worksheets\/(?:promotional\/(?:validate|export)|import\/preview)(?:\?|$)/.test(url);
+
   if (
     ['GET', 'HEAD', 'OPTIONS'].includes(req.method) || 
     ['admin', 'superadmin'].includes(req.user?.role) ||
-    /^\/api\/dlos(?:\/|\?|$)/.test(req.originalUrl || '') ||
-    req.baseUrl?.startsWith('/api/worksheets') ||
-    req.originalUrl?.includes('/api/worksheets')
+    /^\/api\/dlos(?:\/|\?|$)/.test(url) ||
+    isWorksheetReadOnlyPost
   ) return next();
   return res.status(403).json({ success: false, message: 'Administrator permission is required.' });
 };

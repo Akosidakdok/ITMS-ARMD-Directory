@@ -30,3 +30,29 @@ test('formatPersonnelOrgDisplay handles null and whitespace values without old f
   assert.equal(result, 'No Details recorded - No Station recorded');
   assert.equal(result.includes('No sub-unit recorded'), false);
 });
+
+test('createPersonnel rejects requests missing rank, firstName, or lastName (DEF-PERS-01)', async () => {
+  const { createPersonnel } = await import('../backend/controllers/personnelController.js');
+
+  const invalidPayloads = [
+    { firstName: 'Juan', lastName: 'Dela Cruz' },
+    { rank: 'PLTCOL', lastName: 'Dela Cruz' },
+    { rank: 'PLTCOL', firstName: 'Juan' },
+    { rank: '', firstName: 'Juan', lastName: 'Dela Cruz' },
+    { rank: '   ', firstName: 'Juan', lastName: 'Dela Cruz' }
+  ];
+
+  for (const body of invalidPayloads) {
+    let statusCode = null;
+    let responseBody = null;
+    const req = { body };
+    const res = {
+      status(code) { statusCode = code; return this; },
+      json(data) { responseBody = data; return this; }
+    };
+    await createPersonnel(req, res);
+    assert.equal(statusCode, 400);
+    assert.equal(responseBody.success, false);
+    assert.equal(responseBody.message, 'Missing required fields: rank, firstName, and lastName are required');
+  }
+});

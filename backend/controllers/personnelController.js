@@ -35,11 +35,14 @@ export const getPersonnelById = async (req, res) => {
 
 export const createPersonnel = async (req, res) => {
   try {
-    const { firstName, lastName } = req.body;
-    if (!firstName || !lastName) {
+    const firstName = String(req.body?.firstName || '').trim();
+    const lastName = String(req.body?.lastName || '').trim();
+    const rank = String(req.body?.rank || '').trim();
+
+    if (!firstName || !lastName || !rank) {
       return res.status(400).json({
         success: false,
-        message: 'Missing required fields: firstName and lastName are required'
+        message: 'Missing required fields: rank, firstName, and lastName are required'
       });
     }
 

@@ -77,3 +77,9 @@ The migration in `backend/scripts/migrate_excel_import_audits.sql` must be appli
 - Rank, category, PCO, PNCO, NUP, and variance formulas are generated in the reference-oriented reports.
 - Promotion exports now generate factor worksheets for seniority, awards, diversity, IPER/other qualifications, service reputation, and interview rating.
 - Promotion scoring remains pending policy approval; the workbooks expose source values and maximums without inventing scores.
+
+## Worksheet Architecture Notes
+
+- The interactive Web Spreadsheet workspace (`SpreadsheetComponent.tsx` / `worksheetRoutes.js`) dynamically manages custom sheets defaulting to `Sheet1`, allowing administrators to register, rename, and update custom grid sheets in real time.
+- Official reporting and factor export routines generate structured multi-sheet workbooks (`disposition.xlsx`, promotional factor workbooks) for interchange.
+- Mutation endpoints (`/api/worksheets/custom`, `/:sheetId/cell`, `/:sheetId/batch`, `/:sheetId/rename`, `DELETE /:sheetId`) strictly require administrator credentials, while validation and export endpoints (`/promotional/validate`, `/promotional/export`, `/import/preview`) remain accessible to all authenticated sessions.
