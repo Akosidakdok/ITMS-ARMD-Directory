@@ -22,7 +22,33 @@ import {
 } from '../services/promotionalWorksheetService.js';
 
 const router = express.Router();
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
+
+const SPREADSHEET_MIMES = new Set([
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-excel',
+  'application/octet-stream',
+  'application/zip',
+  'application/x-zip-compressed'
+]);
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 20 * 1024 * 1024, files: 1 },
+  fileFilter: (_req, file, callback) => {
+    const extension = String(file.originalname || '').toLowerCase().match(/\.([a-z0-9]+)$/)?.[1];
+    const acceptedExt = ['xlsx', 'xls'].includes(extension);
+    const acceptedMime = SPREADSHEET_MIMES.has(file.mimetype) || !file.mimetype;
+    if (!acceptedExt || !acceptedMime || file.originalname.length > 180) {
+      return callback(new Error('Only Microsoft Excel (.xlsx, .xls) files are accepted.'));
+    }
+    callback(null, true);
+  }
+});
+
+const handleWorksheetUpload = (req, res, next) => upload.single('file')(req, res, error => {
+  if (error) return res.status(400).json({ success: false, message: error.message || 'Excel file upload failed.' });
+  next();
+});
 
 // List worksheets
 router.get('/', async (req, res) => {
@@ -228,7 +254,7 @@ router.put('/:sheetId/merges', async (req, res) => {
 });
 
 // Smart Import Preview: auto-detects header row (skipping decorative headers)
-router.post('/import/preview', upload.single('file'), async (req, res) => {
+router.post('/import/preview', handleWorksheetUpload, async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ success: false, message: 'File is required' });
 
