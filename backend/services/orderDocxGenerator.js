@@ -13,6 +13,7 @@ import {
   Paragraph,
   Table,
   TableCell,
+  TableLayoutType,
   TableRow,
   TextRun,
   VerticalAlign,
@@ -149,23 +150,32 @@ const cell = (children, options = {}) => new TableCell({
 const imageRun = (data, type, width, height) => new ImageRun({ data, type, transformation: { width, height } });
 
 const buildLetterhead = (pnpLogo, itmsLogo) => new Table({
-  width: { size: 100, type: WidthType.PERCENTAGE },
+  layout: TableLayoutType.FIXED,
+  width: { size: 9141, type: WidthType.DXA },
   borders: NO_BORDERS,
-  columnWidths: [1600, 5944, 1600],
+  columnWidths: [1600, 5941, 1600],
   rows: [new TableRow({
     children: [
-      cell(paragraph([imageRun(pnpLogo, 'png', 68, 95)], { alignment: AlignmentType.CENTER })),
+      cell(paragraph([imageRun(pnpLogo, 'png', 68, 95)], { alignment: AlignmentType.CENTER }), {
+        width: { size: 1600, type: WidthType.DXA }
+      }),
       cell([
         textParagraph('Republic of the Philippines', { alignment: AlignmentType.CENTER, runOptions: { size: 20 } }),
         textParagraph('NATIONAL POLICE COMMISSION', { alignment: AlignmentType.CENTER, runOptions: { size: 20 } }),
         textParagraph('PHILIPPINE NATIONAL POLICE', { alignment: AlignmentType.CENTER, runOptions: { size: 22, bold: true } }),
         textParagraph('INFORMATION TECHNOLOGY MANAGEMENT SERVICE', { alignment: AlignmentType.CENTER, runOptions: { size: 22, bold: true } }),
         textParagraph('Camp BGen Rafael T. Crame, Quezon City', { alignment: AlignmentType.CENTER, runOptions: { size: 20 } })
-      ]),
-      cell(paragraph([imageRun(itmsLogo, 'jpg', 74, 72)], { alignment: AlignmentType.CENTER }))
+      ], {
+        width: { size: 5941, type: WidthType.DXA }
+      }),
+      cell(paragraph([imageRun(itmsLogo, 'jpg', 74, 72)], { alignment: AlignmentType.CENTER }), {
+        width: { size: 1600, type: WidthType.DXA }
+      })
     ]
   })]
 });
+
+const SIGNATURE_COL_WIDTHS = [4113, 915, 4113];
 
 const buildSignatureTable = order => {
   const authority = safeText(order.authorityText || 'BY COMMAND OF POLICE BRIGADIER GENERAL PALGUE:');
@@ -181,38 +191,52 @@ const buildSignatureTable = order => {
     textParagraph(authority, { alignment: AlignmentType.CENTER, runOptions: { bold: true } }),
     ...Array.from({ length: 4 }, () => blankParagraph()),
     new Table({
-      width: { size: 100, type: WidthType.PERCENTAGE },
+      layout: TableLayoutType.FIXED,
+      width: { size: 9141, type: WidthType.DXA },
       borders: NO_BORDERS,
-      columnWidths: [3456, 672, 3456],
+      columnWidths: SIGNATURE_COL_WIDTHS,
       rows: [new TableRow({ children: [
-        cell(textParagraph('OFFICIAL:', { alignment: AlignmentType.LEFT })),
-        cell(blankParagraph()),
+        cell(textParagraph('OFFICIAL:', { alignment: AlignmentType.LEFT }), {
+          width: { size: SIGNATURE_COL_WIDTHS[0], type: WidthType.DXA }
+        }),
+        cell(blankParagraph(), {
+          width: { size: SIGNATURE_COL_WIDTHS[1], type: WidthType.DXA }
+        }),
         cell([
           textParagraph(signatory, { runOptions: { bold: true, italics: true } }),
           textParagraph(signatoryRank),
           textParagraph(signatoryTitle)
-        ])
+        ], {
+          width: { size: SIGNATURE_COL_WIDTHS[2], type: WidthType.DXA }
+        })
       ] })]
     }),
     ...Array.from({ length: 2 }, () => blankParagraph()),
     new Table({
-      width: { size: 100, type: WidthType.PERCENTAGE },
+      layout: TableLayoutType.FIXED,
+      width: { size: 9141, type: WidthType.DXA },
       borders: NO_BORDERS,
-      columnWidths: [3456, 672, 3456],
+      columnWidths: SIGNATURE_COL_WIDTHS,
       rows: [new TableRow({ children: [
         cell([
           textParagraph(certifyingName, { indent: { left: 720 }, runOptions: { bold: true, italics: true } }),
           textParagraph(certifyingRank, { indent: { left: 720 } }),
           textParagraph(certifyingPosition, { indent: { left: 720 } })
-        ]),
-        cell(blankParagraph()),
-        cell(blankParagraph())
+        ], {
+          width: { size: SIGNATURE_COL_WIDTHS[0], type: WidthType.DXA }
+        }),
+        cell(blankParagraph(), {
+          width: { size: SIGNATURE_COL_WIDTHS[1], type: WidthType.DXA }
+        }),
+        cell(blankParagraph(), {
+          width: { size: SIGNATURE_COL_WIDTHS[2], type: WidthType.DXA }
+        })
       ] })]
     }),
     blankParagraph(),
     blankParagraph(),
     textParagraph('DISTRIBUTION:'),
-    textParagraph(`        "${distribution}"`)
+    textParagraph(`"${distribution}"`, { indent: { left: 720 } })
   ];
 };
 
@@ -273,12 +297,17 @@ export const generateOrderDocx = async order => {
     buildLetterhead(pnpLogo, itmsLogo),
     blankParagraph(),
     new Table({
-      width: { size: 100, type: WidthType.PERCENTAGE },
+      layout: TableLayoutType.FIXED,
+      width: { size: 9141, type: WidthType.DXA },
       borders: NO_BORDERS,
-      columnWidths: [3000, 6624],
+      columnWidths: [4570, 4571],
       rows: [new TableRow({ children: [
-        cell(textParagraph('ITMS', { runOptions: { bold: true } })),
-        cell(textParagraph(formatDate(order.issuedDate), { alignment: AlignmentType.RIGHT }))
+        cell(textParagraph('ITMS', { runOptions: { bold: true } }), {
+          width: { size: 4570, type: WidthType.DXA }
+        }),
+        cell(textParagraph(formatDate(order.issuedDate), { alignment: AlignmentType.RIGHT }), {
+          width: { size: 4571, type: WidthType.DXA }
+        })
       ] })]
     }),
     blankParagraph(),
