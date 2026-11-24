@@ -94,37 +94,186 @@ const getTravelNarrative = order => {
 
 const getNarrative = order => order.purposeCode === 'TR' ? getTravelNarrative(order) : getCommonNarrative(order);
 
-const getSinglePersonNarrativeRuns = order => {
+const getPurposeHeading = order => {
+  if (order.purposeCode === 'TR') return null;
+  const purposeDef = getOrderPurposeDefinition(order.purposeCode);
+  if (order.purposeCode === 'AW') {
+    return safeText(order.purposeData?.awardTitle || order.subject || 'AWARD').toUpperCase();
+  }
+  if (order.purposeCode && purposeDef) {
+    const raw = purposeDef.label.split('—').pop()?.trim() || order.subject;
+    return raw.toUpperCase();
+  }
+  return safeText(order.subject || 'ADMINISTRATIVE ORDER').toUpperCase();
+};
+
+const buildOrderBodyElements = order => {
   const personnel = getPersonnel(order);
-  if (personnel.length !== 1) return null;
+  const data = order.purposeData || {};
+  const effective = formatDate(order.effectiveDate || order.issuedDate);
+  const elements = [];
 
-  const person = personnel[0];
-  const name = getPersonnelName(person);
-  if (!name) return null;
+  // 1. Designation (DES)
+  if (order.purposeCode === 'DES') {
+    const designation = safeText(data.designation || 'designated personnel');
+    const assignedUnit = safeText(data.assignedUnit || 'Information Technology Program Management Division');
 
-  const details = getSinglePersonDetails(person);
-  const lead = [run(name, { bold: true })];
-  if (details) lead.push(run(` (${details})`));
-
-  if (order.purposeCode === 'TR') {
-    const data = order.purposeData || {};
+    if (personnel.length === 1) {
+      const person = personnel[0];
+      const rank = person.rank ? `${person.rank} ` : '';
+      const name = person.fullName || '';
+      const badge = person.badgeNo ? ` ${person.badgeNo}` : '';
+      const sentence = `${rank}${name}${badge} is designated as ${designation} under ${assignedUnit}, ITMS, Philippine National Police effective ${effective}.`.replace(/\s+/g, ' ').trim();
+      elements.push(paragraph([run(sentence)], { alignment: AlignmentType.JUSTIFIED, indent: { firstLine: 720 } }));
+    } else {
+      const lead = `Following-named personnel of this Service are designated as ${designation} to Office/Unit indicated opposite their names under ${assignedUnit}, ITMS, Philippine National Police effective ${effective}:`.replace(/\s+/g, ' ').trim();
+      elements.push(paragraph([run(lead)], { alignment: AlignmentType.JUSTIFIED, indent: { firstLine: 720 } }));
+      elements.push(blankParagraph());
+      elements.push(new Table({
+        layout: TableLayoutType.FIXED,
+        width: { size: 9141, type: WidthType.DXA },
+        borders: NO_BORDERS,
+        columnWidths: [4570, 4571],
+        rows: [
+          new TableRow({
+            children: [
+              cell(textParagraph('Rank/Name', { runOptions: { bold: true } }), { width: { size: 4570, type: WidthType.DXA } }),
+              cell(textParagraph('Office/Unit', { runOptions: { bold: true } }), { width: { size: 4571, type: WidthType.DXA } })
+            ]
+          }),
+          ...personnel.map(p => new TableRow({
+            children: [
+              cell(textParagraph(`${p.rank ? `${p.rank} ` : ''}${p.fullName || ''}`.trim()), { width: { size: 4570, type: WidthType.DXA } }),
+              cell(textParagraph(safeText(p.unit || assignedUnit)), { width: { size: 4571, type: WidthType.DXA } })
+            ]
+          }))
+        ]
+      }));
+    }
+  }
+  // 2. Sub-unit Reassignment (RA)
+  else if (order.purposeCode === 'RA') {
+    const fromUnit = safeText(data.fromSubUnit || 'Information Technology Program Management Division');
+    const toUnit = safeText(data.toSubUnit || 'Information Technology Support Division');
+    const lead = `Following-named personnel of this Service are relieved from ${fromUnit} and reassigned to ${toUnit} effective ${effective}.`.replace(/\s+/g, ' ').trim();
+    elements.push(paragraph([run(lead)], { alignment: AlignmentType.JUSTIFIED, indent: { firstLine: 720 } }));
+    elements.push(blankParagraph());
+    personnel.forEach(p => {
+      elements.push(textParagraph(`${p.rank ? `${p.rank} ` : ''}${p.fullName || ''}`.trim(), { indent: { left: 1701 } }));
+    });
+  }
+  // 3. Unit Reassignment (UA)
+  else if (order.purposeCode === 'UA') {
+    const fromUnit = safeText(data.fromUnit || 'current unit');
+    const toUnit = safeText(data.toUnit || 'new unit');
+    const lead = `Following-named personnel of this Service are relieved from ${fromUnit} and reassigned to ${toUnit} effective ${effective}.`.replace(/\s+/g, ' ').trim();
+    elements.push(paragraph([run(lead)], { alignment: AlignmentType.JUSTIFIED, indent: { firstLine: 720 } }));
+    elements.push(blankParagraph());
+    personnel.forEach(p => {
+      elements.push(textParagraph(`${p.rank ? `${p.rank} ` : ''}${p.fullName || ''}`.trim(), { indent: { left: 1701 } }));
+    });
+  }
+  // 4. Termination of Designation (TDS)
+  else if (order.purposeCode === 'TDS') {
+    const reason = safeText(data.reason || 'administrative relief');
+    const lead = `Following-named personnel of this Service are relieved from their designation effective ${effective} due to ${reason}.`.replace(/\s+/g, ' ').trim();
+    elements.push(paragraph([run(lead)], { alignment: AlignmentType.JUSTIFIED, indent: { firstLine: 720 } }));
+    elements.push(blankParagraph());
+    personnel.forEach(p => {
+      elements.push(textParagraph(`${p.rank ? `${p.rank} ` : ''}${p.fullName || ''}`.trim(), { indent: { left: 1701 } }));
+    });
+  }
+  // 5. Travel (TR)
+  else if (order.purposeCode === 'TR') {
     const destinations = Array.isArray(data.destinations)
       ? data.destinations.filter(Boolean).join(' and ')
       : safeText(data.destinations || data.destination || 'the stated destination');
     const start = formatDateWithWeekday(data.travelStartDate || order.effectiveDate || order.issuedDate);
     const end = formatDateWithWeekday(data.travelEndDate || data.travelStartDate || order.effectiveDate || order.issuedDate);
     const activity = safeText(data.activity || data.travelPurpose || 'official business');
-    lead.push(run(person.role === 'driver'
-      ? ` will serve as driver for travel to ${destinations} from ${start} to ${end} for the conduct of ${activity}.`
-      : ` is authorized to travel to ${destinations} from ${start} to ${end} for the conduct of ${activity}.`));
-    return lead;
+
+    if (personnel.length === 1) {
+      const person = personnel[0];
+      const name = getPersonnelName(person);
+      const details = getSinglePersonDetails(person);
+      const leadRuns = [run(name, { bold: true })];
+      if (details) leadRuns.push(run(` (${details})`));
+      leadRuns.push(run(person.role === 'driver'
+        ? ` will serve as driver for travel to ${destinations} from ${start} to ${end} for the conduct of ${activity}.`
+        : ` is authorized to travel to ${destinations} from ${start} to ${end} for the conduct of ${activity}.`));
+      elements.push(paragraph(leadRuns, { alignment: AlignmentType.JUSTIFIED, indent: { firstLine: 720 } }));
+    } else {
+      const narrative = `In addition to their duties and responsibilities, following-named personnel of this Service are authorized to travel to ${destinations} from ${start} to ${end} for the conduct of ${activity}:`;
+      elements.push(paragraph([run(narrative)], { alignment: AlignmentType.JUSTIFIED, indent: { firstLine: 720 } }));
+      elements.push(blankParagraph());
+      personnel.filter(p => p.role !== 'driver').forEach((person, idx) => {
+        const seq = personnel.length > 1 ? `${idx + 1}. ` : '';
+        const roleStr = person.role && person.role !== 'affected' ? ` (${roleLabel(person.role)})` : '';
+        const unitStr = person.unit ? ` - ${person.unit}` : '';
+        elements.push(textParagraph(`${seq}${person.rank || ''} ${person.fullName || ''}${unitStr}${roleStr}`.trim(), { indent: { left: 1701 } }));
+      });
+      personnel.filter(p => p.role === 'driver').forEach(person => {
+        elements.push(textParagraph(`Driver: ${person.rank || ''} ${person.fullName || ''}`.trim(), { indent: { left: 1701 } }));
+      });
+    }
+  }
+  // 6. Award (AW)
+  else if (order.purposeCode === 'AW') {
+    const awardTitle = safeText(data.awardTitle || order.subject || 'Award');
+    const citation = safeText(data.citation || '');
+    if (personnel.length === 1) {
+      const person = personnel[0];
+      const name = getPersonnelName(person);
+      const details = getSinglePersonDetails(person);
+      const leadRuns = [run(name, { bold: true })];
+      if (details) leadRuns.push(run(` (${details})`));
+      leadRuns.push(run(` is hereby conferred the ${awardTitle} effective ${effective}.`));
+      elements.push(paragraph(leadRuns, { alignment: AlignmentType.JUSTIFIED, indent: { firstLine: 720 } }));
+    } else {
+      elements.push(paragraph([run(`The following-named personnel of this Service are hereby conferred the ${awardTitle} effective ${effective}:`)], { alignment: AlignmentType.JUSTIFIED, indent: { firstLine: 720 } }));
+      elements.push(blankParagraph());
+      personnel.forEach((p, idx) => {
+        elements.push(textParagraph(`${idx + 1}. ${p.rank || ''} ${p.fullName || ''}`.trim(), { indent: { left: 1701 } }));
+      });
+    }
+    if (citation) {
+      elements.push(blankParagraph());
+      elements.push(textParagraph(`Citation: ${citation}`, { indent: { left: 720 } }));
+    }
+  }
+  // 7. General / Other fallback
+  else {
+    const subject = safeText(order.subject || 'administrative action');
+    if (personnel.length === 1) {
+      const person = personnel[0];
+      const name = getPersonnelName(person);
+      const details = getSinglePersonDetails(person);
+      const leadRuns = [run(name, { bold: true })];
+      if (details) leadRuns.push(run(` (${details})`));
+      leadRuns.push(run(` is hereby covered by this ${subject.toLowerCase()} order.`));
+      elements.push(paragraph(leadRuns, { alignment: AlignmentType.JUSTIFIED, indent: { firstLine: 720 } }));
+    } else {
+      const lead = `The following-named personnel of this Service are hereby covered by this ${subject.toLowerCase()} order:`;
+      elements.push(paragraph([run(lead)], { alignment: AlignmentType.JUSTIFIED, indent: { firstLine: 720 } }));
+      elements.push(blankParagraph());
+      personnel.forEach((p, idx) => {
+        elements.push(textParagraph(`${idx + 1}. ${p.rank || ''} ${p.fullName || ''}`.trim(), { indent: { left: 1701 } }));
+      });
+    }
+    getPurposeDetails(order).forEach(detail => {
+      elements.push(textParagraph(detail, { indent: { left: 720 } }));
+    });
   }
 
-  const subject = safeText(order.subject || getOrderPurposeDefinition(order.purposeCode)?.label || 'administrative action');
-  lead.push(run(person.role === 'driver'
-    ? ` is designated as driver under this ${subject.toLowerCase()} order.`
-    : ` is hereby covered by this ${subject.toLowerCase()} order.`));
-  return lead;
+  // Any extra multi-paragraph description (e.g. Test Order 5 or special directives)
+  if (order.description) {
+    elements.push(blankParagraph());
+    order.description.split(/\r?\n/).forEach(line => {
+      elements.push(line ? textParagraph(line, { alignment: AlignmentType.JUSTIFIED }) : blankParagraph());
+    });
+  }
+
+  return elements;
 };
 
 const getPurposeDetails = order => {
@@ -179,13 +328,13 @@ const SIGNATURE_COL_WIDTHS = [4113, 915, 4113];
 
 const buildSignatureTable = order => {
   const authority = safeText(order.authorityText || 'BY COMMAND OF POLICE BRIGADIER GENERAL PALGUE:');
-  const certifyingName = safeText(order.certifyingOfficial || 'VICTORIO M DELA PEÑA, JR');
-  const certifyingRank = safeText(order.certifyingOfficialRank || 'Police Colonel');
-  const certifyingPosition = safeText(order.certifyingOfficialPosition || 'Chief, Administrative and Resource Management Division');
-  const signatory = safeText(order.signatory || 'PBGEN BENJAMIN H ACORDA');
-  const signatoryRank = safeText(order.signatoryRank || 'Police Brigadier General');
-  const signatoryTitle = safeText(order.signatoryTitle || 'Director, ITMS');
-  const distribution = safeText(order.distribution || 'C');
+  const certifyingName = safeText(order.certifyingOfficial || 'ROSE ANNE R SUCGANG');
+  const certifyingRank = safeText(order.certifyingOfficialRank || 'Police Lieutenant Colonel');
+  const certifyingPosition = safeText(order.certifyingOfficialPosition || 'OIC, Administrative and Resource Management Division');
+  const signatory = safeText(order.signatory || 'RANDI M PATIÑO');
+  const signatoryRank = safeText(order.signatoryRank || 'Police Colonel');
+  const signatoryTitle = safeText(order.signatoryTitle || 'Chief of Staff');
+  const distribution = safeText(order.distribution || 'B');
 
   return [
     textParagraph(authority, { alignment: AlignmentType.CENTER, runOptions: { bold: true } }),
@@ -290,9 +439,7 @@ export const generateOrderDocx = async order => {
   const purpose = getOrderPurposeDefinition(order.purposeCode);
   const heading = series?.heading || 'ADMINISTRATIVE ORDERS';
   const subject = safeText(order.subject || purpose?.label || 'Administrative Order');
-  const description = safeText(order.description);
-  const personnel = getPersonnel(order);
-  const singlePersonNarrative = getSinglePersonNarrativeRuns(order);
+  const purposeHeading = getPurposeHeading(order);
   const bodyChildren = [
     buildLetterhead(pnpLogo, itmsLogo),
     blankParagraph(),
@@ -314,19 +461,14 @@ export const generateOrderDocx = async order => {
     textParagraph(heading, { runOptions: { bold: true } }),
     textParagraph(`NUMBER ${formatDocumentOrderNumber(order.orderNumber || order.orderNo)}`, { runOptions: { bold: true } }),
     blankParagraph(),
-    textParagraph(`SUBJECT    :  ${subject}`, { runOptions: { bold: true } }),
-    blankParagraph(),
-    paragraph(singlePersonNarrative || [run(getNarrative(order))], { alignment: AlignmentType.JUSTIFIED, indent: { firstLine: 720 } }),
-    ...getPurposeDetails(order).flatMap(detail => [textParagraph(detail, { indent: { left: 720 } })]),
-    ...(description ? description.split(/\r?\n/).map(line => line ? textParagraph(line, { alignment: AlignmentType.JUSTIFIED }) : blankParagraph()) : []),
-    ...(singlePersonNarrative ? [] : [blankParagraph()]),
-    ...(singlePersonNarrative ? [] : personnel.filter(p => p.role !== 'driver').map((person, idx) => {
-      const seq = personnel.length > 1 ? `${idx + 1}. ` : '';
-      const roleStr = person.role && person.role !== 'affected' ? ` (${roleLabel(person.role)})` : '';
-      const unitStr = person.unit ? ` - ${person.unit}` : '';
-      return textParagraph(`${seq}${person.rank || ''} ${person.fullName || ''}${unitStr}${roleStr}`.trim(), { indent: { left: 1701 } });
-    })),
-    ...(singlePersonNarrative ? [] : personnel.filter(person => person.role === 'driver').map(person => textParagraph(`Driver: ${person.rank || ''} ${person.fullName || ''}`.trim(), { indent: { left: 1701 } }))),
+    ...(purposeHeading ? [
+      textParagraph(purposeHeading, { alignment: AlignmentType.CENTER, runOptions: { bold: true } }),
+      blankParagraph()
+    ] : [
+      textParagraph(`SUBJECT    :  ${subject}`, { runOptions: { bold: true } }),
+      blankParagraph()
+    ]),
+    ...buildOrderBodyElements(order),
     blankParagraph(),
     ...buildSignatureTable(order)
   ];

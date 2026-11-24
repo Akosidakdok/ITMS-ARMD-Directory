@@ -143,49 +143,113 @@ export const buildCanonicalOrderDocumentHtml = (
   const drivers = personnel.filter(p => p.role === 'driver');
   const singlePerson = personnel.length === 1 && getPersonnelName(personnel[0]) ? personnel[0] : undefined;
 
-  // Build Narrative (Opening Paragraph)
-  let narrative = '';
-  if (singlePerson && getPersonnelName(singlePerson)) {
-    const name = `<strong>${escapeHtml(getPersonnelName(singlePerson))}</strong>`;
-    const details = getSinglePersonDetails(singlePerson, purposeDef);
-    const lead = `${name}${details ? ` (${escapeHtml(details)})` : ''}`;
-    if (order.purposeCode === 'TR') {
-      const data = order.purposeData || {};
-      const destinations = Array.isArray(data.destinations)
-        ? data.destinations.filter(Boolean).join(' and ')
-        : safeText(data.destinations || data.destination || 'the stated destination');
-      const start = formatOrderDateWithWeekday(data.travelStartDate || order.effectiveDate || order.issuedDate);
-      const end = formatOrderDateWithWeekday(data.travelEndDate || data.travelStartDate || order.effectiveDate || order.issuedDate);
-      const activity = safeText(data.activity || data.travelPurpose || 'official business');
-      narrative = singlePerson.role === 'driver'
-        ? `${lead} will serve as driver for travel to ${escapeHtml(destinations)} from ${escapeHtml(start)} to ${escapeHtml(end)} for the conduct of ${escapeHtml(activity)}.`
-        : `${lead} is authorized to travel to ${escapeHtml(destinations)} from ${escapeHtml(start)} to ${escapeHtml(end)} for the conduct of ${escapeHtml(activity)}.`;
+  // Build Narrative & Content Elements
+  const data = order.purposeData || {};
+  const effectiveDateStr = formatOrderDate(order.effectiveDate || order.issuedDate);
+  const isTravel = order.purposeCode === 'TR';
+  let purposeHeading = '';
+  if (!isTravel) {
+    if (order.purposeCode === 'AW') {
+      purposeHeading = safeText(data.awardTitle || order.subject || 'AWARD').toUpperCase();
+    } else if (order.purposeCode && purposeDef) {
+      purposeHeading = (purposeDef.label.split('—').pop()?.trim() || order.subject || 'ADMINISTRATIVE ORDER').toUpperCase();
     } else {
-      narrative = singlePerson.role === 'driver'
-        ? `${lead} is designated as driver under this ${escapeHtml(subject.toLowerCase())} order.`
-        : `${lead} is hereby covered by this ${escapeHtml(subject.toLowerCase())} order.`;
+      purposeHeading = safeText(order.subject || 'ADMINISTRATIVE ORDER').toUpperCase();
     }
-  } else if (order.purposeCode === 'TR') {
-    const data = order.purposeData || {};
+  }
+
+  let narrative = '';
+  let personnelTableHtml = '';
+  let customPersonnelListHtml = '';
+
+  if (order.purposeCode === 'DES') {
+    const designation = safeText(data.designation || 'IT PNCO');
+    const assignedUnit = safeText(data.assignedUnit || 'Information Technology Program Management Division');
+    if (singlePerson && getPersonnelName(singlePerson)) {
+      const p = singlePerson;
+      const rank = p.rank ? `${p.rank} ` : '';
+      const name = `<strong>${escapeHtml(p.fullName || '')}</strong>`;
+      const badge = p.badgeNo ? ` ${escapeHtml(p.badgeNo)}` : '';
+      narrative = `${rank}${name}${badge} is designated as ${escapeHtml(designation)} under ${escapeHtml(assignedUnit)}, ITMS, Philippine National Police effective ${escapeHtml(effectiveDateStr)}.`.replace(/\s+/g, ' ').trim();
+    } else {
+      narrative = `Following-named personnel of this Service are designated as ${escapeHtml(designation)} to Office/Unit indicated opposite their names under ${escapeHtml(assignedUnit)}, ITMS, Philippine National Police effective ${escapeHtml(effectiveDateStr)}:`.replace(/\s+/g, ' ').trim();
+      personnelTableHtml = `
+      <table class="pais-borderless-table pais-personnel-table" style="width: 100%; border-collapse: collapse; margin-bottom: 14px; border: none;">
+        <thead>
+          <tr style="border: none;">
+            <th style="width: 50%; text-align: left; border: none; padding: 4px 0; font-size: 12pt; font-weight: bold;">Rank/Name</th>
+            <th style="width: 50%; text-align: left; border: none; padding: 4px 0; font-size: 12pt; font-weight: bold;">Office/Unit</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${personnel.map(p => `
+            <tr style="border: none;">
+              <td style="width: 50%; text-align: left; border: none; padding: 2px 0; font-size: 12pt;">${escapeHtml(`${p.rank ? `${p.rank} ` : ''}${p.fullName || ''}`.trim())}</td>
+              <td style="width: 50%; text-align: left; border: none; padding: 2px 0; font-size: 12pt;">${escapeHtml(safeText(p.unit || assignedUnit))}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>`;
+    }
+  } else if (order.purposeCode === 'RA') {
+    const fromUnit = safeText(data.fromSubUnit || 'Information Technology Program Management Division');
+    const toUnit = safeText(data.toSubUnit || 'Information Technology Support Division');
+    narrative = `Following-named personnel of this Service are relieved from ${escapeHtml(fromUnit)} and reassigned to ${escapeHtml(toUnit)} effective ${escapeHtml(effectiveDateStr)}.`.replace(/\s+/g, ' ').trim();
+    customPersonnelListHtml = personnel.map(p => {
+      const rankName = `${p.rank ? `${p.rank} ` : ''}${p.fullName || ''}`.trim();
+      return `<p class="pais-personnel-item" style="margin: 0; padding-left: 85px; font-size: 12pt; line-height: 1.2;">${escapeHtml(rankName)}</p>`;
+    }).join('\n');
+  } else if (order.purposeCode === 'UA') {
+    const fromUnit = safeText(data.fromUnit || 'current unit');
+    const toUnit = safeText(data.toUnit || 'new unit');
+    narrative = `Following-named personnel of this Service are relieved from ${escapeHtml(fromUnit)} and reassigned to ${escapeHtml(toUnit)} effective ${escapeHtml(effectiveDateStr)}.`.replace(/\s+/g, ' ').trim();
+    customPersonnelListHtml = personnel.map(p => {
+      const rankName = `${p.rank ? `${p.rank} ` : ''}${p.fullName || ''}`.trim();
+      return `<p class="pais-personnel-item" style="margin: 0; padding-left: 85px; font-size: 12pt; line-height: 1.2;">${escapeHtml(rankName)}</p>`;
+    }).join('\n');
+  } else if (order.purposeCode === 'TDS') {
+    const reason = safeText(data.reason || 'administrative relief');
+    narrative = `Following-named personnel of this Service are relieved from their designation effective ${escapeHtml(effectiveDateStr)} due to ${escapeHtml(reason)}.`.replace(/\s+/g, ' ').trim();
+    customPersonnelListHtml = personnel.map(p => {
+      const rankName = `${p.rank ? `${p.rank} ` : ''}${p.fullName || ''}`.trim();
+      return `<p class="pais-personnel-item" style="margin: 0; padding-left: 85px; font-size: 12pt; line-height: 1.2;">${escapeHtml(rankName)}</p>`;
+    }).join('\n');
+  } else if (isTravel) {
     const destinations = Array.isArray(data.destinations)
       ? data.destinations.filter(Boolean).join(' and ')
       : safeText(data.destinations || data.destination || 'the stated destination');
     const start = formatOrderDateWithWeekday(data.travelStartDate || order.effectiveDate || order.issuedDate);
     const end = formatOrderDateWithWeekday(data.travelEndDate || data.travelStartDate || order.effectiveDate || order.issuedDate);
     const activity = safeText(data.activity || data.travelPurpose || 'official business');
-    narrative = `In addition to their duties and responsibilities, following-named personnel of this Service are authorized to travel to ${destinations} from ${start} to ${end} for the conduct of ${activity}:`;
+
+    if (singlePerson && getPersonnelName(singlePerson)) {
+      const name = `<strong>${escapeHtml(getPersonnelName(singlePerson))}</strong>`;
+      const details = getSinglePersonDetails(singlePerson, purposeDef);
+      const lead = `${name}${details ? ` (${escapeHtml(details)})` : ''}`;
+      narrative = singlePerson.role === 'driver'
+        ? `${lead} will serve as driver for travel to ${escapeHtml(destinations)} from ${escapeHtml(start)} to ${escapeHtml(end)} for the conduct of ${escapeHtml(activity)}.`
+        : `${lead} is authorized to travel to ${escapeHtml(destinations)} from ${escapeHtml(start)} to ${escapeHtml(end)} for the conduct of ${escapeHtml(activity)}.`;
+    } else {
+      narrative = `In addition to their duties and responsibilities, following-named personnel of this Service are authorized to travel to ${escapeHtml(destinations)} from ${escapeHtml(start)} to ${escapeHtml(end)} for the conduct of ${escapeHtml(activity)}:`;
+    }
   } else {
-    const names = nonDrivers
-      .map(p => `${p.rank ? `${p.rank} ` : ''}${p.fullName || ''}`.trim())
-      .filter(Boolean)
-      .join(', ');
-    narrative = `The following-named personnel of this Service are hereby covered by this ${subject.toLowerCase()} order: ${names || 'the personnel identified in this order'}.`;
+    if (singlePerson && getPersonnelName(singlePerson)) {
+      const name = `<strong>${escapeHtml(getPersonnelName(singlePerson))}</strong>`;
+      const details = getSinglePersonDetails(singlePerson, purposeDef);
+      const lead = `${name}${details ? ` (${escapeHtml(details)})` : ''}`;
+      narrative = `${lead} is hereby covered by this ${escapeHtml(subject.toLowerCase())} order.`;
+    } else {
+      const names = nonDrivers
+        .map(p => `${p.rank ? `${p.rank} ` : ''}${p.fullName || ''}`.trim())
+        .filter(Boolean)
+        .join(', ');
+      narrative = `The following-named personnel of this Service are hereby covered by this ${escapeHtml(subject.toLowerCase())} order: ${escapeHtml(names || 'the personnel identified in this order')}.`;
+    }
   }
 
-  // Purpose Details
+  // Purpose Details (for generic orders)
   const purposeDetails: string[] = [];
-  if (purposeDef && order.purposeCode !== 'TR') {
-    const data = order.purposeData || {};
+  if (purposeDef && !['TR', 'DES', 'RA', 'UA', 'TDS'].includes(order.purposeCode)) {
     purposeDef.fields.forEach(field => {
       const val = Array.isArray(data[field.key]) ? data[field.key].join(', ') : safeText(data[field.key]);
       if (val) {
@@ -194,8 +258,9 @@ export const buildCanonicalOrderDocumentHtml = (
     });
   }
 
-  // Personnel List Items
-  const personnelItems = (singlePerson ? [] : nonDrivers).map((p, idx) => {
+  // Standard Personnel List Items (used when not replaced by table or custom list)
+  const isCustomHandled = ['DES', 'RA', 'UA', 'TDS'].includes(order.purposeCode);
+  const personnelItems = (!isCustomHandled && !singlePerson ? nonDrivers : []).map((p, idx) => {
     const seq = nonDrivers.length > 1 ? `${idx + 1}. ` : '';
     const roleStr = p.role && p.role !== 'affected' ? ` (${getRoleLabel(purposeDef, p.role)})` : '';
     const unitStr = p.unit ? ` - ${p.unit}` : '';
@@ -203,20 +268,20 @@ export const buildCanonicalOrderDocumentHtml = (
     return `<p class="pais-personnel-item" style="margin: 0; padding-left: 85px; font-size: 12pt; line-height: 1.2;">${seq}${rankName}${unitStr}${roleStr}</p>`;
   }).join('\n');
 
-  const driverItems = (singlePerson ? [] : drivers).map(p => {
+  const driverItems = (!singlePerson ? drivers : []).map(p => {
     const rankName = `${p.rank ? `${p.rank} ` : ''}${p.fullName || ''}`.trim();
     return `<p class="pais-personnel-item" style="margin: 0; padding-left: 85px; font-size: 12pt; line-height: 1.2;">Driver: ${rankName}</p>`;
   }).join('\n');
 
   // Signatory Variables
   const authorityText = safeText(order.authorityText || 'BY COMMAND OF POLICE BRIGADIER GENERAL PALGUE:');
-  const signatory = safeText(order.signatory || 'PBGEN BENJAMIN H ACORDA');
-  const signatoryRank = safeText(order.signatoryRank || 'Police Brigadier General');
-  const signatoryTitle = safeText(order.signatoryTitle || 'Director, ITMS');
-  const certifyingOfficial = safeText(order.certifyingOfficial || 'VICTORIO M DELA PEÑA, JR');
-  const certifyingOfficialRank = safeText(order.certifyingOfficialRank || 'Police Colonel');
-  const certifyingOfficialPosition = safeText(order.certifyingOfficialPosition || 'Chief, Administrative and Resource Management Division');
-  const distribution = safeText(order.distribution || 'C');
+  const signatory = safeText(order.signatory || 'RANDI M PATIÑO');
+  const signatoryRank = safeText(order.signatoryRank || 'Police Colonel');
+  const signatoryTitle = safeText(order.signatoryTitle || 'Chief of Staff');
+  const certifyingOfficial = safeText(order.certifyingOfficial || 'ROSE ANNE R SUCGANG');
+  const certifyingOfficialRank = safeText(order.certifyingOfficialRank || 'Police Lieutenant Colonel');
+  const certifyingOfficialPosition = safeText(order.certifyingOfficialPosition || 'OIC, Administrative and Resource Management Division');
+  const distribution = safeText(order.distribution || 'B');
 
   return `
 <div class="pais-order-document-root" style="font-family: Arial, Helvetica, sans-serif; font-size: 12pt; line-height: 1.15; color: #000000; box-sizing: border-box;">
@@ -262,15 +327,24 @@ export const buildCanonicalOrderDocumentHtml = (
     <p class="pais-heading-p" style="margin: 0; font-weight: bold; font-size: 12pt;">NUMBER ${orderNumStr}</p>
   </div>
 
-  <!-- SUBJECT -->
+  <!-- SUBJECT OR PURPOSE HEADING -->
+  ${purposeHeading ? `
+  <div class="pais-subject-container" style="margin-bottom: 14px; text-align: center;">
+    <p class="pais-subject-p" style="margin: 0; font-weight: bold; font-size: 12pt; text-align: center; text-transform: uppercase;">${purposeHeading}</p>
+  </div>
+  ` : `
   <div class="pais-subject-container" style="margin-bottom: 14px;">
     <p class="pais-subject-p" style="margin: 0; font-weight: bold; font-size: 12pt;">SUBJECT&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;&nbsp;${subject}</p>
   </div>
+  `}
 
   <!-- NARRATIVE PARAGRAPH -->
   <p class="pais-narrative-p" style="margin: 0 0 12px 0; text-align: justify; text-indent: 36pt; font-size: 12pt; line-height: 1.2;">
     ${narrative}
   </p>
+
+  ${personnelTableHtml ? personnelTableHtml : ''}
+  ${customPersonnelListHtml ? `<div class="pais-custom-personnel-container" style="margin-bottom: 12px;">${customPersonnelListHtml}</div>` : ''}
 
   ${purposeDetails.length > 0 ? `
   <div class="pais-details-container" style="margin-bottom: 12px;">
@@ -281,10 +355,11 @@ export const buildCanonicalOrderDocumentHtml = (
   ${description ? `<p class="pais-description-p" style="margin: 0 0 12px 0; text-align: justify; white-space: pre-wrap; font-size: 12pt; line-height: 1.2;">${escapeHtml(description)}</p>` : ''}
 
   <!-- PERSONNEL LIST -->
+  ${personnelItems || driverItems ? `
   <div class="pais-personnel-container" style="margin-bottom: 0;">
     ${personnelItems}
     ${driverItems}
-  </div>
+  </div>` : ''}
 
   <!-- AUTHORITY LINE -->
   <div class="pais-authority-container" style="text-align: center; margin: 16px 0 0 0;">
