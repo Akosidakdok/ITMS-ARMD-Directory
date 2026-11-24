@@ -1779,8 +1779,6 @@ export const OrdersPage = () => {
                   {!filteredPersonnel.length && <p className="px-3 py-6 text-center text-sm text-slate-500">No personnel match these filters.</p>}
                 </div>
               </div>
-              <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Signatory name and rank {requiresFullMetadata && '*'}</span><input required={requiresFullMetadata} value={signatory} onChange={(e) => setSignatory(e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /><span className="mt-1 block text-xs text-slate-500">The official who signs this order.</span></label>
-              <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Signatory title or position {requiresFullMetadata && '*'}</span><input required={requiresFullMetadata} value={signatoryTitle} onChange={(e) => setSignatoryTitle(e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
               <div className="md:col-span-2 border-t border-slate-200 pt-4">
                 <p className="text-sm font-semibold text-slate-800">Certifying official</p>
                 <p className="mt-1 text-xs text-slate-500">This block appears below the signatory in the generated order. Update it when the person holding this position changes.</p>
@@ -1790,6 +1788,8 @@ export const OrdersPage = () => {
                   <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Position or office *</span><input required value={certifyingOfficialPosition} onChange={event => setCertifyingOfficialPosition(event.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
                 </div>
               </div>
+              <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Signatory name and rank {requiresFullMetadata && '*'}</span><input required={requiresFullMetadata} value={signatory} onChange={(e) => setSignatory(e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /><span className="mt-1 block text-xs text-slate-500">The official who signs this order.</span></label>
+              <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Signatory title or position {requiresFullMetadata && '*'}</span><input required={requiresFullMetadata} value={signatoryTitle} onChange={(e) => setSignatoryTitle(e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
               {editingOrder?.fileName && <div className="md:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-600">
                 This record contains a legacy DOCX attachment. It remains available from the order details view; new changes use the generated order document workflow.
               </div>}
