@@ -81,8 +81,8 @@ export const exportToDocx = async (
             try {
               const imageBytes = base64ToUint8Array(src);
               const imgType = src.includes('png') ? 'png' : 'jpeg';
-              const width = parseInt(el.style.width || el.getAttribute('width') || '80', 10);
-              const height = parseInt(el.style.height || el.getAttribute('height') || '80', 10);
+              const width = parseFloat(el.style.width || el.getAttribute('width') || '80');
+              const height = parseFloat(el.style.height || el.getAttribute('height') || '80');
               runs.push(
                 new ImageRun({
                   data: imageBytes,

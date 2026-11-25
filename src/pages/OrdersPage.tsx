@@ -157,6 +157,11 @@ const hasGeneratedOrderDocument = (order: OrderRecord) => {
   return Boolean(order.generatedDocument?.storagePath);
 };
 
+const hasOneInchItmsSeal = (order: OrderRecord) => {
+  const [major, minor] = (order.generatedDocument?.templateVersion || '').split('.').map(Number);
+  return major > 1 || (major === 1 && minor >= 12);
+};
+
 const hasLocalOrderDraft = (order: OrderRecord) => {
   try {
     const raw = localStorage.getItem('pais.local_order_documents.v1');
@@ -1080,8 +1085,8 @@ export const OrdersPage = () => {
     window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
   };
 
-  const downloadGeneratedOrderDocument = async (order: OrderRecord, version = order.generatedDocument?.version) => {
-    const blob = await getGeneratedOrderDocumentContentApi(order.id, version);
+  const downloadGeneratedOrderDocument = async (order: OrderRecord, version = order.generatedDocument?.version, previewBlob?: Blob) => {
+    const blob = previewBlob || await getGeneratedOrderDocumentContentApi(order.id, version);
     saveDocumentBlob(blob, order.generatedDocument?.fileName || `${getOrderNumberDisplay(order, order.id)}.docx`);
   };
 
@@ -1100,11 +1105,11 @@ export const OrdersPage = () => {
     try {
       try {
         const preview = await getGeneratedOrderPreviewPdfApi(order.id, false, order.generatedDocument.version);
+        if (!preview.url) throw new Error('Generated order PDF preview is unavailable.');
         setGeneratedPreview({ order, pdfUrl: preview.url, version: preview.version || order.generatedDocument.version });
-      } catch (pdfError) {
+      } catch {
         const docxBlob = await getGeneratedOrderDocumentContentApi(order.id, order.generatedDocument.version);
         setGeneratedPreview({ order, docxBlob, version: order.generatedDocument.version });
-        console.warn('PDF preview unavailable; rendering the stored DOCX in the browser:', pdfError);
       }
     } catch (error) {
       setToast({ type: 'error', message: error instanceof Error ? error.message : 'Unable to preview the generated order.' });
@@ -1185,13 +1190,14 @@ export const OrdersPage = () => {
     }
   };
 
-  const regenerateSelectedOrderDocument = async (order: OrderRecord) => {
+  const regenerateSelectedOrderDocument = async (order: OrderRecord, viewAfter = false) => {
     if (!canEdit || LOCKED_ORDER_STATUSES.has(normalizedOrderStatus(order))) return;
     setRegeneratingDocument(true);
     try {
       const updated = await generateOrderDocument(order.id);
       setSelectedOrder(updated);
       setToast({ type: 'success', message: 'Generated order document regenerated successfully.' });
+      if (viewAfter) await viewGeneratedOrderDocument(updated);
     } catch (error) {
       setToast({ type: 'error', message: error instanceof Error ? error.message : 'Unable to regenerate the order document.' });
     } finally {
@@ -1876,6 +1882,11 @@ export const OrdersPage = () => {
                 <p className="mt-1 text-xs text-teal-800">Document Editor changes are saved as a separate local draft.</p>
                 {hasGeneratedOrderDocument(selectedOrder) ? (
                   <div className="mt-3 grid grid-cols-2 gap-2">
+                    {!hasOneInchItmsSeal(selectedOrder) && <p className="col-span-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+                      {canEdit && !LOCKED_ORDER_STATUSES.has(selectedOrderStatus || '')
+                        ? 'This saved document uses an earlier letterhead. Regenerate it to apply the 1-inch ITMS seal in View and Download.'
+                        : 'This saved document uses an earlier letterhead and is preserved as issued.'}
+                    </p>}
                     <button
                       type="button"
                       onClick={() => void viewGeneratedOrderDocument(selectedOrder)}
@@ -1894,11 +1905,11 @@ export const OrdersPage = () => {
                     {canEdit && !LOCKED_ORDER_STATUSES.has(selectedOrderStatus || '') && (
                       <button
                         type="button"
-                        onClick={() => void regenerateSelectedOrderDocument(selectedOrder)}
+                        onClick={() => void regenerateSelectedOrderDocument(selectedOrder, !hasOneInchItmsSeal(selectedOrder))}
                         disabled={regeneratingDocument}
                         className="col-span-2 inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-teal-300 bg-white px-3 py-2 text-xs font-semibold text-teal-700 hover:bg-teal-100 disabled:opacity-60"
                       >
-                        <RefreshCw size={15} className={regeneratingDocument ? 'animate-spin' : ''} /> {regeneratingDocument ? 'Regenerating...' : 'Regenerate document'}
+                        <RefreshCw size={15} className={regeneratingDocument ? 'animate-spin' : ''} /> {regeneratingDocument ? 'Regenerating...' : hasOneInchItmsSeal(selectedOrder) ? 'Regenerate document' : 'Regenerate and view with 1-inch ITMS seal'}
                       </button>
                     )}
                     <button
@@ -2118,7 +2129,7 @@ export const OrdersPage = () => {
           setGeneratedPreview(null);
           void handleEditOrderInDocumentEditor(order);
         } : undefined}
-        onDownloadDocx={() => downloadGeneratedOrderDocument(generatedPreview.order, generatedPreview.version)}
+        onDownloadDocx={() => downloadGeneratedOrderDocument(generatedPreview.order, generatedPreview.version, generatedPreview.docxBlob)}
         onDownloadPdf={generatedPreview.pdfUrl ? () => downloadGeneratedOrderPdf(generatedPreview.order, generatedPreview.version) : undefined}
       />}
 

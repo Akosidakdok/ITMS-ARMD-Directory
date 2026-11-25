@@ -120,6 +120,7 @@ The generated DOCX should use:
 - Arial typography
 - 12 pt main body text unless a template element requires a different size
 - Borderless three-column letterhead table
+- PNP emblem displayed at 0.80 in wide × 1.02 in high and ITMS seal at 1.00 in wide × 1.00 in high, matching the official Word format
 - Borderless two-column ITMS/date table
 - Proper Word header and footer sections
 - Borderless signature/certification table
@@ -161,8 +162,8 @@ Observed characteristics:
 
 Required action before Phase 5:
 
-- Preserve the seal's aspect ratio.
-- Balance its visual height against the PNP emblem.
+- Display the seal at the official 1.00 in square size in the generated document and previews.
+- Balance its visual height against the PNP emblem at 0.80 in wide × 1.02 in high.
 - Confirm that its white background does not create a visible box in the final template.
 
 ### Asset versioning

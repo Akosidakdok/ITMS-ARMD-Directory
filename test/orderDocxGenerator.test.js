@@ -31,7 +31,7 @@ test('generates a reference-based DOCX with order and personnel content', async 
 
   assert.equal(isDocxZip(buffer), true);
   assert.equal(manifest.templateKey, 'pnp-itms-letter-orders');
-  assert.equal(manifest.templateVersion, '1.11.0');
+  assert.equal(manifest.templateVersion, '1.12.0');
   assert.equal(manifest.personnelSnapshot.length, 2);
 
   const converted = await mammoth.convertToHtml({ buffer });
@@ -46,6 +46,12 @@ test('generates a reference-based DOCX with order and personnel content', async 
   assert.match(converted.value, /Police Lieutenant General/);
 
   const xml = strFromU8(unzipSync(buffer)['word/document.xml']);
+  const letterheadImages = [...xml.matchAll(/<wp:extent cx="(\d+)" cy="(\d+)"\/>/g)]
+    .map(([, width, height]) => [Number(width), Number(height)]);
+  assert.deepEqual(letterheadImages, [
+    [731520, 932688], // PNP: 0.8 x 1.02 inches
+    [914400, 914400] // ITMS: 1 x 1 inch
+  ]);
   const authorityStart = xml.lastIndexOf('<w:p', xml.indexOf('BY COMMAND'));
   const authorityEnd = xml.indexOf('</w:p>', xml.indexOf('BY COMMAND')) + '</w:p>'.length;
   assert.match(xml.slice(authorityStart, authorityEnd), /<w:jc w:val="center"\/>/, 'the command line is centered');

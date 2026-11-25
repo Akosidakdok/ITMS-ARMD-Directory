@@ -147,7 +147,7 @@
 .document-prose-content .ProseMirror img.pais-logo-img,
 .pais-canonical-document-content img.pais-logo-img {
   max-width: none !important;
-  object-fit: contain !important;
+  object-fit: fill !important;
   display: inline-block !important;
 }
 

@@ -291,7 +291,7 @@ export const buildCanonicalOrderDocumentHtml = (
     <tbody>
       <tr style="border: none;">
         <td class="pais-borderless-cell pais-logo-cell" style="width: 17%; text-align: center; vertical-align: middle; border: none; padding: 0;">
-          <img class="pais-logo-img" src="${PNP_LOGO_BASE64}" alt="PNP Logo" width="68" height="95" style="width: 68px; height: 95px; object-fit: contain; display: inline-block;" />
+          <img class="pais-logo-img" src="${PNP_LOGO_BASE64}" alt="PNP Logo" width="77" height="98" style="width: 76.8px; height: 97.92px; object-fit: fill; display: inline-block;" />
         </td>
         <td class="pais-borderless-cell" style="width: 66%; text-align: center; vertical-align: middle; border: none; padding: 0;">
           <p class="pais-compact-p" style="margin: 0; font-size: 10pt; line-height: 1.15; color: #000000;">Republic of the Philippines</p>
@@ -301,7 +301,7 @@ export const buildCanonicalOrderDocumentHtml = (
           <p class="pais-compact-p" style="margin: 0; font-size: 10pt; line-height: 1.15; color: #000000;">Camp BGen Rafael T. Crame, Quezon City</p>
         </td>
         <td class="pais-borderless-cell pais-logo-cell" style="width: 17%; text-align: center; vertical-align: middle; border: none; padding: 0;">
-          <img class="pais-logo-img" src="${ITMS_LOGO_BASE64}" alt="ITMS Logo" width="74" height="72" style="width: 74px; height: 72px; object-fit: contain; display: inline-block;" />
+          <img class="pais-logo-img" src="${ITMS_LOGO_BASE64}" alt="ITMS Logo" width="96" height="96" style="width: 96px; height: 96px; object-fit: fill; display: inline-block;" />
         </td>
       </tr>
     </tbody>
