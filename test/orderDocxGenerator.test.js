@@ -13,8 +13,10 @@ test('generates a reference-based DOCX with order and personnel content', async 
     purposeCode: 'TR',
     issuedDate: '2026-09-22',
     subject: 'Official Travel',
+    signatory: 'PBGEN TEST CERTIFYING OFFICIAL',
     signatoryRank: 'Police Lieutenant General',
-    certifyingOfficial: 'COLONEL TEST CERTIFIER',
+    signatoryTitle: 'Director, ITMS',
+    certifyingOfficial: 'COLONEL TEST SIGNATORY',
     certifyingOfficialRank: 'Police Lieutenant Colonel',
     certifyingOfficialPosition: 'Acting Chief, Resource Management Division',
     purposeData: {
@@ -40,7 +42,8 @@ test('generates a reference-based DOCX with order and personnel content', async 
   assert.match(converted.value, /OFFICIAL TRAVEL/i);
   assert.match(converted.value, /JUAN DELA CRUZ/);
   assert.match(converted.value, /MARIA SANTOS/);
-  assert.match(converted.value, /COLONEL TEST CERTIFIER/);
+  assert.match(converted.value, /PBGEN TEST CERTIFYING OFFICIAL/);
+  assert.match(converted.value, /COLONEL TEST SIGNATORY/);
   assert.match(converted.value, /Police Lieutenant Colonel/);
   assert.match(converted.value, /Acting Chief, Resource Management Division/);
   assert.match(converted.value, /Police Lieutenant General/);
@@ -64,7 +67,10 @@ test('generates a reference-based DOCX with order and personnel content', async 
   const firstOfficerTable = xml.slice(signatureTableStart, firstOfficerTableEnd);
   const firstOfficerCells = [...firstOfficerTable.matchAll(/<w:tc(?:\s[^>]*)?>[\s\S]*?<\/w:tc>/g)].map(match => match[0]);
   assert.match(firstOfficerCells[0], /OFFICIAL:/, 'OFFICIAL is in the left cell beside the first officer');
+  assert.match(firstOfficerCells[2], /PBGEN TEST CERTIFYING OFFICIAL/, 'the certifying official stays in the upper-right block');
   assert.match(firstOfficerCells[2], /Police Lieutenant General/);
+  assert.match(firstOfficerCells[2], /Director, ITMS/);
+  assert.doesNotMatch(firstOfficerCells[2], /COLONEL TEST SIGNATORY/);
   const officialIndex = firstOfficerCells[0].indexOf('OFFICIAL:');
   const officialStart = firstOfficerCells[0].lastIndexOf('<w:p', officialIndex);
   const officialEnd = firstOfficerCells[0].indexOf('</w:p>', officialIndex) + '</w:p>'.length;
@@ -76,8 +82,9 @@ test('generates a reference-based DOCX with order and personnel content', async 
   assert.ok(paragraphsAfterFirstOfficer.every(item => !item.includes('<w:r>')));
   const certifyingTable = xml.slice(certifyingTableStart, xml.indexOf('</w:tbl>', certifyingTableStart) + '</w:tbl>'.length);
   const certifyingCells = [...certifyingTable.matchAll(/<w:tc(?:\s[^>]*)?>[\s\S]*?<\/w:tc>/g)].map(match => match[0]);
-  assert.match(certifyingCells[0], /COLONEL TEST CERTIFIER/);
-  assert.doesNotMatch(certifyingCells[2], /COLONEL TEST CERTIFIER/);
+  assert.match(certifyingCells[0], /COLONEL TEST SIGNATORY/, 'the signatory stays in the lower-left block');
+  assert.doesNotMatch(certifyingCells[0], /PBGEN TEST CERTIFYING OFFICIAL/);
+  assert.doesNotMatch(certifyingCells[2], /COLONEL TEST SIGNATORY/);
   const certifyingParagraphs = [...certifyingCells[0].matchAll(/<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>/g)].map(match => match[0]);
   assert.equal(certifyingParagraphs.length, 3);
   assert.ok(certifyingParagraphs.every(item => item.includes('<w:ind w:left="720"/>')), 'all certifying officer lines are indented by 0.5 inch');

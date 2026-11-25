@@ -273,7 +273,7 @@ export const buildCanonicalOrderDocumentHtml = (
     return `<p class="pais-personnel-item" style="margin: 0; padding-left: 85px; font-size: 12pt; line-height: 1.2;">Driver: ${rankName}</p>`;
   }).join('\n');
 
-  // Signatory Variables
+  // Officer fields retain their legacy storage names; their positions follow the official format.
   const authorityText = safeText(order.authorityText || 'BY COMMAND OF POLICE BRIGADIER GENERAL PALGUE:');
   const signatory = safeText(order.signatory || 'RANDI M PATIÑO');
   const signatoryRank = safeText(order.signatoryRank || 'Police Colonel');
@@ -391,13 +391,13 @@ export const buildCanonicalOrderDocumentHtml = (
     </tbody>
   </table>
 
-  <!-- TWO BLANK LINES BEFORE THE CERTIFYING OFFICER -->
+  <!-- TWO BLANK LINES BEFORE THE SIGNATORY -->
   <div class="pais-official-spacing" aria-hidden="true">
     <p style="margin: 0; font-size: 12pt; line-height: 1.15;">&nbsp;</p>
     <p style="margin: 0; font-size: 12pt; line-height: 1.15;">&nbsp;</p>
   </div>
 
-  <!-- CERTIFYING OFFICER ON THE LEFT -->
+  <!-- SIGNATORY ON THE LEFT -->
   <table class="pais-borderless-table pais-signatory-table" style="width: 100%; border-collapse: collapse; margin-bottom: 0; border: none;">
     <tbody>
       <tr style="border: none;">

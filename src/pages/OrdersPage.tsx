@@ -489,6 +489,8 @@ export const OrdersPage = () => {
   const [issuedDate, setIssuedDate] = useState('');
   const [effectiveDate, setEffectiveDate] = useState('');
   const [status, setStatus] = useState<OrderDocumentStatus>('Draft');
+  // Keep the legacy field names for saved orders: signatory is the upper-right certifying official,
+  // and certifyingOfficial is the lower-left signatory.
   const [signatory, setSignatory] = useState('PBGEN BENJAMIN H ACORDA');
   const [signatoryTitle, setSignatoryTitle] = useState('Director, ITMS');
   const [certifyingOfficial, setCertifyingOfficial] = useState(DEFAULT_CERTIFYING_OFFICIAL);
@@ -1712,7 +1714,8 @@ export const OrdersPage = () => {
                   <p><span className="text-slate-500">Status:</span> <span className="font-medium text-slate-800">{status}</span></p>
                   <p className="break-words"><span className="text-slate-500">Subject:</span> <span className="font-medium text-slate-800">{subject || 'Not entered'}</span></p>
                   <p><span className="text-slate-500">Dates:</span> <span className="font-medium text-slate-800">Issued {formatDate(issuedDate)} · Effective {formatDate(effectiveDate)}</span></p>
-                  <p className="break-words"><span className="text-slate-500">Certifying official:</span> <span className="font-medium text-slate-800">{certifyingOfficial}, {certifyingOfficialRank} — {certifyingOfficialPosition}</span></p>
+                  <p className="break-words"><span className="text-slate-500">Certifying official:</span> <span className="font-medium text-slate-800">{signatory} — {signatoryTitle}</span></p>
+                  <p className="break-words"><span className="text-slate-500">Signatory:</span> <span className="font-medium text-slate-800">{certifyingOfficial}, {certifyingOfficialRank} — {certifyingOfficialPosition}</span></p>
                   {(purposeDefinition?.fields || []).filter(field => String(purposeData[field.key] || '').trim()).map(field => <p key={field.key} className="break-words"><span className="text-slate-500">{field.label}:</span> <span className="font-medium text-slate-800">{purposeData[field.key]}</span></p>)}
                 </div>
               </div>
@@ -1786,16 +1789,16 @@ export const OrdersPage = () => {
                 </div>
               </div>
               <div className="md:col-span-2 border-t border-slate-200 pt-4">
-                <p className="text-sm font-semibold text-slate-800">Certifying official</p>
-                <p className="mt-1 text-xs text-slate-500">This block appears below the signatory in the generated order. Update it when the person holding this position changes.</p>
+                <p className="text-sm font-semibold text-slate-800">Signatory</p>
+                <p className="mt-1 text-xs text-slate-500">This block appears below the certifying official in the generated order. Update it when the person holding this position changes.</p>
                 <div className="mt-3 grid gap-4 md:grid-cols-3">
                   <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Name *</span><input required value={certifyingOfficial} onChange={event => setCertifyingOfficial(event.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
                   <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Rank *</span><input required value={certifyingOfficialRank} onChange={event => setCertifyingOfficialRank(event.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
                   <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Position or office *</span><input required value={certifyingOfficialPosition} onChange={event => setCertifyingOfficialPosition(event.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
                 </div>
               </div>
-              <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Signatory name and rank {requiresFullMetadata && '*'}</span><input required={requiresFullMetadata} value={signatory} onChange={(e) => setSignatory(e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /><span className="mt-1 block text-xs text-slate-500">The official who signs this order.</span></label>
-              <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Signatory title or position {requiresFullMetadata && '*'}</span><input required={requiresFullMetadata} value={signatoryTitle} onChange={(e) => setSignatoryTitle(e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
+              <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Certifying official name and rank {requiresFullMetadata && '*'}</span><input required={requiresFullMetadata} value={signatory} onChange={(e) => setSignatory(e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /><span className="mt-1 block text-xs text-slate-500">This block appears in the upper-right of the generated order.</span></label>
+              <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Certifying official title or position {requiresFullMetadata && '*'}</span><input required={requiresFullMetadata} value={signatoryTitle} onChange={(e) => setSignatoryTitle(e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
               {editingOrder?.fileName && <div className="md:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-600">
                 This record contains a legacy DOCX attachment. It remains available from the order details view; new changes use the generated order document workflow.
               </div>}
@@ -1824,8 +1827,8 @@ export const OrdersPage = () => {
             <Detail label="Effective Date of Designation (Order Body)" value={formatDate(selectedOrder.effectiveDate)} />
             <div className="sm:col-span-2"><Detail label="Subject" value={selectedOrder.subject} /></div>
             <Detail label="Selected personnel" value={selectedOrder.personnelIds?.length ? selectedOrder.personnelIds.map(id => personnelNames.get(id) || 'Unknown personnel').join('\n') : String(selectedOrder.affectedPersonnelCount || 1)} />
-            <Detail label="Signatory" value={[selectedOrder.signatory, selectedOrder.signatoryTitle].filter(Boolean).join(' - ')} />
-            <Detail label="Certifying official" value={[selectedOrder.certifyingOfficial, selectedOrder.certifyingOfficialRank, selectedOrder.certifyingOfficialPosition].filter(Boolean).join('\n')} />
+            <Detail label="Certifying official" value={[selectedOrder.signatory, selectedOrder.signatoryTitle].filter(Boolean).join(' - ')} />
+            <Detail label="Signatory" value={[selectedOrder.certifyingOfficial, selectedOrder.certifyingOfficialRank, selectedOrder.certifyingOfficialPosition].filter(Boolean).join('\n')} />
             {selectedOrder.issuancePending && <div className="sm:col-span-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">This draft is saved on this device. Its official order number will be assigned when you reconnect and save it to the central register.</div>}
             {selectedOrder.description && <div className="sm:col-span-2"><Detail label="Description" value={selectedOrder.description} /></div>}
             {getOrderPurposeDefinition(selectedOrder.purposeCode)?.fields.map(field => {
