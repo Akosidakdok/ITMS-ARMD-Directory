@@ -24,7 +24,7 @@ import { ORDER_CATALOG } from '../utils/orderCatalog.js';
 import { formatOfficialOrderNumber } from '../../shared/orderNumber.js';
 
 export const ORDER_TEMPLATE_KEY = 'pnp-itms-letter-orders';
-export const ORDER_TEMPLATE_VERSION = '1.11.0';
+export const ORDER_TEMPLATE_VERSION = '1.12.0';
 
 const FONT = 'Arial';
 const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -305,7 +305,7 @@ const buildLetterhead = (pnpLogo, itmsLogo) => new Table({
   columnWidths: [1600, 5941, 1600],
   rows: [new TableRow({
     children: [
-      cell(paragraph([imageRun(pnpLogo, 'png', 68, 95)], { alignment: AlignmentType.CENTER }), {
+      cell(paragraph([imageRun(pnpLogo, 'png', 76.8, 97.92)], { alignment: AlignmentType.CENTER }), {
         width: { size: 1600, type: WidthType.DXA }
       }),
       cell([
@@ -317,7 +317,7 @@ const buildLetterhead = (pnpLogo, itmsLogo) => new Table({
       ], {
         width: { size: 5941, type: WidthType.DXA }
       }),
-      cell(paragraph([imageRun(itmsLogo, 'jpg', 74, 72)], { alignment: AlignmentType.CENTER }), {
+      cell(paragraph([imageRun(itmsLogo, 'jpg', 96, 96)], { alignment: AlignmentType.CENTER }), {
         width: { size: 1600, type: WidthType.DXA }
       })
     ]

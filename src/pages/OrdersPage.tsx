@@ -157,6 +157,11 @@ const hasGeneratedOrderDocument = (order: OrderRecord) => {
   return Boolean(order.generatedDocument?.storagePath);
 };
 
+const hasOneInchItmsSeal = (order: OrderRecord) => {
+  const [major, minor] = (order.generatedDocument?.templateVersion || '').split('.').map(Number);
+  return major > 1 || (major === 1 && minor >= 12);
+};
+
 const hasLocalOrderDraft = (order: OrderRecord) => {
   try {
     const raw = localStorage.getItem('pais.local_order_documents.v1');
@@ -484,6 +489,8 @@ export const OrdersPage = () => {
   const [issuedDate, setIssuedDate] = useState('');
   const [effectiveDate, setEffectiveDate] = useState('');
   const [status, setStatus] = useState<OrderDocumentStatus>('Draft');
+  // Keep the legacy field names for saved orders: signatory is the upper-right certifying official,
+  // and certifyingOfficial is the lower-left signatory.
   const [signatory, setSignatory] = useState('PBGEN BENJAMIN H ACORDA');
   const [signatoryTitle, setSignatoryTitle] = useState('Director, ITMS');
   const [certifyingOfficial, setCertifyingOfficial] = useState(DEFAULT_CERTIFYING_OFFICIAL);
@@ -1080,8 +1087,8 @@ export const OrdersPage = () => {
     window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
   };
 
-  const downloadGeneratedOrderDocument = async (order: OrderRecord, version = order.generatedDocument?.version) => {
-    const blob = await getGeneratedOrderDocumentContentApi(order.id, version);
+  const downloadGeneratedOrderDocument = async (order: OrderRecord, version = order.generatedDocument?.version, previewBlob?: Blob) => {
+    const blob = previewBlob || await getGeneratedOrderDocumentContentApi(order.id, version);
     saveDocumentBlob(blob, order.generatedDocument?.fileName || `${getOrderNumberDisplay(order, order.id)}.docx`);
   };
 
@@ -1100,11 +1107,11 @@ export const OrdersPage = () => {
     try {
       try {
         const preview = await getGeneratedOrderPreviewPdfApi(order.id, false, order.generatedDocument.version);
+        if (!preview.url) throw new Error('Generated order PDF preview is unavailable.');
         setGeneratedPreview({ order, pdfUrl: preview.url, version: preview.version || order.generatedDocument.version });
-      } catch (pdfError) {
+      } catch {
         const docxBlob = await getGeneratedOrderDocumentContentApi(order.id, order.generatedDocument.version);
         setGeneratedPreview({ order, docxBlob, version: order.generatedDocument.version });
-        console.warn('PDF preview unavailable; rendering the stored DOCX in the browser:', pdfError);
       }
     } catch (error) {
       setToast({ type: 'error', message: error instanceof Error ? error.message : 'Unable to preview the generated order.' });
@@ -1185,13 +1192,14 @@ export const OrdersPage = () => {
     }
   };
 
-  const regenerateSelectedOrderDocument = async (order: OrderRecord) => {
+  const regenerateSelectedOrderDocument = async (order: OrderRecord, viewAfter = false) => {
     if (!canEdit || LOCKED_ORDER_STATUSES.has(normalizedOrderStatus(order))) return;
     setRegeneratingDocument(true);
     try {
       const updated = await generateOrderDocument(order.id);
       setSelectedOrder(updated);
       setToast({ type: 'success', message: 'Generated order document regenerated successfully.' });
+      if (viewAfter) await viewGeneratedOrderDocument(updated);
     } catch (error) {
       setToast({ type: 'error', message: error instanceof Error ? error.message : 'Unable to regenerate the order document.' });
     } finally {
@@ -1706,7 +1714,8 @@ export const OrdersPage = () => {
                   <p><span className="text-slate-500">Status:</span> <span className="font-medium text-slate-800">{status}</span></p>
                   <p className="break-words"><span className="text-slate-500">Subject:</span> <span className="font-medium text-slate-800">{subject || 'Not entered'}</span></p>
                   <p><span className="text-slate-500">Dates:</span> <span className="font-medium text-slate-800">Issued {formatDate(issuedDate)} · Effective {formatDate(effectiveDate)}</span></p>
-                  <p className="break-words"><span className="text-slate-500">Certifying official:</span> <span className="font-medium text-slate-800">{certifyingOfficial}, {certifyingOfficialRank} — {certifyingOfficialPosition}</span></p>
+                  <p className="break-words"><span className="text-slate-500">Certifying official:</span> <span className="font-medium text-slate-800">{signatory} — {signatoryTitle}</span></p>
+                  <p className="break-words"><span className="text-slate-500">Signatory:</span> <span className="font-medium text-slate-800">{certifyingOfficial}, {certifyingOfficialRank} — {certifyingOfficialPosition}</span></p>
                   {(purposeDefinition?.fields || []).filter(field => String(purposeData[field.key] || '').trim()).map(field => <p key={field.key} className="break-words"><span className="text-slate-500">{field.label}:</span> <span className="font-medium text-slate-800">{purposeData[field.key]}</span></p>)}
                 </div>
               </div>
@@ -1780,16 +1789,16 @@ export const OrdersPage = () => {
                 </div>
               </div>
               <div className="md:col-span-2 border-t border-slate-200 pt-4">
-                <p className="text-sm font-semibold text-slate-800">Certifying official</p>
-                <p className="mt-1 text-xs text-slate-500">This block appears below the signatory in the generated order. Update it when the person holding this position changes.</p>
+                <p className="text-sm font-semibold text-slate-800">Signatory</p>
+                <p className="mt-1 text-xs text-slate-500">This block appears below the certifying official in the generated order. Update it when the person holding this position changes.</p>
                 <div className="mt-3 grid gap-4 md:grid-cols-3">
                   <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Name *</span><input required value={certifyingOfficial} onChange={event => setCertifyingOfficial(event.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
                   <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Rank *</span><input required value={certifyingOfficialRank} onChange={event => setCertifyingOfficialRank(event.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
                   <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Position or office *</span><input required value={certifyingOfficialPosition} onChange={event => setCertifyingOfficialPosition(event.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
                 </div>
               </div>
-              <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Signatory name and rank {requiresFullMetadata && '*'}</span><input required={requiresFullMetadata} value={signatory} onChange={(e) => setSignatory(e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /><span className="mt-1 block text-xs text-slate-500">The official who signs this order.</span></label>
-              <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Signatory title or position {requiresFullMetadata && '*'}</span><input required={requiresFullMetadata} value={signatoryTitle} onChange={(e) => setSignatoryTitle(e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
+              <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Certifying official name and rank {requiresFullMetadata && '*'}</span><input required={requiresFullMetadata} value={signatory} onChange={(e) => setSignatory(e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /><span className="mt-1 block text-xs text-slate-500">This block appears in the upper-right of the generated order.</span></label>
+              <label><span className="mb-1.5 block text-sm font-medium text-slate-700">Certifying official title or position {requiresFullMetadata && '*'}</span><input required={requiresFullMetadata} value={signatoryTitle} onChange={(e) => setSignatoryTitle(e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
               {editingOrder?.fileName && <div className="md:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-600">
                 This record contains a legacy DOCX attachment. It remains available from the order details view; new changes use the generated order document workflow.
               </div>}
@@ -1818,8 +1827,8 @@ export const OrdersPage = () => {
             <Detail label="Effective Date of Designation (Order Body)" value={formatDate(selectedOrder.effectiveDate)} />
             <div className="sm:col-span-2"><Detail label="Subject" value={selectedOrder.subject} /></div>
             <Detail label="Selected personnel" value={selectedOrder.personnelIds?.length ? selectedOrder.personnelIds.map(id => personnelNames.get(id) || 'Unknown personnel').join('\n') : String(selectedOrder.affectedPersonnelCount || 1)} />
-            <Detail label="Signatory" value={[selectedOrder.signatory, selectedOrder.signatoryTitle].filter(Boolean).join(' - ')} />
-            <Detail label="Certifying official" value={[selectedOrder.certifyingOfficial, selectedOrder.certifyingOfficialRank, selectedOrder.certifyingOfficialPosition].filter(Boolean).join('\n')} />
+            <Detail label="Certifying official" value={[selectedOrder.signatory, selectedOrder.signatoryTitle].filter(Boolean).join(' - ')} />
+            <Detail label="Signatory" value={[selectedOrder.certifyingOfficial, selectedOrder.certifyingOfficialRank, selectedOrder.certifyingOfficialPosition].filter(Boolean).join('\n')} />
             {selectedOrder.issuancePending && <div className="sm:col-span-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">This draft is saved on this device. Its official order number will be assigned when you reconnect and save it to the central register.</div>}
             {selectedOrder.description && <div className="sm:col-span-2"><Detail label="Description" value={selectedOrder.description} /></div>}
             {getOrderPurposeDefinition(selectedOrder.purposeCode)?.fields.map(field => {
@@ -1876,6 +1885,11 @@ export const OrdersPage = () => {
                 <p className="mt-1 text-xs text-teal-800">Document Editor changes are saved as a separate local draft.</p>
                 {hasGeneratedOrderDocument(selectedOrder) ? (
                   <div className="mt-3 grid grid-cols-2 gap-2">
+                    {!hasOneInchItmsSeal(selectedOrder) && <p className="col-span-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+                      {canEdit && !LOCKED_ORDER_STATUSES.has(selectedOrderStatus || '')
+                        ? 'This saved document uses an earlier letterhead. Regenerate it to apply the 1-inch ITMS seal in View and Download.'
+                        : 'This saved document uses an earlier letterhead and is preserved as issued.'}
+                    </p>}
                     <button
                       type="button"
                       onClick={() => void viewGeneratedOrderDocument(selectedOrder)}
@@ -1894,11 +1908,11 @@ export const OrdersPage = () => {
                     {canEdit && !LOCKED_ORDER_STATUSES.has(selectedOrderStatus || '') && (
                       <button
                         type="button"
-                        onClick={() => void regenerateSelectedOrderDocument(selectedOrder)}
+                        onClick={() => void regenerateSelectedOrderDocument(selectedOrder, !hasOneInchItmsSeal(selectedOrder))}
                         disabled={regeneratingDocument}
                         className="col-span-2 inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-teal-300 bg-white px-3 py-2 text-xs font-semibold text-teal-700 hover:bg-teal-100 disabled:opacity-60"
                       >
-                        <RefreshCw size={15} className={regeneratingDocument ? 'animate-spin' : ''} /> {regeneratingDocument ? 'Regenerating...' : 'Regenerate document'}
+                        <RefreshCw size={15} className={regeneratingDocument ? 'animate-spin' : ''} /> {regeneratingDocument ? 'Regenerating...' : hasOneInchItmsSeal(selectedOrder) ? 'Regenerate document' : 'Regenerate and view with 1-inch ITMS seal'}
                       </button>
                     )}
                     <button
@@ -2118,7 +2132,7 @@ export const OrdersPage = () => {
           setGeneratedPreview(null);
           void handleEditOrderInDocumentEditor(order);
         } : undefined}
-        onDownloadDocx={() => downloadGeneratedOrderDocument(generatedPreview.order, generatedPreview.version)}
+        onDownloadDocx={() => downloadGeneratedOrderDocument(generatedPreview.order, generatedPreview.version, generatedPreview.docxBlob)}
         onDownloadPdf={generatedPreview.pdfUrl ? () => downloadGeneratedOrderPdf(generatedPreview.order, generatedPreview.version) : undefined}
       />}
 

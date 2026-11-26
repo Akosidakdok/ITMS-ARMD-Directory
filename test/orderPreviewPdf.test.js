@@ -3,6 +3,7 @@ import test from 'node:test';
 import { existsSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { generateOrderDocx } from '../backend/services/orderDocxGenerator.js';
 import { buildGeneratedOrderPreviewPath, convertOrderDocxToPdf } from '../backend/services/orderPreviewPdf.js';
 
 test('preview path stays beside the generated DOCX version', () => {
@@ -11,7 +12,13 @@ test('preview path stays beside the generated DOCX version', () => {
 });
 
 test('PDF conversion reads the exact DOCX bytes and removes temporary files', async () => {
-  const sourceBytes = Buffer.from('sample-docx-bytes');
+  const { buffer: sourceBytes } = await generateOrderDocx({
+    orderNumber: 'ITMS-SO-TR-2026-0001',
+    series: 'SO',
+    purposeCode: 'TR',
+    issuedDate: '2026-11-25',
+    personnelSnapshot: []
+  });
   let temporaryDirectory = '';
   const pdf = await convertOrderDocxToPdf(sourceBytes, async (_binary, args) => {
     const source = args.at(-1);

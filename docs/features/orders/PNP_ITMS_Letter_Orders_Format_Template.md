@@ -95,7 +95,7 @@ Center: ~4.30"
 Right:  ~1.00"
 ```
 
-The left PNP emblem in the source is approximately **0.82 in wide × 1.08 in high**. The right ITMS seal should be visually balanced with it.
+For generated orders and their previews, set the left PNP emblem to **0.80 in wide × 1.02 in high** and the right ITMS seal to **1.00 in wide × 1.00 in high**, matching the official Word format. Use these exact displayed dimensions in the generated DOCX and local draft preview.
 
 ---
 
