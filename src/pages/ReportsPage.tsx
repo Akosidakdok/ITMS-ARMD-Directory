@@ -15,7 +15,8 @@ import { Badge } from '../components/common/Badge';
 import { calculateTimeInGrade } from '../utils/timeInGrade';
 import { ExportPrintModal } from '../components/common/ExportPrintModal';
 import { Button, PageHeader } from '../components/common/SystemUI';
-import { resolvePersonnelRankCategory } from '../utils/personnelCounting';
+import type { PersonnelFilterCriteria } from '../utils/personnelCounting';
+import { getDivisionStrength, getPersonnelDesignations, type StrengthScope } from '../utils/personnelStrength';
 import { AutomatedPersonnelCounter } from '../components/dashboard/AutomatedPersonnelCounter';
 import { getOrderNumberDisplay } from '../utils/orderNumber';
 import './ModulePages.css';
@@ -61,7 +62,7 @@ export const ReportsPage: React.FC = () => {
         sub_unit: p.sub_unit || p.division || '—',
         details: p.details || p.detail || '—',
         station: p.station || '—',
-        position: activeAsg ? activeAsg.position : p.designation,
+        position: [...new Set([activeAsg?.position, getPersonnelDesignations(p)].filter(Boolean))].join(' / '),
         unit: activeAsg ? activeAsg.unit : (p.details || p.detail),
         status: p.status
       };
@@ -172,57 +173,9 @@ export const ReportsPage: React.FC = () => {
       };
     });
 
-  // 5. Personnel Strength & Counting Report Data (Aggregated by Sub-Unit & Station)
-  const strengthReportData = React.useMemo(() => {
-    const groups: Record<string, {
-      unitCategory: string;
-      subUnitCategory: string;
-      sub_unit: string;
-      station: string;
-      pcoCount: number;
-      pncoCount: number;
-      nupCount: number;
-      maleCount: number;
-      femaleCount: number;
-      total: number;
-    }> = {};
-
-    for (const p of personnelList) {
-      const uc = p.unitCategory || 'ITMS HQ';
-      const suc = p.subUnitCategory || 'Division';
-      const su = p.sub_unit || p.division || 'Unassigned';
-      const st = p.station || 'HQ Base';
-      const key = `${uc}__${suc}__${su}__${st}`;
-
-      if (!groups[key]) {
-        groups[key] = {
-          unitCategory: uc,
-          subUnitCategory: suc,
-          sub_unit: su,
-          station: st,
-          pcoCount: 0,
-          pncoCount: 0,
-          nupCount: 0,
-          maleCount: 0,
-          femaleCount: 0,
-          total: 0
-        };
-      }
-
-      const rc = resolvePersonnelRankCategory(p);
-      if (rc === 'PCO') groups[key].pcoCount++;
-      else if (rc === 'PNCO') groups[key].pncoCount++;
-      else if (rc === 'NUP') groups[key].nupCount++;
-
-      const g = (p.gender || '').toLowerCase();
-      if (g === 'male') groups[key].maleCount++;
-      else if (g === 'female') groups[key].femaleCount++;
-
-      groups[key].total++;
-    }
-
-    return Object.values(groups).sort((a, b) => a.sub_unit.localeCompare(b.sub_unit));
-  }, [personnelList]);
+  const [strengthScope, setStrengthScope] = useState<StrengthScope>('current');
+  const [strengthCriteria, setStrengthCriteria] = useState<PersonnelFilterCriteria>({});
+  const strengthReportData = React.useMemo(() => getDivisionStrength(personnelList, strengthScope, strengthCriteria).rows, [personnelList, strengthScope, strengthCriteria]);
 
   const getExportConfig = () => {
     switch (activeReportTab) {
@@ -243,13 +196,11 @@ export const ReportsPage: React.FC = () => {
         };
       case 'strength_counting':
         return {
-          title: 'PNP ITMS Automated Personnel Strength & Deployment Audit',
+          title: `PNP ITMS Personnel Strength — ${strengthScope === 'all' ? 'All personnel' : strengthScope === 'retired' ? 'Retired' : 'Current strength'}`,
           data: strengthReportData,
           columns: [
-            { key: 'unitCategory', label: 'Unit Category' },
-            { key: 'subUnitCategory', label: 'Sub-unit Category' },
-            { key: 'sub_unit', label: 'Sub-Unit' },
-            { key: 'station', label: 'Station' },
+            { key: 'group', label: 'Division / Group' },
+            { key: 'section', label: 'Office / Counted Unit' },
             { key: 'pcoCount', label: 'PCO' },
             { key: 'pncoCount', label: 'PNCO' },
             { key: 'nupCount', label: 'NUP' },
@@ -429,7 +380,7 @@ export const ReportsPage: React.FC = () => {
 
         {activeReportTab === 'strength_counting' && (
           <div className="reports-filter-note">
-            <span>Aggregated by Unit Category, Sub-Unit Category, Sub-Unit, and Station across PCO, PNCO, NUP, and Gender.</span>
+            <span>Each person is counted once. Exports use the same personnel scope and filters as the division summary.</span>
           </div>
         )}
 
@@ -441,7 +392,7 @@ export const ReportsPage: React.FC = () => {
       </div>
 
       {activeReportTab === 'strength_counting' && (
-        <AutomatedPersonnelCounter personnelList={personnelList} />
+        <AutomatedPersonnelCounter personnelList={personnelList} scope={strengthScope} onScopeChange={setStrengthScope} onFiltersChange={setStrengthCriteria} />
       )}
 
       {/* Report Data Table Display */}

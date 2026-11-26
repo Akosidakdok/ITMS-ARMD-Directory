@@ -575,7 +575,7 @@ export interface DispositionStats {
   byUnitAndRank: Record<string, Record<string, number>>;
 }
 
-export const fetchDispositionStats = async (status = 'Active'): Promise<DispositionStats> => {
+export const fetchDispositionStats = async (status = 'current'): Promise<DispositionStats> => {
   const res = await apiFetch(`${API_BASE_URL}/disposition/stats?status=${encodeURIComponent(status)}`);
   const json = await res.json().catch(() => null);
   if (!res.ok) throw new Error(json?.message || 'Failed to fetch disposition statistics');

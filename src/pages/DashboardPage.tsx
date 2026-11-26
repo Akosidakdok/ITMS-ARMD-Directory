@@ -1,4 +1,5 @@
 import React from 'react';
+import { getDivisionStrength, isRetired } from '../utils/personnelStrength';
 import './DashboardPage.css';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, Award, Briefcase, CalendarDays, FileText, Users } from 'lucide-react';
@@ -36,7 +37,7 @@ export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const today = new Date().toISOString().slice(0, 10);
   const totalPersonnel = personnelList.length;
-  const activePersonnel = personnelList.filter(person => person.status === 'Active').length;
+  const activePersonnel = personnelList.filter(person => !isRetired(person)).length;
   const onLeaveToday = new Set(
     leaveList
       .filter(leave => leave.status === 'Approved' && leave.startDate <= today && leave.endDate >= today)
@@ -48,13 +49,9 @@ export const DashboardPage: React.FC = () => {
   const activeAssignments = assignmentsList.filter(assignment => assignment.status === 'Current').length;
   const personnelById = new Map(personnelList.map(person => [person.id, person]));
 
-  const subUnitCounts = personnelList.reduce<Record<string, number>>((counts, person) => {
-    const subUnit = person.sub_unit || person.division || 'Unassigned';
-    counts[subUnit] = (counts[subUnit] || 0) + 1;
-    return counts;
-  }, {});
-  const subUnitStrength = Object.entries(subUnitCounts)
-    .map(([subUnit, count]) => ({ subUnit, count }))
+  const subUnitStrength = getDivisionStrength(personnelList, 'current').groups
+    .filter(group => group.total > 0)
+    .map(group => ({ subUnit: group.group, count: group.total }))
     .sort((a, b) => b.count - a.count);
 
   const recentActivities = [
@@ -103,7 +100,7 @@ export const DashboardPage: React.FC = () => {
 
       <OperationalSummary items={[
         { label: 'Recorded strength', value: totalPersonnel, detail: 'personnel files', icon: Users, onClick: () => navigate('/personnel') },
-        { label: 'Active status', value: activePersonnel, detail: 'on duty', icon: Users, tone: 'success', onClick: () => navigate('/personnel') },
+        { label: 'Current strength', value: activePersonnel, detail: 'excluding retired', icon: Users, tone: 'success', onClick: () => navigate('/personnel') },
         { label: 'Current postings', value: activeAssignments, detail: 'assignments', icon: Briefcase, onClick: () => navigate('/assignment') },
         { label: 'Leave today', value: onLeaveToday, detail: 'approved', icon: CalendarDays, tone: onLeaveToday ? 'warning' : 'success', onClick: () => navigate('/reports') },
         { label: 'For review', value: eligibleForPromotion, detail: 'promotion cases', icon: Award, tone: eligibleForPromotion ? 'warning' : 'neutral', onClick: () => navigate('/promotion') }

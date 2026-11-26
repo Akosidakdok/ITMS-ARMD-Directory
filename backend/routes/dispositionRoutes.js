@@ -4,7 +4,7 @@ import { db } from '../store/repository.js';
 const router = express.Router();
 router.get('/stats', async (req, res) => {
   try {
-    const data = await db.getDispositionStats(req.query.status || 'Active');
+    const data = await db.getDispositionStats(req.query.status || 'current');
     return res.json({ success: true, data });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Unable to calculate disposition statistics', error: error.message });

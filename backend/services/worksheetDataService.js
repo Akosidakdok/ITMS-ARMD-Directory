@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import ExcelJS from 'exceljs';
 import { supabase } from '../config/supabase.js';
 import { getDynamicPromotionalTitle } from './promotionalWorksheetService.js';
+import { getPersonnelDutyDesignations } from '../utils/personnelDutyFields.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -652,7 +653,7 @@ export function getWorksheetDetail(sheetId, personnelList = []) {
       outputCells[`G${rNum}`] = { v: person.badgeNo || person.badge_number || '', s: { ah: 'center', av: 'middle', sz: 10 }, personnelId: pid, field: 'badgeNo' };
       outputCells[`H${rNum}`] = { v: person.sub_unit || person.division || person.unit || '', s: { ah: 'center', av: 'middle', sz: 10 }, personnelId: pid, field: 'sub_unit' };
       outputCells[`I${rNum}`] = { v: person.effectiveDate || '', s: { ah: 'center', av: 'middle', sz: 10, nf: 'dd/mm/yyyy' }, personnelId: pid, field: 'effectiveDate' };
-      outputCells[`J${rNum}`] = { v: person.designation || '', s: { ah: 'left', av: 'middle', sz: 10 }, personnelId: pid, field: 'designation' };
+      outputCells[`J${rNum}`] = { v: getPersonnelDutyDesignations(person), s: { ah: 'left', av: 'middle', sz: 10, wrap: 1 }, personnelId: pid, field: 'designation' };
       outputCells[`K${rNum}`] = { v: person.designationDate || person.designation_date || '', s: { ah: 'center', av: 'middle', sz: 10, nf: 'dd/mm/yyyy' }, personnelId: pid, field: 'designationDate' };
       outputCells[`L${rNum}`] = { v: person.dateOfEntry || person.date_entered_service || '', s: { ah: 'center', av: 'middle', sz: 10, nf: 'dd/mm/yyyy' }, personnelId: pid, field: 'dateOfEntry' };
       outputCells[`M${rNum}`] = { v: person.highestEducationalAttainment || person.highest_educational_attainment || '', s: { ah: 'left', av: 'middle', sz: 10 }, personnelId: pid, field: 'highestEducationalAttainment' };
@@ -747,6 +748,10 @@ export function getWorksheetDetail(sheetId, personnelList = []) {
       if (person) {
         lastCell.personnelId = person.id;
         firstCell.personnelId = person.id;
+        if (sheet.name === 'Disposition') {
+          const existing = outputCells[`I${r}`] || {};
+          outputCells[`I${r}`] = { ...existing, v: getPersonnelDutyDesignations(person), res: getPersonnelDutyDesignations(person), personnelId: person.id, field: 'designation', s: { ...(existing.s || {}), wrap: 1 } };
+        }
       }
     }
   }

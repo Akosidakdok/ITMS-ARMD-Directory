@@ -1,3 +1,5 @@
+import { PersonnelDutySummary } from './PersonnelDutySummary';
+import { PersonnelDutyFields } from './PersonnelDutyFields';
 import React, { useState, useEffect } from 'react';
 import { Personnel, PersonnelAgencyType } from '../../types/pais';
 import { useAuthRole } from '../../context/AuthRoleContext';
@@ -965,7 +967,7 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
                   <option value="Detailed Out">DETAILED OUT</option>
                   <option value="Non-Active">NON-ACTIVE</option>
                   <option value="Suspended">SUSPENDED</option>
-                  <option value="Retired">RETIRED</option>
+                  <option value="DUTY/DUE RET">DUTY/DUE RET</option><option value="Retired">RETIRED</option>
                 </select>
               </div>
 
@@ -1010,6 +1012,7 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
             </div>
           </div>
 
+          <PersonnelDutyFields person={formData} onChange={patch => setFormData(current => ({ ...current, ...patch }))} />
           {/* ── Section D: Organizational Assignment ── */}
           <div className="rounded-xl bg-white border border-slate-200 p-4 sm:p-5 shadow-2xs space-y-3.5">
             <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
@@ -1383,6 +1386,7 @@ export const PersonnelInfoTab: React.FC<PersonnelInfoTabProps> = ({
             </div>
           </div>
 
+          <PersonnelDutySummary person={personnel} />
           {/* ── Box D: Organizational Assignment ── */}
           <div className="rounded-xl bg-white border border-slate-200 p-4 sm:p-5 shadow-2xs space-y-3">
             <div className="flex items-center justify-between border-b border-slate-100 pb-2">

@@ -21,6 +21,7 @@ import {
 import { assertOrderStatusTransition, normalizeOrderStatus, ORDER_LOCKED_STATUSES } from '../utils/orderWorkflow.js';
 import { buildOrderNumber, getOrderYear } from '../utils/orderNumber.js';
 import { previousCalendarDate } from '../utils/dateOnly.js';
+import { sanitizePersonnelDutyFields, isRetiredPersonnel } from '../utils/personnelDutyFields.js';
 
 const PCO_RANKS_BACKEND = new Set([
   'PBGEN', 'PCOL', 'PLTCOL', 'PMAJ', 'PCPT', 'PLT',
@@ -221,6 +222,7 @@ export class PAISRepository {
 
   sanitizePersonnelPayload(data) {
     if (!data) return data;
+    data = { ...data, ...sanitizePersonnelDutyFields(data) };
     const hasAgencyFields = data.agencyType !== undefined || data.agencyName !== undefined;
     const agency = hasAgencyFields ? getPersonnelAgencyFields(data) : {};
     const sub_unit = data.sub_unit !== undefined ? data.sub_unit : (data.officeDivision || data.division || '');
@@ -427,6 +429,7 @@ export class PAISRepository {
       'salaryGrade', 'plantilla',
       'agencyType', 'agencyName',
       'positionCategory',
+      'countedUnit', 'dutyAssignments', 'additionalDesignations',
       'unit', 'unitCode', 'unit_code', 'unitCategory',
       'officeDivision',
       'sub_unit', 'division', 'subUnitCode', 'sub_unit_code', 'subUnitCategory',
@@ -2116,13 +2119,19 @@ export class PAISRepository {
   }
 
   // ================= DISPOSITION & PROMOTION EVALUATIONS =================
-  async getDispositionStats(status = 'Active') {
-    const personnel = await this.getPersonnel({ status });
+  async getDispositionStats(status = 'current') {
+    const records = await this.getPersonnel(['current', 'ALL'].includes(status) ? {} : { status });
+    const seen = new Set();
+    const personnel = records.filter(person => {
+      if (seen.has(person.id) || (status === 'current' && isRetiredPersonnel(person))) return false;
+      seen.add(person.id);
+      return true;
+    });
     const byUnit = {};
     const byRank = {};
     const byUnitAndRank = {};
     personnel.forEach(person => {
-      const unit = person.unitCategory || person.sub_unit || person.division || 'Unassigned';
+      const unit = person.countedUnit || person.sub_unit || person.division || 'Needs assignment';
       const rank = person.rank || 'Unassigned';
       byUnit[unit] = (byUnit[unit] || 0) + 1;
       byRank[rank] = (byRank[rank] || 0) + 1;

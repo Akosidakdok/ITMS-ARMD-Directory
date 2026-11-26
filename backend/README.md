@@ -109,7 +109,7 @@ Expected Response:
 - `DELETE /api/leave/:id` — Delete leave record
 
 ### 8. Disposition Statistics and Interactive Worksheets
-- `GET /api/disposition/stats?status=Active` — Counts current personnel by unit, rank, and unit/rank combination.
+- `GET /api/disposition/stats?status=current` — Counts each personnel ID once under its counted unit (or home unit), excluding retired records. Use `status=ALL` to include retired personnel, or an exact status such as `Active`.
 - `GET /api/disposition/authorized-strength?reportType=rank-profile` — Reads the separately controlled authorized-strength baseline.
 - `PUT /api/disposition/authorized-strength` — Administrator-only bulk upsert of authorized-strength records (`reportType`, `unitKey`, `rankKey`, `authorizedStrength`, optional `asOfDate`).
 - `GET /api/worksheets` — Summaries of the 5 interactive Excel worksheets.

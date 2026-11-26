@@ -61,6 +61,10 @@ export interface Personnel {
   /** Legacy fallback for previously stored records */
   detail?: string;
   designation: string;
+  /** Explicit headcount destination; blank means the home sub-unit. */
+  countedUnit?: string;
+  dutyAssignments?: PersonnelDutyAssignment[];
+  additionalDesignations?: string[];
   address?: string;
   gender?: 'Male' | 'Female' | string;
   contactNumber?: string;
@@ -112,6 +116,13 @@ export interface Personnel {
   sourceLink?: string;
   /** Source-system account number from the October personnel roster. */
   accountNumber?: string;
+}
+
+export interface PersonnelDutyAssignment {
+  kind: 'Main' | 'Detail' | 'Additional' | 'Technical assistance';
+  unit: string;
+  designation?: string;
+  orderRef?: string;
 }
 
 export interface AssignmentRecord {

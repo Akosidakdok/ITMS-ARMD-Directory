@@ -1,3 +1,4 @@
+import { getPersonnelCountedUnit } from './personnelOrganization.ts';
 import type { Personnel, RankCategory, PositionCategory, UnitCategory } from '../types/pais.ts';
 import { getRankCategory, normalizeRankCode } from '../constants/ranks.ts';
 
@@ -82,7 +83,7 @@ export function matchesPersonnelCriteria(person: Personnel, criteria: PersonnelF
 
   // Sub-unit
   if (criteria.sub_unit && criteria.sub_unit !== 'ALL') {
-    const su = normalizeGroupValue(person.sub_unit || person.division, 'Unassigned');
+    const su = normalizeGroupValue(getPersonnelCountedUnit(person), 'Needs assignment');
     if (su.toLowerCase() !== criteria.sub_unit.trim().toLowerCase()) return false;
   }
 
@@ -130,6 +131,9 @@ export function matchesPersonnelCriteria(person: Personnel, criteria: PersonnelF
       person.badgeNo,
       person.rank,
       person.designation,
+      ...(person.additionalDesignations || []),
+      ...(person.dutyAssignments || []).map(a => a.unit),
+      person.countedUnit,
       person.sub_unit,
       person.details,
       person.station,
@@ -216,7 +220,7 @@ export function getPersonnelStrengthSummary(
     bySubUnitCategory[suc] = (bySubUnitCategory[suc] || 0) + 1;
 
     // Sub-unit
-    const su = normalizeGroupValue(p.sub_unit || p.division, 'Unassigned');
+    const su = normalizeGroupValue(getPersonnelCountedUnit(p), 'Needs assignment');
     bySubUnit[su] = (bySubUnit[su] || 0) + 1;
 
     // Station
@@ -269,7 +273,7 @@ export function calculate3WayCounts(
   const tree: Record<string, Record<string, Record<string, number>>> = {};
   for (const person of list) {
     const uc = normalizeGroupValue(person.unitCategory, 'ITMS HQ');
-    const su = normalizeGroupValue(person.sub_unit || person.division, 'Unassigned');
+    const su = normalizeGroupValue(getPersonnelCountedUnit(person), 'Needs assignment');
     const st = normalizeGroupValue(person.station, 'No Station Recorded');
 
     if (!tree[uc]) tree[uc] = {};

@@ -7,6 +7,8 @@ import { Button, EmptyState, FormSection, PageHeader } from '../components/commo
 import { useAuthRole } from '../context/AuthRoleContext';
 import { Personnel, RankAbbr } from '../types/pais';
 import { resolvePersonnelRankCategory } from '../utils/personnelCounting';
+import { PersonnelDutyFields } from '../components/personnel/PersonnelDutyFields';
+import { getPersonnelDesignations, personnelInScope, resolveCountedOrganization, type StrengthScope } from '../utils/personnelStrength';
 import { hasManagementAccess } from '../utils/accessControl';
 
 import { 
@@ -31,9 +33,10 @@ const fieldClass = 'mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 p
 interface FormFieldsProps {
   draft: Personnel;
   setDraft: React.Dispatch<React.SetStateAction<Personnel>>;
+  isNew: boolean;
 }
 
-const PersonnelFormFields: React.FC<FormFieldsProps> = ({ draft, setDraft }) => {
+const PersonnelFormFields: React.FC<FormFieldsProps> = ({ draft, setDraft, isNew }) => {
   const set = <K extends keyof Personnel>(key: K, value: Personnel[K]) => setDraft(current => ({ ...current, [key]: value }));
   const required = <span className="text-rose-600"> *</span>;
   const isUniformed = draft.rankCategory !== 'NUP';
@@ -158,8 +161,8 @@ const PersonnelFormFields: React.FC<FormFieldsProps> = ({ draft, setDraft }) => 
           </div>
         )}
         <label className="text-xs font-semibold text-slate-700">
-          Badge / serial no.{required}
-          <input required value={draft.badgeNo} onChange={event => set('badgeNo', event.target.value)} className={fieldClass} />
+          Badge / serial no.{isUniformed && required}
+          <input required={isUniformed} value={draft.badgeNo} onChange={event => set('badgeNo', event.target.value)} className={fieldClass} />
         </label>
         <label className="text-xs font-semibold text-slate-700">First name{required}<input required value={draft.firstName} onChange={event => set('firstName', event.target.value)} className={fieldClass} /></label>
         <label className="text-xs font-semibold text-slate-700">Middle name<input value={draft.middleName || ''} onChange={event => set('middleName', event.target.value)} className={fieldClass} /></label>
@@ -170,19 +173,20 @@ const PersonnelFormFields: React.FC<FormFieldsProps> = ({ draft, setDraft }) => 
     </FormSection>
     <FormSection title="Organizational Assignment">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <label className="text-xs font-semibold text-slate-700">Sub-Unit<input value={draft.sub_unit ?? draft.division ?? ''} onChange={event => { set('sub_unit', event.target.value); set('division', event.target.value); }} className={fieldClass} placeholder="e.g. Network Operations Section" /></label>
+        <label className="text-xs font-semibold text-slate-700">Sub-Unit<input value={draft.sub_unit ?? draft.division ?? ''} onChange={event => { set('sub_unit', event.target.value); set('division', event.target.value); set('subUnitCode', ''); }} className={fieldClass} placeholder="e.g. Network Operations Section" /></label>
         <label className="text-xs font-semibold text-slate-700">Details<input value={draft.details ?? draft.detail ?? ''} onChange={event => { set('details', event.target.value); set('detail', event.target.value); }} className={fieldClass} placeholder="e.g. Network Monitoring" /></label>
         <label className="text-xs font-semibold text-slate-700">Station<input value={draft.station || ''} onChange={event => set('station', event.target.value)} className={fieldClass} placeholder="e.g. Camp Crame" /></label>
         <label className="text-xs font-semibold text-slate-700">Designation{required}<input required value={draft.designation} onChange={event => set('designation', event.target.value)} className={fieldClass} /></label>
         {!isUniformed && (
           <>
-            <label className="text-xs font-semibold text-slate-700">Salary grade{required}<input required type="text" value={draft.salaryGrade || ''} onChange={event => set('salaryGrade', event.target.value)} placeholder="e.g. 14, SG-14, or 14-1" className={fieldClass} /></label>
-            <label className="text-xs font-semibold text-slate-700">Plantilla item no.{required}<input required value={draft.plantilla || ''} onChange={event => set('plantilla', event.target.value)} className={fieldClass} /></label>
+            <label className="text-xs font-semibold text-slate-700">Salary grade{isNew && required}<input required={isNew} type="text" value={draft.salaryGrade || ''} onChange={event => set('salaryGrade', event.target.value)} placeholder="e.g. 14, SG-14, or 14-1" className={fieldClass} /></label>
+            <label className="text-xs font-semibold text-slate-700">Plantilla item no.{isNew && required}<input required={isNew} value={draft.plantilla || ''} onChange={event => set('plantilla', event.target.value)} className={fieldClass} /></label>
           </>
         )}
-        <label className="text-xs font-semibold text-slate-700">Status<select value={draft.status} onChange={event => set('status', event.target.value)} className={fieldClass}><option>Active</option><option>On Leave</option><option>Detailed Out</option><option>Suspended</option></select></label>
+        <label className="text-xs font-semibold text-slate-700">Status<select value={draft.status} onChange={event => { set('status', event.target.value); set('pstatus', event.target.value); }} className={fieldClass}><option>Active</option><option>On Leave</option><option>Detailed Out</option><option>Suspended</option><option>DUTY/DUE RET</option><option>Retired</option>{draft.status && !['Active', 'On Leave', 'Detailed Out', 'Suspended', 'DUTY/DUE RET', 'Retired'].includes(draft.status) && <option>{draft.status}</option>}</select></label>
       </div>
     </FormSection>
+    <PersonnelDutyFields person={draft} onChange={patch => setDraft(current => ({ ...current, ...patch }))} />
     <FormSection title="Service Timeline & Contact">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <label className="text-xs font-semibold text-slate-700">Date of entry<input type="date" value={draft.dateOfEntry || ''} onChange={event => set('dateOfEntry', event.target.value)} className={fieldClass} /></label>
@@ -207,9 +211,10 @@ export const ManagementPage: React.FC = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [notice, setNotice] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  const filteredPersonnel = personnelList.filter(person => {
+  const [personnelScope, setPersonnelScope] = useState<StrengthScope>('all');
+  const filteredPersonnel = personnelInScope(personnelList, personnelScope).filter(person => {
     const query = searchQuery.trim().toLowerCase();
-    return !query || [person.fullName, person.firstName, person.middleName, person.lastName, person.badgeNo, person.sub_unit, person.details, person.station, person.division, person.designation].some(value => String(value || '').toLowerCase().includes(query));
+    return !query || [person.fullName, person.firstName, person.middleName, person.lastName, person.countedUnit, getPersonnelDesignations(person), ...(person.dutyAssignments || []).map(duty => duty.unit), person.badgeNo, person.sub_unit, person.details, person.station, person.division, person.designation].some(value => String(value || '').toLowerCase().includes(query));
   });
 
   const totalPages = Math.max(1, Math.ceil(filteredPersonnel.length / pageSize));
@@ -252,10 +257,13 @@ export const ManagementPage: React.FC = () => {
       firstName,
       middleName,
       lastName,
-      fullName: [draft.rank, firstName, middleName, lastName].filter(Boolean).join(' '),
+      fullName: [firstName, middleName, lastName, draft.qualifier].filter(Boolean).join(' '),
       badgeNo: draft.badgeNo.trim(),
       plantilla: String(draft.plantilla || '').trim(),
       sub_unit,
+      subUnitCode: sub_unit === (draft.sub_unit || draft.division || '') ? draft.subUnitCode : '',
+      countedUnit: String(draft.countedUnit || '').trim(),
+      additionalDesignations: (draft.additionalDesignations || []).map(value => value.trim()).filter(Boolean),
       details,
       station,
       division: sub_unit,
@@ -310,11 +318,12 @@ export const ManagementPage: React.FC = () => {
         <div className="module-search-input"><Search aria-hidden="true" className="h-4 w-4" />
           <input type="search" aria-label="Search personnel records" value={searchQuery} onChange={event => { setSearchQuery(event.target.value); setCurrentPage(1); }} placeholder="Search by name, badge number, or sub-unit…" />
         </div>
+        <label className="text-xs font-semibold">Personnel included<select aria-label="Personnel included" value={personnelScope} onChange={event => { setPersonnelScope(event.target.value as StrengthScope); setCurrentPage(1); }} className="ml-2 rounded border border-slate-300 bg-white px-3 py-2"><option value="all">All personnel</option><option value="current">Current strength</option><option value="retired">Retired</option></select></label>
         {searchQuery && <button type="button" className="module-reset" onClick={() => { setSearchQuery(''); setCurrentPage(1); }}><RotateCcw aria-hidden="true" className="h-4 w-4" />Reset search</button>}
       </div>
       <div className="record-section-header"><h2 id="management-records-heading" className="app-section-title">Personnel records</h2><span className="module-result-count" aria-live="polite">{filteredPersonnel.length} of {personnelList.length} records</span></div>
       {filteredPersonnel.length ? <div className="module-table-scroll" tabIndex={0} role="region" aria-label="Personnel management records"><table className="record-table text-xs"><thead><tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-semibold uppercase text-slate-700"><th scope="col" className="px-4 py-3">Rank & Full Name</th><th scope="col" className="px-4 py-3">Badge No</th><th scope="col" className="px-4 py-3">Plantilla Item</th><th scope="col" className="px-4 py-3">Sub-Unit</th><th scope="col" className="px-4 py-3">Details</th><th scope="col" className="px-4 py-3">Station</th><th scope="col" className="px-4 py-3">Designation</th><th scope="col" className="px-4 py-3 text-center">Status</th><th scope="col" className="px-4 py-3 text-right">Actions</th></tr></thead><tbody className="divide-y divide-slate-100 font-medium text-slate-900">
-        {pagePersonnel.map(person => <tr key={person.id} className="hover:bg-slate-50"><td className="px-4 py-3"><div className="font-semibold">{person.rank} {person.lastName}, {[person.firstName, person.middleName].filter(Boolean).join(' ')}</div><div className="text-[10px] font-medium text-slate-500">{person.rankFullName}</div></td><td className="px-4 py-3 font-mono text-slate-700">{person.badgeNo}</td><td className="px-4 py-3 font-mono text-[11px] font-extrabold text-sky-700">{person.plantilla}</td><td className="px-4 py-3 text-blue-700">{person.sub_unit || person.division || '—'}</td><td className="px-4 py-3 text-slate-600">{person.details || person.detail || '—'}</td><td className="px-4 py-3 text-slate-600">{person.station || '—'}</td><td className="px-4 py-3 font-medium text-slate-700">{person.designation}</td><td className="px-4 py-3 text-center"><Badge variant={person.status === 'Active' ? 'success' : 'warning'} size="sm">{person.status}</Badge></td><td className="px-4 py-3 text-right">{canManage ? <div className="flex items-center justify-end gap-2"><button onClick={() => openEdit(person)} aria-label={`Edit personnel record for ${person.fullName}`} title="Edit Personnel Record" className="rounded-lg p-1.5 text-blue-600 transition hover:bg-blue-50"><Edit className="h-4 w-4" /></button><button onClick={() => setDeleteTarget(person)} aria-label={`Delete personnel record for ${person.fullName}`} title="Delete Record" className="rounded-lg p-1.5 text-rose-600 transition hover:bg-rose-50"><Trash2 className="h-4 w-4" /></button></div> : <span className="text-[11px] italic text-slate-400">View Only</span>}</td></tr>)}
+        {pagePersonnel.map(person => <tr key={person.id} className="hover:bg-slate-50"><td className="px-4 py-3"><div className="font-semibold">{person.rank} {person.lastName}, {[person.firstName, person.middleName].filter(Boolean).join(' ')}</div><div className="text-[10px] font-medium text-slate-500">{person.rankFullName}</div></td><td className="px-4 py-3 font-mono text-slate-700">{person.badgeNo}</td><td className="px-4 py-3 font-mono text-[11px] font-extrabold text-sky-700">{person.plantilla}</td><td className="px-4 py-3 text-blue-700">{person.sub_unit || person.division || 'Needs assignment'}<div className="mt-1 text-[10px] text-slate-600">Count under: {resolveCountedOrganization(person).countedUnit}</div></td><td className="px-4 py-3 text-slate-600">{person.details || person.detail || '—'}{(person.dutyAssignments || []).map((duty, index) => <div key={index} className="mt-1 text-[10px]">{duty.kind}: {duty.unit}</div>)}</td><td className="px-4 py-3 text-slate-600">{person.station || '—'}</td><td className="px-4 py-3 font-medium text-slate-700">{getPersonnelDesignations(person)}</td><td className="px-4 py-3 text-center"><Badge variant={person.status === 'Active' ? 'success' : 'warning'} size="sm">{person.status}</Badge></td><td className="px-4 py-3 text-right">{canManage ? <div className="flex items-center justify-end gap-2"><button onClick={() => openEdit(person)} aria-label={`Edit personnel record for ${person.fullName}`} title="Edit Personnel Record" className="rounded-lg p-1.5 text-blue-600 transition hover:bg-blue-50"><Edit className="h-4 w-4" /></button><button onClick={() => setDeleteTarget(person)} aria-label={`Delete personnel record for ${person.fullName}`} title="Delete Record" className="rounded-lg p-1.5 text-rose-600 transition hover:bg-rose-50"><Trash2 className="h-4 w-4" /></button></div> : <span className="text-[11px] italic text-slate-400">View Only</span>}</td></tr>)}
       </tbody></table></div> :
         <EmptyState title="No personnel found" description={searchQuery ? 'Try another search or reset it to see all personnel.' : 'Personnel records will appear here once added.'} icon={Users} />}
       <div className="module-pagination">
@@ -322,7 +331,7 @@ export const ManagementPage: React.FC = () => {
         <div><button type="button" aria-label="Previous page" disabled={currentPage <= 1} onClick={() => setCurrentPage(page => page - 1)}><ChevronLeft aria-hidden="true" className="h-4 w-4" /></button><span>Page {currentPage} of {totalPages}</span><button type="button" aria-label="Next page" disabled={currentPage >= totalPages} onClick={() => setCurrentPage(page => page + 1)}><ChevronRight aria-hidden="true" className="h-4 w-4" /></button></div>
       </div>
     </section>
-    <Modal isOpen={editorMode !== null} onClose={() => !isSaving && setEditorMode(null)} title={editorMode === 'edit' ? 'Edit personnel information' : 'Add personnel record'} subtitle="Required fields are marked with an asterisk. Changes are saved directly to Supabase." maxWidth="4xl"><form onSubmit={savePersonnel} className="space-y-5">{notice?.type === 'error' && <p role="alert" className="rounded border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{notice.text}</p>}<PersonnelFormFields draft={draft} setDraft={setDraft} /><div className="sticky bottom-0 flex justify-end gap-2 border-t border-slate-200 bg-white pt-4"><button type="button" disabled={isSaving} onClick={() => setEditorMode(null)} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Cancel</button><button type="submit" disabled={isSaving || !backendConnected} className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-800 disabled:opacity-50">{isSaving && <LoaderCircle className="h-4 w-4 animate-spin" />}{editorMode === 'edit' ? 'Save changes' : 'Create personnel'}</button></div></form></Modal>
+    <Modal isOpen={editorMode !== null} onClose={() => !isSaving && setEditorMode(null)} title={editorMode === 'edit' ? 'Edit personnel information' : 'Add personnel record'} subtitle="Required fields are marked with an asterisk. Changes are saved directly to Supabase." maxWidth="4xl"><form onSubmit={savePersonnel} className="space-y-5">{notice?.type === 'error' && <p role="alert" className="rounded border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{notice.text}</p>}<PersonnelFormFields draft={draft} setDraft={setDraft} isNew={editorMode === 'create'} /><div className="sticky bottom-0 flex justify-end gap-2 border-t border-slate-200 bg-white pt-4"><button type="button" disabled={isSaving} onClick={() => setEditorMode(null)} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Cancel</button><button type="submit" disabled={isSaving || !backendConnected} className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-800 disabled:opacity-50">{isSaving && <LoaderCircle className="h-4 w-4 animate-spin" />}{editorMode === 'edit' ? 'Save changes' : 'Create personnel'}</button></div></form></Modal>
     <Modal isOpen={deleteTarget !== null} onClose={() => !isDeleting && setDeleteTarget(null)} title="Delete personnel record?" subtitle="This permanently removes the personnel record from Supabase." maxWidth="md"><div className="space-y-5"><div className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900"><p className="font-semibold">{deleteTarget?.rank} {deleteTarget?.firstName} {deleteTarget?.lastName}</p><p className="mt-1 text-xs text-rose-700">Badge no. {deleteTarget?.badgeNo || 'Not provided'}</p><p className="mt-3 text-xs text-rose-800">This action cannot be undone.</p></div><div className="flex justify-end gap-2"><button disabled={isDeleting} onClick={() => setDeleteTarget(null)} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Cancel</button><button disabled={isDeleting} onClick={confirmDelete} className="inline-flex items-center gap-2 rounded-lg bg-rose-600 px-4 py-2 text-xs font-semibold text-white hover:bg-rose-700 disabled:opacity-50">{isDeleting ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}Delete personnel</button></div></div></Modal>
   </div>;
 };

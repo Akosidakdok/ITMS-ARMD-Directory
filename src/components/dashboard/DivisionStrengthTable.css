@@ -1,0 +1,15 @@
+.record-table.division-strength-table,
+.module-page .record-table.division-strength-table {
+  width: 100%;
+  min-width: 560px;
+  table-layout: fixed;
+  font-variant-numeric: tabular-nums;
+}
+.division-strength-table :is(th, td) {
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.module-page .division-strength-table th:first-child { min-width: 0; }
+.division-strength-table :is(th, td):nth-child(n+2) { text-align: right; }
+.division-strength-table summary { border-radius: var(--radius-lg); }
+.division-strength-table summary:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }

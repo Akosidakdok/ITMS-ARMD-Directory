@@ -1,3 +1,5 @@
+import { getPersonnelDesignations } from '../utils/personnelStrength';
+import { PersonnelDutyFields } from '../components/personnel/PersonnelDutyFields';
 import React, { useState, useMemo, useEffect } from 'react';
 import { useAuthRole } from '../context/AuthRoleContext';
 import { Personnel, PersonnelAgencyType } from '../types/pais';
@@ -811,7 +813,7 @@ export const PersonnelPage: React.FC = () => {
         }
         if (sortField === 'status') return person.status || '';
         if (sortField === 'officeDivision') return person.officeDivision || person.sub_unit || person.division || person.unit || '';
-        if (sortField === 'designation') return person.designation || '';
+        if (sortField === 'designation') return getPersonnelDesignations(person);
         return datePartsSortKey(parseDateParts(person.desUp || person.dateOfEntry || person.dateEnteredService || ''));
       };
 
@@ -946,6 +948,9 @@ export const PersonnelPage: React.FC = () => {
       station: stationStr || undefined,
       division: subUnitStr || undefined,
       detail: detailsStr || undefined,
+      countedUnit: newPersonnelForm.countedUnit,
+      dutyAssignments: newPersonnelForm.dutyAssignments,
+      additionalDesignations: newPersonnelForm.additionalDesignations,
       designation: (newPersonnelForm.designation || '').trim(),
       address: (newPersonnelForm.address || '').trim() || undefined,
       gender: newPersonnelForm.gender || 'Male',
@@ -1359,7 +1364,7 @@ export const PersonnelPage: React.FC = () => {
                 <option value="Please select">All</option>
                 <option value="Active">ACTIVE</option>
                 <option value="On Leave">ON LEAVE</option>
-                <option value="Retired">RETIRED</option>
+                <option value="DUTY/DUE RET">DUTY/DUE RET</option><option value="Retired">RETIRED</option>
               </select>
             </div>
 
@@ -1621,8 +1626,8 @@ export const PersonnelPage: React.FC = () => {
                     {/* Designation */}
                     <td className="max-w-[170px]">
                       {person.designation?.trim() ? (
-                        <p className="truncate text-xs font-semibold text-slate-900" title={person.designation}>
-                          {person.designation}
+                        <p className="truncate text-xs font-semibold text-slate-900" title={getPersonnelDesignations(person)}>
+                          {getPersonnelDesignations(person)}
                         </p>
                       ) : (
                         <p className="text-slate-400 italic text-[10px]">Not assigned</p>
@@ -2443,7 +2448,7 @@ export const PersonnelPage: React.FC = () => {
                       <option value="Detailed Out">DETAILED OUT</option>
                       <option value="Non-Active">NON-ACTIVE</option>
                       <option value="Suspended">SUSPENDED</option>
-                      <option value="Retired">RETIRED</option>
+                      <option value="DUTY/DUE RET">DUTY/DUE RET</option><option value="Retired">RETIRED</option>
                     </select>
                   </div>
 
@@ -2488,6 +2493,7 @@ export const PersonnelPage: React.FC = () => {
                 </div>
               </div>
 
+              <PersonnelDutyFields person={newPersonnelForm} onChange={patch => setNewPersonnelForm(current => ({ ...current, ...patch }))} />
               {/* ── Section D: Organizational Assignment ── */}
               <div className="rounded-xl bg-slate-50 border border-slate-200 p-4 sm:p-5 space-y-3.5">
                 <div className="flex items-center justify-between border-b border-slate-200 pb-2.5">

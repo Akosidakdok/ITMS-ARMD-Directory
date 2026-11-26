@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Filter, RotateCcw, ChevronRight, MapPin } from 'lucide-react';
 import type { Personnel } from '../../types/pais';
 import { 
@@ -15,17 +15,25 @@ import {
   PersonnelFilterCriteria 
 } from '../../utils/personnelCounting';
 import { Badge } from '../common/Badge';
+import { DivisionStrengthTable } from './DivisionStrengthTable';
+import { personnelInScope, getPersonnelCountedUnit, type StrengthScope } from '../../utils/personnelStrength';
 import { EmptyState } from '../common/SystemUI';
 
 interface AutomatedPersonnelCounterProps {
   personnelList: Personnel[];
   onSelectPersonnel?: (id: string) => void;
+  scope?: StrengthScope;
+  onScopeChange?: (scope: StrengthScope) => void;
+  onFiltersChange?: (filters: PersonnelFilterCriteria) => void;
 }
 
 export const AutomatedPersonnelCounter: React.FC<AutomatedPersonnelCounterProps> = ({
   personnelList,
-  onSelectPersonnel
+  onSelectPersonnel, scope, onScopeChange, onFiltersChange
 }) => {
+  const [localScope, setLocalScope] = useState<StrengthScope>('current');
+  const strengthScope = scope ?? localScope;
+  const scopedPersonnel = useMemo(() => personnelInScope(personnelList, strengthScope), [personnelList, strengthScope]);
   // Filter state
   const [filters, setFilters] = useState<PersonnelFilterCriteria>({
     unitCategory: 'ALL',
@@ -38,13 +46,15 @@ export const AutomatedPersonnelCounter: React.FC<AutomatedPersonnelCounterProps>
     positionCategory: 'ALL'
   });
 
+  useEffect(() => { onFiltersChange?.(filters); }, [filters, onFiltersChange]);
+
   const [activeViewTab, setActiveViewTab] = useState<'summary' | 'unit_rank' | 'rank_gender' | 'subunit_station' | 'roster'>('summary');
 
   // Compute available options from live data
   const availableSubUnits = useMemo(() => {
     const set = new Set<string>();
     personnelList.forEach(p => {
-      const su = p.sub_unit || p.division;
+      const su = getPersonnelCountedUnit(p) || 'Needs assignment';
       if (su && su.trim()) set.add(su.trim());
     });
     return Array.from(set).sort();
@@ -60,13 +70,13 @@ export const AutomatedPersonnelCounter: React.FC<AutomatedPersonnelCounterProps>
 
   // Real-time strength summary matching active filters
   const strength = useMemo(() => {
-    return getPersonnelStrengthSummary(personnelList, filters);
-  }, [personnelList, filters]);
+    return getPersonnelStrengthSummary(scopedPersonnel, filters);
+  }, [scopedPersonnel, filters]);
 
   // Filtered roster matching criteria
   const filteredRecords = useMemo(() => {
-    return filterPersonnel(personnelList, filters);
-  }, [personnelList, filters]);
+    return filterPersonnel(scopedPersonnel, filters);
+  }, [scopedPersonnel, filters]);
 
   const activeFilterCount = Object.values(filters).filter(value => value && value !== 'ALL').length;
   const hasActiveFilters = activeFilterCount > 0;
@@ -118,9 +128,10 @@ export const AutomatedPersonnelCounter: React.FC<AutomatedPersonnelCounterProps>
         </div>
       </div>
 
+      <DivisionStrengthTable personnel={personnelList} scope={strengthScope} onScopeChange={onScopeChange || setLocalScope} criteria={filters} onSelectPersonnel={onSelectPersonnel} />
       {/* Quick Filter Presets (Directly matching PAIS 2.0 requirements examples) */}
       <div className="dashboard-quick-filters" aria-label="Quick personnel filters">
-        <button type="button" aria-pressed={!hasActiveFilters} onClick={resetAllFilters}>All personnel</button>
+        <button type="button" aria-pressed={!hasActiveFilters} onClick={resetAllFilters}>Reset filters</button>
         {([
           ['pco', 'PCO', filters.rankCategory === 'PCO'],
           ['pnco', 'PNCO', filters.rankCategory === 'PNCO'],
@@ -173,13 +184,13 @@ export const AutomatedPersonnelCounter: React.FC<AutomatedPersonnelCounterProps>
 
           {/* Sub-unit */}
           <div>
-            <label htmlFor="dashboard-filter-sub-unit" className="block text-2xs font-bold text-slate-600 dark:text-slate-300 mb-1">Sub-unit</label>
+            <label htmlFor="dashboard-filter-sub-unit" className="block text-2xs font-bold text-slate-600 dark:text-slate-300 mb-1">Counted unit</label>
             <select id="dashboard-filter-sub-unit"
               value={filters.sub_unit || 'ALL'}
               onChange={e => setFilters(prev => ({ ...prev, sub_unit: e.target.value }))}
               className="w-full p-2 border border-slate-300 dark:border-slate-700 rounded-lg font-bold bg-white dark:bg-[var(--input)] text-slate-800 dark:text-slate-100 focus:border-blue-500 dark:focus:border-blue-400"
             >
-              <option value="ALL">All Sub-units</option>
+              <option value="ALL">All counted units</option>
               {availableSubUnits.map(su => (
                 <option key={su} value={su}>{su}</option>
               ))}
@@ -463,7 +474,7 @@ export const AutomatedPersonnelCounter: React.FC<AutomatedPersonnelCounterProps>
         {activeViewTab === 'subunit_station' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="dashboard-breakdown space-y-3">
-              <h3 className="text-xs font-bold text-slate-900 dark:text-white">By sub-unit</h3>
+              <h3 className="text-xs font-bold text-slate-900 dark:text-white">By counted unit</h3>
               <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
                 {Object.entries(strength.bySubUnit)
                   .sort((a, b) => b[1] - a[1])
@@ -527,7 +538,7 @@ export const AutomatedPersonnelCounter: React.FC<AutomatedPersonnelCounterProps>
                       </Badge>
                     </td>
                     <td className="py-2.5 px-4 font-semibold text-slate-800 dark:text-slate-200">{p.unitCategory || 'ITMS HQ'}</td>
-                    <td className="py-2.5 px-4 text-blue-700 dark:text-blue-400 font-bold">{p.sub_unit || p.division || '—'}</td>
+                    <td className="py-2.5 px-4 text-blue-700 dark:text-blue-400 font-bold">{p.sub_unit || p.division || 'Needs assignment'}<span className="block text-[10px] font-normal">Count under: {p.countedUnit || p.sub_unit || p.division || 'Needs assignment'}</span></td>
                     <td className="py-2.5 px-4 text-slate-600 dark:text-slate-400">{p.station || '—'}</td>
                     <td className="py-2.5 px-4">{p.gender || 'Male'}</td>
                     {onSelectPersonnel && (
