@@ -1675,7 +1675,7 @@ export const PersonnelPage: React.FC = () => {
                               className="w-full px-3 py-1.5 text-2xs font-bold text-cyan-700 hover:bg-cyan-50 hover:text-cyan-700 flex items-center gap-2"
                             >
                               <Eye className="w-3.5 h-3.5 text-cyan-600" />
-                              <span>View 201 Profile</span>
+                              <span>View Profile</span>
                             </button>
                             {canManage && (
                               <>
